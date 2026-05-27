@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Validate
+        run: yarn ci
+
+      - name: Upload generated validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flap-vault-ui-template-dist
+          path: |
+            dist/*.zip
+            dist/vault-runtime/**
+          if-no-files-found: error
+          retention-days: 7

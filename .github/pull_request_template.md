@@ -1,0 +1,41 @@
+## Summary
+
+Describe the Vault UI, target project, and user workflow.
+
+## Binding Intent
+
+- match.bindings:
+- vaultAddresses (optional reference list; preview/runtime does not match on it):
+- tokenAddresses (optional per-binding reference list; preview/runtime does not enforce it):
+- enforced CA policy: configured in flap.sh registry rules, not in this UI manifest
+
+## Contracts and Actions
+
+- contracts:
+- read methods:
+- write methods:
+- approve spender:
+- native value:
+
+## Oracle / Endpoint Policy
+
+- default: avoid external endpoints/resources
+- endpoints:
+- external media/resources:
+- response schema:
+- signature / expiry:
+- failure behavior:
+- review note: declared endpoints/resources require Flap review and approval before publish; undeclared endpoints/resources are rejected
+
+## Validation
+
+- [ ] `yarn vault:check <folder-name>`
+- [ ] `yarn vault:package <folder-name>`
+- [ ] `yarn vault:verify-package dist/<folder-name>.zip`
+- [ ] `yarn ci` or equivalent full local validation
+- [ ] local preview checked
+- [ ] mobile preview checked
+
+## Notes
+
+Call out assumptions, missing inputs, and fallback behavior.

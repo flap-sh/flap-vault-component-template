@@ -1,0 +1,315 @@
+{
+  "nav": {
+    "create": "Create",
+    "connect": "Connect Wallet",
+    "home": "HOME",
+    "profile": "PROFILE",
+    "store": "STORE",
+    "aiOracle": "AI ORACLE",
+    "txInfo": "TX INFO",
+    "language": "LANGUAGE",
+    "search": "Search",
+    "searchToken": "Search token",
+    "createToken": "Create Token",
+    "createTaxToken": "Create Tax Token",
+    "prelaunch": "PRELAUNCH",
+    "wrongNetwork": "Wrong network",
+    "current": "Current",
+    "bnbChain": "BNB Chain",
+    "bnbTestnet": "BNB Testnet"
+  },
+  "home": {
+    "sop": {
+      "brand": "Flap Vault UI Template",
+      "kicker": "Vault UI Customization SOP",
+      "label": "SOP",
+      "title": "Start here: customize one Vault UI.",
+      "description": "Use this SOP to create, register, implement, preview, check, and package a controlled Vault UI without reading the whole repository first. Most implementation work happens in one Vault folder.",
+      "quickStart": {
+        "kicker": "AI Agent Quick Start",
+        "description": "Paste this prompt into your AI coding agent, replace the placeholders, and it can generate a controlled custom Vault UI from this repository.",
+        "promptLabel": "Prompt template",
+        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, factoryAddress is <0x...>, preview tokenAddress is <0x...>, token CA restriction is <none | only 0x..., 0x...>. If restricted, write those CAs to match.bindings[].tokenAddresses. Action availability is <internal-market | dex-listed | both | read-only>, and my minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
+      },
+      "developerEntry": {
+        "kicker": "Developer Entry",
+        "title": "Read the small entry set, then implement in one Vault folder.",
+        "description": "If you are a developer or AI Agent, start with the two real host-backed examples below, then use the neutral reference examples afterward. That path stays closer to how flap.sh runs in production.",
+        "realExamplesLabel": "Run real examples first",
+        "openCommunityBuybackExample": "Open community buyback example",
+        "openFlapixelExample": "Open FLAPixel NFT example",
+        "realExamplesDescription": "These two routes already carry real token, factory, vault, and full-host runtime defaults. Use them first when validating real local development behavior.",
+        "referenceExamplesLabel": "Then review neutral references",
+        "openPreview": "Open reward example",
+        "openDexListedPreview": "Open DEX-listed example",
+        "openActionGalleryPreview": "Open action gallery",
+        "referenceExamplesDescription": "These three remain as neutral fixtures for pattern reference and minimal self-test. They are no longer the primary acceptance entry points on the board.",
+        "cards": [
+          {
+            "title": "Read first",
+            "body": "This is the minimum entry set. Do not expand into other folders first.",
+            "items": [
+              "AGENTS.md",
+              "docs/ai-agent.md",
+              "agent-contract.json"
+            ]
+          },
+          {
+            "title": "Implement here",
+            "body": "Each Vault UI owns exactly four source files. Registration is handled by script.",
+            "items": [
+              "src/vaults/{folder-name}/Component.tsx",
+              "src/vaults/{folder-name}/manifest.json",
+              "src/vaults/{folder-name}/VaultABI.ts",
+              "src/vaults/{folder-name}/i18n.json"
+            ]
+          },
+          {
+            "title": "Run in order",
+            "body": "Check and package scripts tell you what to fix next.",
+            "items": [
+              "yarn vault:scaffold {folder-name} ...",
+              "yarn vault:register {folder-name} # if not scaffolded",
+              "yarn dev",
+              "yarn vault:check {folder-name}",
+              "yarn vault:package {folder-name}"
+            ]
+          }
+        ],
+        "doneTitle": "Done means",
+        "doneBody": "blocking is 0, registration exists, /{folder-name} previews, package succeeds, and the zip contains the script-generated flap-vault-package.json marker."
+      },
+      "scopeTitle": "Development Scope",
+      "scopeItems": [
+        "Build the Vault UI inside the component structure provided by this template.",
+        "Use the folder name only for the folder and preview route; vault:scaffold generates the manifest artifactId automatically.",
+        "Declare Vault UI binding targets in the manifest with chain and factory address. If a deployment needs a token CA reference list, declare it only as match.bindings[].tokenAddresses.",
+        "Avoid external endpoints and external resources; special cases must be declared and approved by Flap review before publish.",
+        "Keep the Vault package folder limited to Component.tsx, manifest.json, VaultABI.ts, and i18n.json.",
+        "Register local preview routing with vault:scaffold or vault:register; do not hand-edit registration unless the script cannot parse the index file.",
+        "Do not add helpers, nested components, local assets, docs, or any other files under the Vault package.",
+        "Local preview renders with safe default fixture addresses and accepts real runtime addresses through URL params.",
+        "Submission packages keep source files; production runtime JS is built by the Flap Artifact Workbench."
+      ],
+      "agentGuide": {
+        "title": "AI Agent / Skill Usage",
+        "description": "Agents should work only around the entry files, four Vault files, and check output. Do not let the Agent expand the folder structure.",
+        "skillTitle": "Required Skill",
+        "skillName": "flap-vault-ui-generator",
+        "skillPath": "skills/flap-vault-ui-generator/SKILL.md",
+        "docsTitle": "Primary Entry Files",
+        "docs": [
+          {
+            "path": "AGENTS.md",
+            "description": "Repository hard rules."
+          },
+          {
+            "path": "docs/ai-agent.md",
+            "description": "Developer and Agent execution flow."
+          },
+          {
+            "path": "agent-contract.json",
+            "description": "Machine-readable constraints and done criteria."
+          },
+          {
+            "path": "docs/manifest.md",
+            "description": "How to write manifest.json."
+          },
+          {
+            "path": "docs/sdk.md",
+            "description": "SDK capabilities available inside Component.tsx."
+          }
+        ],
+        "inputsTitle": "Inputs Needed Before Generation",
+        "inputs": [
+          "folder name, chain/factory binding targets, and optional vault address allowlists.",
+          "Optional per-binding token CA reference lists belong only in match.bindings[].tokenAddresses; this template validates the addresses but does not enforce them at preview/runtime.",
+          "Vault address only when it cannot be derived from factory + token, or when exact allowlist is required.",
+          "Vault ABI is required. Standard ERC20 ABI is already provided by @/src/sdk; custom Token ABI is needed only for special token mechanics.",
+          "Read/write methods, approve spender, UI workflow, real preview addresses, and i18n requirements; avoid oracle usage unless required, and let vault:check surface it for Flap review when unavoidable."
+        ],
+        "outputsTitle": "Only These Files May Be Generated or Edited",
+        "outputs": [
+          "src/vaults/{folder-name}/Component.tsx",
+          "src/vaults/{folder-name}/manifest.json",
+          "src/vaults/{folder-name}/VaultABI.ts",
+          "src/vaults/{folder-name}/i18n.json"
+        ],
+        "workflowTitle": "Agent Workflow",
+        "workflow": [
+          "Read the required docs and Skill first, then pick the closest pattern.",
+          "For a new Vault package, run yarn vault:scaffold {folder-name} with the required chain, factory, and locale inputs; it generates artifactId automatically.",
+          "Implement only inside the four core Vault files; do not add helpers, subcomponents, images, local docs, or sample data.",
+          "Run yarn vault:register {folder-name} when scaffold did not create the package, then preview /{folder-name}.",
+          "Use only @/src/sdk and @/src/ui for shared capabilities; the only local relative import allowed is ./VaultABI.",
+          "Use safe preview defaults for first render, then pass real runtime data through URL params such as chainId, tokenAddress, and vaultAddress.",
+          "Run yarn vault:check {folder-name} and follow agent.nextActions until blocking issues are zero, then run yarn vault:package {folder-name}."
+        ]
+      },
+      "steps": [
+        {
+          "title": "Install dependencies",
+          "body": "Use Yarn for all local commands.",
+          "code": "yarn",
+          "files": [],
+          "items": []
+        },
+        {
+          "title": "Create or edit the Vault folder",
+          "body": "community-buyback-example and flapixel-example are the preferred real host-backed references, covering a standard tax-token buyback path and an NFT Vault path. example, dex-listed-example, and action-gallery-example remain neutral fixtures for reward panels, phase gating, and action-pattern reference. For real work, create a lowercase kebab-case folder name, let scaffold generate the manifest artifactId, and edit only the four files under src/vaults/{folder-name}.",
+          "code": "yarn vault:scaffold my-vault --name \"My Vault UI\" --chain 56 --factory 0x1000000000000000000000000000000000000001",
+          "files": [
+            "src/vaults/{folder-name}/Component.tsx",
+            "src/vaults/{folder-name}/manifest.json",
+            "src/vaults/{folder-name}/VaultABI.ts",
+            "src/vaults/{folder-name}/i18n.json"
+          ],
+          "items": []
+        },
+        {
+          "title": "Register local preview route",
+          "body": "Before opening /{folder-name}, make sure the folder is registered in the local preview module map. Scaffold does this automatically; if the four files already exist, run the register command.",
+          "code": "yarn vault:register {folder-name}",
+          "files": [],
+          "items": [
+            "This is only local preview wiring, not a production publish step.",
+            "The registration file is not included in the Vault source package zip.",
+            "If /{folder-name} returns 404, run yarn vault:check {folder-name} and fix preview-registration/missing-vault-module."
+          ]
+        },
+        {
+          "title": "Implement the Vault UI",
+          "body": "Keep the component previewable, checkable, and packageable.",
+          "code": "",
+          "files": [],
+          "items": [
+            "Use @/src/sdk for chain, wallet, contract, oracle, i18n, notification, parsing, and transaction utilities.",
+            "Use @/src/ui for shared UI primitives.",
+            "Do not add extra files or subfolders under src/vaults/{folder-name}.",
+            "Routes render with safe preview defaults; pass real preview addresses through URL params such as chainId, tokenAddress, and vaultAddress when testing a specific Vault.",
+            "Use public aliases for shared capabilities. The only local relative import allowed is ./VaultABI; do not use ./helpers, ../VaultABI, nested component imports, local asset imports, or dynamic imports.",
+            "Reuse one UI across testnet, mainnet, or other factories when the logic is the same; the binding list only describes which deployments the shared UI is intended for.",
+            "Flap runtime injects the Vault address; declare vaultAddresses only when an exact allowlist is required.",
+            "Keep ABI fragments minimal.",
+            "Keep Vault component copy in src/vaults/{folder-name}/i18n.json.",
+            "Do not use direct wallet APIs, iframe, eval, script injection, remote runtime imports, or undeclared endpoints/external resources."
+          ]
+        },
+        {
+          "title": "Start local preview",
+          "body": "Run the dev server, then open the registered folder route.",
+          "code": "yarn dev\nhttp://localhost:3000/{folder-name}",
+          "files": [],
+          "items": []
+        },
+        {
+          "title": "Run preflight",
+          "body": "You must run check. It is the pre-package validation gate; if blocking is not 0, no deliverable zip should be produced.",
+          "code": "yarn vault:check {folder-name}",
+          "files": [],
+          "items": []
+        },
+        {
+          "title": "Package for Artifact Workbench",
+          "body": "You must use the package command to create the delivery zip. It runs check again and writes the flap-vault-package.json marker; manually assembled zips without this marker or with mismatched hashes are rejected by the Flap Artifact Workbench.",
+          "code": "yarn vault:package {folder-name}",
+          "files": [],
+          "items": []
+        }
+      ],
+      "rulesTitle": "Submission Requirements",
+      "rules": [
+        "Use a 3-64 character lowercase kebab-case folder name for folder and route.",
+        "Preview registration is local wiring only; use yarn vault:register {folder-name} when scaffold did not register the folder.",
+        "Keep the scaffold-generated artifactId in manifest.json unique and declare the required match details.",
+        "Do not submit private keys, API keys, or local environment files.",
+        "Do not bind Vault UI by type fields.",
+        "Avoid external endpoints or external resources.",
+        "Special non-oracle endpoints must be declared in the manifest and reviewed by Flap; declaration does not guarantee approval.",
+        "Undeclared endpoints or external resources are rejected.",
+        "All Vault CLI failures return JSON with code, fixHint, and agent.nextActions.",
+        "You must run yarn vault:check {folder-name} before packaging and follow agent.nextActions until blocking is zero.",
+        "You must use yarn vault:package {folder-name}; Workbench accepts only script-generated zips with flap-vault-package.json and matching hashes."
+      ],
+      "cta": "Open Reward Example",
+      "dexListedCta": "Open DEX-Listed Example",
+      "actionGalleryCta": "Open Action Gallery"
+    }
+  },
+  "preview": {
+    "tokens": "Tokens",
+    "vault": "Vault",
+    "vaultInformation": "Vault Information",
+    "bindingHint": "chain + factory",
+    "badge": "Preview",
+    "manifestPanelLabel": "Current manifest",
+    "phasePanelLabel": "Token phase self-test",
+    "phasePanelDescription": "Switch the template preview host context used by context.host.marketPhase.",
+    "phasePanelHint": "This only changes local preview context. Production uses the Flap host to inject equivalent token phase data.",
+    "phasePanelSourceRuntime": "Using the real host phase now. Use the buttons below to temporarily override the local preview phase.",
+    "phasePanelSourceOverride": "Using a manual phase override now. Click Real to restore the live host phase.",
+    "hostReadPanelLabel": "Host readout",
+    "hostReadPanelDescription": "Lists the preview host values that were actually read from chain or overridden locally.",
+    "hostReadPanelHint": "Use this block to verify whether the current preview is running in full-host, onchain fallback, or an unavailable state before validating a Vault flow.",
+    "hostRuntimeStatusFullHost": "Full host",
+    "hostRuntimeStatusOnchain": "Onchain",
+    "hostRuntimeStatusUnavailable": "Unavailable",
+    "hostRuntimePolicyPreferFullHost": "Prefer full host",
+    "hostRuntimePolicyRequireFullHost": "Require full host",
+    "hostReadSourceHostProxy": "Host proxy",
+    "hostReadSourceOnchain": "Onchain",
+    "hostReadSourceUnavailable": "Unavailable",
+    "hostReadFieldRuntimeStatus": "Runtime status",
+    "hostReadFieldRuntimePolicy": "Runtime policy",
+    "hostReadFieldOverrideActive": "Override active",
+    "hostReadFieldDegradeReason": "Degrade reason",
+    "hostReadFieldChain": "Chain",
+    "hostReadFieldToken": "Token",
+    "hostReadFieldTokenSymbol": "Token symbol",
+    "hostReadFieldTokenName": "Token name",
+    "hostReadFieldFactory": "Factory",
+    "hostReadFieldVault": "Runtime vault",
+    "hostReadFieldTokenMetadataSource": "Token metadata source",
+    "hostReadFieldTaxSource": "Tax source",
+    "hostReadFieldVaultSource": "Vault source",
+    "hostReadFieldPresentationSource": "Presentation source",
+    "hostReadFieldPhase": "Market phase",
+    "hostReadFieldListed": "Listed",
+    "hostReadFieldStatus": "Portal status",
+    "hostReadFieldTokenVersion": "Token version",
+    "hostReadFieldTaxToken": "Tax token",
+    "hostReadFieldQuoteToken": "Quote token",
+    "hostReadFieldPaymentToken": "Payment token",
+    "hostReadFieldSurface": "Host surface",
+    "hostReadFieldFeeMode": "Fee mode",
+    "hostReadFieldMarketBps": "Market BPS",
+    "hostReadFieldDividendBps": "Dividend BPS",
+    "hostReadFieldVaultFound": "VaultPortal found",
+    "hostReadFieldVaultPortalVault": "VaultPortal vault",
+    "hostReadFieldVaultPortalFactory": "VaultPortal factory",
+    "hostReadNative": "native",
+    "hostReadYes": "Yes",
+    "hostReadNo": "No",
+    "phaseInternalMarket": "Internal",
+    "phaseDexListed": "Listed",
+    "phaseUnknown": "Unknown",
+    "phaseRuntime": "Real",
+    "imagePanelLabel": "Token metadata self-test",
+    "imagePanelDescription": "Uses on-chain ERC20 symbol/name plus an optional host image override for preview context.",
+    "imagePanelLoad": "Reload metadata",
+    "imagePanelLoaded": "Loaded",
+    "imagePanelMissing": "Missing",
+    "imagePanelError": "No usable token image override was provided.",
+    "imagePanelHint": "Vault components should read context.tokenImageUrl when they need token media; do not fetch private token metadata APIs from Component.tsx.",
+    "sdk": "SDK",
+    "fallback": "Fallback",
+    "loading": "Loading preview...",
+    "unknownVault": "Unknown Vault folder",
+    "close": "Close",
+    "copyAddress": "Copy address",
+    "viewOnExplorer": "View on explorer",
+    "addressCopied": "Address copied",
+    "tokenUnavailableTitle": "Token unavailable",
+    "tokenUnavailableDescription": "This token cannot be loaded in the preview. Ask the developer to check the token CA, chain, and manifest binding configuration before using this Vault UI."
+  }
+}

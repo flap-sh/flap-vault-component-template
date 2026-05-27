@@ -1,0 +1,16 @@
+{
+  "artifactId": "vaultui_action-gallery-example_01KSANK854HMVEDTD8G9YWE383",
+  "name": "Action Gallery Example Vault UI",
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "factoryAddress": "0x4000000000000000000000000000000000000004"
+      }
+    ]
+  },
+  "i18n": [
+    "en",
+    "zh"
+  ]
+}

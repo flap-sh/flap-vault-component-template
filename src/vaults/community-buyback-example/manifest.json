@@ -1,0 +1,16 @@
+{
+  "artifactId": "vaultui_community-buyback-example_01KSDJFFVYW7P84Y3Q6G71ZNW5",
+  "name": "Community Buyback Example Vault UI",
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "factoryAddress": "0xC3e4EE8f3c616D16297fAfcB9daab122D31eFA9E"
+      }
+    ]
+  },
+  "i18n": [
+    "en",
+    "zh"
+  ]
+}

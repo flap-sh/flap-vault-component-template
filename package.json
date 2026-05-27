@@ -1,0 +1,60 @@
+{
+  "name": "flap-vault-ui-template",
+  "version": "0.1.1",
+  "private": true,
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "check": "yarn lint && yarn typecheck",
+    "ci": "yarn lint && yarn typecheck && yarn vault:check:selftest && yarn vault:check example && yarn vault:package example && yarn vault:verify-package dist/example.zip && yarn vault:check dex-listed-example && yarn vault:package dex-listed-example && yarn vault:verify-package dist/dex-listed-example.zip && yarn vault:check action-gallery-example && yarn vault:package action-gallery-example && yarn vault:verify-package dist/action-gallery-example.zip && yarn vault:check community-buyback-example && yarn vault:package community-buyback-example && yarn vault:verify-package dist/community-buyback-example.zip && yarn vault:check flapixel-example && yarn vault:package flapixel-example && yarn vault:verify-package dist/flapixel-example.zip && yarn build && yarn runtime:package && yarn runtime:verify-package && yarn preview:smoke && yarn preview:smoke:real",
+    "preview:smoke": "node scripts/preview-smoke.mjs",
+    "preview:smoke:real": "node scripts/preview-smoke-real.mjs",
+    "runtime:package": "node scripts/build-runtime-package.mjs",
+    "runtime:verify-package": "node scripts/verify-runtime-package.mjs",
+    "vault:scaffold": "node scripts/vault-scaffold.mjs",
+    "vault:register": "node scripts/vault-register.mjs",
+    "vault:check": "node scripts/vault-check.mjs",
+    "vault:check:selftest": "node scripts/vault-check-selftest.mjs",
+    "vault:package": "node scripts/vault-package.mjs",
+    "vault:verify-package": "node scripts/vault-verify-package.mjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.2.3",
+    "@rainbow-me/rainbowkit": "^2.1.7",
+    "@tanstack/react-query": "^5.37.1",
+    "archiver": "^7.0.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "decimal.js": "^10.4.3",
+    "lucide-react": "^0.546.0",
+    "next": "14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7",
+    "viem": "^2.39.3",
+    "wagmi": "^2.12.14"
+  },
+  "resolutions": {
+    "qr": "0.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.25",
+    "@types/react": "^18.3.27",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.4.22",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  }
+}

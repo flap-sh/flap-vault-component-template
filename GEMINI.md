@@ -1,0 +1,29 @@
+# Gemini CLI Entry Point
+
+This file is a compatibility entry point for Gemini CLI. It is not a separate contract.
+
+Before editing, read these files in order:
+
+1. `agent-contract.json`
+2. `AGENTS.md`
+3. `docs/ai-agent.md`
+4. `docs/ui-pattern-snippets.md`
+5. `skills/flap-vault-ui-generator/SKILL.md`
+
+Core operating rules:
+
+- Use `yarn`.
+- Edit one Vault UI package at a time.
+- Prefer `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...` for new packages. Repeat `--chain N --factory 0x...` for each deployment target (mainnet, testnet, etc.).
+- If the four Vault files already exist, run `yarn vault:register <folder-name>`.
+- Keep `src/vaults/{folder-name}` limited to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
+- Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.
+- Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for internal-market vs DEX-listed button gating. The template preview panel provides this phase API for local self-test.
+- Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media/header data. The template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only. Do not call private token metadata APIs from Vault source.
+- Treat every Vault CLI failure as JSON. Read `code`, `fixHint`, and `agent.nextActions`, fix those items, then rerun the command.
+- Run `yarn vault:check <folder-name>` before packaging and fix all blocking issues.
+- Run `yarn vault:package <folder-name>` only after checks pass.
+- Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging.
+- For code-base changes, run `yarn ci` when feasible.
+
+If this file conflicts with `agent-contract.json`, `AGENTS.md`, or `docs/ai-agent.md`, follow those source-of-truth files and update this compatibility entry point.

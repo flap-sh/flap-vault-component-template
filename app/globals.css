@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 100% / 0.04;
+  --card-foreground: 0 0% 98%;
+  --muted: 0 0% 100% / 0.06;
+  --muted-foreground: 240 5% 65%;
+  --border: 0 0% 100% / 0.1;
+  --input: 0 0% 100% / 0.12;
+  --ring: 263.4 70% 50.4%;
+  --primary: 212 100% 64%;
+  --primary-foreground: 210 20% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --nav: 4rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: black;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  overflow-x: hidden;
+  background: black;
+  color: hsl(var(--foreground));
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  color-scheme: dark;
+}
+
+input::selection,
+textarea::selection {
+  background: hsl(var(--primary) / 0.45);
+  color: white;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: white;
+  caret-color: white;
+  box-shadow: 0 0 0 1000px #0b0f17 inset;
+  transition: background-color 999999s ease-out;
+}

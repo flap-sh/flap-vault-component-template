@@ -1,0 +1,315 @@
+{
+  "nav": {
+    "create": "創建",
+    "connect": "連接",
+    "home": "主頁",
+    "profile": "個人資料",
+    "store": "税收模版商店",
+    "aiOracle": "AI 預言機",
+    "txInfo": "交易信息",
+    "language": "語言",
+    "search": "搜索",
+    "searchToken": "搜索代幣",
+    "createToken": "創建代幣",
+    "createTaxToken": "創建稅收代幣",
+    "prelaunch": "預發布",
+    "wrongNetwork": "網絡錯誤",
+    "current": "當前",
+    "bnbChain": "BNB Chain",
+    "bnbTestnet": "BNB Testnet"
+  },
+  "home": {
+    "sop": {
+      "brand": "Flap Vault UI Template",
+      "kicker": "Vault UI 定制 SOP",
+      "label": "SOP",
+      "title": "从这里开始：定制一个 Vault UI。",
+      "description": "按这个 SOP 完成创建、注册、实现、预览、检查和打包，不需要先读完整仓库。主要实现都发生在一个 Vault 目录里。",
+      "quickStart": {
+        "kicker": "AI Agent 快速开始",
+        "description": "把这段 prompt 贴进你的 AI coding Agent，替换占位符，它就可以按本仓库规则生成受控的自定义 Vault UI。",
+        "promptLabel": "Prompt 模板",
+        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，factoryAddress 是 <0x...>，用于预览的 tokenAddress 是 <0x...>，是否限制 Token CA 是 <不限制 | 只允许 0x..., 0x...>。如果限制，请把这些 CA 写入 match.bindings[].tokenAddresses。按钮可用阶段是 <internal-market | dex-listed | both | read-only>，最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
+      },
+      "developerEntry": {
+        "kicker": "开发者入口",
+        "title": "只看必要入口，然后在一个 Vault 目录内实现。",
+        "description": "如果你是开发者或 AI Agent，先跑下面两个真实宿主示例，再回看 neutral 参考示例。这样更接近 flap.sh 上线后的真实运行方式。",
+        "realExamplesLabel": "优先跑真实示例",
+        "openCommunityBuybackExample": "打开 Community Buyback 实例",
+        "openFlapixelExample": "打开 FLAPixel NFT 实例",
+        "realExamplesDescription": "这两个入口已经带上真实 token、factory、vault 和 full-host 读取链路，优先用它们验证本地开发是否接近线上。",
+        "referenceExamplesLabel": "再看中性参考示例",
+        "openPreview": "打开奖励示例",
+        "openDexListedPreview": "打开 DEX Listed 示例",
+        "openActionGalleryPreview": "打开操作按钮示范",
+        "referenceExamplesDescription": "这三条保留给模式参考和最小实现自测，不再是首页优先推荐的真实验收入口。",
+        "cards": [
+          {
+            "title": "先看这些",
+            "body": "这是最小阅读入口，先不要扩散到其他目录。",
+            "items": [
+              "AGENTS.md",
+              "docs/ai-agent.md",
+              "agent-contract.json"
+            ]
+          },
+          {
+            "title": "只在这里实现",
+            "body": "每个 Vault UI 只维护四个 source 文件。注册由脚本处理。",
+            "items": [
+              "src/vaults/{folder-name}/Component.tsx",
+              "src/vaults/{folder-name}/manifest.json",
+              "src/vaults/{folder-name}/VaultABI.ts",
+              "src/vaults/{folder-name}/i18n.json"
+            ]
+          },
+          {
+            "title": "按顺序执行",
+            "body": "检查和打包脚本会告诉你下一步怎么修。",
+            "items": [
+              "yarn vault:scaffold {folder-name} ...",
+              "yarn vault:register {folder-name} # 如果不是 scaffold 创建",
+              "yarn dev",
+              "yarn vault:check {folder-name}",
+              "yarn vault:package {folder-name}"
+            ]
+          }
+        ],
+        "doneTitle": "完成标准",
+        "doneBody": "blocking 为 0、注册存在、/{folder-name} 能预览、package 成功，并且 zip 内包含脚本生成的 flap-vault-package.json 标识。"
+      },
+      "scopeTitle": "开发范围",
+      "scopeItems": [
+        "请在模板提供的组件结构内完成 Vault UI 定制。",
+        "目录名只作为目录和预览路由；manifest 里的 artifactId 默认由 vault:scaffold 自动生成。",
+        "Vault UI 绑定目标需要在 manifest 中声明 chain 和 factory 地址；如果某个部署需要 Token CA 参考列表，只能写在 match.bindings[].tokenAddresses 里。",
+        "尽量避免外部 endpoint 和外部资源；特殊情况必须声明并通过 Flap 审查后才能发布。",
+        "Vault 包目录只保留 Component.tsx、manifest.json、VaultABI.ts、i18n.json。",
+        "本地预览路由由 vault:scaffold 或 vault:register 注册；除非脚本无法解析 index 文件，否则不要手写注册。",
+        "不要在 Vault 包内新增 helpers、子组件、图片、本地文档或任何其他文件。",
+        "本地预览默认使用安全的 fixture 地址渲染，也可以通过 URL 参数传入真实 runtime 地址。",
+        "提交包保留源码，线上 runtime JS 由 Flap Artifact Workbench 构建生成。"
+      ],
+      "agentGuide": {
+        "title": "AI Agent / Skill 使用说明",
+        "description": "Agent 只需要围绕入口文件、四个 Vault 文件和检查结果工作。不要让 Agent 自己扩展目录结构。",
+        "skillTitle": "必须使用的 Skill",
+        "skillName": "flap-vault-ui-generator",
+        "skillPath": "skills/flap-vault-ui-generator/SKILL.md",
+        "docsTitle": "主要入口文件",
+        "docs": [
+          {
+            "path": "AGENTS.md",
+            "description": "仓库级硬规则。"
+          },
+          {
+            "path": "docs/ai-agent.md",
+            "description": "开发者和 Agent 的执行流程。"
+          },
+          {
+            "path": "agent-contract.json",
+            "description": "机器可读约束和完成标准。"
+          },
+          {
+            "path": "docs/manifest.md",
+            "description": "manifest 应该怎么写。"
+          },
+          {
+            "path": "docs/sdk.md",
+            "description": "组件里可以调用哪些 SDK 能力。"
+          }
+        ],
+        "inputsTitle": "生成前需要提供的信息",
+        "inputs": [
+          "目录名、chain/factory 绑定目标，以及可选的 Vault 地址 allowlist。",
+          "可选的 Token CA 参考列表只能写在 match.bindings[].tokenAddresses；模板只校验地址格式，不会在预览/runtime 里强制执行。",
+          "Vault 地址只有不能由 factory + token 推导，或需要精确 allowlist 时才提供。",
+          "Vault ABI 必须提供；标准 ERC20 ABI 已在 @/src/sdk 提供，只有特殊 Token 机制才需要自定义 Token ABI。",
+          "read/write 方法、approve spender、UI 工作流、真实预览地址和 i18n 要求；尽量避免 oracle 使用，确实需要时由 vault:check 提示给 Flap 审查。"
+        ],
+        "outputsTitle": "只允许生成或修改这些文件",
+        "outputs": [
+          "src/vaults/{folder-name}/Component.tsx",
+          "src/vaults/{folder-name}/manifest.json",
+          "src/vaults/{folder-name}/VaultABI.ts",
+          "src/vaults/{folder-name}/i18n.json"
+        ],
+        "workflowTitle": "Agent 执行顺序",
+        "workflow": [
+          "先读取必须文档和 Skill，再选最接近的 patterns。",
+          "如果是新 Vault 包，先用 yarn vault:scaffold {folder-name} 传入 chain、factory 和 locales；它会自动生成 artifactId。",
+          "只在四个 Vault 核心文件内实现；不要新增 helpers、子组件、图片、本地文档或样例数据。",
+          "如果不是 scaffold 创建的包，运行 yarn vault:register {folder-name}，然后预览 /{folder-name}。",
+          "共享能力只用 @/src/sdk 和 @/src/ui；本地相对导入只允许 ./VaultABI。",
+          "首次预览使用安全默认地址；测试具体 Vault 时，通过 URL 参数传入 chainId、tokenAddress、vaultAddress 等真实 runtime 地址。",
+          "运行 yarn vault:check {folder-name} 后按 agent.nextActions 修到 blocking 为 0，再运行 yarn vault:package {folder-name}。"
+        ]
+      },
+      "steps": [
+        {
+          "title": "安装依赖",
+          "body": "本仓库统一使用 Yarn。",
+          "code": "yarn",
+          "files": [],
+          "items": []
+        },
+        {
+          "title": "创建或修改 Vault 目录",
+          "body": "community-buyback-example 和 flapixel-example 是优先参考的真实宿主示例，分别覆盖标准税币 buyback 路径和 NFT Vault 路径；example、dex-listed-example、action-gallery-example 继续保留为 neutral fixture，用来参考奖励面板、阶段门控和按钮模式。真正实施时新建全小写中划线目录名，让 scaffold 自动生成 manifest 里的 artifactId，只改 src/vaults/{folder-name} 下的四个文件。",
+          "code": "yarn vault:scaffold my-vault --name \"My Vault UI\" --chain 56 --factory 0x1000000000000000000000000000000000000001",
+          "files": [
+            "src/vaults/{folder-name}/Component.tsx",
+            "src/vaults/{folder-name}/manifest.json",
+            "src/vaults/{folder-name}/VaultABI.ts",
+            "src/vaults/{folder-name}/i18n.json"
+          ],
+          "items": []
+        },
+        {
+          "title": "注册本地预览路由",
+          "body": "打开 /{folder-name} 前，先确认这个目录已经写入本地 preview module map。scaffold 会自动注册；如果四个文件已经存在，就单独运行 register 命令。",
+          "code": "yarn vault:register {folder-name}",
+          "files": [],
+          "items": [
+            "这只是本地预览 wiring，不是生产发布步骤。",
+            "注册文件不会进入 Vault source package zip。",
+            "如果 /{folder-name} 返回 404，运行 yarn vault:check {folder-name} 并修复 preview-registration/missing-vault-module。"
+          ]
+        },
+        {
+          "title": "实现 Vault UI",
+          "body": "保持组件可预览、可检查、可打包。",
+          "code": "",
+          "files": [],
+          "items": [
+            "使用 @/src/sdk 处理链状态、钱包、合约、oracle、i18n、通知、解析和交易。",
+            "使用 @/src/ui 里的共享 UI primitives。",
+            "不要在 src/vaults/{folder-name} 下新增其他文件或子目录。",
+            "路由默认使用安全预览地址渲染；测试具体 Vault 时，通过 URL 参数传入真实 chainId、tokenAddress、vaultAddress 等地址。",
+            "共享能力使用公共 alias；本地相对导入只允许 ./VaultABI，不能使用 ./helpers、../VaultABI、子组件导入、本地资源导入或动态导入。",
+            "同一套 UI 可以复用到测试网、主网或其他 factory；binding 列表只描述这套共享 UI 计划绑定到哪些部署目标。",
+            "Vault 地址由 Flap runtime 注入；只有需要精确限制时才在 manifest 中声明 vaultAddresses。",
+            "ABI fragment 保持最小。",
+            "Vault 组件文案放在 src/vaults/{folder-name}/i18n.json。",
+            "不要使用 direct wallet API、iframe、eval、script injection、runtime remote import 或未声明 endpoint/外部资源。"
+          ]
+        },
+        {
+          "title": "启动本地预览",
+          "body": "启动 dev server 后打开已注册的目录路由。",
+          "code": "yarn dev\nhttp://localhost:3000/{folder-name}",
+          "files": [],
+          "items": []
+        },
+        {
+          "title": "运行预检查",
+          "body": "必须运行 check。它是打包前置校验，blocking 不为 0 时不会生成可交付 zip。",
+          "code": "yarn vault:check {folder-name}",
+          "files": [],
+          "items": []
+        },
+        {
+          "title": "打包给 Artifact Workbench",
+          "body": "必须使用 package 命令生成交付 zip。脚本会再次执行 check，并写入 flap-vault-package.json 标识；没有这个标识或哈希不匹配的手动 zip 会被 Flap Artifact Workbench 拒绝。",
+          "code": "yarn vault:package {folder-name}",
+          "files": [],
+          "items": []
+        }
+      ],
+      "rulesTitle": "提交要求",
+      "rules": [
+        "目录名和路由必须是 3-64 个字符的全小写中划线格式。",
+        "预览注册只是本地 wiring；如果 scaffold 没有注册目录，用 yarn vault:register {folder-name}。",
+        "保持 manifest.json 里的 artifactId 唯一，并声明必填匹配信息。",
+        "不要提交私钥、API Key 或本地环境文件。",
+        "不要按 type 字段绑定 Vault UI。",
+        "尽量避免外部 endpoint 或外部资源。",
+        "特殊非 oracle endpoint 必须在 manifest 中声明并进入 Flap 审查；声明不代表一定通过。",
+        "未在 manifest 中声明的 endpoint 或外部资源一律拒绝。",
+        "所有 Vault CLI 失败都会返回 JSON，包含 code、fixHint 和 agent.nextActions。",
+        "打包前必须运行 yarn vault:check {folder-name}，并按 agent.nextActions 修到 blocking 为 0。",
+        "必须使用 yarn vault:package {folder-name} 生成提交包；Workbench 只接收带 flap-vault-package.json 标识且哈希匹配的脚本产物。"
+      ],
+      "cta": "打开奖励示例",
+      "dexListedCta": "打开 DEX Listed 示例",
+      "actionGalleryCta": "打开操作按钮示范"
+    }
+  },
+  "preview": {
+    "tokens": "Tokens",
+    "vault": "Vault",
+    "vaultInformation": "Vault Information",
+    "bindingHint": "chain + factory",
+    "badge": "預覽",
+    "manifestPanelLabel": "当前 manifest",
+    "phasePanelLabel": "Token 阶段自测",
+    "phasePanelDescription": "切换当前模板 preview host 注入给 context.host.marketPhase 的阶段上下文。",
+    "phasePanelHint": "这里只影响本地预览上下文；生产环境由 Flap host 注入等价的 Token 阶段数据。",
+    "phasePanelSourceRuntime": "当前使用真实宿主阶段；点击下面的按钮可以临时覆盖本地预览相位。",
+    "phasePanelSourceOverride": "当前使用手动覆盖阶段；点击“真实”可以恢复宿主返回的 live 相位。",
+    "hostReadPanelLabel": "Host 读取结果",
+    "hostReadPanelDescription": "列出当前 preview host 实际从链上读到或被本地覆盖的值。",
+    "hostReadPanelHint": "验收 Vault 流程前，先看这里确认当前预览到底是在跑 full-host、onchain 回退，还是已经不可用。",
+    "hostRuntimeStatusFullHost": "完整宿主",
+    "hostRuntimeStatusOnchain": "链上回退",
+    "hostRuntimeStatusUnavailable": "不可用",
+    "hostRuntimePolicyPreferFullHost": "优先完整宿主",
+    "hostRuntimePolicyRequireFullHost": "必须完整宿主",
+    "hostReadSourceHostProxy": "宿主代理",
+    "hostReadSourceOnchain": "链上",
+    "hostReadSourceUnavailable": "不可用",
+    "hostReadFieldRuntimeStatus": "运行状态",
+    "hostReadFieldRuntimePolicy": "运行策略",
+    "hostReadFieldOverrideActive": "是否有覆盖",
+    "hostReadFieldDegradeReason": "降级原因",
+    "hostReadFieldChain": "链",
+    "hostReadFieldToken": "Token",
+    "hostReadFieldTokenSymbol": "Token Symbol",
+    "hostReadFieldTokenName": "Token 名称",
+    "hostReadFieldFactory": "Factory",
+    "hostReadFieldVault": "运行时 Vault",
+    "hostReadFieldTokenMetadataSource": "Token 元信息来源",
+    "hostReadFieldTaxSource": "Tax 数据来源",
+    "hostReadFieldVaultSource": "Vault 数据来源",
+    "hostReadFieldPresentationSource": "展示数据来源",
+    "hostReadFieldPhase": "市场阶段",
+    "hostReadFieldListed": "是否 Listing",
+    "hostReadFieldStatus": "Portal 状态",
+    "hostReadFieldTokenVersion": "Token 版本",
+    "hostReadFieldTaxToken": "是否税 Token",
+    "hostReadFieldQuoteToken": "Quote Token",
+    "hostReadFieldPaymentToken": "Payment Token",
+    "hostReadFieldSurface": "Host 页面",
+    "hostReadFieldFeeMode": "Fee 模式",
+    "hostReadFieldMarketBps": "Market BPS",
+    "hostReadFieldDividendBps": "Dividend BPS",
+    "hostReadFieldVaultFound": "VaultPortal 是否命中",
+    "hostReadFieldVaultPortalVault": "VaultPortal Vault",
+    "hostReadFieldVaultPortalFactory": "VaultPortal Factory",
+    "hostReadNative": "原生币",
+    "hostReadYes": "是",
+    "hostReadNo": "否",
+    "phaseInternalMarket": "内盘",
+    "phaseDexListed": "Listing",
+    "phaseUnknown": "未知",
+    "phaseRuntime": "真实",
+    "imagePanelLabel": "Token 元信息自测",
+    "imagePanelDescription": "预览上下文使用链上 ERC20 的 symbol/name，并可选覆盖宿主图片地址。",
+    "imagePanelLoad": "重新读取元信息",
+    "imagePanelLoaded": "已读取",
+    "imagePanelMissing": "未读取",
+    "imagePanelError": "没有提供可用的 Token 图片覆盖值。",
+    "imagePanelHint": "Vault 组件需要 Token 图片时读取 context.tokenImageUrl；不要在 Component.tsx 里调用私有 Token 元信息 API。",
+    "sdk": "SDK",
+    "fallback": "Fallback",
+    "loading": "正在載入預覽...",
+    "unknownVault": "未知 Vault 目录",
+    "close": "關閉",
+    "copyAddress": "複製地址",
+    "viewOnExplorer": "在瀏覽器查看",
+    "addressCopied": "地址已複製",
+    "tokenUnavailableTitle": "Token 不可用",
+    "tokenUnavailableDescription": "当前 Token 无法在预览环境加载。请让开发者检查 Token CA、链和 manifest 绑定配置，确认后再使用这个 Vault UI。"
+  }
+}

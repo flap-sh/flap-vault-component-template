@@ -1,0 +1,395 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { runVaultCheck } from "./vault-check.mjs";
+
+const ROOT = process.cwd();
+const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
+const FACTORY = "0x1000000000000000000000000000000000000001";
+const TOKEN = "0x2000000000000000000000000000000000000002";
+const FIXTURE_ULID = "01K9V9Z0P0AAAAAAAAAAAAAAAA";
+const INDEX_PATH = path.join(ROOT, "src", "vaults", "index.ts");
+const originalIndex = fs.readFileSync(INDEX_PATH, "utf8");
+
+const createdFolderNames = [];
+const createdPackagePaths = [];
+const passed = [];
+
+function baseManifest(overrides = {}) {
+  return {
+    name: "Selftest Vault UI",
+    match: {
+      bindings: [{ chainId: 56, factoryAddress: FACTORY }],
+    },
+    i18n: ["en"],
+    ...overrides,
+  };
+}
+
+function artifactIdForFolderName(folderName) {
+  return `vaultui_${folderName}_${FIXTURE_ULID}`;
+}
+
+function writeVault(folderName, { manifest = baseManifest(), component, abi = "export const vaultAbi = [] as const;\n", i18n } = {}) {
+  const vaultDir = path.join(ROOT, "src", "vaults", folderName);
+  fs.mkdirSync(vaultDir, { recursive: true });
+  createdFolderNames.push(folderName);
+  const nextManifest = {
+    artifactId: artifactIdForFolderName(folderName),
+    ...manifest,
+  };
+  fs.writeFileSync(
+    path.join(vaultDir, "Component.tsx"),
+    component ||
+      `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  );
+  fs.writeFileSync(path.join(vaultDir, "manifest.json"), `${JSON.stringify(nextManifest, null, 2)}\n`);
+  fs.writeFileSync(path.join(vaultDir, "VaultABI.ts"), abi);
+  fs.writeFileSync(path.join(vaultDir, "i18n.json"), `${JSON.stringify(i18n || { en: { title: "Selftest" } }, null, 2)}\n`);
+}
+
+function assertRule(label, result, ruleId, severity) {
+  const found = result.issues.find((item) => item.ruleId === ruleId && (!severity || item.severity === severity));
+  assert.ok(found, `${label}: expected ${severity || "any"} ${ruleId}`);
+  passed.push(label);
+}
+
+try {
+  const invalidFolderResult = runVaultCheck("../bad", { silent: true });
+  assertRule("invalid folder name is reported as JSON-compatible result", invalidFolderResult, "cli/invalid-folder-name", "blocking");
+  assert.equal(invalidFolderResult.ok, false);
+  assert.equal(invalidFolderResult.code, "cli/invalid-folder-name");
+  assert.equal(invalidFolderResult.error, invalidFolderResult.issues[0].message);
+  assert.equal(invalidFolderResult.fixHint, invalidFolderResult.issues[0].fixHint);
+  assert.ok(invalidFolderResult.agent.nextActions[0].fixHint);
+  passed.push("blocking check output exposes code, error, fixHint, and agent.nextActions");
+
+  const artifactIdSlug = `${FIXTURE_PREFIX}-artifact-id`;
+  writeVault(artifactIdSlug, {
+    manifest: baseManifest({ artifactId: "vaultui_other-slug_01K9V9Z0P0BBBBBBBBBBBBBBBB" }),
+  });
+  assertRule("artifactId folder-name segment must match package folder", runVaultCheck(artifactIdSlug, { silent: true }), "manifest-schema/artifact-id-folder-name-mismatch", "blocking");
+
+  const duplicateOneSlug = `${FIXTURE_PREFIX}-dup-one`;
+  const duplicateTwoSlug = `${FIXTURE_PREFIX}-dup-two`;
+  const duplicateArtifactId = `vaultui_${duplicateTwoSlug}_${FIXTURE_ULID}`;
+  writeVault(duplicateOneSlug, {
+    manifest: baseManifest({ artifactId: duplicateArtifactId }),
+  });
+  writeVault(duplicateTwoSlug, {
+    manifest: baseManifest({ artifactId: duplicateArtifactId }),
+  });
+  assertRule("artifactId must be unique across Vault packages", runVaultCheck(duplicateTwoSlug, { silent: true }), "manifest-schema/duplicate-artifact-id", "blocking");
+
+  const tokenPolicySlug = `${FIXTURE_PREFIX}-token-policy`;
+  writeVault(tokenPolicySlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [TOKEN] }],
+      },
+    }),
+  });
+  const tokenPolicyCheck = runVaultCheck(tokenPolicySlug, { silent: true });
+  assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/ca-policy-not-in-manifest"), false);
+  assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-token-address-list"), false);
+  passed.push("binding-level tokenAddresses reference lists are allowed");
+
+  const duplicateBindingSlug = `${FIXTURE_PREFIX}-duplicate-binding`;
+  writeVault(duplicateBindingSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [
+          { chainId: 56, factoryAddress: FACTORY },
+          { chainId: 56, factoryAddress: FACTORY.toLowerCase() },
+        ],
+      },
+    }),
+  });
+  assertRule("duplicate chain and factory bindings are blocked", runVaultCheck(duplicateBindingSlug, { silent: true }), "manifest-binding/duplicate-binding", "blocking");
+
+  const globalTokenPolicySlug = `${FIXTURE_PREFIX}-global-token-policy`;
+  writeVault(globalTokenPolicySlug, {
+    manifest: baseManifest({
+      tokenAddresses: [TOKEN],
+    }),
+  });
+  assertRule(
+    "global tokenAddresses remain blocked",
+    runVaultCheck(globalTokenPolicySlug, { silent: true }),
+    "manifest-binding/ca-policy-not-in-manifest",
+    "blocking",
+  );
+
+  const endpointSlug = `${FIXTURE_PREFIX}-endpoint`;
+  writeVault(endpointSlug, {
+    manifest: baseManifest({
+      endpoints: { endpoint: "https://api.example.com/proof" },
+    }),
+  });
+  assertRule("endpoint declarations must be string or string[]", runVaultCheck(endpointSlug, { silent: true }), "endpoint-policy/invalid-endpoints", "blocking");
+
+  const endpointHttpsSlug = `${FIXTURE_PREFIX}-endpoint-http`;
+  writeVault(endpointHttpsSlug, {
+    manifest: baseManifest({
+      endpoints: "http://api.example.com/proof",
+    }),
+  });
+  assertRule("endpoint declarations must still be https", runVaultCheck(endpointHttpsSlug, { silent: true }), "endpoint-policy/https-required", "blocking");
+
+  const endpointPrefixSlug = `${FIXTURE_PREFIX}-endpoint-prefix`;
+  writeVault(endpointPrefixSlug, {
+    manifest: baseManifest({
+      endpoints: "https://api.example.com/proof",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const endpoint = "https://api.example.com/proofish";
+  void endpoint;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("endpoint declaration does not allow unsafe prefix matches", runVaultCheck(endpointPrefixSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+
+  const externalResourceSlug = `${FIXTURE_PREFIX}-external`;
+  writeVault(externalResourceSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const hiddenResource = "ipfs://bafybeigdyrzt/example.json";
+  void hiddenResource;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("ipfs resources are not allowed to bypass endpoint checks", runVaultCheck(externalResourceSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+
+  const relativeFetchSlug = `${FIXTURE_PREFIX}-relative`;
+  writeVault(relativeFetchSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void fetch("/api/private");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("host-relative fetch is blocked", runVaultCheck(relativeFetchSlug, { silent: true }), "endpoint-policy/relative-endpoint", "blocking");
+
+  const sdkImportSlug = `${FIXTURE_PREFIX}-sdk-import`;
+  writeVault(sdkImportSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { createSdk } from "@partner/runtime-sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void createSdk;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("external sdk packages are blocked", runVaultCheck(sdkImportSlug, { silent: true }), "imports-and-dependencies/external-sdk-package", "blocking");
+
+  const dynamicImportSlug = `${FIXTURE_PREFIX}-dynamic-import`;
+  writeVault(dynamicImportSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const moduleName = "./VaultABI";
+  void import(moduleName);
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("dynamic imports with expression specifiers are blocked", runVaultCheck(dynamicImportSlug, { silent: true }), "imports-and-dependencies/dynamic-import", "blocking");
+
+  const navigationSlug = `${FIXTURE_PREFIX}-navigation`;
+  writeVault(navigationSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <a href="https://evil.example.com/claim">{i18n.t("title")}</a>;
+}
+`,
+  });
+  assertRule("arbitrary external navigation is blocked", runVaultCheck(navigationSlug, { silent: true }), "navigation-policy/unapproved-external-navigation", "blocking");
+
+  const explorerNavigationSlug = `${FIXTURE_PREFIX}-explorer-navigation`;
+  writeVault(explorerNavigationSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <a href="https://bscscan.com/address/0x2000000000000000000000000000000000000002">{i18n.t("title")}</a>;
+}
+`,
+  });
+  const explorerNavigationCheck = runVaultCheck(explorerNavigationSlug, { silent: true });
+  assert.equal(explorerNavigationCheck.issues.some((item) => item.ruleId === "navigation-policy/unapproved-external-navigation"), false);
+  assert.equal(explorerNavigationCheck.issues.some((item) => item.ruleId === "endpoint-policy/undeclared-url"), false);
+  passed.push("chain explorer navigation is not treated as phishing");
+
+  const contractBoundarySlug = `${FIXTURE_PREFIX}-contract-boundary`;
+  writeVault(contractBoundarySlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  const routerAddress = sdk.context.factoryAddress;
+  void sdk.readContract({
+    contract: "router",
+    address: routerAddress,
+    abi: [],
+    functionName: "swapExactTokensForTokens",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const contractBoundaryCheck = runVaultCheck(contractBoundarySlug, { silent: true });
+  assertRule("non-vault token nft contract labels are blocked", contractBoundaryCheck, "contract-boundary/disallowed-contract-label", "blocking");
+  assertRule("router-like address sources are blocked", contractBoundaryCheck, "contract-boundary/disallowed-contract-address-source", "blocking");
+
+  const abiSlug = `${FIXTURE_PREFIX}-abi`;
+  writeVault(abiSlug, {
+    abi: `export const vaultAbi = [
+  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [], outputs: [] },
+] as const;
+`,
+  });
+  assertRule("standard ERC20 ABI names are flagged in VaultABI.ts", runVaultCheck(abiSlug, { silent: true }), "contract-abi/standard-erc20-in-vault-abi", "warning");
+
+  const stageGatingSlug = `${FIXTURE_PREFIX}-stage-gating`;
+  writeVault(stageGatingSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  const { i18n } = sdk;
+  async function submit() {
+    await sdk.writeContract({
+      contract: "vault",
+      address: sdk.context.vaultAddress,
+      abi: [],
+      functionName: "submit",
+    });
+  }
+  void submit;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("write paths warn when market phase gating is missing", runVaultCheck(stageGatingSlug, { silent: true }), "manual-review/action-stage-gating", "warning");
+
+  const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
+  createdFolderNames.push(scaffoldFlowSlug);
+  createdPackagePaths.push(path.join(ROOT, "dist", `${scaffoldFlowSlug}.zip`));
+  execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", scaffoldFlowSlug, "--chain", "56", "--factory", FACTORY, "--locales", "en,zh"], {
+    cwd: ROOT,
+    stdio: "pipe",
+  });
+  assert.ok(fs.readFileSync(INDEX_PATH, "utf8").includes(`\n  "${scaffoldFlowSlug}": {`));
+  passed.push("scaffold registration keeps each module entry on its own line");
+
+  const scaffoldCheck = runVaultCheck(scaffoldFlowSlug, { silent: true });
+  assert.equal(scaffoldCheck.summary.blocking, 0);
+  passed.push("scaffolded package passes vault:check");
+
+  const packageOutput = execFileSync(process.execPath, ["scripts/vault-package.mjs", scaffoldFlowSlug], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  const packageReport = JSON.parse(packageOutput);
+  assert.equal(packageReport.ok, true);
+  assert.equal(packageReport.folderName, scaffoldFlowSlug);
+  passed.push("scaffolded package can be packaged");
+
+  const verifyOutput = execFileSync(process.execPath, ["scripts/vault-verify-package.mjs", packageReport.sourcePackagePath], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  const verifyReport = JSON.parse(verifyOutput);
+  assert.equal(verifyReport.ok, true);
+  assert.equal(verifyReport.folderName, scaffoldFlowSlug);
+  passed.push("scaffolded package verifies marker, file list, metadata, and hashes");
+
+  const unregisterOutput = execFileSync(process.execPath, ["scripts/vault-register.mjs", scaffoldFlowSlug, "--remove"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  const unregisterReport = JSON.parse(unregisterOutput);
+  assert.equal(unregisterReport.ok, true);
+  assert.equal(unregisterReport.removed, true);
+  assert.equal(fs.readFileSync(INDEX_PATH, "utf8").includes(`./${scaffoldFlowSlug}/Component`), false);
+  passed.push("vault:register --remove deregisters local preview wiring");
+
+  console.log(JSON.stringify({ ok: true, tests: passed }, null, 2));
+} finally {
+  try {
+    fs.writeFileSync(INDEX_PATH, originalIndex);
+  } catch {
+    // Ignore cleanup errors in restricted environments.
+  }
+  for (const folderName of createdFolderNames) {
+    try {
+      fs.rmSync(path.join(ROOT, "src", "vaults", folderName), { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors in restricted environments.
+    }
+  }
+  for (const packagePath of createdPackagePaths) {
+    try {
+      fs.rmSync(packagePath, { force: true });
+    } catch {
+      // Ignore cleanup errors in restricted environments.
+    }
+  }
+}

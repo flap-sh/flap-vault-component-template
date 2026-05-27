@@ -1,0 +1,16 @@
+{
+  "artifactId": "vaultui_flapixel-example_01KSDJFGGQVCMR4QKR1MDF42X5",
+  "name": "FLAPixel Example Vault UI",
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "factoryAddress": "0x88a33780e1b3150Af85fBef52f344A43EBeC5A51"
+      }
+    ]
+  },
+  "i18n": [
+    "en",
+    "zh"
+  ]
+}

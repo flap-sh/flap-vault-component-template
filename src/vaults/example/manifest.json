@@ -1,0 +1,11 @@
+{
+  "artifactId": "vaultui_example_01KS8CE549XPP94SAV6JXXNEHN",
+  "name": "Example Reward Vault UI",
+  "match": {
+    "bindings": [
+      { "chainId": 56, "factoryAddress": "0x1000000000000000000000000000000000000001" },
+      { "chainId": 97, "factoryAddress": "0x1000000000000000000000000000000000000001" }
+    ]
+  },
+  "i18n": ["en", "zh"]
+}

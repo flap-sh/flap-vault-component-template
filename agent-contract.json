@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "flap-vault-ui-template-agent-contract",
+  "version": 1,
+  "entrypoint": "docs/ai-agent.md",
+  "entrypoints": {
+    "canonical": [
+      "agent-contract.json",
+      "AGENTS.md",
+      "docs/ai-agent.md",
+      "docs/agent-entrypoints.md",
+      "docs/ui-pattern-snippets.md",
+      "skills/flap-vault-ui-generator/SKILL.md"
+    ],
+    "codex": "AGENTS.md",
+    "claudeCode": "CLAUDE.md",
+    "cursor": ".cursor/rules/flap-vault-ui.mdc",
+    "legacyCursor": ".cursorrules",
+    "windsurf": ".windsurfrules",
+    "copilot": ".github/copilot-instructions.md",
+    "gemini": "GEMINI.md",
+    "generic": ["README.md", "docs/ai-agent.md", "docs/agent-entrypoints.md", "docs/ui-pattern-snippets.md"],
+    "index": "docs/agent-entrypoints.md"
+  },
+  "packageManager": "yarn",
+  "uiPatternReference": {
+    "path": "docs/ui-pattern-snippets.md",
+    "rule": "Read before implementing Component.tsx. Use snippets as sanitized layout and state-flow references only; do not copy private Flap source code, private names, addresses, endpoints, or constants."
+  },
+  "uiImplementationChecklist": {
+    "selectedPatternRequired": true,
+    "actionAvailabilityStages": ["internal-market", "dex-listed", "both", "read-only"],
+    "requiredDecisions": [
+      "selectedPattern",
+      "shellBoundary",
+      "actionAvailabilityStage",
+      "marketPhaseHandling",
+      "primaryReads",
+      "primaryWrites",
+      "approvalSpender",
+      "refetchPoints",
+      "emptyStates",
+      "riskPosture"
+    ],
+    "actionVisibilityRule": "Do not silently hide supported actions. If an action is stage-gated or unavailable, render the section with a clear disabled/unavailable state."
+  },
+  "hostRuntime": {
+    "tokenMetadataSource": ["context.tokenImageUrl", "context.tokenName", "context.tokenSymbol"],
+    "tokenMetadataPreviewCapability": "The template preview shell first asks the same-origin host proxy for token presentation data, then falls back to public SDK ERC20 symbol() and name() reads from the preview tokenAddress. The mocked /logo.png image is reserved for the neutral preview fixture unless tokenImageUrl is explicitly overridden.",
+    "shellOwnedUi": [
+      "Flap header and wallet connect",
+      "token breadcrumb, image, symbol/name, CA, copy, explorer link",
+      "close control",
+      "Vault Information heading/frame",
+      "page width and invalid-token fallback",
+      "shared host summary/header block when the host surface already renders one"
+    ],
+    "shellBoundaryRule": "Implement only the Vault-specific business UI below the host shell/frame. Do not rebuild token header, breadcrumb, close control, or duplicate a host-provided top summary/hero block inside Component.tsx.",
+    "vaultBannerRule": "Do not default to VaultBanner. Use a component-owned summary/banner only when the target host surface truly lacks a standard shared summary block.",
+    "marketPhaseSource": "context.host.marketPhase",
+    "marketPhaseValues": ["unknown", "internal-market", "dex-listed"],
+    "templatePreviewCapability": "The right-side preview panel in this template provides a token phase self-test API that can override the local preview host context used by context.host.marketPhase. The panel exposes Real to restore the live host phase and internal-market / dex-listed as explicit local overrides; unknown remains a runtime value rather than a primary tab. On supported preview chains, chainId + tokenAddress is the default source of truth: the preview host uses the public SDK chain-read path to read Portal token state and, when available, matching helper/VaultPortal data. Use marketPhase, isListed, status, or tokenStatusCode only when lifecycle override is intentional.",
+    "marketPhaseRule": "The template preview host and production Flap host derive marketPhase from Portal token state: existing tokens with tokenInfo.status < 2 are internal-market; existing tokens with tokenInfo.status >= 2 are dex-listed; missing token info is unknown. In preview, taxInfo=1 is only a fixture seed when no real chain host data is available or when an explicit override is desired.",
+    "actionAvailabilityHelper": "isActionAvailableForPhase(stage, context.host?.marketPhase ?? \"unknown\")",
+    "backwardsCompatibleListedFlag": "context.host.isListed",
+    "wrongNetworkCapability": "sdk.wallet exposes isWrongNetwork, requiredChainId, requiredChainLabel, canSwitchChain, isSwitchingChain, and switchChain() so write-capable Vault UIs can render a switch-network state before attempting writes."
+  },
+  "vaultPackage": {
+    "rootPattern": "src/vaults/{folder-name}",
+    "folderNameRule": "The Vault folder name is the source folder and preview route. User-facing docs and outputs should call it folder name. Use 3-64 characters of lowercase kebab-case: /^[a-z0-9]+(-[a-z0-9]+)*$/.",
+    "previewRegistrationRule": "Local preview uses src/vaults/index.ts as a static module map. vault:scaffold registers the folder automatically. If the four files already exist, run yarn vault:register {folder-name}; do not hand-edit registration unless the script cannot parse the index file.",
+    "requiredFiles": ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"],
+    "allowedFiles": ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"],
+    "registrationFile": "src/vaults/index.ts"
+  },
+  "allowedImports": {
+    "localRelative": ["./VaultABI"],
+    "packagePrefixes": ["react", "viem", "decimal.js", "lucide-react", "@/src/sdk", "@/src/ui"],
+    "sharedRuntimeOnlyRule": "Do not introduce any additional SDK package or SDK-like runtime wrapper. Vault source may use only the shared @/src/sdk and @/src/ui surfaces plus the explicit default allowlist.",
+    "standardAbiExports": {
+      "@/src/sdk": ["erc20Abi", "standardErc20Abi"]
+    }
+  },
+  "forbiddenImports": [
+    "wagmi",
+    "@wagmi/core",
+    "@rainbow-me/rainbowkit",
+    "ethers",
+    "axios",
+    "next/image",
+    "next/script",
+    "framer-motion",
+    "recharts"
+  ],
+  "manifest": {
+    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "endpoints"],
+    "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
+    "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
+    "allowedMatchFields": ["bindings"],
+    "bindingsRule": "match.bindings is a non-empty array of unique {chainId, factoryAddress} pairs — one entry per deployment target. Each binding may also declare optional vaultAddresses and optional tokenAddresses reference lists. Preview/runtime should prefer an exact chainId + factoryAddress match, treat partial hints as valid only when they are unambiguous, and use the first binding as a preview default only when the route provides no runtime hints. vaultAddresses does not participate in preview/runtime matching.",
+    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. If a reference token CA list is needed, declare it only as match.bindings[].tokenAddresses.",
+    "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry only when a deployment wants to record binding-scoped Vault references. Omit it when not needed. Preview/runtime validates the addresses but does not match on them.",
+    "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
+    "localeRule": "Only locales declared by manifest.i18n are required and compared.",
+    "oracleRule": "Do not declare oracle config in manifest.json. sdk.readOracle usage is reported by vault:check for Flap review.",
+    "endpointRule": "Avoid endpoints. Non-oracle endpoints must use https and be declared in manifest.endpoints as a single URL string or an array of URL strings for review.",
+    "navigationRule": "Component-owned navigation should stay on the active chain explorer only. Do not send users to arbitrary websites from a Vault package.",
+    "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
+  },
+  "securityBoundaries": {
+    "contractInteractionRule": "Reads and writes must stay on context.vaultAddress, context.tokenAddress, runtime payment/quote/dividend tokens, or token/NFT addresses derived from Vault reads. Do not interact with routers, bridges, aggregators, factories, or unrelated app contracts from a Vault package.",
+    "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation."
+  },
+  "commands": {
+    "install": "yarn",
+    "scaffold": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh",
+    "register": "yarn vault:register {folder-name}",
+    "unregister": "yarn vault:register {folder-name} --remove",
+    "preview": "yarn dev",
+    "check": "yarn vault:check {folder-name}",
+    "checkSelftest": "yarn vault:check:selftest",
+    "package": "yarn vault:package {folder-name}",
+    "verifyPackage": "yarn vault:verify-package dist/{folder-name}.zip",
+    "runtimePackage": "yarn runtime:package",
+    "runtimeVerifyPackage": "yarn runtime:verify-package",
+    "previewSmoke": "yarn preview:smoke",
+    "previewSmokeReal": "yarn preview:smoke:real",
+    "ci": "yarn ci",
+    "lint": "yarn lint",
+    "typecheck": "yarn typecheck",
+    "build": "yarn build"
+  },
+  "errorOutput": {
+    "format": "json",
+    "requiredFields": ["ok", "code", "error", "fixHint", "agent"],
+    "agentFields": ["verdict", "nextActions"],
+    "rule": "Agents must parse command failures, fix agent.nextActions, and avoid retrying the same command without changes."
+  },
+  "checkerWarnings": {
+    "manual-review/action-stage-gating": "Component has a write path but no marketPhase or isActionAvailableForPhase usage. Add explicit internal-market / DEX-listed button gating and visible unavailable-state copy."
+  },
+  "errorCodes": {
+    "preview-registration/missing-vault-module": {
+      "severity": "blocking",
+      "fixAction": "Run yarn vault:register {folder-name} to add the local preview mapping to src/vaults/index.ts."
+    },
+    "manifest/missing-artifact-id": {
+      "severity": "blocking",
+      "fixAction": "Add artifactId to manifest.json. Format: vaultui_<folder-name>_<26-char ULID>. Use vault:scaffold to generate it automatically."
+    },
+    "manifest/invalid-artifact-id": {
+      "severity": "blocking",
+      "fixAction": "artifactId must match vaultui_<folder-name>_<ULID> and the embedded folder-name segment must equal the Vault folder name. Regenerate with vault:scaffold or correct manually."
+    },
+    "manifest/duplicate-artifact-id": {
+      "severity": "blocking",
+      "fixAction": "artifactId is already used by another vault in src/vaults/*/manifest.json. Generate a new ULID segment to make it unique."
+    },
+    "manifest-binding/duplicate-binding": {
+      "severity": "blocking",
+      "fixAction": "Remove duplicate match.bindings entries with the same chainId + factoryAddress pair. Merge any reference tokenAddresses or vaultAddresses into one binding entry."
+    },
+    "manifest/ca-policy-not-in-manifest": {
+      "severity": "blocking",
+      "fixAction": "Remove global tokenAddresses, restrictTokenAddresses, and caPolicy fields. If a reference token CA list is needed, declare it only as match.bindings[].tokenAddresses."
+    },
+    "manifest/type-field-binding": {
+      "severity": "blocking",
+      "fixAction": "Remove vaultType or vaultTypes from the manifest match block. Registry binding intent must use match.bindings chainId + factoryAddress targets only."
+    },
+    "manifest/invalid-folder-name": {
+      "severity": "blocking",
+      "fixAction": "Rename the Vault folder to 3-64 characters of lowercase kebab-case matching /^[a-z0-9]+(-[a-z0-9]+)*$/. No spaces, underscores, uppercase, leading/trailing hyphens, or nested folders."
+    },
+    "manifest/endpoint-missing-required-field": {
+      "severity": "blocking",
+      "fixAction": "manifest.endpoints must be either one HTTPS URL string or a non-empty array of HTTPS URL strings. Fix or remove the invalid endpoint declaration."
+    },
+    "package/extra-files": {
+      "severity": "blocking",
+      "fixAction": "Remove all files and folders from src/vaults/{folder-name} that are not Component.tsx, manifest.json, VaultABI.ts, or i18n.json."
+    },
+    "package/missing-files": {
+      "severity": "blocking",
+      "fixAction": "Add the missing required files. All four are required: Component.tsx, manifest.json, VaultABI.ts, and i18n.json."
+    },
+    "import/forbidden-relative": {
+      "severity": "blocking",
+      "fixAction": "Remove the local relative import. Only ./VaultABI is allowed. Replace with @/src/sdk or @/src/ui for shared surfaces."
+    },
+    "import/dynamic-import": {
+      "severity": "blocking",
+      "fixAction": "Remove dynamic import(). Only static imports are allowed inside Vault source."
+    },
+    "import/forbidden-package": {
+      "severity": "blocking",
+      "fixAction": "Remove the forbidden dependency. Allowed packages: react, viem, decimal.js, lucide-react, @/src/sdk, @/src/ui, ./VaultABI."
+    },
+    "import/external-sdk-package": {
+      "severity": "blocking",
+      "fixAction": "Remove the extra SDK package. Vault source may use only the shared @/src/sdk and @/src/ui runtime surfaces."
+    },
+    "security/direct-wallet-access": {
+      "severity": "blocking",
+      "fixAction": "Remove window.ethereum, window.solana, or other direct wallet API usage. Use sdk.writeContract and sdk.simulateContract from @/src/sdk."
+    },
+    "security/eval": {
+      "severity": "blocking",
+      "fixAction": "Remove eval() or new Function(). Runtime code execution is not allowed inside Vault source."
+    },
+    "security/iframe-or-script-injection": {
+      "severity": "blocking",
+      "fixAction": "Remove iframe elements and script injection. Use Flap SDK methods for all data and transaction flows."
+    },
+    "security/undeclared-url": {
+      "severity": "blocking",
+      "fixAction": "Declare the endpoint in manifest.endpoints as one HTTPS URL string or an array of HTTPS URL strings. Or remove the URL and use sdk.readContract or sdk.readOracle instead."
+    },
+    "security/host-relative-fetch": {
+      "severity": "blocking",
+      "fixAction": "Remove fetch('/api/...') and all host-relative calls. They can accidentally target private Flap app routes. Use sdk.readOracle for oracle data or declare a full HTTPS endpoint in manifest.endpoints."
+    },
+    "security/non-https-resource": {
+      "severity": "blocking",
+      "fixAction": "Remove non-HTTPS, IPFS, Arweave, WebSocket, or embedded data URL resources. Only declared HTTPS endpoints are allowed."
+    },
+    "security/hardcoded-address": {
+      "severity": "blocking",
+      "fixAction": "Replace hardcoded EVM addresses with runtime context values: context.vaultAddress, context.tokenAddress, context.factoryAddress, or other context fields."
+    },
+    "security/remote-media": {
+      "severity": "blocking",
+      "fixAction": "Remove remote image URLs from Vault source. Token media must come from context.tokenImageUrl, which the host/preview shell loads from Flap-controlled metadata."
+    },
+    "security/unapproved-navigation": {
+      "severity": "blocking",
+      "fixAction": "Remove the off-site navigation. Only current-chain explorer links are allowed directly from component source; reviewed metadata/oracle exceptions must be allowlisted outside the public package."
+    },
+    "contract/missing-label": {
+      "severity": "blocking",
+      "fixAction": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the target."
+    },
+    "contract/disallowed-label": {
+      "severity": "blocking",
+      "fixAction": "Limit contract labels to vault/token/nft-related targets. Do not call routers, bridges, aggregators, or unrelated app contracts from a Vault package."
+    },
+    "contract/disallowed-address-source": {
+      "severity": "blocking",
+      "fixAction": "Keep contract targets on context.vaultAddress and token/NFT-related runtime addresses only."
+    },
+    "i18n/missing-locale": {
+      "severity": "blocking",
+      "fixAction": "Add the missing locale to i18n.json. All locales declared in manifest.i18n must have a corresponding object in i18n.json."
+    },
+    "i18n/missing-key": {
+      "severity": "blocking",
+      "fixAction": "Add the missing i18n key to the locale in i18n.json. All keys must be present in every locale declared by manifest.i18n."
+    },
+    "abi/erc20-in-vault-abi": {
+      "severity": "warning",
+      "fixAction": "Remove standard ERC20 ABI fragments from VaultABI.ts and replace with erc20Abi or standardErc20Abi imported from @/src/sdk."
+    },
+    "manual-review/action-stage-gating": {
+      "severity": "warning",
+      "fixAction": "Add explicit marketPhase and isActionAvailableForPhase usage. Gate write actions by internal-market or dex-listed stage. Show unavailable buttons with clear copy instead of hiding them."
+    },
+    "manual-review/declared-endpoint": {
+      "severity": "warning",
+      "fixAction": "The declared endpoint requires Flap review before production publish. Ensure the endpoint is truly necessary. Declaration does not guarantee approval."
+    },
+    "manual-review/oracle-usage": {
+      "severity": "info",
+      "fixAction": "sdk.readOracle usage detected. The oracle id will be submitted to Flap Artifact Workbench for review and provisioning. No change to manifest.json is needed."
+    }
+  },
+  "requiredInputs": {
+    "description": "All inputs an agent must collect before generating a new Vault UI. See docs/agent-intake-template.md for the structured Q&A conversation guide.",
+    "fields": {
+      "folderName": {
+        "type": "string",
+        "required": true,
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "minLength": 3,
+        "maxLength": 64,
+        "description": "Vault source folder and local preview route. Lowercase kebab-case only. Example: my-vault."
+      },
+      "name": {
+        "type": "string",
+        "required": true,
+        "description": "Human-readable UI name shown in the Flap Artifact Workbench. Example: My Vault UI."
+      },
+      "bindings": {
+        "type": "array",
+        "required": true,
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "required": ["chainId", "factoryAddress"],
+          "properties": {
+            "chainId": { "type": "integer", "description": "EVM chain ID. Example: 56 for BNB Chain mainnet, 97 for testnet." },
+            "factoryAddress": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$", "description": "Factory contract address on this chain." },
+            "vaultAddresses": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }, "description": "Reference Vault address list for this binding. The template validates the addresses but preview/runtime does not match on them." },
+            "tokenAddresses": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }, "description": "Optional reference token CA allowlist for this binding. This template validates the format only and does not enforce it at preview/runtime." }
+          }
+        },
+        "description": "Explicit (chainId, factoryAddress) pairs — one entry per deployment target. Same UI logic, different factory addresses per chain. Optional vaultAddresses and tokenAddresses may be added per binding as reference lists."
+      },
+      "vaultAddresses": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "required": false,
+        "description": "Reference Vault address list. In manifest.json, vaultAddresses is nested inside each match.bindings entry when needed. Preview/runtime does not match on it."
+      },
+      "locales": {
+        "type": "array",
+        "items": { "type": "string", "enum": ["en", "zh"] },
+        "required": true,
+        "minItems": 1,
+        "description": "Supported locale list. vault:check validates exactly these locales. Example: [en, zh] or [zh]."
+      },
+      "vaultAbi": {
+        "type": "array",
+        "required": true,
+        "description": "Minimal Vault ABI fragments for the component. Exclude standard ERC20; use erc20Abi from @/src/sdk for balanceOf, allowance, approve, decimals, symbol, transfer, transferFrom."
+      },
+      "actionAvailabilityStage": {
+        "type": "string",
+        "required": true,
+        "enum": ["internal-market", "dex-listed", "both", "read-only"],
+        "description": "When component write actions are available relative to the token's market phase. Must be decided before implementing Component.tsx."
+      },
+      "uiWorkflow": {
+        "type": "object",
+        "required": true,
+        "properties": {
+          "primaryReads": { "type": "array", "items": { "type": "string" }, "description": "Vault and token reads the UI displays." },
+          "primaryWrites": { "type": "array", "items": { "type": "string" }, "description": "Write methods the user can invoke." },
+          "approvalSpender": { "type": "string", "description": "Spender address for ERC20 approve. Usually context.vaultAddress." },
+          "nativeValue": { "type": "string", "description": "Which write sends native token and how the amount is computed. Omit if none." },
+          "refetchPoints": { "type": "array", "items": { "type": "string" }, "description": "Events after which data should reload. Example: after approve, after deposit." },
+          "emptyStates": { "type": "array", "items": { "type": "string" }, "description": "States the UI must handle explicitly. Example: no wallet, no position, paused." },
+          "riskPosture": { "type": "string", "enum": ["verified", "review-required", "unverified", "high-risk"], "description": "How this Vault should be presented to users." }
+        },
+        "description": "Full workflow decisions. All sub-fields must be answered before implementation begins."
+      },
+      "previewAddresses": {
+        "type": "object",
+        "required": false,
+        "properties": {
+          "chainId": { "type": "integer" },
+          "tokenAddress": { "type": "string" },
+          "vaultAddress": { "type": "string" },
+          "factoryAddress": { "type": "string" }
+        },
+        "description": "Real addresses for local preview. Recommended. Not packaged into the source zip."
+      }
+    }
+  },
+  "doneReport": {
+    "description": "Structured handoff summary agents must produce after vault:verify-package succeeds. Present to the user before closing the task.",
+    "format": "structured-summary",
+    "formatDefinition": "Markdown with stable top-level labels in this order: Summary, Package, Validation, Preview, Open Items. Use short key: value lines under each label. Do not emit raw JSON unless the user asks for machine-only output.",
+    "fields": [
+      { "name": "folderName", "description": "Vault folder name used as source directory and preview route." },
+      { "name": "artifactId", "description": "Full artifactId from manifest.json." },
+      { "name": "sourcePackagePath", "description": "Relative path to the generated zip, from vault:package output sourcePackagePath field." },
+      { "name": "sha256", "description": "SHA-256 of the generated zip, from vault:package output." },
+      { "name": "checkSummary", "description": "blocking and warning counts from the final vault:check run." },
+      { "name": "previewUrl", "description": "Local preview URL: http://localhost:3000/{folder-name}." },
+      { "name": "actionAvailabilityStage", "description": "Stage decision made for this Vault: internal-market, dex-listed, both, or read-only." },
+      { "name": "selectedPatterns", "description": "One or more pattern names from docs/ui-pattern-snippets.md coverage matrix." },
+      { "name": "locales", "description": "Locales declared in manifest.i18n and validated by vault:check." },
+      { "name": "openItems", "description": "Unresolved assumptions, missing contract inputs, oracle IDs pending Flap provisioning, or endpoint declarations pending Flap review." }
+    ],
+    "openItemsSources": [
+      "Any vault:check issue with ruleId manual-review/oracle-usage; include the oracle id and expected response assumption.",
+      "Any vault:check warning with ruleId manual-review/external-endpoint; include each endpoint URL, purpose, and why SDK/on-chain reads are insufficient.",
+      "Any skipped preview requirement, especially marketPhase=internal-market, marketPhase=dex-listed, or wrong-network state for write-capable flows.",
+      "Any missing contract input, unresolved ABI assumption, missing preview address, or user-confirmation dependency.",
+      "Any Workbench review dependency outside this template, including endpoint approval, oracle provisioning, registry binding, or runtime publish approval."
+    ],
+    "rule": "Agents must produce this report after vault:verify-package succeeds. If openItems is non-empty, list each item explicitly so the user knows what still requires Flap review or manual input. If openItems is empty, state openItems: none."
+  },
+  "workflow": [
+    {
+      "step": "read-entry-docs",
+      "description": "Read agent-contract.json, the tool-specific entry point, docs/ai-agent.md, docs/agent-entrypoints.md, docs/ui-pattern-snippets.md, and the generator skill before editing."
+    },
+    {
+      "step": "create-source-package",
+      "description": "Use scaffold-first or manifest-first. Scaffold-first runs yarn vault:scaffold {folder-name} ...; manifest-first writes the four Vault files, then runs yarn vault:register {folder-name}."
+    },
+    {
+      "step": "implement-vault-ui",
+      "description": "Select a pattern from docs/ui-pattern-snippets.md, then edit only Component.tsx, manifest.json, VaultABI.ts, and i18n.json inside src/vaults/{folder-name}."
+    },
+    {
+      "step": "preview-local-route",
+      "description": "Run yarn dev and open /{folder-name}. If it 404s, run yarn vault:check {folder-name} and fix preview-registration/missing-vault-module."
+    },
+    {
+      "step": "validate-and-package",
+      "description": "Run yarn vault:check {folder-name}; fix all blocking issues; then run yarn vault:package {folder-name} and yarn vault:verify-package dist/{folder-name}.zip."
+    }
+  ],
+  "sourcePackage": {
+    "requiredMarkerFile": "flap-vault-package.json",
+    "packageKind": "flap-vault-ui-source-package",
+    "formatVersion": 1,
+    "generatedBy": "yarn vault:package",
+    "verifyCommand": "yarn vault:verify-package dist/{folder-name}.zip",
+    "acceptanceRule": "Flap Artifact Workbench should reject manually assembled zips, zips missing the marker, zips with duplicate entries, zips with mismatched hashes, unexpected entries, and zips with an unsupported package kind or format version.",
+    "markerSchema": {
+      "kind": "flap-vault-ui-source-package",
+      "formatVersion": 1,
+      "generatedBy": "yarn vault:package",
+      "generator": "flap-vault-ui-template",
+      "artifactId": "vaultui_<folder-name>_<26-char ULID>",
+      "folderName": "<folder-name>",
+      "sourcePackage": "src/vaults/<folder-name>",
+      "packagedAt": "ISO-8601 timestamp",
+      "check": {
+        "passed": true,
+        "summary": { "blocking": 0, "warning": 0, "info": 0 }
+      },
+      "requiredSourceFiles": [
+        "src/vaults/<folder-name>/Component.tsx",
+        "src/vaults/<folder-name>/manifest.json",
+        "src/vaults/<folder-name>/VaultABI.ts",
+        "src/vaults/<folder-name>/i18n.json"
+      ],
+      "fileSha256": {
+        "src/vaults/<folder-name>/Component.tsx": "<sha256>",
+        "src/vaults/<folder-name>/manifest.json": "<sha256>",
+        "src/vaults/<folder-name>/VaultABI.ts": "<sha256>",
+        "src/vaults/<folder-name>/i18n.json": "<sha256>",
+        "schemas/manifest.schema.json": "<sha256>"
+      }
+    }
+  },
+  "preview": {
+    "routePattern": "http://localhost:3000/{folder-name}",
+    "exampleRoute": "http://localhost:3000/example",
+    "runtimeParams": ["chainId", "factoryAddress", "tokenAddress", "vaultAddress", "taxInfo", "marketBps", "feeMode", "vaultType", "renderSurface", "marketPhase", "isListed", "status", "tokenStatusCode", "tokenImageUrl"]
+  },
+  "doneCriteria": [
+    "folder name is registered in src/vaults/index.ts",
+    "manifest.artifactId exists, matches vaultui_<folder-name>_<ULID>, and is unique",
+    "yarn vault:check {folder-name} reports zero blocking issues",
+    "yarn vault:package {folder-name} succeeds",
+    "yarn vault:verify-package dist/{folder-name}.zip succeeds",
+    "zip contains flap-vault-package.json generated by yarn vault:package",
+    "preview route /{folder-name} resolves",
+    "stage-gated actions are previewed with marketPhase=internal-market and marketPhase=dex-listed",
+    "write-capable flows preview a wrong-network state and render a switch-network path instead of sending writes on the wrong chain",
+    "Vault folder contains only the four allowed files",
+    "Component.tsx follows a public-safe pattern from docs/ui-pattern-snippets.md",
+    "action availability stage is decided and reflected in visible enabled/disabled states",
+    "all Component.tsx user-facing copy is in i18n.json",
+    "contract reads and writes use runtime context addresses"
+  ]
+}

@@ -1,0 +1,210 @@
+# Agent Intake Template
+
+Use this guide to collect all required inputs from the user before generating a new Vault UI.
+
+Do not begin implementation until every required input is confirmed. Optional inputs should be asked but may be skipped if the user has no preference.
+
+The full input schema is also machine-readable in `agent-contract.json` under `requiredInputs`.
+
+---
+
+## Step 1 — Vault Identity
+
+Ask these in order. Each answer gates the next.
+
+### Q1: Vault folder name
+
+> What should the Vault folder be called?
+
+- Must be 3–64 characters of lowercase kebab-case: letters and numbers separated by single hyphens.
+- Valid examples: `my-vault`, `nft-claim-vault`, `prize-pool-v2`
+- Invalid: `MyVault`, `my_vault`, `vault`, `a`, spaces, trailing hyphens
+- This becomes both `src/vaults/{folder-name}` and the preview route `/{folder-name}`.
+
+### Q2: Human-readable name
+
+> What is the display name for this Vault UI? (shown in the Artifact Workbench)
+
+- Example: `"NFT Claim Vault"`, `"Prize Pool UI"`
+
+---
+
+## Step 2 — Registry Binding
+
+### Q3: Chain IDs
+
+> Which deployment target(s) should this UI declare?
+
+- Example: `56` (BNB Chain mainnet only), `56` and `97` (mainnet + testnet)
+- Must be integers.
+- Each entry will be paired with exactly one factory address (Q4). The same chain can appear more than once when multiple factories share the same UI logic.
+
+### Q4: Factory addresses
+
+> What is the factory contract address for each chain listed in Q3?
+
+- Provide one EVM address (`0x...`) per chain, in the same order as Q3.
+- Example: chain 56 → `0xAbcMainnet...`, chain 97 → `0xAbcTestnet...`
+- The same factory address may appear for multiple chains if the factory is deployed identically.
+- These are developer-facing deployment binding hints. If a deployment needs a reference token CA list, collect it per binding and store it later as `match.bindings[].tokenAddresses` in the UI manifest. This template validates the addresses but does not enforce them at preview/runtime.
+
+### Q5: Vault addresses (optional reference list)
+
+> Do you want the manifest to record any binding-scoped Vault contract addresses, or can the runtime derive the Vault from factory + token?
+
+- Usually: omit (the runtime derives the Vault).
+- Only needed when you want to keep per-binding Vault references in the manifest for deployment notes or review context.
+- When needed, provide one Vault address per chain in the same order as Q3/Q4.
+
+### Q6: Token address allowlist (optional reference)
+
+> Does any binding need a reference token CA allowlist for this UI?
+
+- Usually: omit.
+- Only needed when you want the source manifest to carry a per-binding token list as a reference for later deployment setup.
+- When needed, provide one token CA list per chain/factory binding. It will be stored as `match.bindings[].tokenAddresses`.
+- This template validates the addresses but does not enforce the list at preview/runtime.
+
+---
+
+## Step 3 — Localization
+
+### Q7: Locales
+
+> Which languages should this UI support?
+
+- Options: `en` (English), `zh` (Chinese), or both `[en, zh]`.
+- `vault:check` validates exactly the locales you declare. Single-locale Vaults are valid.
+
+---
+
+## Step 4 — Action Availability Stage
+
+### Q8: Action stage
+
+> When can users interact with this Vault?
+
+| Stage | Meaning |
+| --- | --- |
+| `internal-market` | Actions available before DEX listing (bonding-curve / pre-listed phase). |
+| `dex-listed` | Actions require DEX liquidity or post-listing contract state. |
+| `both` | Some actions are available before listing, others after. |
+| `read-only` | No user write path. UI shows data only. |
+
+- This must be decided before implementing `Component.tsx`.
+- If `dex-listed` or `both`: the UI must show unavailable actions with clear copy when the token is in the wrong phase. Do not silently hide them.
+
+---
+
+## Step 5 — Contract Interface
+
+### Q9: Vault ABI fragments
+
+> What are the Vault contract methods this UI needs to read or write?
+
+- Provide minimal ABI fragments: only the methods the component actually uses.
+- Do not include standard ERC20 methods (`balanceOf`, `allowance`, `approve`, etc.); those come from `erc20Abi` in `@/src/sdk`.
+- Include custom token methods only if the token has non-standard mechanics.
+
+### Q10: UI workflow
+
+Confirm each:
+
+- **Primary reads**: What vault/token data does the UI display? (e.g., `vaultInfo()`, `myInfoOf(userAddress)`, `balanceOf`)
+- **Primary writes**: What actions does the user take? (e.g., `deposit(amount)`, `claim()`, `stake(amount)`)
+- **Approval spender**: If a write requires token approval, what is the spender? (Usually `context.vaultAddress`)
+- **Native value**: Does any write send native token (BNB/ETH)? If so, which method and how is the amount calculated?
+- **Refetch points**: After which transactions should data reload? (Usually: after approve, after each write)
+
+### Q11: Empty and error states
+
+What states must the UI handle explicitly?
+
+- [ ] No wallet connected
+- [ ] Wrong chain
+- [ ] No user position / no claimable balance
+- [ ] Action unavailable for current market phase
+- [ ] Oracle/proof unavailable (if oracle flow)
+- [ ] Contract paused or inactive
+- [ ] Transaction simulation failure
+- [ ] Transaction submitted but not confirmed
+
+### Q12: Risk posture
+
+> How should this Vault be presented to users?
+
+| Posture | Use When |
+| --- | --- |
+| `verified` | Flap-reviewed and confirmed safe. |
+| `review-required` | Pending review; functional but not yet verified. |
+| `unverified` | Not reviewed; user must acknowledge risk. |
+| `high-risk` | Irreversible, dangerous, or AI-generated actions. Show explicit risk gate. |
+
+---
+
+## Step 6 — Oracle and Endpoints (Optional)
+
+### Q13: Oracle usage
+
+> Does this UI need data from an oracle (signed quotes, proofs, reserve prices)?
+
+- If yes, which oracle ID and what response schema is expected?
+- Oracle config is not declared in `manifest.json`. `vault:check` will report usage for Flap Artifact Workbench review.
+- Oracle unavailable state must be handled in the UI.
+
+### Q14: External endpoints (optional)
+
+> Does this UI need to call any external HTTPS API that is not an oracle?
+
+- Default: no. Prefer Flap SDK methods and on-chain reads.
+- If unavoidable: provide either one full HTTPS endpoint URL or a list of HTTPS endpoint URLs. These are declared in `manifest.endpoints` and enter Flap review; declaration does not guarantee approval.
+- Host-relative URLs (`/api/...`), non-HTTPS, IPFS, and WebSocket are always blocked.
+
+---
+
+## Step 7 — Preview Addresses (Recommended)
+
+### Q15: Preview addresses
+
+> Do you have real contract addresses for local preview and testing?
+
+- `chainId`: e.g., `56`
+- `tokenAddress`: a real token CA on that chain
+- `vaultAddress`: the Vault contract address
+- `factoryAddress`: the factory contract address
+
+These are used for `yarn dev` preview only and are not packaged. If unavailable, the preview can still render with the template's neutral preview defaults, but real addresses are needed before treating read/write behavior as validated.
+
+---
+
+## Intake Confirmation
+
+Before running `yarn vault:scaffold`, confirm:
+
+| Input | Value |
+| --- | --- |
+| Folder name | `{folder-name}` |
+| Display name | `{name}` |
+| Chain / factory bindings | `[{chainId: N, factoryAddress: "0x..."}]` (one row per deployment target) |
+| Locales | `{locales}` |
+| Action stage | `{actionAvailabilityStage}` |
+| Risk posture | `{riskPosture}` |
+
+Once confirmed, run (repeat `--chain` / `--factory` for each deployment target):
+
+```bash
+# Single chain
+yarn vault:scaffold {folder-name} \
+  --name "{name}" \
+  --chain 56 --factory 0xMainnetFactory \
+  --locales {locales}
+
+# Mainnet + testnet
+yarn vault:scaffold {folder-name} \
+  --name "{name}" \
+  --chain 56 --factory 0xMainnetFactory \
+  --chain 97 --factory 0xTestnetFactory \
+  --locales {locales}
+```
+
+Then implement `Component.tsx`, `VaultABI.ts`, and `i18n.json` based on the confirmed workflow.

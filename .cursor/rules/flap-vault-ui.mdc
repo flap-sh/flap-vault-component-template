@@ -1,0 +1,35 @@
+---
+description: Flap Vault UI Template agent workflow and package boundary rules
+globs:
+alwaysApply: true
+---
+
+# Flap Vault UI Template
+
+This Cursor rule is a compatibility entry point. It is not a separate contract.
+
+Before editing, read:
+
+1. `agent-contract.json`
+2. `AGENTS.md`
+3. `docs/ai-agent.md`
+4. `docs/agent-entrypoints.md`
+5. `docs/ui-pattern-snippets.md`
+6. `skills/flap-vault-ui-generator/SKILL.md`
+
+Follow these rules:
+
+- Use `yarn`.
+- Create new Vault packages with `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...` whenever possible. Repeat `--chain N --factory 0x...` for each deployment target.
+- If the strict four Vault files already exist, run `yarn vault:register <folder-name>` for local preview wiring.
+- Keep each Vault package limited to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
+- Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.
+- Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for internal-market vs DEX-listed button gating. The template preview panel provides this phase API for local self-test.
+- Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media/header data. The template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only. Do not call private token metadata APIs from Vault source.
+- Do not add helper files, nested components, assets, local docs, local JSON data, or dynamic imports inside `src/vaults/{folder-name}`.
+- Treat every Vault CLI failure as JSON. Read `code`, `fixHint`, and `agent.nextActions`, then fix before retrying.
+- Run `yarn vault:check <folder-name>` and resolve all blocking issues before `yarn vault:package <folder-name>`.
+- Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging.
+- For code-base changes, run `yarn ci` when feasible.
+
+If this rule conflicts with `agent-contract.json`, `AGENTS.md`, or `docs/ai-agent.md`, follow those source-of-truth files and update this rule.

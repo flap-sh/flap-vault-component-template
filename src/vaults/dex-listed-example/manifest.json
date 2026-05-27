@@ -1,0 +1,10 @@
+{
+  "artifactId": "vaultui_dex-listed-example_01KS9W7WZY8AJCRT9GTT7CWG16",
+  "name": "DEX-Listed Example Vault UI",
+  "match": {
+    "bindings": [
+      { "chainId": 56, "factoryAddress": "0x2000000000000000000000000000000000000002" }
+    ]
+  },
+  "i18n": ["en", "zh"]
+}

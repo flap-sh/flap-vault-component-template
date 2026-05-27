@@ -1,0 +1,7 @@
+# Cursor Legacy Entry Point
+
+This file exists only as a legacy Cursor fallback. The primary Cursor rule is `.cursor/rules/flap-vault-ui.mdc`.
+
+Before editing, read `agent-contract.json`, `AGENTS.md`, `docs/ai-agent.md`, `docs/agent-entrypoints.md`, and `docs/ui-pattern-snippets.md`.
+
+Use `yarn`. Create new Vault packages with `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...`; repeat `--chain N --factory 0x...` for each deployment target. Treat Vault CLI failures as JSON and follow `agent.nextActions` before retrying. Keep every Vault package limited to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization. Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for internal-market vs DEX-listed button gating; the template preview panel provides this phase API for local self-test. Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media/header data; the template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only, so do not call private token metadata APIs from Vault source. After packaging, run `yarn vault:verify-package dist/<folder-name>.zip`; for code-base changes, run `yarn ci` when feasible.

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flap.sh/schemas/vault-ui-manifest.schema.json",
+  "title": "Flap Vault UI Manifest",
+  "type": "object",
+  "required": ["artifactId", "name", "match", "i18n"],
+  "additionalProperties": false,
+  "properties": {
+    "artifactId": {
+      "type": "string",
+      "description": "Stable source-package artifact identity. Format: vaultui_<folder-name>_<26-char ULID>.",
+      "pattern": "^vaultui_[a-z0-9]+(-[a-z0-9]+)*_[0-9A-HJKMNPQRSTVWXYZ]{26}$"
+    },
+    "name": { "type": "string", "minLength": 2 },
+    "match": {
+      "type": "object",
+      "required": ["bindings"],
+      "additionalProperties": false,
+      "description": "Developer-facing registry binding intent. Each binding pairs one chainId with one factoryAddress. Enforced token CA policy is owned by the flap.sh registry; optional binding-level tokenAddresses are reference lists only.",
+      "properties": {
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Explicit (chainId, factoryAddress) binding targets. One UI artifact can share logic across multiple deployment targets. Duplicate (chainId + factoryAddress) pairs are also blocked by vault:check.",
+          "items": {
+            "type": "object",
+            "required": ["chainId", "factoryAddress"],
+            "additionalProperties": false,
+            "properties": {
+              "chainId": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "EVM chain ID, for example 56 for BNB Chain mainnet or 97 for BNB Chain testnet."
+              },
+              "factoryAddress": {
+                "$ref": "#/$defs/address",
+                "description": "Factory contract address on this chain."
+              },
+              "vaultAddresses": {
+                "$ref": "#/$defs/addressArray",
+                "description": "Optional reference Vault address list for this binding. Omit when not needed. The template validates the addresses but preview/runtime does not use this list for matching."
+              },
+              "tokenAddresses": {
+                "$ref": "#/$defs/addressArray",
+                "description": "Optional reference token CA allowlist for this binding. vault:check validates the address format only; preview/runtime does not enforce the list. Use only when a deployment needs a per-binding token reference list."
+              }
+            }
+          }
+        }
+      }
+    },
+    "i18n": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Supported locale list. vault:check validates exactly these locales against i18n.json.",
+      "items": { "type": "string", "minLength": 2 }
+    },
+    "endpoints": {
+      "description": "Optional non-oracle external endpoint declarations. Use a single HTTPS URL string or an array of HTTPS URL strings for fast review/checker allowlisting.",
+      "oneOf": [
+        { "$ref": "#/$defs/httpsUrl" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/httpsUrl" }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "address": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "httpsUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "addressArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/address" }
+    }
+  }
+}
