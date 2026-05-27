@@ -9,7 +9,7 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 - Flap preview shell with real RainbowKit/wagmi wallet connect, chain switching, and Flap language preference behavior.
 - Packaged Vault artifacts that contain only the Vault-specific business UI below the host shell/frame; preview shell/header UI stays outside the package.
 - Minimal manifest declaration for deployment binding intent, i18n, and unavoidable non-oracle endpoints. Optional per-binding `tokenAddresses` can be carried as reference-only CA allowlists when needed.
-- External endpoints and external resources are discouraged. If a non-oracle endpoint is unavoidable, it may be predeclared in the manifest as a single HTTPS URL string or an array of HTTPS URL strings so `vault:check` can validate it quickly; declaration does not guarantee approval.
+- External endpoints and external resources are discouraged. If a non-oracle endpoint is unavoidable, it may be predeclared in the manifest as a single HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it quickly; declaration does not guarantee approval.
 - Local preview before submission.
 - `vault:check` before packaging.
 - AI-agent-friendly contract, scaffold/register commands, and machine-readable check output.
@@ -238,7 +238,11 @@ Blocking by default:
 - iframe UI
 - script injection
 - runtime remote imports
+- dynamic imports and CommonJS `require(...)`
 - undeclared external URLs, endpoints, or external resources
+- dynamic, relative, HTTP, credentialed, aliased, destructured, or computed browser-global `fetch(...)` targets
+- browser storage, navigation, worker, cross-context messaging, and permission APIs
+- direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`
 - arbitrary off-site navigation or phishing-sensitive external jumps
 - hidden transaction targets
 - unapproved dependencies
@@ -248,11 +252,11 @@ Blocking by default:
 - remote images inside Vault source
 - contract reads/writes to routers, bridges, aggregators, or unrelated contracts outside the Vault/token/NFT boundary
 - binding by type field instead of registry-controlled chain / factory targets
-- extra files or folders inside the Vault package
+- extra files, folders, or symlinks inside the Vault package
 - relative imports other than `./VaultABI`
 
 External endpoints, oracle usage, third-party images, and other external resources should be avoided when the same result can be achieved through Flap SDK capabilities or on-chain reads. Non-oracle endpoints are declared in `manifest.json`; oracle config, media policy, actions, fallback, artifact id, and version are Flap Artifact Workbench/runtime concerns. Any undeclared external URL in Vault source is rejected.
-Endpoint declarations may be either one HTTPS URL string or an array of HTTPS URL strings. Host-relative requests such as `fetch("/api/...")`, IPFS/Arweave links, WebSocket URLs, non-HTTPS URLs, and embedded data URL media are blocked by default.
+Endpoint declarations may be either one HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked by default, as are IPFS/Arweave links, WebSocket URLs, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs.
 Component-owned navigation should stay on the current chain explorer only. If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in `manifest.endpoints`; do not use endpoint declarations as a back door for off-site user navigation. Internal Oracle endpoints should normally stay behind `sdk.readOracle(...)` and host/runtime provisioning rather than raw URL literals in Vault source.
 
 ## Artifact Model

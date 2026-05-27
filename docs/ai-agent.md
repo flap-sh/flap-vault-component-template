@@ -85,7 +85,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000
 
 If a UI needs a reference token CA allowlist, still scaffold the shared UI artifact first. Then add `tokenAddresses` manually under the relevant `match.bindings` entry in `manifest.json`; do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`, and do not pass CA flags to `vault:scaffold`.
 
-If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single HTTPS URL string or an array of HTTPS URL strings so `vault:check` can validate it and the Workbench can route it for review. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
+If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
 
 Then edit only:
 
@@ -104,7 +104,7 @@ yarn vault:register {folder-name}
 
 This only adds local preview wiring to `src/vaults/index.ts`; it does not perform any production publish or deployment binding step.
 
-Do not add helper files, nested components, assets, docs, local JSON data, or dynamic imports inside the Vault folder.
+Do not add helper files, nested components, assets, docs, local JSON data, symlinks, CommonJS `require(...)`, or dynamic imports inside the Vault folder.
 
 The folder name is the route and source folder only. Do not use it as the artifact identity. `vault:scaffold` generates the stable source-package `artifactId`, and the folder-name segment in that ID must stay tied to the Vault folder name. `match` remains the developer-facing binding intent for deployment targets.
 
@@ -132,9 +132,13 @@ Use:
 Do not use:
 
 - Direct wallet APIs such as `window.ethereum`.
-- `eval`, `new Function`, iframe, script injection, or `dangerouslySetInnerHTML`.
+- `eval`, the `Function` constructor, iframe, script injection, or `dangerouslySetInnerHTML`.
+- CommonJS `require(...)`; use static ESM imports only.
 - Dynamic imports inside Vault source.
-- External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string or an array of HTTPS URL strings.
+- Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
+- Browser storage, cookie, navigation, Worker, cross-context messaging, clipboard, geolocation, permission, or notification APIs.
+- External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials.
+- Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` targets. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`.
 - Arbitrary off-site navigation. Component-owned links should stay on the current chain explorer only; do not send users to other websites from a Vault package.
 - Oracle config in `manifest.json`.
 - Actions, media, fallback, id, owner, version, sdkVersion, or contracts in `manifest.json`.
@@ -179,7 +183,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, malformed endpoint declarations, endpoint-prefix escapes, hidden host-relative fetches, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, malformed or credentialed endpoint declarations, endpoint-prefix escapes, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 

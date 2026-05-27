@@ -48,6 +48,7 @@ const BLOCKING = "blocking";
 const WARNING = "warning";
 const INFO = "info";
 const TYPE_BINDING_KEYS = new Set(["vault" + "Type", "vault" + "Types"]);
+const UNSAFE_RESOURCE_SCHEMES = ["ipfs://", "ar://", "data:", "javascript:"];
 
 const FIX_HINTS = {
   "cli/missing-folder-name": "Run yarn vault:check <folder-name> with a registered Vault folder name.",
@@ -57,6 +58,7 @@ const FIX_HINTS = {
   "package-structure/disallowed-vault-file": "Move helpers, assets, nested components, docs, and sample data outside src/vaults/<folder-name> or inline small code in Component.tsx.",
   "preview-registration/missing-vault-module": "Register the folder name in src/vaults/index.ts with loadComponent, loadManifest, and loadI18n entries.",
   "forbidden-files/disallowed-entry": "Remove environment, dependency, git, or build output files from the Vault package.",
+  "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
   "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, and optional endpoints. chain IDs are declared inside match.bindings entries.",
   "manifest-schema/missing-field": "Add the required manifest field.",
@@ -72,6 +74,7 @@ const FIX_HINTS = {
   "manifest-binding/disallowed-binding-field": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, and optional tokenAddresses.",
   "manifest-binding/invalid-chain-id": "chainId must be a positive integer, for example 56 for BNB Chain or 97 for BNB Testnet.",
   "manifest-binding/invalid-address": "Use a full 20-byte EVM address matching 0x plus 40 hex characters.",
+  "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only when a reference token CA list is needed.",
   "manifest-binding/invalid-vault-address-list": "Use a non-empty array for a binding entry's vaultAddresses reference list, or omit it when no binding-scoped Vault references need to be recorded.",
   "manifest-binding/invalid-token-address-list": "Use a non-empty array of valid EVM addresses for a binding entry's tokenAddresses, or omit it when no reference token CA list is needed.",
@@ -83,23 +86,33 @@ const FIX_HINTS = {
   "i18n-policy/missing-locale-key": "Add the missing key to each locale declared by manifest.i18n.",
   "i18n-policy/used-key-missing-locale": "Every key used by t(...) or i18n.t(...) must exist in each declared locale.",
   "endpoint-policy/invalid-endpoints": "Set manifest.endpoints to a single HTTPS URL string, a non-empty array of HTTPS URL strings, or remove it when no endpoint is needed.",
-  "endpoint-policy/invalid-endpoint-declaration": "Endpoint declarations must be HTTPS URL strings only.",
+  "endpoint-policy/invalid-endpoint-declaration": "Endpoint declarations must be valid absolute HTTPS URL strings only.",
   "endpoint-policy/https-required": "Use an HTTPS endpoint URL string, or remove the endpoint.",
+  "endpoint-policy/no-credentials": "Remove username/password credentials from endpoint URLs. Workbench endpoint declarations must be bearerless HTTPS URLs.",
   "endpoint-policy/undeclared-url": "Remove the URL or declare a non-oracle https endpoint in manifest.endpoints for review.",
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
+  "endpoint-policy/direct-fetch": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
   "manual-review/oracle-usage": "Do not add oracle config to manifest. Flap Artifact Workbench/runtime must provision the oracle id.",
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
   "forbidden-api/direct-window-ethereum": "Use sdk.wallet and SDK contract methods instead of direct wallet APIs.",
   "forbidden-api/eval": "Remove eval and implement the logic as normal TypeScript.",
-  "forbidden-api/new-function": "Remove new Function and implement the logic as normal TypeScript.",
+  "forbidden-api/function-constructor": "Remove Function constructor usage and implement the logic as normal TypeScript.",
   "forbidden-api/iframe": "Do not embed iframe UI inside a Vault component.",
   "forbidden-api/script": "Do not inject scripts inside a Vault component.",
   "forbidden-api/dangerously-set-inner-html": "Render structured React content instead of raw HTML.",
   "forbidden-api/remote-import": "Remove runtime remote imports. Use only approved local package imports.",
+  "forbidden-api/browser-global-escape": "Use explicit Flap SDK/runtime APIs instead of computed browser-global access.",
+  "forbidden-api/browser-network": "Use Flap SDK/readOracle, or a static absolute HTTPS fetch target declared in manifest.endpoints.",
+  "forbidden-api/browser-storage": "Use local React state or Flap-provided runtime state instead of browser storage APIs.",
+  "forbidden-api/browser-navigation": "Do not navigate, open windows, or mutate browser history from a Vault component. The host owns routing.",
+  "forbidden-api/browser-worker": "Do not spawn workers or service workers from a Vault component.",
+  "forbidden-api/cross-context-messaging": "Do not use cross-context messaging from a Vault component.",
+  "forbidden-api/browser-permission": "Do not request browser permissions from a Vault component. The host/runtime owns permissioned browser capabilities.",
   "imports-and-dependencies/disallowed-relative-import": "Inline small helpers in Component.tsx or use @/src/sdk and @/src/ui. The only local relative import is ./VaultABI.",
   "imports-and-dependencies/forbidden-import": "Use Flap SDK/UI primitives instead of host wallet, app, or heavy UI dependencies.",
   "imports-and-dependencies/external-sdk-package": "Do not introduce additional SDK packages. Use only the shared @/src/sdk and @/src/ui runtime surfaces.",
+  "imports-and-dependencies/require-call": "Use static ESM imports only. CommonJS require() is not allowed in Vault source.",
   "imports-and-dependencies/unreviewed-import": "Remove the dependency unless Flap explicitly approves it.",
   "imports-and-dependencies/dynamic-import": "Use static imports only.",
   "media-policy/remote-media": "Remove remote media. Media is controlled by Flap Artifact Workbench/runtime policy.",
@@ -124,12 +137,16 @@ function readJson(file) {
 function walk(dir, files = []) {
   for (const name of fs.readdirSync(dir)) {
     const full = path.join(dir, name);
-    const stat = fs.statSync(full);
+    const stat = fs.lstatSync(full);
+    if (stat.isSymbolicLink()) {
+      files.push({ path: full, name, isDirectory: false, isSymlink: true });
+      continue;
+    }
     if (stat.isDirectory()) {
-      files.push({ path: full, name, isDirectory: true });
+      files.push({ path: full, name, isDirectory: true, isSymlink: false });
       walk(full, files);
     } else {
-      files.push({ path: full, name, isDirectory: false });
+      files.push({ path: full, name, isDirectory: false, isSymlink: false });
     }
   }
   return files;
@@ -163,17 +180,71 @@ function collectDeclaredUrls(manifest) {
   return urls;
 }
 
-function isHttpsUrl(value) {
-  return typeof value === "string" && /^https:\/\//.test(value);
+function parseUrl(value) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function hrefWithoutHash(url) {
+  const next = new URL(url.href);
+  next.hash = "";
+  return next.href;
+}
+
+function isSamePathOrChild(candidatePath, declaredPath) {
+  if (candidatePath === declaredPath) return true;
+  const basePath = declaredPath.endsWith("/") ? declaredPath : `${declaredPath}/`;
+  return candidatePath.startsWith(basePath);
 }
 
 function isDeclaredUrl(url, declaredUrls) {
+  const candidate = parseUrl(url);
+  if (!candidate) return false;
+  if (candidate.username || candidate.password) return false;
+
   for (const declared of declaredUrls) {
-    const normalized = declared.replace(/\/+$/, "");
-    if (url === normalized) return true;
-    if (url.startsWith(`${normalized}/`) || url.startsWith(`${normalized}?`) || url.startsWith(`${normalized}#`)) return true;
+    const allowed = parseUrl(declared);
+    if (!allowed) continue;
+    if (allowed.username || allowed.password) continue;
+    if (candidate.origin !== allowed.origin) continue;
+    if (allowed.search) {
+      if (hrefWithoutHash(candidate) === hrefWithoutHash(allowed)) return true;
+      continue;
+    }
+    if (isSamePathOrChild(candidate.pathname, allowed.pathname)) return true;
   }
   return false;
+}
+
+function staticStringLiteral(rawExpression) {
+  const trimmed = rawExpression.trim();
+  const quote = trimmed[0];
+  if (quote !== "\"" && quote !== "'" && quote !== "`") return null;
+
+  let escaped = false;
+  let value = "";
+  for (let index = 1; index < trimmed.length; index += 1) {
+    const char = trimmed[index];
+    if (escaped) {
+      value += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === quote) {
+      if (quote === "`" && value.includes("${")) return null;
+      return value;
+    }
+    value += char;
+  }
+
+  return null;
 }
 
 function hasTypeBasedBinding(value) {
@@ -370,6 +441,10 @@ function checkStructure(vaultDir) {
   for (const item of walk(vaultDir)) {
     const rel = path.relative(ROOT, item.path);
     const relToVault = path.relative(vaultDir, item.path);
+    if (item.isSymlink) {
+      issues.push(issue(BLOCKING, "forbidden-files/symlink", `Symlink ${item.name} is not allowed inside a Vault package.`, { file: rel }));
+      continue;
+    }
     if (item.isDirectory || relToVault.includes(path.sep) || !ALLOWED_VAULT_FILES.has(item.name)) {
       issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may contain only ${REQUIRED_FILES.join(", ")}. Move ${item.name} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
       continue;
@@ -407,6 +482,22 @@ function checkArtifactIdUniqueness(folderName, artifactId) {
       }
     } catch {
       // The checked folder should report JSON errors for itself. Ignore broken sibling manifests here.
+    }
+  }
+  return issues;
+}
+
+function checkAddressListDuplicates(addresses, field) {
+  const issues = [];
+  const seen = new Map();
+  for (const [index, addr] of addresses.entries()) {
+    if (!ADDRESS_RE.test(addr)) continue;
+    const normalized = addr.toLowerCase();
+    const firstIndex = seen.get(normalized);
+    if (firstIndex !== undefined) {
+      issues.push(issue(BLOCKING, "manifest-binding/duplicate-address", `${field}[${index}] duplicates ${field}[${firstIndex}].`, { field: `${field}[${index}]` }));
+    } else {
+      seen.set(normalized, index);
     }
   }
   return issues;
@@ -526,6 +617,7 @@ function checkManifest(manifest, folderName) {
                 issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.vaultAddresses contains invalid address: ${addr}.`, { field: `${field}.vaultAddresses` }));
               }
             }
+            issues.push(...checkAddressListDuplicates(bindingEntry.vaultAddresses, `${field}.vaultAddresses`));
           }
         }
         if (bindingEntry.tokenAddresses !== undefined) {
@@ -537,6 +629,7 @@ function checkManifest(manifest, folderName) {
                 issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.tokenAddresses contains invalid address: ${addr}.`, { field: `${field}.tokenAddresses` }));
               }
             }
+            issues.push(...checkAddressListDuplicates(bindingEntry.tokenAddresses, `${field}.tokenAddresses`));
           }
         }
       }
@@ -560,12 +653,15 @@ function checkManifest(manifest, folderName) {
     }
     for (const [index, endpoint] of manifestEndpoints.entries()) {
       const field = Array.isArray(manifest.endpoints) ? `endpoints.${index}` : "endpoints";
-      if (!isNonEmptyString(endpoint)) {
-        issues.push(issue(BLOCKING, "endpoint-policy/invalid-endpoint-declaration", `Endpoint declaration at ${field} must be a non-empty HTTPS URL string.`, { field }));
+      const parsedEndpoint = typeof endpoint === "string" ? parseUrl(endpoint) : null;
+      if (!isNonEmptyString(endpoint) || !parsedEndpoint) {
+        issues.push(issue(BLOCKING, "endpoint-policy/invalid-endpoint-declaration", `Endpoint declaration at ${field} must be a valid absolute HTTPS URL string.`, { field }));
         continue;
       }
-      if (!isHttpsUrl(endpoint)) {
+      if (parsedEndpoint.protocol !== "https:") {
         issues.push(issue(BLOCKING, "endpoint-policy/https-required", `Endpoint ${endpoint} must use https.`, { field }));
+      } else if (parsedEndpoint.username || parsedEndpoint.password) {
+        issues.push(issue(BLOCKING, "endpoint-policy/no-credentials", `Endpoint ${endpoint} must not include username or password credentials.`, { field }));
       } else {
         issues.push(issue(WARNING, "manual-review/external-endpoint", `Declared external endpoint ${endpoint}. External endpoints are discouraged and require Flap review approval before publish.`, { field }));
       }
@@ -604,18 +700,83 @@ function checkI18n(i18n, manifestLocales) {
 function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
   const declaredUrls = collectDeclaredUrls(manifest);
-  const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && item.name.match(/\.(ts|tsx|js|jsx)$/));
+  const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
     const content = fs.readFileSync(item.path, "utf8");
     const checks = [
       [/window\.ethereum/, "forbidden-api/direct-window-ethereum", "Direct window.ethereum access is not allowed."],
+      [/\b(?:window|globalThis|global)\s*\[\s*["'`]ethereum["'`]\s*\]/, "forbidden-api/direct-window-ethereum", "Direct ethereum provider access is not allowed."],
+      [/\b(?:globalThis|global)\.ethereum\b/, "forbidden-api/direct-window-ethereum", "Direct ethereum provider access is not allowed."],
+      [/\{\s*ethereum\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/direct-window-ethereum", "Destructuring ethereum from browser globals is not allowed."],
       [/\beval\s*\(/, "forbidden-api/eval", "eval() is not allowed."],
-      [/new\s+Function\s*\(/, "forbidden-api/new-function", "new Function() is not allowed."],
+      [/\b(?:new\s+)?Function\s*\(/, "forbidden-api/function-constructor", "Function constructor usage is not allowed."],
       [/<iframe\b/i, "forbidden-api/iframe", "iframe UI is not allowed."],
+      [/document\.createElement\s*\(\s*["'`]iframe["'`]\s*\)/, "forbidden-api/iframe", "iframe creation is not allowed."],
       [/<script\b/i, "forbidden-api/script", "script injection is not allowed."],
+      [/document\.createElement\s*\(\s*["'`]script["'`]\s*\)/, "forbidden-api/script", "script injection is not allowed."],
       [/dangerouslySetInnerHTML/, "forbidden-api/dangerously-set-inner-html", "dangerouslySetInnerHTML needs explicit review and is blocked by default."],
       [/import\s*\(\s*["'`]https?:\/\//, "forbidden-api/remote-import", "Runtime remote import is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|global|self|navigator|document)\s*\[[^\]\n]+\]/, "forbidden-api/browser-global-escape", "Computed browser global access is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|global|self|navigator|document)\b(?!\s*[.[\]])/, "forbidden-api/browser-global-escape", "Aliasing browser globals is not allowed inside Vault components."],
+      [/\{\s*[^}\n]+\}\s*=\s*(?:window|globalThis|global|self|navigator|document)\b/, "forbidden-api/browser-global-escape", "Destructuring browser globals is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|global|self)\.)?fetch\b/, "forbidden-api/browser-network", "Aliasing fetch is not allowed inside Vault components."],
+      [/\{\s*fetch\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/browser-network", "Destructuring fetch from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|global|self)\.fetch\b/, "forbidden-api/browser-network", "Direct browser fetch access is not allowed inside Vault components."],
+      [/\bnew\s+XMLHttpRequest\s*\(|\bXMLHttpRequest\s*\(/, "forbidden-api/browser-network", "XMLHttpRequest is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|global|self)\.)?XMLHttpRequest\b/, "forbidden-api/browser-network", "Aliasing XMLHttpRequest is not allowed inside Vault components."],
+      [/\{\s*XMLHttpRequest\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/browser-network", "Destructuring XMLHttpRequest from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|global|self)\.XMLHttpRequest\b/, "forbidden-api/browser-network", "XMLHttpRequest is not allowed inside Vault components."],
+      [/\bnew\s+WebSocket\s*\(|\bWebSocket\s*\(/, "forbidden-api/browser-network", "WebSocket is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|global|self)\.)?WebSocket\b/, "forbidden-api/browser-network", "Aliasing WebSocket is not allowed inside Vault components."],
+      [/\{\s*WebSocket\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/browser-network", "Destructuring WebSocket from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|global|self)\.WebSocket\b/, "forbidden-api/browser-network", "WebSocket is not allowed inside Vault components."],
+      [/\bnew\s+EventSource\s*\(|\bEventSource\s*\(/, "forbidden-api/browser-network", "EventSource is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|global|self)\.)?EventSource\b/, "forbidden-api/browser-network", "Aliasing EventSource is not allowed inside Vault components."],
+      [/\{\s*EventSource\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/browser-network", "Destructuring EventSource from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|global|self)\.EventSource\b/, "forbidden-api/browser-network", "EventSource is not allowed inside Vault components."],
+      [/\bnavigator\.sendBeacon\s*\(/, "forbidden-api/browser-network", "navigator.sendBeacon is not allowed inside Vault components."],
+      [/\bnavigator\.sendBeacon\b/, "forbidden-api/browser-network", "navigator.sendBeacon access is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*navigator\.sendBeacon\b/, "forbidden-api/browser-network", "Aliasing navigator.sendBeacon is not allowed inside Vault components."],
+      [/\{\s*sendBeacon\b[^}]*\}\s*=\s*navigator\b/, "forbidden-api/browser-network", "Destructuring sendBeacon from navigator is not allowed inside Vault components."],
+      [/\bnew\s+Image\s*\(|\bImage\s*\(/, "forbidden-api/browser-network", "Image network loading is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|global|self)\.)?Image\b/, "forbidden-api/browser-network", "Aliasing Image is not allowed inside Vault components."],
+      [/\{\s*Image\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/browser-network", "Destructuring Image from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|global|self)\.Image\b/, "forbidden-api/browser-network", "Image network loading is not allowed inside Vault components."],
+      [/document\.createElement\s*\(\s*["'`]img["'`]\s*\)/, "forbidden-api/browser-network", "Dynamic image elements are not allowed inside Vault components."],
+      [/\b(?:window\.|globalThis\.|self\.)?(?:localStorage|sessionStorage)\b/, "forbidden-api/browser-storage", "Browser storage APIs are not allowed inside Vault components."],
+      [/\b(?:window\.|globalThis\.|self\.)?indexedDB\b/, "forbidden-api/browser-storage", "indexedDB is not allowed inside Vault components."],
+      [/\b(?:window\.|globalThis\.|self\.)?caches\b/, "forbidden-api/browser-storage", "Cache Storage is not allowed inside Vault components."],
+      [/\bdocument\.cookie\b/, "forbidden-api/browser-storage", "document.cookie is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|self)\.open\b/, "forbidden-api/browser-navigation", "Opening new windows is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|self)\.open\b/, "forbidden-api/browser-navigation", "Aliasing window.open is not allowed inside Vault components."],
+      [/\{\s*open\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-navigation", "Destructuring open from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|self)\.location\b|\blocation\.(?:href|assign|replace|reload)\b/, "forbidden-api/browser-navigation", "Browser navigation is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|self)\.location\b/, "forbidden-api/browser-navigation", "Aliasing browser location is not allowed inside Vault components."],
+      [/\{\s*location\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-navigation", "Destructuring location from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|self)\.history\b|\bhistory\.(?:pushState|replaceState|go|back|forward)\b/, "forbidden-api/browser-navigation", "Browser history mutation is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|self)\.history\b/, "forbidden-api/browser-navigation", "Aliasing browser history is not allowed inside Vault components."],
+      [/\{\s*history\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-navigation", "Destructuring history from browser globals is not allowed inside Vault components."],
+      [/\bnew\s+(?:Worker|SharedWorker)\s*\(|\b(?:Worker|SharedWorker)\s*\(/, "forbidden-api/browser-worker", "Worker APIs are not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|self)\.)?(?:Worker|SharedWorker)\b/, "forbidden-api/browser-worker", "Aliasing Worker APIs is not allowed inside Vault components."],
+      [/\{\s*(?:Worker|SharedWorker)\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-worker", "Destructuring Worker APIs from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|self)\.(?:Worker|SharedWorker)\b/, "forbidden-api/browser-worker", "Worker APIs are not allowed inside Vault components."],
+      [/\bnavigator\.serviceWorker\b/, "forbidden-api/browser-worker", "Service Worker APIs are not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*navigator\.serviceWorker\b/, "forbidden-api/browser-worker", "Aliasing serviceWorker is not allowed inside Vault components."],
+      [/\{\s*serviceWorker\b[^}]*\}\s*=\s*navigator\b/, "forbidden-api/browser-worker", "Destructuring serviceWorker from navigator is not allowed inside Vault components."],
+      [/\bnew\s+BroadcastChannel\s*\(|\bBroadcastChannel\s*\(/, "forbidden-api/cross-context-messaging", "BroadcastChannel is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|self)\.)?BroadcastChannel\b/, "forbidden-api/cross-context-messaging", "Aliasing BroadcastChannel is not allowed inside Vault components."],
+      [/\{\s*BroadcastChannel\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/cross-context-messaging", "Destructuring BroadcastChannel from browser globals is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|self)\.BroadcastChannel\b/, "forbidden-api/cross-context-messaging", "BroadcastChannel is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|self)\.postMessage\b/, "forbidden-api/cross-context-messaging", "postMessage is not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|self)\.postMessage\b/, "forbidden-api/cross-context-messaging", "Aliasing postMessage is not allowed inside Vault components."],
+      [/\{\s*postMessage\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/cross-context-messaging", "Destructuring postMessage from browser globals is not allowed inside Vault components."],
+      [/\bnavigator\.(?:clipboard|geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Browser permission APIs are not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*navigator\.(?:clipboard|geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Aliasing browser permission APIs is not allowed inside Vault components."],
+      [/\{\s*(?:clipboard|geolocation|mediaDevices|permissions)\b[^}]*\}\s*=\s*navigator\b/, "forbidden-api/browser-permission", "Destructuring browser permission APIs from navigator is not allowed inside Vault components."],
+      [/\bNotification\.(?:requestPermission|permission)\b|\bnew\s+Notification\s*\(/, "forbidden-api/browser-permission", "Notification APIs are not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|self)\.)?Notification\b/, "forbidden-api/browser-permission", "Aliasing Notification is not allowed inside Vault components."],
+      [/\{\s*Notification\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-permission", "Destructuring Notification from browser globals is not allowed inside Vault components."],
     ];
     for (const [pattern, ruleId, message] of checks) {
       if (pattern.test(content)) {
@@ -638,6 +799,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     issues.push(...collectDynamicImportIssues(content, rel));
+    const requireRegex = /\brequire\s*\(/g;
+    for (const match of content.matchAll(requireRegex)) {
+      issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(content, match.index ?? -1) }));
+    }
     const oracleIds = new Set();
     const oracleCallRegex = /\breadOracle(?:<[^>]+>)?\(\s*["'`]([^"'`]+)["'`]/g;
     for (const match of content.matchAll(oracleCallRegex)) {
@@ -673,6 +838,22 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
+    const fetchCallRegex = /\bfetch\s*\(\s*([^,\n)]*)/g;
+    for (const match of content.matchAll(fetchCallRegex)) {
+      const rawTarget = match[1]?.trim() ?? "";
+      const staticTarget = staticStringLiteral(rawTarget);
+      const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
+      if (!staticTarget || !parsedTarget || parsedTarget.protocol !== "https:" || parsedTarget.username || parsedTarget.password || !isDeclaredUrl(staticTarget, declaredUrls)) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "endpoint-policy/direct-fetch",
+            "fetch() targets inside Vault source must be static absolute HTTPS URLs without credentials and declared in manifest.endpoints for Flap review.",
+            { file: rel, line: lineForIndex(content, match.index ?? -1) },
+          ),
+        );
+      }
+    }
     for (const navigationRegex of externalNavigationRegexes) {
       for (const match of content.matchAll(navigationRegex)) {
         const url = sanitizeUrlLiteral(match[1]);
@@ -703,6 +884,19 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           { file: rel, line: lineForIndex(content, match.index) },
         ),
       );
+    }
+    for (const scheme of UNSAFE_RESOURCE_SCHEMES) {
+      const schemeIndex = content.toLowerCase().indexOf(scheme);
+      if (schemeIndex >= 0) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "endpoint-policy/undeclared-url",
+            `${scheme} resource literals are not allowed inside Vault source. Use Flap-controlled runtime media/oracle provisioning instead.`,
+            { file: rel, line: lineForIndex(content, schemeIndex) },
+          ),
+        );
+      }
     }
     if (/url\(\s*["']?(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(content) || /<img[^>]+src=["'](?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(content)) {
       issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote media is not developer-declared in this template. Use Flap-controlled media/runtime policy instead.", { file: rel }));

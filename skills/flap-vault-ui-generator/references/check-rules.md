@@ -26,11 +26,14 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - global or match-level CA policy fields such as `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy`; binding-level `match.bindings[].tokenAddresses` is allowed as a reference list
 - any type-field UI binding
 - direct wallet access
-- `eval` / `new Function`
+- `eval` / the `Function` constructor
 - iframe/script injection
 - runtime remote import
+- dynamic import or CommonJS `require(...)`
+- symlink inside the Vault folder
 - undeclared URL, endpoint, or external resource
-- host-relative fetch such as `fetch("/api/...")`
+- host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch target
+- browser storage/navigation/worker/permission API or direct browser network/media API
 - non-HTTPS, IPFS, Arweave, WebSocket, or embedded data URL resource usage in Vault source
 - missing a locale declared by `manifest.i18n`
 - i18n key missing from any locale declared by `manifest.i18n`
@@ -77,4 +80,4 @@ Fix by using:
 - i18n key
 - approved UI primitive
 
-Manifest declaration is required only for the limited developer-facing surface. It does not make an endpoint approved. Prefer removing external endpoints/resources unless the Vault cannot work without them. Oracle config, actions, media, fallback, artifact id, and version are Flap Artifact Workbench/runtime concerns, not manifest fields.
+Manifest declaration is required only for the limited developer-facing surface. It does not make an endpoint approved. Endpoint declarations must be absolute HTTPS URLs without username/password credentials, and direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`. Prefer removing external endpoints/resources unless the Vault cannot work without them. Oracle config, actions, media, fallback, artifact id, and version are Flap Artifact Workbench/runtime concerns, not manifest fields.

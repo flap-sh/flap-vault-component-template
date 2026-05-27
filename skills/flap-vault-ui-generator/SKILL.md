@@ -85,7 +85,7 @@ Fix blocking issues before finishing.
 - Put user-facing copy in `i18n.json` for every locale declared by `manifest.i18n`.
 - Test EN/ZH in the local example page; the preview shell uses Flap's `flap:language` localStorage key and `flap_language` cookie, and passes the active locale into `sdk.i18n`.
 - Do not import `res/content.json` or `res/content_zh.json` from a Vault component. Those files are only for the Flap preview shell/header.
-- Avoid external endpoints and external resources by default. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` for Flap review as a single HTTPS URL string or an array of HTTPS URL strings. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in manifest. Declaration does not guarantee approval, and undeclared endpoints/resources are rejected.
+- Avoid external endpoints and external resources by default. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` for Flap review as a single absolute HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in manifest. Declaration does not guarantee approval, and undeclared endpoints/resources are rejected.
 - Do not declare write/approve actions in `manifest.json`; transaction behavior belongs in `Component.tsx` through SDK methods and runtime context addresses.
 - Do not hardcode transaction target addresses in Vault source. Use `context.vaultAddress`, `context.tokenAddress`, and other runtime context values.
 - Use approve -> wait -> refetch -> simulate -> write -> wait -> refetch for ERC20 spend flows.
@@ -103,7 +103,7 @@ Fix blocking issues before finishing.
 ## Hard Stops
 
 - `window.ethereum.request`
-- `eval` / `new Function`
+- `eval` / the `Function` constructor
 - iframe or script injection
 - runtime remote import
 - undeclared URL, endpoint, or external resource

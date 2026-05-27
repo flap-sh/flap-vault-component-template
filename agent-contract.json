@@ -103,13 +103,14 @@
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
     "localeRule": "Only locales declared by manifest.i18n are required and compared.",
     "oracleRule": "Do not declare oracle config in manifest.json. sdk.readOracle usage is reported by vault:check for Flap review.",
-    "endpointRule": "Avoid endpoints. Non-oracle endpoints must use https and be declared in manifest.endpoints as a single URL string or an array of URL strings for review.",
+    "endpointRule": "Avoid endpoints. Non-oracle fetch targets must be static absolute HTTPS URLs without username/password credentials and declared in manifest.endpoints as a single URL string or an array of URL strings for review. Dynamic, relative, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked.",
     "navigationRule": "Component-owned navigation should stay on the active chain explorer only. Do not send users to arbitrary websites from a Vault package.",
     "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
   },
   "securityBoundaries": {
     "contractInteractionRule": "Reads and writes must stay on context.vaultAddress, context.tokenAddress, runtime payment/quote/dividend tokens, or token/NFT addresses derived from Vault reads. Do not interact with routers, bridges, aggregators, factories, or unrelated app contracts from a Vault package.",
-    "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation."
+    "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation.",
+    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, cross-context messaging APIs, and browser permission APIs before packaging."
   },
   "commands": {
     "install": "yarn",
@@ -174,7 +175,7 @@
     },
     "manifest/endpoint-missing-required-field": {
       "severity": "blocking",
-      "fixAction": "manifest.endpoints must be either one HTTPS URL string or a non-empty array of HTTPS URL strings. Fix or remove the invalid endpoint declaration."
+      "fixAction": "manifest.endpoints must be either one absolute HTTPS URL string without credentials or a non-empty array of those strings. Fix or remove the invalid endpoint declaration."
     },
     "package/extra-files": {
       "severity": "blocking",
@@ -206,7 +207,7 @@
     },
     "security/eval": {
       "severity": "blocking",
-      "fixAction": "Remove eval() or new Function(). Runtime code execution is not allowed inside Vault source."
+      "fixAction": "Remove eval() or the Function constructor. Runtime code execution is not allowed inside Vault source."
     },
     "security/iframe-or-script-injection": {
       "severity": "blocking",
@@ -214,7 +215,7 @@
     },
     "security/undeclared-url": {
       "severity": "blocking",
-      "fixAction": "Declare the endpoint in manifest.endpoints as one HTTPS URL string or an array of HTTPS URL strings. Or remove the URL and use sdk.readContract or sdk.readOracle instead."
+      "fixAction": "Declare the endpoint in manifest.endpoints as one absolute HTTPS URL string without credentials or an array of those strings. Or remove the URL and use sdk.readContract or sdk.readOracle instead."
     },
     "security/host-relative-fetch": {
       "severity": "blocking",
@@ -222,7 +223,7 @@
     },
     "security/non-https-resource": {
       "severity": "blocking",
-      "fixAction": "Remove non-HTTPS, IPFS, Arweave, WebSocket, or embedded data URL resources. Only declared HTTPS endpoints are allowed."
+      "fixAction": "Remove non-HTTPS, credentialed, IPFS, Arweave, WebSocket, browser-global, browser-storage, browser-navigation, browser-worker, browser-permission, or embedded data URL resources. Only declared credential-free HTTPS endpoints are allowed."
     },
     "security/hardcoded-address": {
       "severity": "blocking",

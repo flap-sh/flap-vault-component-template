@@ -119,6 +119,16 @@ try {
   });
   assertRule("duplicate chain and factory bindings are blocked", runVaultCheck(duplicateBindingSlug, { silent: true }), "manifest-binding/duplicate-binding", "blocking");
 
+  const duplicateAddressSlug = `${FIXTURE_PREFIX}-duplicate-address`;
+  writeVault(duplicateAddressSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [TOKEN, TOKEN.toLowerCase()] }],
+      },
+    }),
+  });
+  assertRule("duplicate binding-scoped addresses are blocked", runVaultCheck(duplicateAddressSlug, { silent: true }), "manifest-binding/duplicate-address", "blocking");
+
   const globalTokenPolicySlug = `${FIXTURE_PREFIX}-global-token-policy`;
   writeVault(globalTokenPolicySlug, {
     manifest: baseManifest({
@@ -147,6 +157,14 @@ try {
     }),
   });
   assertRule("endpoint declarations must still be https", runVaultCheck(endpointHttpsSlug, { silent: true }), "endpoint-policy/https-required", "blocking");
+
+  const endpointCredentialSlug = `${FIXTURE_PREFIX}-endpoint-credential`;
+  writeVault(endpointCredentialSlug, {
+    manifest: baseManifest({
+      endpoints: "https://user:pass@api.example.com/proof",
+    }),
+  });
+  assertRule("endpoint declarations must not include credentials", runVaultCheck(endpointCredentialSlug, { silent: true }), "endpoint-policy/no-credentials", "blocking");
 
   const endpointPrefixSlug = `${FIXTURE_PREFIX}-endpoint-prefix`;
   writeVault(endpointPrefixSlug, {
@@ -200,6 +218,116 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
   });
   assertRule("host-relative fetch is blocked", runVaultCheck(relativeFetchSlug, { silent: true }), "endpoint-policy/relative-endpoint", "blocking");
+
+  const dynamicFetchSlug = `${FIXTURE_PREFIX}-dynamic-fetch`;
+  writeVault(dynamicFetchSlug, {
+    manifest: baseManifest({
+      endpoints: "https://api.example.com/proof",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const endpoint = "https://api.example.com/proof";
+  void fetch(endpoint);
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("dynamic fetch targets are blocked", runVaultCheck(dynamicFetchSlug, { silent: true }), "endpoint-policy/direct-fetch", "blocking");
+
+  const credentialedFetchSlug = `${FIXTURE_PREFIX}-credentialed-fetch`;
+  writeVault(credentialedFetchSlug, {
+    manifest: baseManifest({
+      endpoints: "https://api.example.com/proof",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void fetch("https://user:pass@api.example.com/proof");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("credentialed fetch targets are blocked", runVaultCheck(credentialedFetchSlug, { silent: true }), "endpoint-policy/direct-fetch", "blocking");
+
+  const declaredFetchSlug = `${FIXTURE_PREFIX}-declared-fetch`;
+  writeVault(declaredFetchSlug, {
+    manifest: baseManifest({
+      endpoints: "https://api.example.com/proof",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void fetch("https://api.example.com/proof/details");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assert.equal(runVaultCheck(declaredFetchSlug, { silent: true }).issues.some((item) => item.ruleId === "endpoint-policy/direct-fetch"), false);
+  passed.push("declared static HTTPS fetch child paths are allowed for review");
+
+  const requireSlug = `${FIXTURE_PREFIX}-require`;
+  writeVault(requireSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void require("./VaultABI");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("CommonJS require is blocked", runVaultCheck(requireSlug, { silent: true }), "imports-and-dependencies/require-call", "blocking");
+
+  const browserEscapeSlug = `${FIXTURE_PREFIX}-browser-escape`;
+  writeVault(browserEscapeSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const fetchRef = window["fetch"];
+  localStorage.setItem("x", "y");
+  new WebSocket("wss://example.com/socket");
+  window.location.assign("https://evil.example.com");
+  new Worker("worker.js");
+  new BroadcastChannel("x");
+  void navigator.clipboard;
+  void fetchRef;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  const browserEscapeCheck = runVaultCheck(browserEscapeSlug, { silent: true });
+  assertRule("computed browser-global access is blocked", browserEscapeCheck, "forbidden-api/browser-global-escape", "blocking");
+  assertRule("browser storage APIs are blocked", browserEscapeCheck, "forbidden-api/browser-storage", "blocking");
+  assertRule("browser network APIs are blocked", browserEscapeCheck, "forbidden-api/browser-network", "blocking");
+  assertRule("browser navigation APIs are blocked", browserEscapeCheck, "forbidden-api/browser-navigation", "blocking");
+  assertRule("browser worker APIs are blocked", browserEscapeCheck, "forbidden-api/browser-worker", "blocking");
+  assertRule("cross-context messaging APIs are blocked", browserEscapeCheck, "forbidden-api/cross-context-messaging", "blocking");
+  assertRule("browser permission APIs are blocked", browserEscapeCheck, "forbidden-api/browser-permission", "blocking");
+
+  const symlinkSlug = `${FIXTURE_PREFIX}-symlink`;
+  writeVault(symlinkSlug);
+  fs.symlinkSync("Component.tsx", path.join(ROOT, "src", "vaults", symlinkSlug, "Alias.tsx"));
+  assertRule("symlinks inside Vault folders are blocked", runVaultCheck(symlinkSlug, { silent: true }), "forbidden-files/symlink", "blocking");
 
   const sdkImportSlug = `${FIXTURE_PREFIX}-sdk-import`;
   writeVault(sdkImportSlug, {

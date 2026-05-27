@@ -92,7 +92,7 @@ These fields are declared inside each `match.bindings` entry, not at the `match`
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `endpoints` | No | Optional non-oracle external endpoint declarations. Use a single HTTPS URL string or an array of HTTPS URL strings. Avoid by default; declared endpoints enter Flap review and must be approved before publish. |
+| `endpoints` | No | Optional non-oracle external endpoint declarations. Use a single absolute HTTPS URL string without username/password credentials or an array of those strings. Avoid by default; declared endpoints enter Flap review and must be approved before publish. |
 
 ## Do Not Declare
 
@@ -223,4 +223,4 @@ Or:
 ```
 
 A declared endpoint enters Flap review; it is not automatically approved and can still be rejected. Undeclared external URLs in Vault source are blocking check issues.
-Endpoint declarations must be HTTPS URL strings only. Host-relative requests such as `fetch("/api/...")`, non-HTTPS URLs, IPFS/Arweave links, WebSocket URLs, and embedded data URL media are blocked inside Vault source by default.
+Endpoint declarations must be valid absolute HTTPS URL strings without username/password credentials. A declaration covers only that URL path or child paths on the same origin; it does not allow sibling paths or lookalike hosts. Direct `fetch(...)` calls must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked. IPFS/Arweave links, WebSocket URLs, embedded data URL media, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, symlinks, and CommonJS `require(...)` are also blocked inside Vault source by default.

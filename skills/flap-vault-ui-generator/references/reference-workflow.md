@@ -30,7 +30,7 @@ When the user provides a URL:
 
 Use live pages as visual and workflow references only. Prefer local source references when exact behavior matters.
 
-Do not add an external endpoint or external resource just because the reference page appears to use one. Prefer Flap SDK methods and on-chain reads. If a special non-oracle endpoint is truly required, declare it in the manifest for Flap review as a single HTTPS URL string or an array of HTTPS URL strings; oracle usage is reported by `vault:check` and provisioned by the Flap Artifact Workbench/runtime. Declaration does not guarantee approval, and undeclared usage is rejected. Do not replace a copied endpoint with a host-relative `fetch("/api/...")`; that is also blocked.
+Do not add an external endpoint or external resource just because the reference page appears to use one. Prefer Flap SDK methods and on-chain reads. If a special non-oracle endpoint is truly required, declare it in the manifest for Flap review as a single absolute HTTPS URL string without username/password credentials or an array of those strings; direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Oracle usage is reported by `vault:check` and provisioned by the Flap Artifact Workbench/runtime. Declaration does not guarantee approval, and undeclared usage is rejected. Do not replace a copied endpoint with a host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch; those are also blocked.
 
 ## Screenshot References
 

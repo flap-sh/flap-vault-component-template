@@ -157,8 +157,8 @@ What states must the UI handle explicitly?
 > Does this UI need to call any external HTTPS API that is not an oracle?
 
 - Default: no. Prefer Flap SDK methods and on-chain reads.
-- If unavoidable: provide either one full HTTPS endpoint URL or a list of HTTPS endpoint URLs. These are declared in `manifest.endpoints` and enter Flap review; declaration does not guarantee approval.
-- Host-relative URLs (`/api/...`), non-HTTPS, IPFS, and WebSocket are always blocked.
+- If unavoidable: provide either one full HTTPS endpoint URL without username/password credentials or a list of those URLs. These are declared in `manifest.endpoints` and enter Flap review; declaration does not guarantee approval. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration.
+- Host-relative URLs (`/api/...`), dynamic fetch targets, credentialed URLs, non-HTTPS, IPFS/Arweave, WebSocket, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are always blocked.
 
 ---
 
