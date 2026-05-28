@@ -294,10 +294,10 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
 
   useEffect(() => {
     void loadData().catch((nextError) => setError(handleTxError(nextError)));
-    const timer = window.setInterval(() => {
+    const timer = setInterval(() => {
       void loadData().catch(() => undefined);
     }, 15000);
-    return () => window.clearInterval(timer);
+    return () => clearInterval(timer);
   }, [loadData, sdk.refetchNonce]);
 
   const buttonState = (action: ActionKey) => (activeAction === action ? txState : "idle");
@@ -340,7 +340,7 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
           }),
         );
       } finally {
-        window.setTimeout(() => {
+        setTimeout(() => {
           setActiveAction(null);
           setTxState("idle");
         }, 300);

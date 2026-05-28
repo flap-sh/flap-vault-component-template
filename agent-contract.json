@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 1,
+  "version": 2,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -97,9 +97,10 @@
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
-    "bindingsRule": "match.bindings is a non-empty array of unique {chainId, factoryAddress} pairs — one entry per deployment target. Each binding may also declare optional vaultAddresses and optional tokenAddresses reference lists. Preview/runtime should prefer an exact chainId + factoryAddress match, treat partial hints as valid only when they are unambiguous, and use the first binding as a preview default only when the route provides no runtime hints. vaultAddresses does not participate in preview/runtime matching.",
+    "bindingsRule": "match.bindings is a non-empty array of unique {chainId, factoryAddress} pairs — one entry per deployment target. Each binding may also declare optional vaultAddresses, optional tokenAddresses, and optional externalContracts reference/review lists. Preview/runtime should prefer an exact chainId + factoryAddress match, treat partial hints as valid only when they are unambiguous, and use the first binding as a preview default only when the route provides no runtime hints. vaultAddresses and externalContracts do not participate in preview/runtime matching.",
     "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. If a reference token CA list is needed, declare it only as match.bindings[].tokenAddresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry only when a deployment wants to record binding-scoped Vault references. Omit it when not needed. Preview/runtime validates the addresses but does not match on them.",
+    "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks SDK contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
     "localeRule": "Only locales declared by manifest.i18n are required and compared.",
     "oracleRule": "Do not declare oracle config in manifest.json. sdk.readOracle usage is reported by vault:check for Flap review.",
@@ -108,7 +109,7 @@
     "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
   },
   "securityBoundaries": {
-    "contractInteractionRule": "Reads and writes must stay on context.vaultAddress, context.tokenAddress, runtime payment/quote/dividend tokens, or token/NFT addresses derived from Vault reads. Do not interact with routers, bridges, aggregators, factories, or unrelated app contracts from a Vault package.",
+    "contractInteractionRule": "Reads and writes must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
     "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation.",
     "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, cross-context messaging APIs, and browser permission APIs before packaging."
   },
@@ -172,6 +173,10 @@
     "manifest/invalid-folder-name": {
       "severity": "blocking",
       "fixAction": "Rename the Vault folder to 3-64 characters of lowercase kebab-case matching /^[a-z0-9]+(-[a-z0-9]+)*$/. No spaces, underscores, uppercase, leading/trailing hyphens, or nested folders."
+    },
+    "manifest/invalid-external-contract": {
+      "severity": "blocking",
+      "fixAction": "Each match.bindings[].externalContracts entry must include only address and label. Use it only for fixed non-token/non-Vault/non-factory contract targets."
     },
     "manifest/endpoint-missing-required-field": {
       "severity": "blocking",
@@ -247,7 +252,11 @@
     },
     "contract/disallowed-address-source": {
       "severity": "blocking",
-      "fixAction": "Keep contract targets on context.vaultAddress and token/NFT-related runtime addresses only."
+      "fixAction": "Keep contract targets on context.vaultAddress, context.tokenAddress, context.factoryAddress, token/NFT-related runtime addresses, or declared externalContracts only."
+    },
+    "contract/undeclared-address": {
+      "severity": "blocking",
+      "fixAction": "Declare intentional fixed non-token/non-Vault/non-factory contract targets under match.bindings[].externalContracts, or replace the target with a runtime context address."
     },
     "i18n/missing-locale": {
       "severity": "blocking",

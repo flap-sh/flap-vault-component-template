@@ -20,6 +20,7 @@ Core operating rules:
 - Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.
 - Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for internal-market vs DEX-listed button gating. The template preview panel provides this phase API for local self-test.
 - Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media/header data. The template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only. Do not call private token metadata APIs from Vault source.
+- Declare fixed non-token/non-Vault/non-factory contract targets only under `match.bindings[].externalContracts` with `address` and `label`; undeclared fixed targets fail `vault:check`.
 - Treat every Vault CLI failure as JSON. Read `code`, `fixHint`, and `agent.nextActions`, fix those items, then rerun the command.
 - Run `yarn vault:check <folder-name>` before packaging and fix all blocking issues.
 - Run `yarn vault:package <folder-name>` only after checks pass.

@@ -105,7 +105,7 @@ Vault matching intent is captured by explicit chain/factory pairs:
 
 `match.bindings` is a non-empty array where each entry declares one explicit `(chainId, factoryAddress)` binding. The same UI logic can target multiple chains or multiple factories by adding multiple entries. This removes the ambiguity of cross-multiplying a flat chain list against a flat factory list.
 
-Vault address is runtime-derived. If a deployment wants to record binding-scoped Vault references, it may declare them as `match.bindings[].vaultAddresses`, but preview/runtime does not use that list for matching. If a deployment needs a reference token CA list, it is declared only as `match.bindings[].tokenAddresses`. That list is format-validated in this template but not enforced by preview/runtime. This `match` block is not the local route and does not auto-publish anything; it is a developer-facing binding declaration for deployment targets.
+Vault address is runtime-derived. If a deployment wants to record binding-scoped Vault references, it may declare them as `match.bindings[].vaultAddresses`, but preview/runtime does not use that list for matching. If a deployment needs a reference token CA list, it is declared only as `match.bindings[].tokenAddresses`. If a deployment needs a fixed non-token/non-Vault/non-factory contract target, it is declared only as `match.bindings[].externalContracts` with `address` and `label`. These lists are format-validated in this template but not enforced by preview/runtime. This `match` block is not the local route and does not auto-publish anything; it is a developer-facing binding declaration for deployment targets.
 
 ### i18n Policy
 
@@ -190,7 +190,7 @@ Oracle config is not declared in `manifest.json`.
 
 If component code calls `sdk.readOracle("id")`, `vault:check` reports the oracle id as an info item for Flap review/provisioning. The Flap Artifact Workbench/runtime owns endpoint and signing policy.
 
-Non-oracle external endpoints are discouraged. If unavoidable, they may be declared in `manifest.endpoints`; declaration only makes them reviewable and does not guarantee approval.
+Non-oracle external endpoints and fixed extra contract targets are discouraged. If unavoidable, endpoints may be declared in `manifest.endpoints`, and fixed extra contract targets may be declared in `match.bindings[].externalContracts`; declaration only makes them reviewable and does not guarantee approval.
 Endpoint declarations must be a single HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS target covered by that declaration. Host-relative, dynamic, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked. WebSocket URLs, IPFS/Arweave links, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are blocked inside Vault source by default so the template does not package code that the Workbench intake will reject.
 
 ### Packaging
@@ -229,6 +229,7 @@ It validates the package marker, package kind/version, exact file list, metadata
 | Artifact identity | Done | `artifactId` is required, follows `vaultui_<folder-name>_<ULID>`, matches the Vault folder name, and is unique across Vault manifests. |
 | Minimal manifest | Done | Schema and check script allow only developer-facing fields. |
 | CA policy boundary | Done | `vault:check` blocks global `restrictTokenAddresses`, global `tokenAddresses`, and `caPolicy`, while allowing optional per-binding `match.bindings[].tokenAddresses` as a reference-only list. |
+| External contract declaration boundary | Done | `vault:check` blocks fixed SDK contract targets outside runtime token/Vault/factory addresses, binding-scoped token/Vault references, or `match.bindings[].externalContracts`. |
 | Type-field binding ban | Done | Recursive manifest scan blocks `vaultType` / `vaultTypes` binding fields. |
 | Dynamic locale validation | Done | Checks follow `manifest.i18n`; single-locale manifests are valid. |
 | Oracle review surface | Done | `sdk.readOracle(...)` usage is reported by `vault:check`; oracle config is not in manifest. |
@@ -254,7 +255,7 @@ It validates the package marker, package kind/version, exact file list, metadata
 | Agent-oriented check output | Done | `vault:check` emits `ok`, `agent.verdict`, and fix-focused `agent.nextActions`. |
 | Action-stage checker warning | Done | `vault:check` warns when a component has a write path but no `marketPhase` / `isActionAvailableForPhase` usage. |
 | Agent-oriented CLI errors | Done | `vault:scaffold`, `vault:register`, and `vault:package` failures emit JSON with `code`, `fixHint`, and `agent.nextActions`. |
-| Checker regression selftest | Done | `yarn vault:check:selftest` verifies critical blocking rules for invalid folder names, CA policy, duplicate bindings and duplicate binding-scoped addresses, malformed/credentialed endpoint declarations, endpoint-prefix escapes, hidden relative/dynamic/credentialed fetches, symlinks, CommonJS `require(...)`, browser-global escapes, browser storage/navigation/worker/permission APIs, IPFS-style resources, dynamic imports, ERC20 ABI drift, registration formatting, unregister, and scaffold/check/package/verify positive flow. |
+| Checker regression selftest | Done | `yarn vault:check:selftest` verifies critical blocking rules for invalid folder names, CA policy, duplicate bindings and duplicate binding-scoped addresses, external contract declarations and undeclared fixed contract targets, malformed/credentialed endpoint declarations, endpoint-prefix escapes, hidden relative/dynamic/credentialed fetches, symlinks, CommonJS `require(...)`, browser-global escapes, browser storage/navigation/worker/permission APIs, IPFS-style resources, dynamic imports, ERC20 ABI drift, registration formatting, unregister, and scaffold/check/package/verify positive flow. |
 | CI validation gate | Done | `.github/workflows/ci.yml` runs `yarn ci` on pull requests and pushes to `master`. |
 | Preview route/API smoke | Done | `yarn preview:smoke` starts the built app and checks `/example`, `/dex-listed-example`, and `/action-gallery-example`. `yarn preview:smoke:real` covers `/community-buyback-example` and `/flapixel-example`, validates their host-presentation proxy responses, and is part of the default `yarn ci` regression spine. |
 | Generated package hygiene | Done | `dist/` is ignored by git; source zips are generated by package commands and CI instead of committed. |

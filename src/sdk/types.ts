@@ -198,6 +198,12 @@ export interface ManifestBindingEntry {
   factoryAddress: Address;
   vaultAddresses?: Address[];
   tokenAddresses?: Address[];
+  externalContracts?: ManifestExternalContract[];
+}
+
+export interface ManifestExternalContract {
+  address: Address;
+  label: string;
 }
 
 export interface VaultManifest {

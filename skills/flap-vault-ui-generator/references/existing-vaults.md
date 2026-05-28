@@ -96,7 +96,7 @@ When the user provides access to a private Flap frontend checkout or a specific 
 Do not extract or copy:
 
 - Private component names, file paths, or import paths
-- Internal factory addresses, token addresses, or endpoint URLs
+- Internal factory addresses, token addresses, fixed extra contract addresses, or endpoint URLs
 - Private business constants or unreleased mechanics
 - Private oracle IDs or backend API shapes
 

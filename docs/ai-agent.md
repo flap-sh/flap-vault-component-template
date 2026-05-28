@@ -54,6 +54,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `bindings` | Yes | Explicit `(chainId, factoryAddress)` pairs — one per deployment target. Example: `[{chainId: 56, factoryAddress: "0x..."}, {chainId: 97, factoryAddress: "0x..."}]`. Same UI logic, different factory per deployment. |
 | `vaultAddresses` | Optional | Use only when a deployment wants to record binding-scoped Vault addresses inside a `match.bindings` entry. Preview/runtime does not match on this list. |
 | `tokenAddresses` | Optional | Use only as a reference token CA allowlist inside each `match.bindings` entry. The template validates the address list format but does not enforce it at preview/runtime. |
+| `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Check validates only declared locales. |
 | `VaultABI` | Yes | Minimal Vault ABI fragments used by the component. Do not include standard ERC20 here. |
 | `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, and risk posture. |
@@ -86,6 +87,8 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000
 If a UI needs a reference token CA allowlist, still scaffold the shared UI artifact first. Then add `tokenAddresses` manually under the relevant `match.bindings` entry in `manifest.json`; do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`, and do not pass CA flags to `vault:scaffold`.
 
 If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
+
+If the UI needs a fixed non-token/non-Vault/non-factory contract target, declare it under the relevant `match.bindings[].externalContracts` entry with `address` and `label`. Also add it as an `openItems` entry until Flap review explicitly approves the target. The `openItems` entry must include: address, label, chain/factory binding, purpose, read/write methods, why runtime token/Vault/factory addresses are insufficient, and fallback behavior when the call fails. Do not use a top-level `contracts` field.
 
 Then edit only:
 
@@ -124,7 +127,8 @@ Use:
 - `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` to keep stage-gated buttons consistent.
 - `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` when a write flow depends on the active wallet being on `context.chainId`. Keep the write section visible and render a clear switch-network state instead of attempting the write on the wrong chain.
 - `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token header/media data. The template preview shell first asks the same-origin runtime proxy for host presentation data, then falls back to ERC20 `symbol()` / `name()` from the preview `tokenAddress`; mocked image fallback is reserved for the neutral preview fixture only. `tokenAddress` alone is metadata-only in preview; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when token lifecycle state matters.
-- Contract targets limited to `context.vaultAddress`, `context.tokenAddress`, runtime payment/quote/dividend token addresses, and token/NFT addresses derived from Vault reads. Do not interact with routers, bridges, aggregators, factories, or unrelated app contracts from a Vault package.
+- Contract targets limited to `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, runtime payment/quote/dividend token addresses, token/NFT addresses derived from Vault reads, and declared `match.bindings[].externalContracts`. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.
+- Fixed extra contract targets declared under `match.bindings[].externalContracts` only when the target is truly required and cannot be represented by runtime token/Vault/factory context.
 - The preview shell / production host for the target surface to own token breadcrumb/header, close control, `Vault Information` frame, wallet header, language selector, invalid token fallback, width constraint, and any standard shared summary block already present on the host surface.
 - The component to start at the first Vault-specific business section below `Vault Information`.
 - `VaultBanner` only when the target host surface truly lacks a standard shared summary/header block. Do not default to a component-owned top banner.
@@ -139,10 +143,11 @@ Do not use:
 - Browser storage, cookie, navigation, Worker, cross-context messaging, clipboard, geolocation, permission, or notification APIs.
 - External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` targets. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`.
+- Fixed contract targets outside `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, binding-scoped `tokenAddresses`/`vaultAddresses`, or `match.bindings[].externalContracts`.
 - Arbitrary off-site navigation. Component-owned links should stay on the current chain explorer only; do not send users to other websites from a Vault package.
 - Oracle config in `manifest.json`.
 - Actions, media, fallback, id, owner, version, sdkVersion, or contracts in `manifest.json`.
-- Hardcoded transaction target addresses in `Component.tsx`.
+- Undeclared hardcoded transaction target addresses in `Component.tsx`.
 - Standard ERC20 ABI fragments in `VaultABI.ts`; use the SDK export unless the token has custom non-standard methods.
 - Silent action removal when an action is unavailable. Show the panel with a clear disabled or unavailable state instead.
 - Reimplementing token phase detection inside `Component.tsx`; use the host-provided `marketPhase`.

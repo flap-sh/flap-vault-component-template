@@ -29,7 +29,7 @@
         "kicker": "AI Agent Quick Start",
         "description": "Paste this prompt into your AI coding agent, replace the placeholders, and it can generate a controlled custom Vault UI from this repository.",
         "promptLabel": "Prompt template",
-        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, factoryAddress is <0x...>, preview tokenAddress is <0x...>, token CA restriction is <none | only 0x..., 0x...>. If restricted, write those CAs to match.bindings[].tokenAddresses. Action availability is <internal-market | dex-listed | both | read-only>, and my minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
+        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, factoryAddress is <0x...>, preview tokenAddress is <0x...>, token CA restriction is <none | only 0x..., 0x...>. If restricted, write those CAs to match.bindings[].tokenAddresses. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>, and my minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
       },
       "developerEntry": {
         "kicker": "Developer Entry",
@@ -83,8 +83,8 @@
       "scopeItems": [
         "Build the Vault UI inside the component structure provided by this template.",
         "Use the folder name only for the folder and preview route; vault:scaffold generates the manifest artifactId automatically.",
-        "Declare Vault UI binding targets in the manifest with chain and factory address. If a deployment needs a token CA reference list, declare it only as match.bindings[].tokenAddresses.",
-        "Avoid external endpoints and external resources; special cases must be declared and approved by Flap review before publish.",
+        "Declare Vault UI binding targets in the manifest with chain and factory address. If a deployment needs a token CA reference list or fixed extra contract targets, declare them only inside the relevant match.bindings[] entry.",
+        "Avoid external endpoints, external resources, and fixed extra contract targets; special cases must be declared and approved by Flap review before publish.",
         "Keep the Vault package folder limited to Component.tsx, manifest.json, VaultABI.ts, and i18n.json.",
         "Register local preview routing with vault:scaffold or vault:register; do not hand-edit registration unless the script cannot parse the index file.",
         "Do not add helpers, nested components, local assets, docs, or any other files under the Vault package.",
@@ -125,6 +125,7 @@
           "folder name, chain/factory binding targets, and optional vault address allowlists.",
           "Optional per-binding token CA reference lists belong only in match.bindings[].tokenAddresses; this template validates the addresses but does not enforce them at preview/runtime.",
           "Vault address only when it cannot be derived from factory + token, or when exact allowlist is required.",
+          "Fixed external contract targets only when the UI must call a non-token/non-Vault/non-factory contract; provide externalContracts entries with address and label.",
           "Vault ABI is required. Standard ERC20 ABI is already provided by @/src/sdk; custom Token ABI is needed only for special token mechanics.",
           "Read/write methods, approve spender, UI workflow, real preview addresses, and i18n requirements; avoid oracle usage unless required, and let vault:check surface it for Flap review when unavoidable."
         ],
@@ -190,9 +191,10 @@
             "Use public aliases for shared capabilities. The only local relative import allowed is ./VaultABI; do not use ./helpers, ../VaultABI, nested component imports, local asset imports, or dynamic imports.",
             "Reuse one UI across testnet, mainnet, or other factories when the logic is the same; the binding list only describes which deployments the shared UI is intended for.",
             "Flap runtime injects the Vault address; declare vaultAddresses only when an exact allowlist is required.",
+            "If the UI calls a fixed extra contract target, declare it as match.bindings[].externalContracts before running check.",
             "Keep ABI fragments minimal.",
             "Keep Vault component copy in src/vaults/{folder-name}/i18n.json.",
-            "Do not use direct wallet APIs, iframe, eval, script injection, remote runtime imports, or undeclared endpoints/external resources."
+            "Do not use direct wallet APIs, iframe, eval, script injection, remote runtime imports, undeclared endpoints/external resources, or undeclared fixed contract targets."
           ]
         },
         {
@@ -224,12 +226,30 @@
         "Keep the scaffold-generated artifactId in manifest.json unique and declare the required match details.",
         "Do not submit private keys, API keys, or local environment files.",
         "Do not bind Vault UI by type fields.",
-        "Avoid external endpoints or external resources.",
+        "Avoid external endpoints, external resources, or fixed extra contract targets.",
         "Special non-oracle endpoints must be declared in the manifest and reviewed by Flap; declaration does not guarantee approval.",
-        "Undeclared endpoints or external resources are rejected.",
+        "Undeclared endpoints, external resources, or fixed extra contract targets are rejected.",
         "All Vault CLI failures return JSON with code, fixHint, and agent.nextActions.",
         "You must run yarn vault:check {folder-name} before packaging and follow agent.nextActions until blocking is zero.",
-        "You must use yarn vault:package {folder-name}; Workbench accepts only script-generated zips with flap-vault-package.json and matching hashes."
+        "You must use yarn vault:package {folder-name}; Workbench accepts only script-generated zips with flap-vault-package.json and matching hashes.",
+        "The Vault package folder may contain only Component.tsx, manifest.json, VaultABI.ts, and i18n.json; no helpers, assets, nested folders, docs, sample data, symlinks, or extra files.",
+        "Manifest fields are limited to artifactId, name, match, i18n, and optional endpoints. Binding-scoped tokenAddresses, vaultAddresses, and externalContracts live only under match.bindings[]. Do not add chainIds, id, owner, version, sdkVersion, actions, oracles, media, fallback, contracts, global tokenAddresses, restrictTokenAddresses, or caPolicy.",
+        "match.bindings must contain unique chainId + factoryAddress pairs. Optional vaultAddresses and tokenAddresses belong only inside each binding entry, and duplicate addresses are rejected.",
+        "All visible Vault component copy must live in i18n.json, and every key used by Component.tsx must exist in every locale declared by manifest.i18n.",
+        "Vault source may import only approved packages and shared surfaces: react, viem, decimal.js, lucide-react, @/src/sdk, @/src/ui, and ./VaultABI. CommonJS require(), dynamic import(), unapproved dependencies, and extra SDK packages are blocked.",
+        "Do not use direct wallet APIs, eval, the Function constructor, iframe, script injection, dangerouslySetInnerHTML, or runtime remote imports.",
+        "Do not use direct browser network, media, storage, navigation, Worker, cross-context messaging, permission APIs, or browser-global aliasing/destructuring/computed access.",
+        "Direct fetch() targets must be static absolute HTTPS URLs without credentials and covered by manifest.endpoints. Host-relative, dynamic, HTTP, credentialed, or undeclared fetch targets are blocked.",
+        "Do not add third-party images, remote media, data URLs, IPFS, Arweave, WebSocket, or non-HTTPS resources. Token media must come from Flap-controlled runtime context such as context.tokenImageUrl.",
+        "Component-owned links must stay on the active chain explorer through context.explorerBaseUrl or shared explorer helpers; arbitrary external navigation is blocked.",
+        "Contract reads and writes must stay inside the Vault/token/NFT/factory/declaration boundary and use runtime context, Vault-derived addresses, or declared externalContracts. Routers, bridges, aggregators, or unrelated app contracts are blocked.",
+        "Do not hardcode EVM addresses in Vault source. Use context.vaultAddress, context.tokenAddress, or approved runtime context values.",
+        "Keep ABI fragments minimal. Use erc20Abi or standardErc20Abi from @/src/sdk for standard ERC20 methods, and keep transaction math as bigint or Decimal instead of Number(...).",
+        "Write-capable Vault UIs must state whether actions run in internal-market, dex-listed, both, or read-only mode, use context.host?.marketPhase with isActionAvailableForPhase(...), and show unavailable states instead of hiding actions.",
+        "Chain-specific write flows must check sdk.wallet.isWrongNetwork and use sdk.wallet.switchChain() or render a clear switch-network state before any write.",
+        "Polling and refetch intervals must not be faster than 5 seconds unless Flap explicitly approves the need.",
+        "After yarn vault:package {folder-name}, run yarn vault:verify-package dist/{folder-name}.zip to verify marker, file list, metadata, hashes, duplicate entries, and filename/header consistency.",
+        "For shared runtime, checker, preview shell, or code-base changes, run yarn ci when feasible; it covers lint, typecheck, checker selftest, package/verify, build, runtime verify, and preview smoke."
       ],
       "cta": "Open Reward Example",
       "dexListedCta": "Open DEX-Listed Example",

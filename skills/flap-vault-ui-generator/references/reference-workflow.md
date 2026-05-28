@@ -30,7 +30,7 @@ When the user provides a URL:
 
 Use live pages as visual and workflow references only. Prefer local source references when exact behavior matters.
 
-Do not add an external endpoint or external resource just because the reference page appears to use one. Prefer Flap SDK methods and on-chain reads. If a special non-oracle endpoint is truly required, declare it in the manifest for Flap review as a single absolute HTTPS URL string without username/password credentials or an array of those strings; direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Oracle usage is reported by `vault:check` and provisioned by the Flap Artifact Workbench/runtime. Declaration does not guarantee approval, and undeclared usage is rejected. Do not replace a copied endpoint with a host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch; those are also blocked.
+Do not add an external endpoint, external resource, or fixed extra contract target just because the reference page appears to use one. Prefer Flap SDK methods and on-chain reads against runtime token/Vault/factory addresses. If a special non-oracle endpoint is truly required, declare it in the manifest for Flap review as a single absolute HTTPS URL string without username/password credentials or an array of those strings; direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. If a fixed non-token/non-Vault/non-factory contract target is truly required, declare it under `match.bindings[].externalContracts` with `address` and `label`. Oracle usage is reported by `vault:check` and provisioned by the Flap Artifact Workbench/runtime. Declaration does not guarantee approval, and undeclared usage is rejected. Do not replace a copied endpoint with a host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch; those are also blocked.
 
 ## Screenshot References
 
@@ -49,7 +49,7 @@ When reading existing Flap code:
 - Prefer equivalent SDK methods and template UI primitives.
 - Do not import from the private frontend repo.
 - Do not copy private constants, exact oracle URLs, private addresses, or unreleased business logic.
-- Do not copy reference endpoint URLs into the template. Re-declare only reviewed endpoint intent when the new Vault truly needs it.
+- Do not copy reference endpoint URLs or fixed extra contract addresses into the template. Re-declare only reviewed endpoint or external-contract intent when the new Vault truly needs it.
 - Keep Vault ABI fragments minimal and local to `src/vaults/{folder-name}/VaultABI.ts`.
 - Use `erc20Abi` from `@/src/sdk` for standard ERC20 reads/approvals. Add token ABI fragments only for custom non-standard token methods.
 

@@ -153,10 +153,12 @@ Contract interaction should stay on:
 
 - `context.vaultAddress`
 - `context.tokenAddress`
+- `context.factoryAddress`
 - runtime-provided payment/quote/dividend token addresses
 - token/NFT addresses derived from Vault state
+- fixed addresses declared in `match.bindings[].externalContracts`
 
-Do not use the shared runtime surface to reach unrelated routers, bridges, aggregators, factories, or arbitrary app contracts.
+Do not use the shared runtime surface to reach unrelated routers, bridges, aggregators, or arbitrary app contracts.
 
 Those belong to the host/runtime layer.
 

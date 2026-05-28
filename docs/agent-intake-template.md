@@ -160,11 +160,19 @@ What states must the UI handle explicitly?
 - If unavoidable: provide either one full HTTPS endpoint URL without username/password credentials or a list of those URLs. These are declared in `manifest.endpoints` and enter Flap review; declaration does not guarantee approval. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration.
 - Host-relative URLs (`/api/...`), dynamic fetch targets, credentialed URLs, non-HTTPS, IPFS/Arweave, WebSocket, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are always blocked.
 
+### Q15: Fixed external contracts (optional)
+
+> Does this UI need to call a fixed contract address that is not the runtime token, Vault, factory, or binding-scoped token/Vault reference?
+
+- Default: no. Prefer runtime `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, and Vault-derived token/NFT addresses.
+- If unavoidable: provide the chain/factory binding, contract address, label, purpose, read/write methods, and fallback behavior. These are declared in `match.bindings[].externalContracts` and enter Flap review; declaration does not guarantee approval.
+- Undeclared fixed contract targets are blocking `vault:check` issues.
+
 ---
 
 ## Step 7 — Preview Addresses (Recommended)
 
-### Q15: Preview addresses
+### Q16: Preview addresses
 
 > Do you have real contract addresses for local preview and testing?
 

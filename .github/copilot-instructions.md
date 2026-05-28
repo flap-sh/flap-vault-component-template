@@ -24,6 +24,7 @@ This repository is a public template for controlled Flap Vault UI packages. Read
 - Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for internal-market vs DEX-listed action gating.
 - In preview, a supported `chainId + tokenAddress` triggers the public SDK chain-read path for token metadata and real Portal/helper/VaultPortal host state. Use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` only when you intentionally need to override action-stage behavior.
 - Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media. The template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only. Do not call private token metadata APIs from Vault source.
+- Declare fixed non-token/non-Vault/non-factory contract targets only under `match.bindings[].externalContracts` with `address` and `label`; undeclared fixed targets fail `vault:check`.
 - If a deployment needs a reference token CA list, declare it only as `match.bindings[].tokenAddresses`; do not add global CA policy fields.
 - All user-facing copy must be in `i18n.json` for every locale declared by `manifest.i18n`.
 - Treat every Vault CLI failure as JSON. Read `code`, `fixHint`, and `agent.nextActions` before retrying.
@@ -45,9 +46,9 @@ For code-base changes: `yarn ci`.
 - `window.ethereum`, `eval`, the `Function` constructor, iframe, script injection, dynamic import, CommonJS `require(...)`, or symlinks
 - Undeclared, host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global `fetch(...)`
 - Browser storage/navigation/worker/permission APIs and direct browser network/media APIs
-- Hardcoded EVM addresses in Vault source
+- Undeclared hardcoded EVM addresses in Vault source
 - Standard ERC20 ABI in `VaultABI.ts` — use `erc20Abi` from `@/src/sdk`
 - `wagmi`, `ethers`, `axios`, `next/image`, `framer-motion`, `recharts` as direct Vault imports
-- Fields `chainIds`, `id`, `owner`, `version`, `sdkVersion`, `actions`, `oracles`, `media`, `fallback`, `contracts`, `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy` in `manifest.json` — chain IDs and optional reference token CA lists live inside `match.bindings` entries
+- Fields `chainIds`, `id`, `owner`, `version`, `sdkVersion`, `actions`, `oracles`, `media`, `fallback`, `contracts`, `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy` in `manifest.json` — chain IDs and optional reference token/external-contract lists live inside `match.bindings` entries
 
 If anything here conflicts with `agent-contract.json` or `docs/ai-agent.md`, follow those files and update this one.

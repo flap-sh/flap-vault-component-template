@@ -16,7 +16,7 @@ const ALLOWED_VAULT_FILES = new Set(REQUIRED_FILES);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI"]);
 const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "endpoints"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
-const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses"]);
+const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
 const STANDARD_ERC20_METHODS = ["balanceOf", "allowance", "approve", "decimals", "symbol", "transfer", "transferFrom"];
 const ALLOWED_IMPORTS = [
   "react",
@@ -41,8 +41,8 @@ const APPROVED_EXPLORER_ORIGINS = new Set(["https://bscscan.com", "https://testn
 const DEFAULT_ALLOWED_URL_PREFIXES = [];
 const APPROVED_CONTRACT_LABEL_RE = /\b(?:vault|token|nft)\b/i;
 const APPROVED_CONTRACT_ADDRESS_KEYWORD_RE =
-  /(vaultaddress|tokenaddress|paymenttoken|quotetoken|dividendtoken|rewardtoken|staketoken|taxtoken|targettoken|targetasset|approvedbuybacktoken|proposedtoken|nftaddress|nft|lptoken|assettoken|underlyingtoken|taxtoken|buybacktoken)/i;
-const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|factory|oracle|aggregator|pair|amm|treasury|governor)/i;
+  /(vaultaddress|tokenaddress|factoryaddress|paymenttoken|quotetoken|dividendtoken|rewardtoken|staketoken|taxtoken|targettoken|targetasset|approvedbuybacktoken|proposedtoken|nftaddress|nft|lptoken|assettoken|underlyingtoken|taxtoken|buybacktoken)/i;
+const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|oracle|aggregator|pair|amm|treasury|governor)/i;
 
 const BLOCKING = "blocking";
 const WARNING = "warning";
@@ -71,13 +71,15 @@ const FIX_HINTS = {
   "manifest-binding/missing-bindings": "Add match.bindings as a non-empty array of {chainId, factoryAddress} pairs. Example: [{chainId: 56, factoryAddress: '0x...'}]",
   "manifest-binding/duplicate-binding": "Remove duplicate match.bindings entries with the same chainId + factoryAddress pair. Merge any binding-scoped reference lists into one entry.",
   "manifest-binding/invalid-binding-entry": "Each match.bindings entry must be an object with chainId (positive integer) and factoryAddress (0x address).",
-  "manifest-binding/disallowed-binding-field": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, and optional tokenAddresses.",
+  "manifest-binding/disallowed-binding-field": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, and optional externalContracts.",
   "manifest-binding/invalid-chain-id": "chainId must be a positive integer, for example 56 for BNB Chain or 97 for BNB Testnet.",
   "manifest-binding/invalid-address": "Use a full 20-byte EVM address matching 0x plus 40 hex characters.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only when a reference token CA list is needed.",
   "manifest-binding/invalid-vault-address-list": "Use a non-empty array for a binding entry's vaultAddresses reference list, or omit it when no binding-scoped Vault references need to be recorded.",
   "manifest-binding/invalid-token-address-list": "Use a non-empty array of valid EVM addresses for a binding entry's tokenAddresses, or omit it when no reference token CA list is needed.",
+  "manifest-binding/invalid-external-contract-list": "Use a non-empty externalContracts array only when this binding needs fixed non-token/non-Vault/non-factory contract targets.",
+  "manifest-binding/invalid-external-contract-entry": "Each externalContracts entry must be an object with address and label only.",
   "manifest-binding/no-type-based-binding": "Remove vaultType/vaultTypes from manifest matching. Binding intent must use chain and factory targets.",
   "i18n-policy/manifest-locales": "Declare at least one locale in manifest.i18n.",
   "i18n-policy/duplicate-manifest-locale": "Remove duplicate locale entries from manifest.i18n.",
@@ -116,11 +118,12 @@ const FIX_HINTS = {
   "imports-and-dependencies/unreviewed-import": "Remove the dependency unless Flap explicitly approves it.",
   "imports-and-dependencies/dynamic-import": "Use static imports only.",
   "media-policy/remote-media": "Remove remote media. Media is controlled by Flap Artifact Workbench/runtime policy.",
-  "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, or approved runtime context instead of hardcoded addresses in source code.",
+  "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites. Keep component-owned links on the current chain explorer only, and use host-reviewed allowlists for any exceptional metadata/oracle origin during review.",
   "contract-boundary/missing-contract-label": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the call target.",
   "contract-boundary/disallowed-contract-label": "Limit contract labels to vault/token/nft-related targets. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
-  "contract-boundary/disallowed-contract-address-source": "Keep contract targets on context.vaultAddress and token/NFT-related addresses derived from runtime context or Vault reads only.",
+  "contract-boundary/disallowed-contract-address-source": "Keep contract targets on context.vaultAddress, context.tokenAddress, context.factoryAddress, token/NFT-related runtime addresses, or declared externalContracts only.",
+  "contract-boundary/undeclared-contract-address": "Use runtime context addresses for Vault/token/factory targets. If this is an intentional fixed external contract, declare it under match.bindings[].externalContracts.",
   "performance/refetch-too-fast": "Use a refetch interval of at least 5000ms unless Flap approves a faster polling path.",
   "contract-abi/number-bigint": "Keep token amounts as bigint/Decimal and avoid Number(...) for transaction math.",
   "contract-abi/standard-erc20-in-vault-abi": "Use erc20Abi or standardErc20Abi from @/src/sdk for standard ERC20 methods. Add token ABI fragments to VaultABI.ts only for custom token mechanics.",
@@ -329,19 +332,61 @@ function normalizeContractAddressExpression(expressionText) {
   return expressionText.replace(/\s+/g, "").toLowerCase();
 }
 
+function unwrapExpression(expression) {
+  let current = expression;
+  while (
+    ts.isAsExpression(current) ||
+    ts.isTypeAssertionExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isParenthesizedExpression(current) ||
+    ts.isSatisfiesExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+function collectAddressConstants(sourceFile) {
+  const constants = new Map();
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      const initializer = unwrapExpression(node.initializer);
+      if (ts.isStringLiteral(initializer) || ts.isNoSubstitutionTemplateLiteral(initializer)) {
+        const normalized = normalizeAddress(initializer.text);
+        if (normalized) constants.set(node.name.text, normalized);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return constants;
+}
+
+function resolveAddressExpression(expression, sourceFile, addressConstants) {
+  const unwrapped = unwrapExpression(expression);
+  if (ts.isStringLiteral(unwrapped) || ts.isNoSubstitutionTemplateLiteral(unwrapped)) {
+    return normalizeAddress(unwrapped.text);
+  }
+  if (ts.isIdentifier(unwrapped)) {
+    return addressConstants.get(unwrapped.text) ?? null;
+  }
+  return null;
+}
+
 function isApprovedContractAddressExpression(expressionText) {
   const normalized = normalizeContractAddressExpression(expressionText);
   if (!normalized) return false;
   if (FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE.test(normalized)) return false;
-  if (normalized.includes("context.vaultaddress") || normalized.includes("context.tokenaddress")) return true;
-  if (normalized.includes("sdk.context.vaultaddress") || normalized.includes("sdk.context.tokenaddress")) return true;
+  if (normalized.includes("context.vaultaddress") || normalized.includes("context.tokenaddress") || normalized.includes("context.factoryaddress")) return true;
+  if (normalized.includes("sdk.context.vaultaddress") || normalized.includes("sdk.context.tokenaddress") || normalized.includes("sdk.context.factoryaddress")) return true;
   return APPROVED_CONTRACT_ADDRESS_KEYWORD_RE.test(normalized);
 }
 
-function collectContractInteractionIssues(content, file) {
+function collectContractInteractionIssues(content, file, contractPolicy) {
   const issues = [];
   const scriptKind = file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sourceFile = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
+  const addressConstants = collectAddressConstants(sourceFile);
 
   function visit(node) {
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
@@ -354,6 +399,8 @@ function collectContractInteractionIssues(content, file) {
         if (request && ts.isObjectLiteralExpression(request)) {
           const contractProperty = extractObjectProperty(request, "contract");
           const addressProperty = extractObjectProperty(request, "address");
+          const resolvedAddress = addressProperty ? resolveAddressExpression(addressProperty.initializer, sourceFile, addressConstants) : null;
+          const isDeclaredExternalAddress = Boolean(resolvedAddress && contractPolicy.external.has(resolvedAddress));
           if (!contractProperty) {
             issues.push(
               issue(BLOCKING, "contract-boundary/missing-contract-label", `${methodName} call is missing a contract label.`, {
@@ -373,7 +420,7 @@ function collectContractInteractionIssues(content, file) {
             );
           } else {
             const contractLabel = contractProperty.initializer.text;
-            if (!APPROVED_CONTRACT_LABEL_RE.test(contractLabel)) {
+            if (!isDeclaredExternalAddress && !APPROVED_CONTRACT_LABEL_RE.test(contractLabel)) {
               issues.push(
                 issue(BLOCKING, "contract-boundary/disallowed-contract-label", `${methodName} target "${contractLabel}" is outside the allowed vault/token/nft boundary.`, {
                   file,
@@ -384,19 +431,35 @@ function collectContractInteractionIssues(content, file) {
           }
 
           if (addressProperty) {
-            const addressText = getNodeText(sourceFile, addressProperty.initializer);
-            if (!isApprovedContractAddressExpression(addressText)) {
-              issues.push(
-                issue(
-                  BLOCKING,
-                  "contract-boundary/disallowed-contract-address-source",
-                  `${methodName} address source ${addressText} is outside the allowed Vault/token/NFT runtime boundary.`,
-                  {
-                    file,
-                    line: lineForIndex(content, addressProperty.initializer.getStart(sourceFile)),
-                  },
-                ),
-              );
+            if (resolvedAddress) {
+              if (!contractPolicy.all.has(resolvedAddress)) {
+                issues.push(
+                  issue(
+                    BLOCKING,
+                    "contract-boundary/undeclared-contract-address",
+                    `${methodName} uses fixed contract address ${resolvedAddress}, but it is not a runtime Vault/token/factory address and is not declared in manifest match.bindings[].externalContracts.`,
+                    {
+                      file,
+                      line: lineForIndex(content, addressProperty.initializer.getStart(sourceFile)),
+                    },
+                  ),
+                );
+              }
+            } else {
+              const addressText = getNodeText(sourceFile, addressProperty.initializer);
+              if (!isApprovedContractAddressExpression(addressText)) {
+                issues.push(
+                  issue(
+                    BLOCKING,
+                    "contract-boundary/disallowed-contract-address-source",
+                    `${methodName} address source ${addressText} is outside the allowed Vault/token/factory runtime boundary. Fixed external contract targets must be declared in manifest match.bindings[].externalContracts.`,
+                    {
+                      file,
+                      line: lineForIndex(content, addressProperty.initializer.getStart(sourceFile)),
+                    },
+                  ),
+                );
+              }
             }
           }
         }
@@ -503,6 +566,75 @@ function checkAddressListDuplicates(addresses, field) {
   return issues;
 }
 
+function normalizeAddress(value) {
+  if (typeof value !== "string" || !ADDRESS_RE.test(value)) return null;
+  return value.toLowerCase();
+}
+
+function collectManifestContractPolicy(manifest) {
+  const builtIn = new Set();
+  const external = new Set();
+  const all = new Set();
+  for (const bindingEntry of manifest?.match?.bindings || []) {
+    const factoryAddress = normalizeAddress(bindingEntry?.factoryAddress);
+    if (factoryAddress) builtIn.add(factoryAddress);
+    for (const address of bindingEntry?.vaultAddresses || []) {
+      const normalized = normalizeAddress(address);
+      if (normalized) builtIn.add(normalized);
+    }
+    for (const address of bindingEntry?.tokenAddresses || []) {
+      const normalized = normalizeAddress(address);
+      if (normalized) builtIn.add(normalized);
+    }
+    for (const contractEntry of bindingEntry?.externalContracts || []) {
+      const normalized = normalizeAddress(contractEntry?.address);
+      if (normalized) external.add(normalized);
+    }
+  }
+  for (const address of builtIn) all.add(address);
+  for (const address of external) all.add(address);
+  return { builtIn, external, all };
+}
+
+function checkExternalContracts(value, field, builtInAddresses = new Set()) {
+  const issues = [];
+  if (!Array.isArray(value) || value.length === 0) {
+    issues.push(issue(BLOCKING, "manifest-binding/invalid-external-contract-list", `${field} must be a non-empty array when provided.`, { field }));
+    return issues;
+  }
+
+  const seen = new Map();
+  for (const [index, contractEntry] of value.entries()) {
+    const entryField = `${field}[${index}]`;
+    if (!contractEntry || typeof contractEntry !== "object" || Array.isArray(contractEntry)) {
+      issues.push(issue(BLOCKING, "manifest-binding/invalid-external-contract-entry", `${entryField} must be an object with address and label.`, { field: entryField }));
+      continue;
+    }
+    for (const key of Object.keys(contractEntry)) {
+      if (key !== "address" && key !== "label") {
+        issues.push(issue(BLOCKING, "manifest-binding/invalid-external-contract-entry", `${entryField}.${key} is not allowed.`, { field: `${entryField}.${key}` }));
+      }
+    }
+    if (!ADDRESS_RE.test(contractEntry.address || "")) {
+      issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${entryField}.address is not a valid 0x address.`, { field: `${entryField}.address` }));
+    } else {
+      const normalized = contractEntry.address.toLowerCase();
+      const firstField = seen.get(normalized);
+      if (firstField) {
+        issues.push(issue(BLOCKING, "manifest-binding/duplicate-address", `${entryField}.address duplicates ${firstField}.address.`, { field: `${entryField}.address` }));
+      } else if (builtInAddresses.has(normalized)) {
+        issues.push(issue(BLOCKING, "manifest-binding/duplicate-address", `${entryField}.address is already covered by this binding's factoryAddress, tokenAddresses, or vaultAddresses.`, { field: `${entryField}.address` }));
+      } else {
+        seen.set(normalized, entryField);
+      }
+    }
+    if (!isNonEmptyString(contractEntry.label) || contractEntry.label.trim().length < 2) {
+      issues.push(issue(BLOCKING, "manifest-binding/invalid-external-contract-entry", `${entryField}.label must be a human-readable label.`, { field: `${entryField}.label` }));
+    }
+  }
+  return issues;
+}
+
 function checkManifest(manifest, folderName) {
   const issues = [];
   for (const key of Object.keys(manifest || {})) {
@@ -583,7 +715,7 @@ function checkManifest(manifest, folderName) {
         for (const key of Object.keys(bindingEntry)) {
           if (!ALLOWED_BINDING_ENTRY_KEYS.has(key)) {
             const ruleId = key === "caPolicy" || key === "restrictTokenAddresses" ? "manifest-binding/ca-policy-not-in-manifest" : "manifest-binding/disallowed-binding-field";
-            issues.push(issue(BLOCKING, ruleId, `${field}.${key} is not allowed. Binding entries may only have chainId, factoryAddress, vaultAddresses, and optional tokenAddresses.`, { field: `${field}.${key}` }));
+            issues.push(issue(BLOCKING, ruleId, `${field}.${key} is not allowed. Binding entries may only have chainId, factoryAddress, vaultAddresses, tokenAddresses, and externalContracts.`, { field: `${field}.${key}` }));
           }
         }
         if (!Number.isInteger(bindingEntry.chainId) || bindingEntry.chainId <= 0) {
@@ -631,6 +763,16 @@ function checkManifest(manifest, folderName) {
             }
             issues.push(...checkAddressListDuplicates(bindingEntry.tokenAddresses, `${field}.tokenAddresses`));
           }
+        }
+        if (bindingEntry.externalContracts !== undefined) {
+          const builtInAddresses = new Set(
+            [
+              normalizeAddress(bindingEntry.factoryAddress),
+              ...(bindingEntry.tokenAddresses || []).map(normalizeAddress),
+              ...(bindingEntry.vaultAddresses || []).map(normalizeAddress),
+            ].filter(Boolean),
+          );
+          issues.push(...checkExternalContracts(bindingEntry.externalContracts, `${field}.externalContracts`, builtInAddresses));
         }
       }
     }
@@ -700,6 +842,7 @@ function checkI18n(i18n, manifestLocales) {
 function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
   const declaredUrls = collectDeclaredUrls(manifest);
+  const contractPolicy = collectManifestContractPolicy(manifest);
   const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
@@ -903,7 +1046,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     const hardcodedAddressRegex = /["'`]0x[a-fA-F0-9]{40}["'`]/g;
     for (const match of content.matchAll(hardcodedAddressRegex)) {
-      issues.push(issue(BLOCKING, "security/hardcoded-address", `Hardcoded address ${match[0]} found in Vault source. Use runtime context addresses instead.`, { file: rel, line: lineForIndex(content, match.index) }));
+      const normalizedAddress = normalizeAddress(match[0].slice(1, -1));
+      if (!normalizedAddress || !contractPolicy.all.has(normalizedAddress)) {
+        issues.push(issue(BLOCKING, "security/hardcoded-address", `Hardcoded address ${match[0]} found in Vault source. Use runtime context addresses or declare intentional external contract addresses in manifest.`, { file: rel, line: lineForIndex(content, match.index) }));
+      }
     }
     if (/refetchInterval\s*:\s*([0-4]?\d{1,3})/.test(content)) {
       issues.push(issue(WARNING, "performance/refetch-too-fast", "refetchInterval below 5000ms needs review.", { file: rel }));
@@ -936,7 +1082,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     if (/Number\s*\([^)]*(amount|balance|allowance|deposit|claim|reward)/i.test(content)) {
       issues.push(issue(WARNING, "contract-abi/number-bigint", "Avoid Number(...) for token amounts used in transaction logic.", { file: rel }));
     }
-    issues.push(...collectContractInteractionIssues(content, rel));
+    issues.push(...collectContractInteractionIssues(content, rel, contractPolicy));
     const i18nCallRegex = /(?:^|[^\w.])(?:t|i18n\.t)\(\s*["'`]([^"'`]+)["'`]/g;
     for (const match of content.matchAll(i18nCallRegex)) {
       const key = match[1];

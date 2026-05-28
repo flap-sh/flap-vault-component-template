@@ -156,10 +156,10 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
 
   useEffect(() => {
     void loadData().catch((nextError) => setError(handleTxError(nextError, readErrorMessages)));
-    const timer = window.setInterval(() => {
+    const timer = setInterval(() => {
       void loadData().catch(() => undefined);
     }, 15_000);
-    return () => window.clearInterval(timer);
+    return () => clearInterval(timer);
   }, [loadData, readErrorMessages]);
 
   async function approve() {

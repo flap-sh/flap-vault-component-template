@@ -132,7 +132,7 @@ Use:
 - `erc20Abi` or `standardErc20Abi` from `@/src/sdk` for normal ERC20 balance, allowance, approval, decimals, symbol, transfer, and transferFrom flows.
 - `@/src/ui` for Flap UI primitives.
 - `./VaultABI` as the only allowed local relative import.
-- `manifest.json` for required `artifactId`, match fields, i18n, optional per-binding `tokenAddresses`, and optional non-oracle endpoints.
+- `manifest.json` for required `artifactId`, match fields, i18n, optional per-binding `tokenAddresses`, optional per-binding `externalContracts`, and optional non-oracle endpoints.
 
 Do not copy standard ERC20 ABI into `VaultABI.ts`. Add token ABI fragments there only when a token has custom non-standard methods or a special mechanism.
 
@@ -143,7 +143,24 @@ Do not fetch private token metadata or image APIs from the Vault component. If t
 
 Avoid external endpoints and external resources. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` as a single absolute HTTPS URL string without username/password credentials or an array of those strings; it will enter Flap review and must be approved before publish. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in the manifest. Declaration does not guarantee approval, and undeclared, host-relative, dynamic, HTTP, or credentialed fetch targets are rejected.
 
-Do not use direct wallet APIs, undeclared endpoints/resources, `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports.
+Avoid fixed extra contract targets. If a component must call a fixed contract address that is not `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, or a binding-scoped token/Vault reference, declare it in the relevant binding:
+
+```json
+{
+  "chainId": 56,
+  "factoryAddress": "0x1000000000000000000000000000000000000001",
+  "externalContracts": [
+    {
+      "address": "0x4000000000000000000000000000000000000004",
+      "label": "Reward distributor"
+    }
+  ]
+}
+```
+
+Undeclared fixed contract targets are blocking `vault:check` issues.
+
+Do not use direct wallet APIs, undeclared endpoints/resources, undeclared fixed contract targets, `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports.
 
 Keep all Vault component text in `i18n.json`. The local preview uses Flap's language preference keys (`flap:language` and `flap_language`) and passes the active locale into the SDK.
 

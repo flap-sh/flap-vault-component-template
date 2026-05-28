@@ -18,6 +18,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 - Documented the Workbench feedback loop, source package marker schema, endpoint review handoff fields, runtime package current status, and the required `component.mjs` default export contract.
 - Added a stable Markdown shape for Agent done reports and explicit `openItems` extraction rules for oracle usage, external endpoints, skipped previews, missing inputs, registry binding, and runtime publish approval.
 - Added a runtime oracle provisioning path: `VaultRuntimeProvider` can now take an `oracleReader`, local preview serves `/api/runtime/oracle/{oracleId}`, and the runtime package exports server helpers for the oracle registry plus built-in example defaults.
+- Added binding-scoped `externalContracts` manifest declarations for fixed non-token/non-Vault/non-factory contract targets.
 
 ### Changed
 
@@ -26,6 +27,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 - Clarified that `docs/getting-started.md` is a human developer quick-start, not the Agent workflow source of truth.
 - CI now packages and verifies the live example source zips and uploads generated validation artifacts as short-lived GitHub Actions artifacts.
 - Clarified that reviewed oracle ids should be provisioned through the runtime package / same-origin proxy rather than by exposing raw endpoint URLs to Vault source, and removed the user-facing env setup requirement for the example oracle flow.
+- `agent-contract.json` is now version 2 because agents must declare unavoidable fixed extra contract targets under `match.bindings[].externalContracts`.
 
 ### Fixed
 
@@ -36,6 +38,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 - `CHANGELOG.md` initial release entry now correctly records the token-presentation proxy as `/api/runtime/token-presentation` (renamed from `/api/preview/coin-detail`).
 - `schemas/manifest.schema.json` `bindings` array now carries `uniqueItems: true`, aligning JSON-schema-level validation with the `vault:check` runtime duplicate-binding rule.
 - `docs/ai-agent.md` non-oracle endpoint guidance now explicitly says to declare the endpoint in `manifest.endpoints` first (so `vault:check` can validate it and the Workbench can route it for review) and then also keep it in `openItems`.
+- `vault:check` now blocks fixed SDK contract targets unless they are runtime token/Vault/factory addresses, binding-scoped token/Vault references, or declared in `match.bindings[].externalContracts`.
 
 ---
 

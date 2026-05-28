@@ -44,6 +44,10 @@
               "tokenAddresses": {
                 "$ref": "#/$defs/addressArray",
                 "description": "Optional reference token CA allowlist for this binding. vault:check validates the address format only; preview/runtime does not enforce the list. Use only when a deployment needs a per-binding token reference list."
+              },
+              "externalContracts": {
+                "$ref": "#/$defs/externalContractArray",
+                "description": "Optional review declaration for fixed contract targets that are not the runtime token, Vault, factory, or binding-scoped token/vault addresses. Each entry must include the contract address and a human-readable label."
               }
             }
           }
@@ -76,6 +80,27 @@
       "type": "array",
       "minItems": 1,
       "items": { "$ref": "#/$defs/address" }
+    },
+    "externalContract": {
+      "type": "object",
+      "required": ["address", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "$ref": "#/$defs/address",
+          "description": "Fixed external contract address reviewed for this binding."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 2,
+          "description": "Human-readable review label, for example Reward distributor."
+        }
+      }
+    },
+    "externalContractArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/externalContract" }
     }
   }
 }

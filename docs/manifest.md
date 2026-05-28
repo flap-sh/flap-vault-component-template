@@ -39,7 +39,9 @@ If a deployment needs a token CA reference list, declare it only inside the rele
 
 The Vault address is runtime-derived by Flap. If a deployment wants to record binding-scoped Vault references, declare them only as `match.bindings[].vaultAddresses`. This template validates their format, but preview/runtime does not use them for matching.
 
-Preview/runtime resolution should respect those explicit bindings. Prefer an exact `chainId + factoryAddress` match. A partial hint such as `chainId` alone or `factoryAddress` alone is only safe when it resolves to one unambiguous binding. Do not replace an explicit mismatched hint with an unrelated binding. In local preview, the first binding is only a default seed when the route provides no runtime hints at all. Do not repeat the same `chainId + factoryAddress` pair in multiple binding entries; merge any `vaultAddresses` or `tokenAddresses` references into one entry.
+If the UI must call a fixed contract address that is not the runtime token, runtime Vault, runtime factory, or binding-scoped token/Vault reference, declare it only inside the relevant binding as `externalContracts`. This is a review declaration, not a preview/runtime match rule.
+
+Preview/runtime resolution should respect those explicit bindings. Prefer an exact `chainId + factoryAddress` match. A partial hint such as `chainId` alone or `factoryAddress` alone is only safe when it resolves to one unambiguous binding. Do not replace an explicit mismatched hint with an unrelated binding. In local preview, the first binding is only a default seed when the route provides no runtime hints at all. Do not repeat the same `chainId + factoryAddress` pair in multiple binding entries; merge any `vaultAddresses`, `tokenAddresses`, or `externalContracts` references into one entry.
 
 ## Required Fields
 
@@ -87,6 +89,22 @@ These fields are declared inside each `match.bindings` entry, not at the `match`
 | --- | --- | --- |
 | `vaultAddresses` | No | Optional reference Vault-address list for that binding. Use only when a deployment wants to record binding-scoped Vault addresses. The template validates the addresses but does not use the list at preview/runtime for matching. |
 | `tokenAddresses` | No | Optional reference token CA allowlist for that binding. Use only when a deployment needs a per-binding token list. The template validates the addresses but does not enforce the list at preview/runtime. |
+| `externalContracts` | No | Optional review list for fixed contract targets that are not the runtime token, Vault, factory, or binding-scoped token/Vault references. Each entry must contain only `address` and `label`. The template validates it but does not use it for preview/runtime matching. |
+
+Example:
+
+```json
+{
+  "chainId": 56,
+  "factoryAddress": "0x1000000000000000000000000000000000000001",
+  "externalContracts": [
+    {
+      "address": "0x4000000000000000000000000000000000000004",
+      "label": "Reward distributor"
+    }
+  ]
+}
+```
 
 ## Optional Top-Level Fields
 
@@ -112,7 +130,7 @@ Do not put these fields in `manifest.json`:
 - global or match-level `tokenAddresses`
 - `caPolicy`
 
-Those are either source-package identity, build/runtime concerns, or unsupported global switches. Use `artifactId`, not `id`, for the source-package artifact identity. If you need a token CA reference list, declare it only as `match.bindings[].tokenAddresses`.
+Those are either source-package identity, build/runtime concerns, or unsupported global switches. Use `artifactId`, not `id`, for the source-package artifact identity. If you need a token CA reference list, declare it only as `match.bindings[].tokenAddresses`. If you need fixed extra contract targets, declare them only as `match.bindings[].externalContracts`.
 
 ## Locale Validation
 
@@ -177,6 +195,21 @@ context.vaultAddress
 
 Use these runtime context values in the component instead of hardcoding addresses in the manifest. Local preview can provide the same values through real runtime data or URL params such as `chainId`, `factoryAddress`, `tokenAddress`, and `vaultAddress`.
 
+## External Contract Targets
+
+Vault source may call SDK contract methods against:
+
+- `context.tokenAddress`
+- `context.vaultAddress`
+- `context.factoryAddress`
+- binding-scoped `tokenAddresses`
+- binding-scoped `vaultAddresses`
+- fixed addresses declared in `match.bindings[].externalContracts`
+
+If `Component.tsx` calls `sdk.readContract`, `sdk.simulateContract`, or `sdk.writeContract` against a fixed address that is not one of those allowed targets, `yarn vault:check <folder-name>` reports a blocking issue. This is the on-chain equivalent of endpoint declaration: extra contract dependencies must be visible before Workbench review.
+
+`externalContracts` does not make a target approved. It only makes the target reviewable and checkable.
+
 ## Actions
 
 Do not declare UI actions in `manifest.json`.
@@ -191,7 +224,7 @@ sdk.waitForTx
 sdk.refetch
 ```
 
-Use runtime context addresses such as `context.vaultAddress` and `context.tokenAddress` as transaction targets. The check script scans for hidden targets, direct wallet access, unsafe imports, and missing i18n keys.
+Use runtime context addresses such as `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress` as transaction targets. If a fixed extra contract target is unavoidable, declare it under `match.bindings[].externalContracts`. The check script scans for hidden targets, undeclared fixed contract addresses, direct wallet access, unsafe imports, and missing i18n keys.
 
 ## Oracle Usage
 

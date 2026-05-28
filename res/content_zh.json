@@ -29,7 +29,7 @@
         "kicker": "AI Agent 快速开始",
         "description": "把这段 prompt 贴进你的 AI coding Agent，替换占位符，它就可以按本仓库规则生成受控的自定义 Vault UI。",
         "promptLabel": "Prompt 模板",
-        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，factoryAddress 是 <0x...>，用于预览的 tokenAddress 是 <0x...>，是否限制 Token CA 是 <不限制 | 只允许 0x..., 0x...>。如果限制，请把这些 CA 写入 match.bindings[].tokenAddresses。按钮可用阶段是 <internal-market | dex-listed | both | read-only>，最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
+        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，factoryAddress 是 <0x...>，用于预览的 tokenAddress 是 <0x...>，是否限制 Token CA 是 <不限制 | 只允许 0x..., 0x...>。如果限制，请把这些 CA 写入 match.bindings[].tokenAddresses。固定额外合约目标是 <没有 | 地址 + label + purpose>；如果需要，请写入 match.bindings[].externalContracts。按钮可用阶段是 <internal-market | dex-listed | both | read-only>，最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
       },
       "developerEntry": {
         "kicker": "开发者入口",
@@ -83,8 +83,8 @@
       "scopeItems": [
         "请在模板提供的组件结构内完成 Vault UI 定制。",
         "目录名只作为目录和预览路由；manifest 里的 artifactId 默认由 vault:scaffold 自动生成。",
-        "Vault UI 绑定目标需要在 manifest 中声明 chain 和 factory 地址；如果某个部署需要 Token CA 参考列表，只能写在 match.bindings[].tokenAddresses 里。",
-        "尽量避免外部 endpoint 和外部资源；特殊情况必须声明并通过 Flap 审查后才能发布。",
+        "Vault UI 绑定目标需要在 manifest 中声明 chain 和 factory 地址；如果某个部署需要 Token CA 参考列表或固定额外合约目标，只能写在对应 match.bindings[] 里。",
+        "尽量避免外部 endpoint、外部资源和固定额外合约目标；特殊情况必须声明并通过 Flap 审查后才能发布。",
         "Vault 包目录只保留 Component.tsx、manifest.json、VaultABI.ts、i18n.json。",
         "本地预览路由由 vault:scaffold 或 vault:register 注册；除非脚本无法解析 index 文件，否则不要手写注册。",
         "不要在 Vault 包内新增 helpers、子组件、图片、本地文档或任何其他文件。",
@@ -125,6 +125,7 @@
           "目录名、chain/factory 绑定目标，以及可选的 Vault 地址 allowlist。",
           "可选的 Token CA 参考列表只能写在 match.bindings[].tokenAddresses；模板只校验地址格式，不会在预览/runtime 里强制执行。",
           "Vault 地址只有不能由 factory + token 推导，或需要精确 allowlist 时才提供。",
+          "只有 UI 必须调用非 Token / 非 Vault / 非 factory 的固定合约时，才提供 externalContracts，每项包含 address 和 label。",
           "Vault ABI 必须提供；标准 ERC20 ABI 已在 @/src/sdk 提供，只有特殊 Token 机制才需要自定义 Token ABI。",
           "read/write 方法、approve spender、UI 工作流、真实预览地址和 i18n 要求；尽量避免 oracle 使用，确实需要时由 vault:check 提示给 Flap 审查。"
         ],
@@ -190,9 +191,10 @@
             "共享能力使用公共 alias；本地相对导入只允许 ./VaultABI，不能使用 ./helpers、../VaultABI、子组件导入、本地资源导入或动态导入。",
             "同一套 UI 可以复用到测试网、主网或其他 factory；binding 列表只描述这套共享 UI 计划绑定到哪些部署目标。",
             "Vault 地址由 Flap runtime 注入；只有需要精确限制时才在 manifest 中声明 vaultAddresses。",
+            "如果 UI 调用固定额外合约目标，先在 match.bindings[].externalContracts 中声明再运行 check。",
             "ABI fragment 保持最小。",
             "Vault 组件文案放在 src/vaults/{folder-name}/i18n.json。",
-            "不要使用 direct wallet API、iframe、eval、script injection、runtime remote import 或未声明 endpoint/外部资源。"
+            "不要使用 direct wallet API、iframe、eval、script injection、runtime remote import、未声明 endpoint/外部资源，或未声明固定合约目标。"
           ]
         },
         {
@@ -224,12 +226,30 @@
         "保持 manifest.json 里的 artifactId 唯一，并声明必填匹配信息。",
         "不要提交私钥、API Key 或本地环境文件。",
         "不要按 type 字段绑定 Vault UI。",
-        "尽量避免外部 endpoint 或外部资源。",
+        "尽量避免外部 endpoint、外部资源或固定额外合约目标。",
         "特殊非 oracle endpoint 必须在 manifest 中声明并进入 Flap 审查；声明不代表一定通过。",
-        "未在 manifest 中声明的 endpoint 或外部资源一律拒绝。",
+        "未在 manifest 中声明的 endpoint、外部资源或固定额外合约目标一律拒绝。",
         "所有 Vault CLI 失败都会返回 JSON，包含 code、fixHint 和 agent.nextActions。",
         "打包前必须运行 yarn vault:check {folder-name}，并按 agent.nextActions 修到 blocking 为 0。",
-        "必须使用 yarn vault:package {folder-name} 生成提交包；Workbench 只接收带 flap-vault-package.json 标识且哈希匹配的脚本产物。"
+        "必须使用 yarn vault:package {folder-name} 生成提交包；Workbench 只接收带 flap-vault-package.json 标识且哈希匹配的脚本产物。",
+        "Vault 包目录只能包含 Component.tsx、manifest.json、VaultABI.ts、i18n.json；不能新增 helpers、资源、子目录、文档、样例数据、symlink 或其他文件。",
+        "Manifest 只允许 artifactId、name、match、i18n 和可选 endpoints。binding-scoped tokenAddresses、vaultAddresses、externalContracts 只能放在 match.bindings[] 下。不要添加 chainIds、id、owner、version、sdkVersion、actions、oracles、media、fallback、contracts、全局 tokenAddresses、restrictTokenAddresses 或 caPolicy。",
+        "match.bindings 必须是唯一的 chainId + factoryAddress 组合。可选 vaultAddresses 和 tokenAddresses 只能写在对应 binding 内，重复地址会被拒绝。",
+        "所有 Vault 组件可见文案都必须放在 i18n.json；Component.tsx 使用的每个 key 都必须存在于 manifest.i18n 声明的每个语言里。",
+        "Vault source 只能导入批准的包和共享能力：react、viem、decimal.js、lucide-react、@/src/sdk、@/src/ui 和 ./VaultABI。CommonJS require()、dynamic import()、未批准依赖和额外 SDK 包都会被阻断。",
+        "不要使用 direct wallet API、eval、Function constructor、iframe、script injection、dangerouslySetInnerHTML 或 runtime remote import。",
+        "不要使用直接浏览器 network、media、storage、navigation、Worker、cross-context messaging、permission API，也不要通过 alias、destructuring 或 computed access 绕过 browser global 检查。",
+        "直接 fetch() 目标必须是静态、无凭证的 absolute HTTPS URL，并被 manifest.endpoints 覆盖。host-relative、动态、HTTP、带凭证或未声明的 fetch 目标都会被阻断。",
+        "不要添加第三方图片、remote media、data URL、IPFS、Arweave、WebSocket 或非 HTTPS 资源。Token 媒体只能来自 Flap 控制的 runtime context，例如 context.tokenImageUrl。",
+        "组件自己拥有的链接只能通过 context.explorerBaseUrl 或共享 explorer helper 留在当前链浏览器；任意外部跳转会被阻断。",
+        "合约 reads/writes 必须留在 Vault/token/NFT/factory/已声明目标边界内，并使用 runtime context、Vault 读取派生地址或已声明 externalContracts。routers、bridges、aggregators 或无关 app contracts 都会被阻断。",
+        "不要在 Vault source 里硬编码 EVM 地址。请使用 context.vaultAddress、context.tokenAddress 或批准的 runtime context 值。",
+        "ABI fragment 保持最小。标准 ERC20 方法使用 @/src/sdk 的 erc20Abi 或 standardErc20Abi；交易金额计算保持 bigint 或 Decimal，不要用 Number(...)。",
+        "有写操作的 Vault UI 必须说明 action 属于 internal-market、dex-listed、both 还是 read-only，使用 context.host?.marketPhase 和 isActionAvailableForPhase(...)，并展示不可用状态而不是隐藏操作。",
+        "链相关写操作必须检查 sdk.wallet.isWrongNetwork，并在写入前使用 sdk.wallet.switchChain() 或展示清晰的切链状态。",
+        "轮询和 refetch interval 不得快于 5 秒，除非 Flap 明确批准。",
+        "yarn vault:package {folder-name} 后必须运行 yarn vault:verify-package dist/{folder-name}.zip，验证 marker、文件列表、metadata、hash、重复 entry 和 filename/header 一致性。",
+        "如果修改 shared runtime、checker、preview shell 或代码库级逻辑，条件允许时运行 yarn ci；它覆盖 lint、typecheck、checker selftest、package/verify、build、runtime verify 和 preview smoke。"
       ],
       "cta": "打开奖励示例",
       "dexListedCta": "打开 DEX Listed 示例",

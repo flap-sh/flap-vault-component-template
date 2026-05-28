@@ -10,6 +10,7 @@ const ROOT = process.cwd();
 const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
 const FACTORY = "0x1000000000000000000000000000000000000001";
 const TOKEN = "0x2000000000000000000000000000000000000002";
+const EXTERNAL_CONTRACT = "0x4000000000000000000000000000000000000004";
 const FIXTURE_ULID = "01K9V9Z0P0AAAAAAAAAAAAAAAA";
 const INDEX_PATH = path.join(ROOT, "src", "vaults", "index.ts");
 const originalIndex = fs.readFileSync(INDEX_PATH, "utf8");
@@ -128,6 +129,35 @@ try {
     }),
   });
   assertRule("duplicate binding-scoped addresses are blocked", runVaultCheck(duplicateAddressSlug, { silent: true }), "manifest-binding/duplicate-address", "blocking");
+
+  const externalContractManifestSlug = `${FIXTURE_PREFIX}-external-contract-manifest`;
+  writeVault(externalContractManifestSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [
+          {
+            chainId: 56,
+            factoryAddress: FACTORY,
+            externalContracts: [{ address: EXTERNAL_CONTRACT, label: "Reward distributor" }],
+          },
+        ],
+      },
+    }),
+  });
+  const externalContractManifestCheck = runVaultCheck(externalContractManifestSlug, { silent: true });
+  assert.equal(externalContractManifestCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-external-contract-list"), false);
+  assert.equal(externalContractManifestCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-external-contract-entry"), false);
+  passed.push("binding-level externalContracts declarations are allowed");
+
+  const invalidExternalContractSlug = `${FIXTURE_PREFIX}-invalid-external-contract`;
+  writeVault(invalidExternalContractSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY, externalContracts: [{ address: EXTERNAL_CONTRACT }] }],
+      },
+    }),
+  });
+  assertRule("external contract declarations require labels", runVaultCheck(invalidExternalContractSlug, { silent: true }), "manifest-binding/invalid-external-contract-entry", "blocking");
 
   const globalTokenPolicySlug = `${FIXTURE_PREFIX}-global-token-policy`;
   writeVault(globalTokenPolicySlug, {
@@ -405,7 +435,7 @@ import { useFlapSdk } from "@/src/sdk";
 
 export default function SelftestVault(_props: VaultComponentProps) {
   const sdk = useFlapSdk();
-  const routerAddress = sdk.context.factoryAddress;
+  const routerAddress = "0x9000000000000000000000000000000000000009";
   void sdk.readContract({
     contract: "router",
     address: routerAddress,
@@ -418,7 +448,44 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   const contractBoundaryCheck = runVaultCheck(contractBoundarySlug, { silent: true });
   assertRule("non-vault token nft contract labels are blocked", contractBoundaryCheck, "contract-boundary/disallowed-contract-label", "blocking");
-  assertRule("router-like address sources are blocked", contractBoundaryCheck, "contract-boundary/disallowed-contract-address-source", "blocking");
+  assertRule("undeclared fixed contract addresses are blocked", contractBoundaryCheck, "contract-boundary/undeclared-contract-address", "blocking");
+
+  const declaredExternalContractSlug = `${FIXTURE_PREFIX}-declared-external-contract`;
+  writeVault(declaredExternalContractSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [
+          {
+            chainId: 56,
+            factoryAddress: FACTORY,
+            externalContracts: [{ address: EXTERNAL_CONTRACT, label: "Reward distributor" }],
+          },
+        ],
+      },
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  const rewardDistributor = "${EXTERNAL_CONTRACT}" as const;
+  void sdk.readContract({
+    contract: "rewardDistributor",
+    address: rewardDistributor,
+    abi: [],
+    functionName: "rewardRate",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const declaredExternalContractCheck = runVaultCheck(declaredExternalContractSlug, { silent: true });
+  assert.equal(declaredExternalContractCheck.issues.some((item) => item.ruleId === "contract-boundary/undeclared-contract-address"), false);
+  assert.equal(declaredExternalContractCheck.issues.some((item) => item.ruleId === "security/hardcoded-address"), false);
+  assert.equal(declaredExternalContractCheck.issues.some((item) => item.ruleId === "contract-boundary/disallowed-contract-label"), false);
+  passed.push("declared external contract addresses are allowed in SDK contract calls");
 
   const abiSlug = `${FIXTURE_PREFIX}-abi`;
   writeVault(abiSlug, {

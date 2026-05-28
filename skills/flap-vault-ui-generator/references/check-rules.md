@@ -24,6 +24,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - disallowed fields at `match` level (only `bindings` is allowed)
 - invalid binding entry: missing or invalid `chainId` (must be a positive integer) or `factoryAddress` (must be a 0x address)
 - global or match-level CA policy fields such as `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy`; binding-level `match.bindings[].tokenAddresses` is allowed as a reference list
+- malformed `match.bindings[].externalContracts`; each entry must include only `address` and `label`
 - any type-field UI binding
 - direct wallet access
 - `eval` / the `Function` constructor
@@ -38,11 +39,12 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - missing a locale declared by `manifest.i18n`
 - i18n key missing from any locale declared by `manifest.i18n`
 - remote media inside Vault source
-- hardcoded EVM addresses in Vault source
+- hardcoded EVM addresses in Vault source unless they are binding-scoped token/Vault/factory references or declared external contract targets
+- SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`
 
 ## Selftest
 
-Run `yarn vault:check:selftest` after changing checker rules, the Agent contract, manifest policy, package generation, or package verification. It uses temporary fixtures to verify the highest-risk blocking paths still fire, including endpoint-prefix escapes, and it exercises scaffold -> check -> package -> verify for one valid temporary package.
+Run `yarn vault:check:selftest` after changing checker rules, the Agent contract, manifest policy, package generation, or package verification. It uses temporary fixtures to verify the highest-risk blocking paths still fire, including endpoint-prefix escapes and undeclared fixed contract targets, and it exercises scaffold -> check -> package -> verify for one valid temporary package.
 
 ## Package Verification
 
@@ -75,9 +77,9 @@ Run `yarn vault:verify-package dist/{folder-name}.zip` after packaging. It check
 Fix by using:
 
 - Flap SDK method
-- manifest declaration only for match fields, i18n, and unavoidable non-oracle endpoints
+- manifest declaration only for match fields, i18n, unavoidable non-oracle endpoints, and unavoidable fixed extra contract targets
 - real runtime data
 - i18n key
 - approved UI primitive
 
-Manifest declaration is required only for the limited developer-facing surface. It does not make an endpoint approved. Endpoint declarations must be absolute HTTPS URLs without username/password credentials, and direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`. Prefer removing external endpoints/resources unless the Vault cannot work without them. Oracle config, actions, media, fallback, artifact id, and version are Flap Artifact Workbench/runtime concerns, not manifest fields.
+Manifest declaration is required only for the limited developer-facing surface. It does not make an endpoint or external contract approved. Endpoint declarations must be absolute HTTPS URLs without username/password credentials, and direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`. Fixed extra contract targets must be declared under `match.bindings[].externalContracts` with `address` and `label`. Prefer removing external endpoints/resources and extra contract targets unless the Vault cannot work without them. Oracle config, actions, media, fallback, artifact id, and version are Flap Artifact Workbench/runtime concerns, not manifest fields.

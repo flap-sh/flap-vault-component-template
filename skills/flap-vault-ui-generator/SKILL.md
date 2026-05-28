@@ -30,6 +30,7 @@ chainId + factoryAddress
    - chain/factory pairs: one `{chainId, factoryAddress}` per deployment target; repeat for each chain (mainnet, testnet, etc.)
    - optional token CA reference lists only when needed, stored per binding as `match.bindings[].tokenAddresses`
    - optional vault address per chain, only when the manifest should record binding-scoped Vault references
+   - optional fixed extra contract targets only when needed, stored per binding as `match.bindings[].externalContracts[]` with `address` and `label`
    - minimal Vault ABI fragments
    - custom token ABI fragments only when the token has non-standard methods; standard ERC20 uses `erc20Abi` from `@/src/sdk`
    - read methods
@@ -72,8 +73,8 @@ Fix blocking issues before finishing.
 - Do not add helpers, nested components, local assets, auxiliary documents, sample data, or any other files.
 - Vault folder name controls `src/vaults/{folder-name}` and preview route `/{folder-name}`. It must be 3-64 characters of lowercase kebab-case.
 - `artifactId` controls unique artifact identity and must match `vaultui_<folder-name>_<ULID>`. It is not the route and not the registry match.
-- Manifest match requires explicit `{chainId, factoryAddress}` pairs in `match.bindings`. Optional `vaultAddresses` and optional `tokenAddresses` belong inside the specific binding only; both are reference lists. The template validates their format, does not use `vaultAddresses` for preview/runtime matching, and does not enforce `tokenAddresses` at preview/runtime.
-- Manifest is intentionally minimal: `artifactId`, `name`, `match`, `i18n`, and optional non-oracle `endpoints` only. Do not add `chainIds`, `id`, `owner`, `version`, `sdkVersion`, `actions`, `oracles`, `media`, `fallback`, `contracts`, `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy`. Chain IDs, factory addresses, optional `vaultAddresses`, and optional `tokenAddresses` live inside `match.bindings` entries.
+- Manifest match requires explicit `{chainId, factoryAddress}` pairs in `match.bindings`. Optional `vaultAddresses`, optional `tokenAddresses`, and optional `externalContracts` belong inside the specific binding only; all are reference/review lists. The template validates their format, does not use `vaultAddresses` or `externalContracts` for preview/runtime matching, and does not enforce `tokenAddresses` at preview/runtime.
+- Manifest is intentionally minimal: `artifactId`, `name`, `match`, `i18n`, and optional non-oracle `endpoints` only. Do not add `chainIds`, `id`, `owner`, `version`, `sdkVersion`, `actions`, `oracles`, `media`, `fallback`, `contracts`, `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy`. Chain IDs, factory addresses, optional `vaultAddresses`, optional `tokenAddresses`, and optional `externalContracts` live inside `match.bindings` entries.
 - The only allowed local relative import is `./VaultABI`. Do not use `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports. Use public aliases such as `@/src/sdk` and `@/src/ui` for shared runtime surfaces.
 - Treat `yarn vault:package {folder-name}` as the only local packaging path. It runs `vault:check` before producing the source zip for the Flap Artifact Workbench.
 - Submit only the zip produced by `yarn vault:package {folder-name}`. The script writes `flap-vault-package.json` and source file hashes; hand-made zips without the marker or with mismatched hashes should be rejected by the Flap Artifact Workbench.
@@ -86,8 +87,9 @@ Fix blocking issues before finishing.
 - Test EN/ZH in the local example page; the preview shell uses Flap's `flap:language` localStorage key and `flap_language` cookie, and passes the active locale into `sdk.i18n`.
 - Do not import `res/content.json` or `res/content_zh.json` from a Vault component. Those files are only for the Flap preview shell/header.
 - Avoid external endpoints and external resources by default. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` for Flap review as a single absolute HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in manifest. Declaration does not guarantee approval, and undeclared endpoints/resources are rejected.
+- Avoid fixed extra contract targets by default. If a non-token/non-Vault/non-factory contract target is unavoidable, declare it under `match.bindings[].externalContracts` with `address` and `label`; declaration does not guarantee approval, and undeclared fixed targets are rejected.
 - Do not declare write/approve actions in `manifest.json`; transaction behavior belongs in `Component.tsx` through SDK methods and runtime context addresses.
-- Do not hardcode transaction target addresses in Vault source. Use `context.vaultAddress`, `context.tokenAddress`, and other runtime context values.
+- Do not hardcode undeclared transaction target addresses in Vault source. Use `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, and other runtime context values. If a fixed extra contract target is unavoidable, declare it under `match.bindings[].externalContracts`.
 - Use approve -> wait -> refetch -> simulate -> write -> wait -> refetch for ERC20 spend flows.
 - Decide and state whether actions are available in internal-market, DEX-listed, both, or read-only stage. Do not silently hide supported actions; show disabled/unavailable states with clear copy.
 - Use `context.host?.marketPhase` as the runtime source for internal-market vs DEX-listed checks. The current template preview panel provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
@@ -107,6 +109,7 @@ Fix blocking issues before finishing.
 - iframe or script injection
 - runtime remote import
 - undeclared URL, endpoint, or external resource
+- undeclared fixed extra contract target
 - hidden transaction target
 - unapproved dependency
 - custom third-party image or external resource not controlled by Flap runtime/Artifact Workbench
