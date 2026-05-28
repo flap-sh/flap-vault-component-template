@@ -32,7 +32,8 @@ Describe the Vault UI, target project, and user workflow.
 - [ ] `yarn vault:check <folder-name>`
 - [ ] `yarn vault:package <folder-name>`
 - [ ] `yarn vault:verify-package dist/<folder-name>.zip`
-- [ ] `yarn ci` or equivalent full local validation
+- [ ] `yarn ci` for repo-level changes when live BNB smoke access is available
+- [ ] If `yarn ci` was skipped or failed only because live BNB/RPC access was unavailable: document that and run the equivalent local validation minus `yarn preview:smoke:real`
 - [ ] local preview checked
 - [ ] mobile preview checked
 

@@ -350,3 +350,7 @@ yarn ci
 ```
 
 `yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, and the package marker in `packageMarkerFile`.
+
+## License
+
+This template is released under the MIT License. See [LICENSE](./LICENSE).

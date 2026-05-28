@@ -13,8 +13,14 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [0.1.1] - 2026-05-29
+
 ### Added
 
+- Added an MIT `LICENSE` file and package license metadata for public template reuse.
+- Added `FLAP_RUNTIME_HOST_ORIGIN` to `.env.example` as the documented runtime host-proxy override.
 - Documented the Workbench feedback loop, source package marker schema, endpoint review handoff fields, runtime package current status, and the required `component.mjs` default export contract.
 - Added a stable Markdown shape for Agent done reports and explicit `openItems` extraction rules for oracle usage, external endpoints, skipped previews, missing inputs, registry binding, and runtime publish approval.
 - Added a runtime oracle provisioning path: `VaultRuntimeProvider` can now take an `oracleReader`, local preview serves `/api/runtime/oracle/{oracleId}`, and the runtime package exports server helpers for the oracle registry plus built-in example defaults.
@@ -23,6 +29,8 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 ### Changed
 
 - Unified canonical Agent startup files across `agent-contract.json`, `docs/ai-agent.md`, and `docs/agent-entrypoints.md`.
+- Aligned the Gemini, Windsurf, and generator skill startup reading order with the canonical Agent entrypoint sequence.
+- Clarified the pull request validation checklist when live BNB/RPC smoke access is unavailable.
 - Updated compatibility entry points to describe the same-origin runtime token-presentation proxy before ERC20 metadata fallback.
 - Clarified that `docs/getting-started.md` is a human developer quick-start, not the Agent workflow source of truth.
 - CI now packages and verifies the live example source zips and uploads generated validation artifacts as short-lived GitHub Actions artifacts.
@@ -31,6 +39,8 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Fixed
 
+- CI push validation now targets the active `main` branch.
+- `.gitignore` now excludes local `.claude/` settings.
 - `vault:check` now blocks duplicate `chainId + factoryAddress` manifest bindings and dynamic imports with expression specifiers.
 - `vault:verify-package` now rejects duplicate zip entries and central/local header filename mismatches.
 - `agent-contract.json` now names the oracle usage info rule with the checker-emitted `manual-review/oracle-usage` id.
@@ -113,7 +123,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
 
-## agent-contract.json v1 — Initial release
+## [0.0.1] - Initial release
 
 **agent-contract.json version: 1**
 **manifest schema: initial**

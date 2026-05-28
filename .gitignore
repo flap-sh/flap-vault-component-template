@@ -24,6 +24,9 @@ package-lock.json
 *.swp
 *.swo
 
+# local tool settings
+.claude/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

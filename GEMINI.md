@@ -7,8 +7,9 @@ Before editing, read these files in order:
 1. `agent-contract.json`
 2. `AGENTS.md`
 3. `docs/ai-agent.md`
-4. `docs/ui-pattern-snippets.md`
-5. `skills/flap-vault-ui-generator/SKILL.md`
+4. `docs/agent-entrypoints.md`
+5. `docs/ui-pattern-snippets.md`
+6. `skills/flap-vault-ui-generator/SKILL.md`
 
 Core operating rules:
 
