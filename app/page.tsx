@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { ArrowRight, FileText, FolderCode, Terminal } from "lucide-react";
 import { useLang } from "@/src/i18n/useLang";
@@ -13,6 +14,17 @@ import exampleI18n from "@/src/vaults/example/i18n.json";
 const homeManifest = exampleManifest as VaultManifest;
 const homeI18n = exampleI18n as Record<string, Record<string, string>>;
 const entryIcons = [FileText, FolderCode, Terminal];
+const workbenchBackdropStyle: CSSProperties = {
+  background:
+    "radial-gradient(1300px 900px at 10% 6%, rgba(139, 92, 246, 0.28), transparent 68%), radial-gradient(1000px 760px at 92% 88%, rgba(215, 248, 74, 0.09), transparent 70%), radial-gradient(1700px 1100px at 50% 112%, rgba(91, 33, 182, 0.24), transparent 78%)",
+};
+const workbenchGridStyle: CSSProperties = {
+  background:
+    "linear-gradient(transparent 0, transparent 21px, rgba(255, 255, 255, 0.04) 21px, rgba(255, 255, 255, 0.04) 22px), linear-gradient(90deg, transparent 0, transparent 21px, rgba(255, 255, 255, 0.04) 21px, rgba(255, 255, 255, 0.04) 22px)",
+  backgroundSize: "22px 22px",
+  maskImage: "radial-gradient(ellipse 95% 72% at 50% 42%, black 62%, transparent 100%)",
+  WebkitMaskImage: "radial-gradient(ellipse 95% 72% at 50% 42%, black 62%, transparent 100%)",
+};
 
 export default function HomePage() {
   const { lang, languageCode } = useLang();
@@ -23,11 +35,13 @@ export default function HomePage() {
 
   return (
     <VaultRuntimeProvider manifest={homeManifest} i18n={homeI18n} locale={languageCode} oracleReader={createLocalOracleReader()}>
-      <div className="min-h-screen bg-background">
+      <div className="relative min-h-screen overflow-hidden bg-[#08060f]">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0" style={workbenchBackdropStyle} />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 opacity-55" style={workbenchGridStyle} />
         <FlapNavbar manifest={homeManifest} />
-        <main className="px-4 py-6 md:px-8 md:py-8">
+        <main className="relative z-10 px-4 py-6 md:px-8 md:py-8">
           <div className="mx-auto flex max-w-4xl flex-col gap-8">
-            <section className="rounded-lg border border-primary/30 bg-primary/10 p-4 md:p-5">
+            <section className="rounded-lg border border-[#8b5cf6]/30 bg-primary/10 p-4 md:p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 lg:max-w-[20rem]">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{quickStart.kicker}</p>
@@ -35,7 +49,7 @@ export default function HomePage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/54">{quickStart.promptLabel}</p>
-                  <pre className="mt-2 whitespace-pre-wrap break-words rounded-md border border-white/10 bg-black/30 p-3 font-mono text-xs leading-6 text-white/82">{quickStart.prompt}</pre>
+                  <pre className="mt-2 whitespace-pre-wrap break-words rounded-md border border-[#8b5cf6]/20 bg-black/30 p-3 font-mono text-xs leading-6 text-white/82">{quickStart.prompt}</pre>
                 </div>
               </div>
             </section>
@@ -46,7 +60,7 @@ export default function HomePage() {
               <p className="max-w-3xl break-words text-base leading-7 text-white/64">{sop.description}</p>
             </section>
 
-            <section className="rounded-lg border border-primary/25 bg-primary/10 p-4 md:p-5">
+            <section className="rounded-lg border border-[#8b5cf6]/25 bg-primary/10 p-4 md:p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{developerEntry.kicker}</p>
@@ -57,13 +71,13 @@ export default function HomePage() {
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">{developerEntry.realExamplesLabel}</p>
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Button asChild>
+                      <Button asChild className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
                         <Link href="/community-buyback-example">
                           {developerEntry.openCommunityBuybackExample}
                           <ArrowRight className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button asChild variant="secondary">
+                      <Button asChild variant="secondary" className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
                         <Link href="/flapixel-example">
                           {developerEntry.openFlapixelExample}
                           <ArrowRight className="h-4 w-4" />
@@ -76,19 +90,19 @@ export default function HomePage() {
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/54">{developerEntry.referenceExamplesLabel}</p>
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Button asChild variant="outline">
+                      <Button asChild variant="outline" className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
                         <Link href="/example">
                           {developerEntry.openPreview}
                           <ArrowRight className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button asChild variant="outline">
+                      <Button asChild variant="outline" className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
                         <Link href="/dex-listed-example">
                           {developerEntry.openDexListedPreview}
                           <ArrowRight className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button asChild variant="outline">
+                      <Button asChild variant="outline" className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
                         <Link href="/action-gallery-example">
                           {developerEntry.openActionGalleryPreview}
                           <ArrowRight className="h-4 w-4" />
@@ -100,11 +114,11 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid overflow-hidden rounded-md border border-white/10 bg-black/20 lg:grid-cols-3">
+              <div className="mt-5 grid overflow-hidden rounded-md border border-[#8b5cf6]/20 bg-black/20 lg:grid-cols-3">
                 {developerEntry.cards.map((card, index) => {
                   const Icon = entryIcons[index] ?? FileText;
                   return (
-                    <div key={card.title} className="border-b border-white/10 p-4 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
+                    <div key={card.title} className="border-b border-[#8b5cf6]/20 p-4 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
                       <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4 text-primary" />
                         <h3 className="text-sm font-semibold text-white">{card.title}</h3>
@@ -122,13 +136,13 @@ export default function HomePage() {
                 })}
               </div>
 
-              <div className="mt-4 rounded-md border border-white/10 bg-black/20 px-3 py-3">
+              <div className="mt-4 rounded-md border border-[#8b5cf6]/20 bg-black/20 px-3 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/54">{developerEntry.doneTitle}</p>
                 <p className="mt-1 text-sm leading-6 text-white/72">{developerEntry.doneBody}</p>
               </div>
             </section>
 
-            <section className="rounded-lg border border-white/10 bg-white/[0.035] p-4 md:p-5">
+            <section className="rounded-lg border border-[#8b5cf6]/20 bg-white/[0.035] p-4 md:p-5">
               <h2 className="text-base font-semibold text-white">{sop.scopeTitle}</h2>
               <ul className="mt-4 space-y-2 text-sm leading-6 text-white/64">
                 {sop.scopeItems.map((item) => (
@@ -140,13 +154,13 @@ export default function HomePage() {
               </ul>
             </section>
 
-            <section className="rounded-lg border border-white/10 bg-white/[0.035] p-4 md:p-5">
+            <section className="rounded-lg border border-[#8b5cf6]/20 bg-white/[0.035] p-4 md:p-5">
               <div className="space-y-2">
                 <h2 className="text-base font-semibold text-white">{agentGuide.title}</h2>
                 <p className="break-words text-sm leading-6 text-white/64">{agentGuide.description}</p>
               </div>
 
-              <div className="mt-5 rounded-md border border-primary/30 bg-primary/10 px-3 py-3">
+              <div className="mt-5 rounded-md border border-[#8b5cf6]/30 bg-primary/10 px-3 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">{agentGuide.skillTitle}</p>
                 <p className="mt-2 font-mono text-sm text-white">{agentGuide.skillName}</p>
                 <p className="mt-1 break-all font-mono text-xs text-white/54">{agentGuide.skillPath}</p>
@@ -157,7 +171,7 @@ export default function HomePage() {
                   <h3 className="text-sm font-semibold text-white">{agentGuide.docsTitle}</h3>
                   <div className="space-y-2">
                     {agentGuide.docs.map((doc) => (
-                      <div key={doc.path} className="rounded-md border border-white/10 bg-black/25 px-3 py-3">
+                      <div key={doc.path} className="rounded-md border border-[#8b5cf6]/20 bg-black/25 px-3 py-3">
                         <p className="break-all font-mono text-xs text-white/82">{doc.path}</p>
                         <p className="mt-1 break-words text-xs leading-5 text-white/54">{doc.description}</p>
                       </div>
@@ -182,7 +196,7 @@ export default function HomePage() {
                     <h3 className="text-sm font-semibold text-white">{agentGuide.outputsTitle}</h3>
                     <ul className="mt-2 grid gap-2 text-xs leading-5 text-white/58">
                       {agentGuide.outputs.map((file) => (
-                        <li key={file} className="break-all rounded-md border border-white/10 bg-black/25 px-3 py-2 font-mono">
+                        <li key={file} className="break-all rounded-md border border-[#8b5cf6]/20 bg-black/25 px-3 py-2 font-mono">
                           {file}
                         </li>
                       ))}
@@ -194,7 +208,7 @@ export default function HomePage() {
                     <ol className="mt-2 space-y-2 text-sm leading-6 text-white/60">
                       {agentGuide.workflow.map((item, index) => (
                         <li key={item} className="flex gap-3">
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-white/10 bg-black/25 text-[10px] text-white/70">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[#8b5cf6]/25 bg-black/25 text-[10px] text-white/70">
                             {index + 1}
                           </span>
                           <span className="min-w-0 break-words">{item}</span>
@@ -208,22 +222,22 @@ export default function HomePage() {
 
             <section className="space-y-3">
               {sop.steps.map((step, index) => (
-                <article key={step.title} className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.035] p-4 md:grid-cols-[4rem_1fr] md:p-5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-black/35 text-sm font-semibold text-white/72">
+                <article key={step.title} className="grid gap-4 rounded-lg border border-[#8b5cf6]/20 bg-white/[0.035] p-4 md:grid-cols-[4rem_1fr] md:p-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#8b5cf6]/25 bg-black/35 text-sm font-semibold text-white/72">
                     {String(index + 1).padStart(2, "0")}
                   </div>
                   <div className="min-w-0">
                     <h2 className="text-base font-semibold text-white">{step.title}</h2>
                     <p className="mt-2 text-sm leading-6 text-white/64">{step.body}</p>
                     {step.code ? (
-                      <code className="mt-4 block overflow-x-auto rounded-md border border-white/10 bg-black/40 p-3 text-xs leading-6 text-white/82">
+                      <code className="mt-4 block overflow-x-auto rounded-md border border-[#8b5cf6]/20 bg-black/40 p-3 text-xs leading-6 text-white/82">
                         {step.code}
                       </code>
                     ) : null}
                     {step.files?.length ? (
                       <ul className="mt-4 grid gap-2 text-xs leading-5 text-white/58 sm:grid-cols-2">
                         {step.files.map((file) => (
-                          <li key={file} className="break-all rounded-md border border-white/10 bg-black/25 px-3 py-2 font-mono">
+                          <li key={file} className="break-all rounded-md border border-[#8b5cf6]/20 bg-black/25 px-3 py-2 font-mono">
                             {file}
                           </li>
                         ))}
@@ -244,32 +258,32 @@ export default function HomePage() {
               ))}
             </section>
 
-            <section className="rounded-lg border border-white/10 bg-white/[0.035] p-4 md:p-5">
+            <section className="rounded-lg border border-[#8b5cf6]/20 bg-white/[0.035] p-4 md:p-5">
               <h2 className="text-base font-semibold text-white">{sop.rulesTitle}</h2>
               <div className="mt-4 grid gap-2 md:grid-cols-2">
                 {sop.rules.map((rule) => (
-                  <div key={rule} className="break-words rounded-md border border-white/10 bg-black/25 px-3 py-2 text-sm leading-6 text-white/64">
+                  <div key={rule} className="break-words rounded-md border border-[#8b5cf6]/20 bg-black/25 px-3 py-2 text-sm leading-6 text-white/64">
                     {rule}
                   </div>
                 ))}
               </div>
             </section>
 
-            <footer className="border-t border-white/10 pt-6">
+            <footer className="border-t border-[#8b5cf6]/20 pt-6">
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button asChild size="lg" className="w-full sm:w-auto">
+                <Button asChild size="lg" className="w-full border-[#8b5cf6]/45 hover:border-[#a78bfa]/65 sm:w-auto">
                   <Link href="/example">
                     {sop.cta}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                <Button asChild size="lg" variant="outline" className="w-full border-[#8b5cf6]/45 hover:border-[#a78bfa]/65 sm:w-auto">
                   <Link href="/dex-listed-example">
                     {sop.dexListedCta}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                <Button asChild size="lg" variant="outline" className="w-full border-[#8b5cf6]/45 hover:border-[#a78bfa]/65 sm:w-auto">
                   <Link href="/action-gallery-example">
                     {sop.actionGalleryCta}
                     <ArrowRight className="h-4 w-4" />
