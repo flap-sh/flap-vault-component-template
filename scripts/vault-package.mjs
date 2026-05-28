@@ -5,15 +5,23 @@ import crypto from "node:crypto";
 import process from "node:process";
 import archiver from "archiver";
 import { failAgent } from "./agent-error.mjs";
+import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import { runVaultCheck } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 1;
+const PACKAGE_FORMAT_VERSION = 2;
 const PACKAGE_TOOL = "yarn vault:package";
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
+const TEMPLATE_NAME = "flap-vault-ui-template";
+const RUNTIME_PACKAGE_NAME = "@flapsdk/vault-runtime";
+const RUNTIME_CONTRACT_VERSION = 1;
 const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const folderName = process.argv[2];
+const rootPackage = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+const templateVersion = rootPackage.version;
+const runtimePackageVersion = rootPackage.version;
+assertTemplateFresh({ folderName });
 const result = runVaultCheck(folderName, { silent: true });
 const hasBlocking = result.issues.some((item) => item.severity === "blocking");
 if (hasBlocking) {
@@ -81,7 +89,12 @@ const packageMarker = {
   kind: PACKAGE_KIND,
   formatVersion: PACKAGE_FORMAT_VERSION,
   generatedBy: PACKAGE_TOOL,
-  generator: "flap-vault-ui-template",
+  generator: TEMPLATE_NAME,
+  templateName: TEMPLATE_NAME,
+  templateVersion,
+  runtimePackageName: RUNTIME_PACKAGE_NAME,
+  runtimePackageVersion,
+  runtimeContractVersion: RUNTIME_CONTRACT_VERSION,
   artifactId: manifest.artifactId,
   folderName,
   sourcePackage: `src/vaults/${folderName}`,
@@ -102,7 +115,12 @@ const metadata = {
   packageFormatVersion: PACKAGE_FORMAT_VERSION,
   packageMarkerFile: PACKAGE_MARKER_FILE,
   generatedBy: PACKAGE_TOOL,
-  generator: "flap-vault-ui-template",
+  generator: TEMPLATE_NAME,
+  templateName: TEMPLATE_NAME,
+  templateVersion,
+  runtimePackageName: RUNTIME_PACKAGE_NAME,
+  runtimePackageVersion,
+  runtimeContractVersion: RUNTIME_CONTRACT_VERSION,
   artifactId: manifest.artifactId,
   folderName,
   name: manifest.name,
@@ -135,6 +153,11 @@ console.log(
       packageKind: PACKAGE_KIND,
       packageFormatVersion: PACKAGE_FORMAT_VERSION,
       packageMarkerFile: PACKAGE_MARKER_FILE,
+      templateName: TEMPLATE_NAME,
+      templateVersion,
+      runtimePackageName: RUNTIME_PACKAGE_NAME,
+      runtimePackageVersion,
+      runtimeContractVersion: RUNTIME_CONTRACT_VERSION,
       artifactId: manifest.artifactId,
       folderName,
       sha256: zipHash,

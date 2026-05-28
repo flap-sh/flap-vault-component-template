@@ -7,12 +7,14 @@ import zlib from "node:zlib";
 import { failAgent } from "./agent-error.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 1;
+const PACKAGE_FORMAT_VERSION = 2;
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const PACKAGE_METADATA_FILE = "package-metadata.json";
 const SCHEMA_FILE = "schemas/manifest.schema.json";
 const PACKAGE_TOOL = "yarn vault:package";
 const PACKAGE_GENERATOR = "flap-vault-ui-template";
+const RUNTIME_PACKAGE_NAME = "@flapsdk/vault-runtime";
+const RUNTIME_CONTRACT_VERSION = 1;
 const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const FOLDER_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -225,6 +227,21 @@ function verifyPackage(zipPath) {
   if (marker.generator !== PACKAGE_GENERATOR) {
     issues.push(jsonIssue("package-verify/invalid-generator", `Package marker generator must be ${PACKAGE_GENERATOR}.`, "Regenerate the package with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
   }
+  if (marker.templateName !== PACKAGE_GENERATOR) {
+    issues.push(jsonIssue("package-verify/invalid-template-name", `Package marker templateName must be ${PACKAGE_GENERATOR}.`, "Regenerate the package with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
+  }
+  if (typeof marker.templateVersion !== "string" || !marker.templateVersion) {
+    issues.push(jsonIssue("package-verify/missing-template-version", "Package marker must include templateVersion.", "Regenerate with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
+  }
+  if (marker.runtimePackageName !== RUNTIME_PACKAGE_NAME) {
+    issues.push(jsonIssue("package-verify/invalid-runtime-package", `Package marker runtimePackageName must be ${RUNTIME_PACKAGE_NAME}.`, "Regenerate with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
+  }
+  if (marker.runtimePackageVersion !== marker.templateVersion) {
+    issues.push(jsonIssue("package-verify/runtime-version-mismatch", "Package marker runtimePackageVersion must match templateVersion.", "Regenerate with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
+  }
+  if (marker.runtimeContractVersion !== RUNTIME_CONTRACT_VERSION) {
+    issues.push(jsonIssue("package-verify/invalid-runtime-contract", `Package marker runtimeContractVersion must be ${RUNTIME_CONTRACT_VERSION}.`, "Regenerate with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
+  }
   if (typeof folderName !== "string" || !FOLDER_NAME_RE.test(folderName)) {
     issues.push(jsonIssue("package-verify/invalid-folder-name", "Package marker has an invalid folderName.", "Regenerate with yarn vault:package <folder-name> from a valid Vault folder.", { file: PACKAGE_MARKER_FILE }));
   }
@@ -280,7 +297,17 @@ function verifyPackage(zipPath) {
 
     if (entries.has(PACKAGE_METADATA_FILE)) {
       const metadata = readJsonEntry(entries, PACKAGE_METADATA_FILE);
-      if (metadata.packageKind !== PACKAGE_KIND || metadata.packageFormatVersion !== PACKAGE_FORMAT_VERSION || metadata.folderName !== folderName || metadata.artifactId !== marker.artifactId) {
+      if (
+        metadata.packageKind !== PACKAGE_KIND ||
+        metadata.packageFormatVersion !== PACKAGE_FORMAT_VERSION ||
+        metadata.folderName !== folderName ||
+        metadata.artifactId !== marker.artifactId ||
+        metadata.templateName !== marker.templateName ||
+        metadata.templateVersion !== marker.templateVersion ||
+        metadata.runtimePackageName !== marker.runtimePackageName ||
+        metadata.runtimePackageVersion !== marker.runtimePackageVersion ||
+        metadata.runtimeContractVersion !== marker.runtimeContractVersion
+      ) {
         issues.push(
           jsonIssue(
             "package-verify/metadata-mismatch",
@@ -310,6 +337,11 @@ function verifyPackage(zipPath) {
     packageKind: PACKAGE_KIND,
     packageFormatVersion: PACKAGE_FORMAT_VERSION,
     packageMarkerFile: PACKAGE_MARKER_FILE,
+    templateName: marker.templateName,
+    templateVersion: marker.templateVersion,
+    runtimePackageName: marker.runtimePackageName,
+    runtimePackageVersion: marker.runtimePackageVersion,
+    runtimeContractVersion: marker.runtimeContractVersion,
     folderName,
     artifactId: marker.artifactId,
     sha256: sha256(buffer),
