@@ -376,6 +376,23 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("external sdk packages are blocked", runVaultCheck(sdkImportSlug, { silent: true }), "imports-and-dependencies/external-sdk-package", "blocking");
 
+  const unreviewedImportSlug = `${FIXTURE_PREFIX}-unreviewed-import`;
+  writeVault(unreviewedImportSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { format } from "date-fns";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void format;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("unreviewed imports are blocking to match Workbench intake", runVaultCheck(unreviewedImportSlug, { silent: true }), "imports-and-dependencies/unreviewed-import", "blocking");
+
   const dynamicImportSlug = `${FIXTURE_PREFIX}-dynamic-import`;
   writeVault(dynamicImportSlug, {
     component: `"use client";
@@ -423,8 +440,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   const explorerNavigationCheck = runVaultCheck(explorerNavigationSlug, { silent: true });
   assert.equal(explorerNavigationCheck.issues.some((item) => item.ruleId === "navigation-policy/unapproved-external-navigation"), false);
-  assert.equal(explorerNavigationCheck.issues.some((item) => item.ruleId === "endpoint-policy/undeclared-url"), false);
-  passed.push("chain explorer navigation is not treated as phishing");
+  assertRule("hardcoded explorer URLs are still undeclared external URLs", explorerNavigationCheck, "endpoint-policy/undeclared-url", "blocking");
 
   const contractBoundarySlug = `${FIXTURE_PREFIX}-contract-boundary`;
   writeVault(contractBoundarySlug, {
@@ -449,6 +465,28 @@ export default function SelftestVault(_props: VaultComponentProps) {
   const contractBoundaryCheck = runVaultCheck(contractBoundarySlug, { silent: true });
   assertRule("non-vault token nft contract labels are blocked", contractBoundaryCheck, "contract-boundary/disallowed-contract-label", "blocking");
   assertRule("undeclared fixed contract addresses are blocked", contractBoundaryCheck, "contract-boundary/undeclared-contract-address", "blocking");
+
+  const derivedTokenAddressSlug = `${FIXTURE_PREFIX}-derived-token-address`;
+  writeVault(derivedTokenAddressSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { erc20Abi, useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  const subTokenAddress = "not-a-static-address" as unknown as \`0x\${string}\`;
+  void sdk.readContract({
+    contract: "token",
+    address: subTokenAddress,
+    abi: erc20Abi,
+    functionName: "symbol",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("generic subTokenAddress sources are blocked like Workbench", runVaultCheck(derivedTokenAddressSlug, { silent: true }), "contract-boundary/undeclared-contract-address", "blocking");
 
   const declaredExternalContractSlug = `${FIXTURE_PREFIX}-declared-external-contract`;
   writeVault(declaredExternalContractSlug, {

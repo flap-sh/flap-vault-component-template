@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-const ROOT = process.cwd();
+const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const FOLDER_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FOLDER_NAME_MIN_LENGTH = 3;
@@ -40,7 +40,7 @@ const APPROVED_EXPLORER_ORIGINS = new Set(["https://bscscan.com", "https://testn
 const DEFAULT_ALLOWED_URL_PREFIXES = [];
 const APPROVED_CONTRACT_LABEL_RE = /\b(?:vault|token|nft)\b/i;
 const APPROVED_CONTRACT_ADDRESS_KEYWORD_RE =
-  /(vaultaddress|tokenaddress|factoryaddress|paymenttoken|quotetoken|dividendtoken|rewardtoken|staketoken|taxtoken|targettoken|targetasset|approvedbuybacktoken|proposedtoken|nftaddress|nft|lptoken|assettoken|underlyingtoken|taxtoken|buybacktoken)/i;
+  /(paymenttoken|quotetoken|dividendtoken|rewardtoken|staketoken|taxtoken|targettoken|targetasset|approvedbuybacktoken|proposedtoken|nftaddress|nft|lptoken|assettoken|underlyingtoken|buybacktoken)/i;
 const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|oracle|aggregator|pair|amm|treasury|governor)/i;
 
 const BLOCKING = "blocking";
@@ -51,6 +51,7 @@ const UNSAFE_RESOURCE_SCHEMES = ["ipfs://", "ar://", "data:", "javascript:"];
 
 const FIX_HINTS = {
   "cli/missing-folder-name": "Run yarn vault:check <folder-name> with a registered Vault folder name.",
+  "cli/missing-slug": "Run yarn vault:check <slug> with a registered Vault slug.",
   "cli/invalid-folder-name": "Use a 3-64 character lowercase kebab-case folder name, for example my-vault.",
   "package-structure/missing-vault-dir": "Create the package with yarn vault:scaffold <folder-name> --chain 56 --factory 0x... or add src/vaults/<folder-name>.",
   "package-structure/missing-required-file": "Keep exactly Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder.",
@@ -116,6 +117,7 @@ const FIX_HINTS = {
   "imports-and-dependencies/require-call": "Use static ESM imports only. CommonJS require() is not allowed in Vault source.",
   "imports-and-dependencies/unreviewed-import": "Remove the dependency unless Flap explicitly approves it.",
   "imports-and-dependencies/dynamic-import": "Use static imports only.",
+  "media/local-asset": "Move local media outside the Vault package. Vault folders must contain only the four allowed files.",
   "media-policy/remote-media": "Remove remote media. Media is controlled by Flap Artifact Workbench/runtime policy.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites. Keep component-owned links on the current chain explorer only, and use host-reviewed allowlists for any exceptional metadata/oracle origin during review.",
@@ -290,7 +292,7 @@ function isApprovedNavigationUrl(url) {
 }
 
 function isAllowlistedExternalUrl(url, declaredUrls) {
-  return isDeclaredUrl(url, declaredUrls) || isApprovedNavigationUrl(url) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
+  return isDeclaredUrl(url, declaredUrls) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
 }
 
 function isValidFolderName(folderName) {
@@ -774,7 +776,7 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
       issues.push(
         issue(
           BLOCKING,
-          "contract-boundary/disallowed-contract-address-source",
+          "contract-boundary/undeclared-contract-address",
           `${call.methodName} address source ${addressProperty.text} is outside the allowed Vault/token/factory runtime boundary. Fixed external contract targets must be declared in manifest match.bindings[].externalContracts.`,
           {
             file,
@@ -1229,10 +1231,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         }
       } else if (FORBIDDEN_IMPORTS.some((blocked) => spec === blocked || spec.startsWith(`${blocked}/`))) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/forbidden-import", `Forbidden import ${spec}. Use Flap SDK/UI primitives instead.`, { file: rel }));
-      } else if (/sdk/i.test(spec) && !ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(allowed))) {
+      } else if (/sdk/i.test(spec) && !ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(`${allowed}/`))) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/external-sdk-package", `External SDK-style import ${spec} is not allowed. Use the shared @/src/sdk and @/src/ui surfaces only.`, { file: rel }));
-      } else if (!ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(allowed))) {
-        issues.push(issue(WARNING, "imports-and-dependencies/unreviewed-import", `Import ${spec} is not in the default allowlist.`, { file: rel }));
+      } else if (!ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(`${allowed}/`))) {
+        issues.push(issue(BLOCKING, "imports-and-dependencies/unreviewed-import", `Import ${spec} is not in the approved allowlist.`, { file: rel }));
       }
     }
     issues.push(...collectDynamicImportIssues(content, rel));
@@ -1457,7 +1459,7 @@ export function runVaultCheck(folderName, options = {}) {
     issues.push(issue(BLOCKING, "package-structure/missing-vault-dir", `Vault directory not found: src/vaults/${folderName}`));
     return finish(folderName, issues, options);
   }
-  if (!isFolderNameRegistered(folderName)) {
+  if (process.env.VAULT_CHECK_SKIP_REGISTRATION !== "1" && !isFolderNameRegistered(folderName)) {
     issues.push(issue(BLOCKING, "preview-registration/missing-vault-module", `Vault folder name ${folderName} is not registered in src/vaults/index.ts.`, { file: "src/vaults/index.ts" }));
   }
   issues.push(...checkStructure(vaultDir));
