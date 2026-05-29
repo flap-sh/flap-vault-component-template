@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { assertNpmPackageFresh } from "./check-template-fresh.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
@@ -1487,7 +1488,9 @@ export function runVaultCheck(folderName, options = {}) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const result = runVaultCheck(process.argv[2]);
+  const folderName = process.argv[2];
+  if (folderName) assertNpmPackageFresh({ folderName });
+  const result = runVaultCheck(folderName);
   const hasBlocking = result.issues.some((item) => item.severity === BLOCKING);
   process.exit(hasBlocking ? 1 : 0);
 }

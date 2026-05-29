@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-template-fresh.mjs --npm-only",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

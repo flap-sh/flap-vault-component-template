@@ -10,7 +10,7 @@ import { runVaultCheck } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 2;
+const PACKAGE_FORMAT_VERSION = 3;
 const PACKAGE_TOOL = "yarn vault:package";
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const TEMPLATE_NAME = "flap-vault-ui-template";
@@ -21,7 +21,20 @@ const folderName = process.argv[2];
 const rootPackage = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const templateVersion = rootPackage.version;
 const runtimePackageVersion = rootPackage.version;
-assertTemplateFresh({ folderName });
+const freshness = assertTemplateFresh({ folderName });
+const runtimePackageGitHead = freshness.checks?.npm?.latestGitHead;
+if (!runtimePackageGitHead) {
+  failAgent({
+    code: "package/runtime-git-head-missing",
+    message: `Cannot package ${folderName || "<folder-name>"}: npm latest ${RUNTIME_PACKAGE_NAME} did not expose gitHead provenance.`,
+    fixHint: "Publish the runtime package from git so npm exposes gitHead, then rerun yarn vault:package <folder-name>.",
+    extra: {
+      folderName,
+      runtimePackageName: RUNTIME_PACKAGE_NAME,
+      runtimePackageVersion,
+    },
+  });
+}
 const result = runVaultCheck(folderName, { silent: true });
 const hasBlocking = result.issues.some((item) => item.severity === "blocking");
 if (hasBlocking) {
@@ -94,6 +107,7 @@ const packageMarker = {
   templateVersion,
   runtimePackageName: RUNTIME_PACKAGE_NAME,
   runtimePackageVersion,
+  runtimePackageGitHead,
   runtimeContractVersion: RUNTIME_CONTRACT_VERSION,
   artifactId: manifest.artifactId,
   folderName,
@@ -120,6 +134,7 @@ const metadata = {
   templateVersion,
   runtimePackageName: RUNTIME_PACKAGE_NAME,
   runtimePackageVersion,
+  runtimePackageGitHead,
   runtimeContractVersion: RUNTIME_CONTRACT_VERSION,
   artifactId: manifest.artifactId,
   folderName,
@@ -157,6 +172,7 @@ console.log(
       templateVersion,
       runtimePackageName: RUNTIME_PACKAGE_NAME,
       runtimePackageVersion,
+      runtimePackageGitHead,
       runtimeContractVersion: RUNTIME_CONTRACT_VERSION,
       artifactId: manifest.artifactId,
       folderName,

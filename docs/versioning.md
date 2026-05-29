@@ -7,6 +7,8 @@ This template has four compatibility surfaces:
 3. `flap-vault-package.json` package format for Flap Artifact Workbench intake.
 4. `dist/vault-runtime/runtime-contract.json` for the shared runtime package extraction contract.
 
+The root `package.json` version is also the local template/runtime package version. Local validation checks it against npm latest `@flapsdk/vault-runtime` and verifies that the local git history contains the npm latest package's published `gitHead`. A checkout with a lower version, or a manually edited version string without the matching source commit, is blocked before `vault:check`, `build`, `runtime:package`, or `vault:package` can succeed.
+
 ## Agent Contract Version
 
 Increment `agent-contract.json.version` when an Agent must change behavior to keep generating valid packages.
@@ -42,6 +44,7 @@ Examples:
 - Hash policy changes.
 - Package kind changes.
 - Workbench needs a new required metadata field.
+- Runtime package provenance fields such as `runtimePackageGitHead` become required.
 
 The Flap Artifact Workbench should reject unsupported future versions and should explicitly decide whether to keep accepting older versions. Do not silently accept unknown package kinds or unknown format versions.
 

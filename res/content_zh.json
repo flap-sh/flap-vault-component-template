@@ -77,7 +77,7 @@
           }
         ],
         "doneTitle": "完成标准",
-        "doneBody": "blocking 为 0、注册存在、/{folder-name} 能预览、package 成功，并且 zip 内包含脚本生成的 flap-vault-package.json 标识。"
+        "doneBody": "blocking 为 0、注册存在、/{folder-name} 能预览、package 成功，并且 zip 内包含脚本生成的 flap-vault-package.json 标识和 runtimePackageGitHead。"
       },
       "scopeTitle": "开发范围",
       "scopeItems": [
@@ -213,7 +213,7 @@
         },
         {
           "title": "打包给 Artifact Workbench",
-          "body": "必须使用 package 命令生成交付 zip。脚本会再次执行 check，并写入 flap-vault-package.json 标识；没有这个标识或哈希不匹配的手动 zip 会被 Flap Artifact Workbench 拒绝。",
+          "body": "必须使用 package 命令生成交付 zip。脚本会再次执行 check，并写入 flap-vault-package.json 标识、runtimePackageGitHead 来源证明和文件哈希；没有这个标识或哈希不匹配的手动 zip 会被 Flap Artifact Workbench 拒绝。",
           "code": "yarn vault:package {folder-name}",
           "files": [],
           "items": []
@@ -231,7 +231,7 @@
         "未在 manifest 中声明的 endpoint、外部资源或固定额外合约目标一律拒绝。",
         "所有 Vault CLI 失败都会返回 JSON，包含 code、fixHint 和 agent.nextActions。",
         "打包前必须运行 yarn vault:check {folder-name}，并按 agent.nextActions 修到 blocking 为 0。",
-        "必须使用 yarn vault:package {folder-name} 生成提交包；Workbench 只接收带 flap-vault-package.json 标识且哈希匹配的脚本产物。",
+        "必须使用 yarn vault:package {folder-name} 生成提交包；Workbench 只接收带 flap-vault-package.json、runtimePackageGitHead 且哈希匹配的脚本产物。",
         "Vault 包目录只能包含 Component.tsx、manifest.json、VaultABI.ts、i18n.json；不能新增 helpers、资源、子目录、文档、样例数据、symlink 或其他文件。",
         "Manifest 只允许 artifactId、name、match、i18n 和可选 endpoints。binding-scoped tokenAddresses、vaultAddresses、externalContracts 只能放在 match.bindings[] 下。不要添加 chainIds、id、owner、version、sdkVersion、actions、oracles、media、fallback、contracts、全局 tokenAddresses、restrictTokenAddresses 或 caPolicy。",
         "match.bindings 必须是唯一的 chainId + factoryAddress 组合。可选 vaultAddresses 和 tokenAddresses 只能写在对应 binding 内，重复地址会被拒绝。",

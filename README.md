@@ -90,6 +90,8 @@ yarn vault:check community-buyback-example
 yarn vault:check flapixel-example
 ```
 
+`vault:check` first compares the local `package.json` version with npm latest `@flapsdk/vault-runtime`, then verifies that the local git history contains the npm latest package's published `gitHead`. If the checkout is older, for example local `0.1.0` while npm latest is `0.1.1`, the command fails with `template-freshness/npm-outdated`. If someone only edits the local version string without updating the source, it fails with `template-freshness/npm-git-head-mismatch`.
+
 Package:
 
 ```bash
@@ -105,9 +107,9 @@ yarn vault:package flapixel-example
 yarn vault:verify-package dist/flapixel-example.zip
 ```
 
-The package command runs `vault:check` first. The zip is created under `dist/` only after blocking issues pass.
+The package command runs `vault:check` first and also enforces the official git freshness check before writing a zip. The zip is created under `dist/` only after blocking issues pass.
 The command output includes `sourcePackagePath` and `sourcePackageAbsolutePath` so the generated zip location is explicit.
-Submit only the zip produced by `yarn vault:package <folder-name>`. The package script writes a `flap-vault-package.json` marker and file hashes into the zip; Flap Artifact Workbench should reject manually assembled zips without this marker or with mismatched hashes.
+Submit only the zip produced by `yarn vault:package <folder-name>`. The package script writes a format-version `3` `flap-vault-package.json` marker, npm latest `@flapsdk/vault-runtime` `gitHead` provenance, and file hashes into the zip; Flap Artifact Workbench should reject manually assembled zips without this marker or with mismatched hashes.
 `dist/` is ignored by git. Generate source zips locally or in CI; do not commit generated packages to the template repo.
 `yarn vault:verify-package <zip>` validates the package from the Workbench side by checking the marker, file list, metadata, and SHA-256 hashes.
 CI-generated zips are uploaded as short-lived GitHub Actions artifacts for validation evidence only. They are not submitted to Artifact Workbench unless a human or release workflow explicitly hands off a verified zip and records its `sha256`.
@@ -310,6 +312,8 @@ yarn runtime:package
 yarn runtime:verify-package
 ```
 
+`yarn build` and `yarn runtime:package` use the same npm latest version gate, so a stale local template cannot produce a local build or shared runtime package that appears current.
+
 That generated package currently exposes:
 
 - `@flapsdk/vault-runtime/sdk`
@@ -349,7 +353,7 @@ yarn preview:smoke:real
 yarn ci
 ```
 
-`yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, and the package marker in `packageMarkerFile`.
+`yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, the package marker in `packageMarkerFile`, and the npm runtime provenance in `runtimePackageGitHead`.
 
 ## License
 

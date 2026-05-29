@@ -171,6 +171,8 @@ Run:
 yarn vault:check {folder-name}
 ```
 
+This command first checks npm latest `@flapsdk/vault-runtime` against the local `package.json` version, then verifies that the local git history contains the npm latest package's published `gitHead`. A stale checkout, for example local `0.1.0` when npm latest is `0.1.1`, fails with `template-freshness/npm-outdated`. A checkout with only the version string edited but not the source update fails with `template-freshness/npm-git-head-mismatch`.
+
 The output is JSON and includes:
 
 - `ok`
@@ -203,10 +205,12 @@ The package command prints:
 - `sourcePackageAbsolutePath`
 - `packageMarkerFile`
 - `packageKind`
+- `runtimePackageGitHead`
 - `sha256`
 - `bytes`
 
-Submit only the zip produced by this command. The zip contains `flap-vault-package.json`, which identifies the package as a script-generated Flap Vault UI source package and records required file hashes. Flap Artifact Workbench should reject hand-made zips without this marker or with mismatched hashes.
+Submit only the zip produced by this command. The zip contains format-version `3` `flap-vault-package.json`, which identifies the package as a script-generated Flap Vault UI source package and records required file hashes plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker or with mismatched hashes.
+The package command also enforces the official git freshness gate, so a checkout that is behind or diverged from the configured upstream cannot produce a source zip.
 The verify command checks the same source package from the Workbench side: marker, kind/version, exact file list, metadata, and SHA-256 hashes. If it fails, read the JSON `code`, `fixHint`, and `agent.nextActions`, then regenerate the package instead of editing the zip by hand.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also run:
@@ -217,6 +221,7 @@ yarn runtime:verify-package
 ```
 
 That proves the shared runtime surface is still packable for Workbench / host reuse and that the generated `runtime-contract.json` stays in sync.
+`yarn build` and `yarn runtime:package` also run the npm latest version gate before producing local build outputs.
 
 ## Preview Loop
 
@@ -281,6 +286,7 @@ The same boundary applies to the shell header and frame around the Vault body. T
 A generated Vault UI is done only when:
 
 - `yarn vault:check {folder-name}` reports zero blocking issues.
+- The local template package version is at least npm latest `@flapsdk/vault-runtime`.
 - `manifest.artifactId` exists, matches `vaultui_<folder-name>_<ULID>`, and is unique in this repo.
 - `yarn vault:package {folder-name}` succeeds and prints the package path.
 - `yarn vault:verify-package dist/{folder-name}.zip` succeeds.

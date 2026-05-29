@@ -183,8 +183,8 @@ yarn vault:verify-package dist/my-vault.zip
 
 The package command runs `vault:check` first. Send the zip under `dist/` to the Flap Artifact Workbench after it passes.
 The command output prints the generated zip location in `sourcePackagePath` and `sourcePackageAbsolutePath`.
-Do not hand-zip files. `yarn vault:package` writes `flap-vault-package.json` and hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker or with mismatched hashes.
-Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, expected file list, metadata, and hashes from the Workbench acceptance side.
+Do not hand-zip files. `yarn vault:package` writes `flap-vault-package.json`, `runtimePackageGitHead`, and hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, provenance, or matching hashes.
+Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, runtime npm provenance, expected file list, metadata, and hashes from the Workbench acceptance side.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also verify the shared runtime package:
 

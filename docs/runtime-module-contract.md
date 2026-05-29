@@ -286,7 +286,7 @@ yarn runtime:package
 yarn runtime:verify-package
 ```
 
-They build a packable runtime package under `dist/vault-runtime`, emit a `package.json` with subpath exports, and write a machine-readable `runtime-contract.json`. This does not change Vault source authoring; it proves that the shared runtime surface can be extracted and npm-packed without forcing `Component.tsx` authors to abandon `@/src/sdk` / `@/src/ui`.
+They build a packable runtime package under `dist/vault-runtime`, emit a `package.json` with subpath exports, and write a machine-readable `runtime-contract.json`. Before building, the script checks npm latest `@flapsdk/vault-runtime` against the local root version and published `gitHead` so a stale checkout cannot produce an outdated runtime package. This does not change Vault source authoring; it proves that the shared runtime surface can be extracted and npm-packed without forcing `Component.tsx` authors to abandon `@/src/sdk` / `@/src/ui`.
 
 The current runtime package also carries the public oracle provisioning surface:
 
@@ -294,11 +294,11 @@ The current runtime package also carries the public oracle provisioning surface:
 - `createLocalOracleReader()` targets `/api/runtime/oracle/{oracleId}`
 - `./server` exports the runtime-oracle registry helpers used by that proxy route
 
-Current status: `dist/vault-runtime` is a local extraction artifact and acceptance proof for this public template. It is not included in `yarn vault:package <folder-name>` source zips and is not automatically published or consumed by Workbench / `flap.sh` just because `yarn runtime:package` passed. Workbench and `flap.sh` should adopt this package only through an explicit integration decision, version pin, and rollout plan.
+Current status: `dist/vault-runtime` is a local extraction artifact and acceptance proof for this public template, while the published `@flapsdk/vault-runtime` version is used as the freshness anchor for local checks. The generated runtime package is not included in `yarn vault:package <folder-name>` source zips and is not automatically consumed by Workbench / `flap.sh` just because `yarn runtime:package` passed. Workbench and `flap.sh` should adopt this package only through an explicit integration decision, version pin, and rollout plan.
 
 ## Package Extraction Direction
 
-After this shared runtime surface is audited and stable, it should move toward a versioned package instead of remaining a repo-local implementation detail.
+This shared runtime surface should keep moving toward a versioned package underneath the stable authoring aliases rather than remaining a repo-local implementation detail.
 
 The shared runtime package name is now fixed for this template flow:
 

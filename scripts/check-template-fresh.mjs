@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import process from "node:process";
 import { failAgent } from "./agent-error.mjs";
 
 const ROOT = process.cwd();
 const DEFAULT_OFFICIAL_REF = "origin/main";
 const OFFICIAL_REF = process.env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || DEFAULT_OFFICIAL_REF;
+const DEFAULT_NPM_PACKAGE_NAME = "@flapsdk/vault-runtime";
+const NPM_PACKAGE_NAME = process.env.FLAP_TEMPLATE_NPM_PACKAGE?.trim() || DEFAULT_NPM_PACKAGE_NAME;
 
 function git(args, options = {}) {
   return execFileSync("git", args, {
@@ -39,6 +43,7 @@ function failFreshness({ code, message, fixHint, folderName, extra = {} }) {
     extra: {
       folderName,
       officialRef: OFFICIAL_REF,
+      npmPackageName: NPM_PACKAGE_NAME,
       ...extra,
     },
   });
@@ -49,7 +54,214 @@ function remoteFromRef(ref) {
   return remote || "origin";
 }
 
-export function assertTemplateFresh({ folderName } = {}) {
+function readRootPackageJson(folderName) {
+  const packagePath = path.join(ROOT, "package.json");
+  try {
+    return JSON.parse(fs.readFileSync(packagePath, "utf8"));
+  } catch (error) {
+    failFreshness({
+      code: "template-freshness/package-json-unreadable",
+      message: "Cannot confirm template freshness because package.json cannot be read.",
+      fixHint: "Run the command from the flap-vault-ui-template repository root, then retry.",
+      folderName,
+      extra: {
+        packagePath,
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+}
+
+function parseSemver(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(version);
+  if (!match) return null;
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4] ? match[4].split(".") : [],
+  };
+}
+
+function comparePrereleaseIdentifier(left, right) {
+  const leftNumeric = /^\d+$/.test(left);
+  const rightNumeric = /^\d+$/.test(right);
+  if (leftNumeric && rightNumeric) return Number(left) - Number(right);
+  if (leftNumeric) return -1;
+  if (rightNumeric) return 1;
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function compareSemver(leftVersion, rightVersion) {
+  const left = parseSemver(leftVersion);
+  const right = parseSemver(rightVersion);
+  if (!left || !right) return null;
+
+  for (const key of ["major", "minor", "patch"]) {
+    if (left[key] !== right[key]) return left[key] - right[key];
+  }
+
+  if (!left.prerelease.length && !right.prerelease.length) return 0;
+  if (!left.prerelease.length) return 1;
+  if (!right.prerelease.length) return -1;
+
+  const maxLength = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftPart = left.prerelease[index];
+    const rightPart = right.prerelease[index];
+    if (leftPart === undefined) return -1;
+    if (rightPart === undefined) return 1;
+    const compared = comparePrereleaseIdentifier(leftPart, rightPart);
+    if (compared !== 0) return compared;
+  }
+  return 0;
+}
+
+function parseNpmJsonOutput(output) {
+  const trimmed = output.trim();
+  if (!trimmed) return "";
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return trimmed.replace(/^"|"$/g, "");
+  }
+}
+
+function npmLatestMetadata(folderName) {
+  try {
+    const parsed = parseNpmJsonOutput(
+      execFileSync("npm", ["view", `${NPM_PACKAGE_NAME}@latest`, "version", "gitHead", "--json"], {
+        cwd: ROOT,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      }),
+    );
+
+    if (typeof parsed === "string") {
+      return { version: parsed, gitHead: undefined };
+    }
+    return {
+      version: typeof parsed?.version === "string" ? parsed.version : "",
+      gitHead: typeof parsed?.gitHead === "string" ? parsed.gitHead : undefined,
+    };
+  } catch (error) {
+    failFreshness({
+      code: "template-freshness/npm-fetch-failed",
+      message: `Cannot confirm template freshness because npm latest lookup failed for ${NPM_PACKAGE_NAME}.`,
+      fixHint: "Fix npm registry/network access, update to the latest template package, then rerun the command.",
+      folderName,
+      extra: {
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+}
+
+function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion }) {
+  if (!latestGitHead) {
+    return { checked: false, reason: "npm package did not expose gitHead" };
+  }
+  if (!gitSucceeds(["rev-parse", "--is-inside-work-tree"])) {
+    failFreshness({
+      code: "template-freshness/git-head-unverified",
+      message: `Cannot confirm that this source checkout contains npm latest ${NPM_PACKAGE_NAME}@${latestVersion} commit ${latestGitHead}.`,
+      fixHint: "Run from the official flap-vault-ui-template git checkout, update it to the latest source, then rerun the command.",
+      folderName,
+      extra: {
+        latestVersion,
+        latestGitHead,
+      },
+    });
+  }
+
+  let head;
+  try {
+    head = git(["rev-parse", "HEAD"]);
+  } catch (error) {
+    failFreshness({
+      code: "template-freshness/git-head-unverified",
+      message: "Cannot read the local git HEAD while checking npm latest source provenance.",
+      fixHint: "Fix the local git checkout, update it to the latest source, then rerun the command.",
+      folderName,
+      extra: {
+        latestVersion,
+        latestGitHead,
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+
+  if (head === latestGitHead || gitSucceeds(["merge-base", "--is-ancestor", latestGitHead, "HEAD"])) {
+    return { checked: true, status: head === latestGitHead ? "exact-published-commit" : "contains-published-commit", latestGitHead, head };
+  }
+
+  failFreshness({
+    code: "template-freshness/npm-git-head-mismatch",
+    message: `This checkout does not contain the npm latest ${NPM_PACKAGE_NAME}@${latestVersion} source commit ${latestGitHead}.`,
+    fixHint: "Pull or switch to a source checkout that contains the npm latest published commit, then rerun local checks, builds, or packaging.",
+    folderName,
+    extra: {
+      latestVersion,
+      latestGitHead,
+      head,
+    },
+  });
+}
+
+export function assertNpmPackageFresh({ folderName } = {}) {
+  const rootPackage = readRootPackageJson(folderName);
+  const localVersion = rootPackage.version;
+  const latestMetadata = npmLatestMetadata(folderName);
+  const latestVersion = latestMetadata.version;
+  const comparison = typeof localVersion === "string" && typeof latestVersion === "string" ? compareSemver(localVersion, latestVersion) : null;
+
+  if (comparison === null) {
+    failFreshness({
+      code: "template-freshness/invalid-version",
+      message: `Cannot compare local template version ${JSON.stringify(localVersion)} with npm latest ${JSON.stringify(latestVersion)}.`,
+      fixHint: "Use valid semver versions in package.json and the published npm runtime package, then rerun the command.",
+      folderName,
+      extra: {
+        localVersion,
+        latestVersion,
+      },
+    });
+  }
+
+  if (comparison < 0) {
+    failFreshness({
+      code: "template-freshness/npm-outdated",
+      message: `This checkout uses ${rootPackage.name}@${localVersion}, but npm latest ${NPM_PACKAGE_NAME} is ${latestVersion}.`,
+      fixHint: `Update this checkout to ${latestVersion} or newer before running local checks, builds, or packaging.`,
+      folderName,
+      extra: {
+        localPackageName: rootPackage.name,
+        localVersion,
+        latestVersion,
+        latestGitHead: latestMetadata.gitHead,
+      },
+    });
+  }
+
+  const gitHead = assertLatestGitHeadContained({
+    folderName,
+    latestGitHead: latestMetadata.gitHead,
+    latestVersion,
+  });
+
+  return {
+    ok: true,
+    npmPackageName: NPM_PACKAGE_NAME,
+    localPackageName: rootPackage.name,
+    localVersion,
+    latestVersion,
+    latestGitHead: latestMetadata.gitHead,
+    gitHead,
+    status: comparison === 0 ? "up-to-date" : "ahead-of-npm",
+  };
+}
+
+export function assertTemplateGitFresh({ folderName } = {}) {
   if (!gitSucceeds(["rev-parse", "--is-inside-work-tree"])) {
     failFreshness({
       code: "template-freshness/not-git-repo",
@@ -113,6 +325,23 @@ export function assertTemplateFresh({ folderName } = {}) {
   });
 }
 
+export function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true } = {}) {
+  const checks = {};
+  if (includeGit) checks.git = assertTemplateGitFresh({ folderName });
+  if (includeNpm) checks.npm = assertNpmPackageFresh({ folderName });
+  return { ok: true, checks };
+}
+
+function cliOptions(argv) {
+  const flags = new Set(argv.filter((arg) => arg.startsWith("--")));
+  const folderName = argv.find((arg) => !arg.startsWith("--"));
+  return {
+    folderName,
+    includeGit: !flags.has("--npm-only") && !flags.has("--no-git"),
+    includeNpm: !flags.has("--git-only") && !flags.has("--no-npm"),
+  };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log(JSON.stringify(assertTemplateFresh({ folderName: process.argv[2] }), null, 2));
+  console.log(JSON.stringify(assertTemplateFresh(cliOptions(process.argv.slice(2))), null, 2));
 }

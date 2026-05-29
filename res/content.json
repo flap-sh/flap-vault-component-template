@@ -77,7 +77,7 @@
           }
         ],
         "doneTitle": "Done means",
-        "doneBody": "blocking is 0, registration exists, /{folder-name} previews, package succeeds, and the zip contains the script-generated flap-vault-package.json marker."
+        "doneBody": "blocking is 0, registration exists, /{folder-name} previews, package succeeds, and the zip contains the script-generated flap-vault-package.json marker with runtimePackageGitHead."
       },
       "scopeTitle": "Development Scope",
       "scopeItems": [
@@ -213,7 +213,7 @@
         },
         {
           "title": "Package for Artifact Workbench",
-          "body": "You must use the package command to create the delivery zip. It runs check again and writes the flap-vault-package.json marker; manually assembled zips without this marker or with mismatched hashes are rejected by the Flap Artifact Workbench.",
+          "body": "You must use the package command to create the delivery zip. It runs check again and writes the flap-vault-package.json marker, runtimePackageGitHead provenance, and file hashes; manually assembled zips without this marker or with mismatched hashes are rejected by the Flap Artifact Workbench.",
           "code": "yarn vault:package {folder-name}",
           "files": [],
           "items": []
@@ -231,7 +231,7 @@
         "Undeclared endpoints, external resources, or fixed extra contract targets are rejected.",
         "All Vault CLI failures return JSON with code, fixHint, and agent.nextActions.",
         "You must run yarn vault:check {folder-name} before packaging and follow agent.nextActions until blocking is zero.",
-        "You must use yarn vault:package {folder-name}; Workbench accepts only script-generated zips with flap-vault-package.json and matching hashes.",
+        "You must use yarn vault:package {folder-name}; Workbench accepts only script-generated zips with flap-vault-package.json, runtimePackageGitHead, and matching hashes.",
         "The Vault package folder may contain only Component.tsx, manifest.json, VaultABI.ts, and i18n.json; no helpers, assets, nested folders, docs, sample data, symlinks, or extra files.",
         "Manifest fields are limited to artifactId, name, match, i18n, and optional endpoints. Binding-scoped tokenAddresses, vaultAddresses, and externalContracts live only under match.bindings[]. Do not add chainIds, id, owner, version, sdkVersion, actions, oracles, media, fallback, contracts, global tokenAddresses, restrictTokenAddresses, or caPolicy.",
         "match.bindings must contain unique chainId + factoryAddress pairs. Optional vaultAddresses and tokenAddresses belong only inside each binding entry, and duplicate addresses are rejected.",

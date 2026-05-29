@@ -7,7 +7,7 @@ import zlib from "node:zlib";
 import { failAgent } from "./agent-error.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 2;
+const PACKAGE_FORMAT_VERSION = 3;
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const PACKAGE_METADATA_FILE = "package-metadata.json";
 const SCHEMA_FILE = "schemas/manifest.schema.json";
@@ -239,6 +239,9 @@ function verifyPackage(zipPath) {
   if (marker.runtimePackageVersion !== marker.templateVersion) {
     issues.push(jsonIssue("package-verify/runtime-version-mismatch", "Package marker runtimePackageVersion must match templateVersion.", "Regenerate with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
   }
+  if (typeof marker.runtimePackageGitHead !== "string" || !/^[a-f0-9]{40}$/i.test(marker.runtimePackageGitHead)) {
+    issues.push(jsonIssue("package-verify/missing-runtime-git-head", "Package marker must include runtimePackageGitHead from npm latest @flapsdk/vault-runtime.", "Regenerate with the current yarn vault:package script after npm latest exposes gitHead provenance.", { file: PACKAGE_MARKER_FILE }));
+  }
   if (marker.runtimeContractVersion !== RUNTIME_CONTRACT_VERSION) {
     issues.push(jsonIssue("package-verify/invalid-runtime-contract", `Package marker runtimeContractVersion must be ${RUNTIME_CONTRACT_VERSION}.`, "Regenerate with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
   }
@@ -306,6 +309,7 @@ function verifyPackage(zipPath) {
         metadata.templateVersion !== marker.templateVersion ||
         metadata.runtimePackageName !== marker.runtimePackageName ||
         metadata.runtimePackageVersion !== marker.runtimePackageVersion ||
+        metadata.runtimePackageGitHead !== marker.runtimePackageGitHead ||
         metadata.runtimeContractVersion !== marker.runtimeContractVersion
       ) {
         issues.push(
@@ -341,6 +345,7 @@ function verifyPackage(zipPath) {
     templateVersion: marker.templateVersion,
     runtimePackageName: marker.runtimePackageName,
     runtimePackageVersion: marker.runtimePackageVersion,
+    runtimePackageGitHead: marker.runtimePackageGitHead,
     runtimeContractVersion: marker.runtimeContractVersion,
     folderName,
     artifactId: marker.artifactId,
