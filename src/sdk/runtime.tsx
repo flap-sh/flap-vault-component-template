@@ -111,22 +111,27 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [i18n, locale, manifest.i18n],
   );
 
-  const notify = useMemo<FlapNotify>(() => {
-    const push = (level: ToastLevel, message: string) => {
+  const push = useCallback(
+    (level: ToastLevel, message: string) => {
       const id = Date.now() + Math.floor(Math.random() * 1000);
       setMessages((items) => [{ id, level, message }, ...items].slice(0, 4));
       const timerId = window.setTimeout(() => {
         dismissMessage(id);
       }, 4200);
       toastTimersRef.current.set(id, timerId);
-    };
-    return {
+    },
+    [dismissMessage],
+  );
+
+  const notify = useMemo<FlapNotify>(
+    () => ({
       info: (message) => push("info", message),
       success: (message) => push("success", message),
       warning: (message) => push("warning", message),
       error: (message) => push("error", message),
-    };
-  }, [dismissMessage]);
+    }),
+    [push],
+  );
 
   const wallet = useMemo<FlapWallet>(
     () => ({

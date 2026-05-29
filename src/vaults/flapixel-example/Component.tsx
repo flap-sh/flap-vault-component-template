@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parseAbi } from "viem";
 import type { Address, VaultComponentProps } from "@/src/sdk";
 import {
@@ -50,15 +50,20 @@ interface VaultSnapshot {
   nftApproved?: boolean;
 }
 
+const MAX_SELL_IDS = 500;
+
 function parseSellIds(value: string) {
   const ids = new Set<bigint>();
   for (const chunk of value.split(",")) {
+    if (ids.size >= MAX_SELL_IDS) break;
     const trimmed = chunk.trim();
     if (!trimmed) continue;
     if (trimmed.includes("-")) {
       const [start, end] = trimmed.split("-").map((item) => Number(item.trim()));
       if (Number.isInteger(start) && Number.isInteger(end) && start > 0 && end >= start) {
-        for (let cursor = start; cursor <= end; cursor += 1) ids.add(BigInt(cursor));
+        for (let cursor = start; cursor <= end && ids.size < MAX_SELL_IDS; cursor += 1) {
+          ids.add(BigInt(cursor));
+        }
       }
       continue;
     }
@@ -83,6 +88,7 @@ export default function FlapixelExampleVault(_props: VaultComponentProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
   const [txState, setTxState] = useState<TxButtonState>("idle");
+  const resetTimerRef = useRef<number | null>(null);
 
   const writesAvailable = isActionAvailableForPhase("dex-listed", host.marketPhase);
   const wrongNetwork = sdk.wallet.isWrongNetwork;
@@ -263,6 +269,13 @@ export default function FlapixelExampleVault(_props: VaultComponentProps) {
     return null;
   }, [context.userAddress, sdk.wallet.requiredChainLabel, t, writesAvailable, wrongNetwork]);
 
+  // Clear the reset timer on unmount to prevent setState on unmounted component
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+    };
+  }, []);
+
   const runAction = useCallback(
     async (action: ActionKey, task: () => Promise<void>) => {
       setError(null);
@@ -281,7 +294,9 @@ export default function FlapixelExampleVault(_props: VaultComponentProps) {
           }),
         );
       } finally {
-        setTimeout(() => {
+        if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = window.setTimeout(() => {
+          resetTimerRef.current = null;
           setActiveAction(null);
           setTxState("idle");
         }, 300);

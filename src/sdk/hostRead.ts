@@ -212,8 +212,24 @@ export async function loadTokenRuntimeSnapshot(
 ): Promise<TokenRuntimeSnapshot | null> {
   if (!tokenAddress || !isValidAddress(tokenAddress) || tokenAddress === ZERO_ADDRESS) return null;
 
-  const metadata = await readErc20TokenMetadata(publicClient, tokenAddress);
   const chainConfig = getTaxVaultHostChainConfig(chainId);
+
+  // Fire metadata fetch immediately; if chainConfig exists, fire portal read in parallel.
+  const metadataPromise = readErc20TokenMetadata(publicClient, tokenAddress);
+  const portalPromise = chainConfig
+    ? publicClient
+        .readContract({
+          address: chainConfig.portal,
+          abi: portalAbi,
+          functionName: "getTokenV7",
+          args: [tokenAddress],
+        })
+        .then((data) => ({ ok: true as const, data }))
+        .catch(() => ({ ok: false as const }))
+    : Promise.resolve(null);
+
+  const [metadata, portalResult] = await Promise.all([metadataPromise, portalPromise]);
+
   const baseSnapshot = {
     tokenSymbol: metadata?.tokenSymbol,
     tokenName: metadata?.tokenName,
@@ -229,15 +245,8 @@ export async function loadTokenRuntimeSnapshot(
     };
   }
 
-  let tokenData: unknown;
-  try {
-    tokenData = await publicClient.readContract({
-      address: chainConfig.portal,
-      abi: portalAbi,
-      functionName: "getTokenV7",
-      args: [tokenAddress],
-    });
-  } catch {
+  // portalResult is non-null here because chainConfig exists
+  if (!portalResult || !portalResult.ok) {
     return {
       ...baseSnapshot,
       hasTaxVaults: Boolean(chainConfig.vaultPortal),
@@ -246,6 +255,8 @@ export async function loadTokenRuntimeSnapshot(
       giftVaultFactory: chainConfig.giftVaultFactory,
     };
   }
+
+  const tokenData = portalResult.data;
 
   const tokenInfo = parsePortalTokenInfo(tokenData as Record<string, unknown>);
   const hasTaxVaults = Boolean(chainConfig.vaultPortal);

@@ -145,11 +145,12 @@ export async function runHostRuntime(input: HostRuntimeInput): Promise<HostRunti
 
   if (input.presentationFetcher) {
     try {
+      const resolvedAddrs = resolveAddresses(input, snapshot);
       presentation = await input.presentationFetcher({
         chainId: input.chainId,
         tokenAddress: input.tokenAddress,
-        factoryAddress: resolveAddresses(input, snapshot).factoryAddress,
-        vaultAddress: resolveAddresses(input, snapshot).vaultAddress,
+        factoryAddress: resolvedAddrs.factoryAddress,
+        vaultAddress: resolvedAddrs.vaultAddress,
         snapshot: snapshot!,
       });
       if (!presentation) {

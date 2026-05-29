@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Address, VaultComponentProps } from "@/src/sdk";
 import {
   ZERO_ADDRESS,
@@ -97,6 +97,14 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
   const [error, setError] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
   const [txState, setTxState] = useState<TxButtonState>("idle");
+  const resetTimerRef = useRef<number | null>(null);
+
+  // Reactive current time so proposal open/close state updates without a page refresh
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const writesAvailable = isActionAvailableForPhase("dex-listed", host.marketPhase);
   const wrongNetwork = sdk.wallet.isWrongNetwork;
@@ -111,7 +119,7 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
   }, [stakeAmount, tokenDecimals]);
   const needsApproval = parsedStakeAmount > 0n && (snapshot?.allowance ?? 0n) < parsedStakeAmount;
   const currentProposal = snapshot?.proposal;
-  const nowSeconds = Math.floor(Date.now() / 1000);
+  const nowSeconds = Math.floor(now / 1000);
   const isProposalOpen =
     Boolean(currentProposal) &&
     !currentProposal?.finalized &&
@@ -322,6 +330,13 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
     }
   }, [sdk.wallet, t]);
 
+  // Clear the reset timer on unmount to prevent setState on unmounted component
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+    };
+  }, []);
+
   const runAction = useCallback(
     async (action: ActionKey, task: () => Promise<void>) => {
       setError(null);
@@ -340,7 +355,9 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
           }),
         );
       } finally {
-        setTimeout(() => {
+        if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = window.setTimeout(() => {
+          resetTimerRef.current = null;
           setActiveAction(null);
           setTxState("idle");
         }, 300);
@@ -366,7 +383,7 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
         address: snapshot.taxToken,
         abi: erc20Abi,
         functionName: "approve",
-        args: [context.vaultAddress, 2n ** 256n - 1n],
+        args: [context.vaultAddress, parsedStakeAmount],
       });
       setTxState("approval_confirming");
       await sdk.waitForTx(hash);
