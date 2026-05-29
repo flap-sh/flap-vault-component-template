@@ -1,26 +1,45 @@
 "use client";
 
+import type React from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { ArrowRight, FileText, FolderCode, Terminal } from "lucide-react";
+import { ArrowRight, FileText, FolderCode, Terminal, Zap } from "lucide-react";
 import { useLang } from "@/src/i18n/useLang";
 import type { VaultManifest } from "@/src/sdk";
 import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
 import { FlapNavbar } from "@/src/shell/FlapNavbar";
-import { Button } from "@/src/ui/Button";
 import exampleManifest from "@/src/vaults/example/manifest.json";
 import exampleI18n from "@/src/vaults/example/i18n.json";
 
 const homeManifest = exampleManifest as VaultManifest;
 const homeI18n = exampleI18n as Record<string, Record<string, string>>;
 const entryIcons = [FileText, FolderCode, Terminal];
-const workbenchBackdropStyle: CSSProperties = {
+
+/* ── design tokens ─────────────────────────────────────────── */
+const BG       = "#05070b";
+const BG2      = "#0a0d14";
+const PANEL    = "#0c1018";
+const PANEL2   = "#11161f";
+const PANEL3   = "#161c27";
+const BORDER   = "#1d2433";
+const BORDSTR  = "#2a3447";
+const TEXT     = "#e6e9ef";
+const TEXT2    = "#aeb6c4";
+const TEXT3    = "#6b7589";
+const ACCENT   = "#4d8dff";
+const ACCENT2  = "#6aa9ff";
+const ACCSOFT  = "rgba(77,141,255,0.12)";
+const ACCLINE  = "rgba(77,141,255,0.35)";
+const OK       = "#36d399";
+const MONO     = "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
+
+const backdropStyle: CSSProperties = {
   background:
-    "radial-gradient(1300px 900px at 10% 6%, rgba(139, 92, 246, 0.28), transparent 68%), radial-gradient(1000px 760px at 92% 88%, rgba(215, 248, 74, 0.09), transparent 70%), radial-gradient(1700px 1100px at 50% 112%, rgba(91, 33, 182, 0.24), transparent 78%)",
+    "radial-gradient(1300px 900px at 10% 6%, rgba(139,92,246,0.28), transparent 68%), radial-gradient(1000px 760px at 92% 88%, rgba(215,248,74,0.09), transparent 70%), radial-gradient(1700px 1100px at 50% 112%, rgba(91,33,182,0.24), transparent 78%)",
 };
-const workbenchGridStyle: CSSProperties = {
+const gridStyle: CSSProperties = {
   background:
-    "linear-gradient(transparent 0, transparent 21px, rgba(255, 255, 255, 0.04) 21px, rgba(255, 255, 255, 0.04) 22px), linear-gradient(90deg, transparent 0, transparent 21px, rgba(255, 255, 255, 0.04) 21px, rgba(255, 255, 255, 0.04) 22px)",
+    "linear-gradient(transparent 0,transparent 21px,rgba(255,255,255,0.04) 21px,rgba(255,255,255,0.04) 22px),linear-gradient(90deg,transparent 0,transparent 21px,rgba(255,255,255,0.04) 21px,rgba(255,255,255,0.04) 22px)",
   backgroundSize: "22px 22px",
   maskImage: "radial-gradient(ellipse 95% 72% at 50% 42%, black 62%, transparent 100%)",
   WebkitMaskImage: "radial-gradient(ellipse 95% 72% at 50% 42%, black 62%, transparent 100%)",
@@ -34,101 +53,120 @@ export default function HomePage() {
   const agentGuide = sop.agentGuide;
 
   return (
-    <VaultRuntimeProvider manifest={homeManifest} i18n={homeI18n} locale={languageCode} oracleReader={createLocalOracleReader()}>
-      <div className="relative min-h-screen overflow-hidden bg-[#08060f]">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0" style={workbenchBackdropStyle} />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 opacity-55" style={workbenchGridStyle} />
+    <VaultRuntimeProvider
+      manifest={homeManifest}
+      i18n={homeI18n}
+      locale={languageCode}
+      oracleReader={createLocalOracleReader()}
+    >
+      <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden", background: BG, color: TEXT, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", fontSize: 14, lineHeight: 1.6, WebkitFontSmoothing: "antialiased" }}>
+        {/* purple radial gradient backdrop */}
+        <div aria-hidden="true" style={{ pointerEvents: "none", position: "absolute", inset: 0, zIndex: 0, ...backdropStyle }} />
+        {/* subtle grid overlay */}
+        <div aria-hidden="true" style={{ pointerEvents: "none", position: "absolute", inset: 0, zIndex: 0, opacity: 0.55, ...gridStyle }} />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
         <FlapNavbar manifest={homeManifest} />
-        <main className="relative z-10 px-4 py-6 md:px-8 md:py-8">
-          <div className="mx-auto flex max-w-4xl flex-col gap-8">
-            <section className="rounded-lg border border-[#8b5cf6]/30 bg-primary/10 p-4 md:p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 lg:max-w-[20rem]">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{quickStart.kicker}</p>
-                  <p className="mt-2 break-words text-sm leading-6 text-white/78">{quickStart.description}</p>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/54">{quickStart.promptLabel}</p>
-                  <pre className="mt-2 whitespace-pre-wrap break-words rounded-md border border-[#8b5cf6]/20 bg-black/30 p-3 font-mono text-xs leading-6 text-white/82">{quickStart.prompt}</pre>
-                </div>
+
+        <main style={{ padding: "56px 0 120px" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 32px" }}>
+
+            {/* ── HERO: 2-col grid ─────────────────────────────────── */}
+            <section style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr", gap: 40, alignItems: "start" }}>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 14px" }}>
+                  {quickStart.kicker}
+                </p>
+                <h1 style={{ fontSize: "clamp(32px,3.6vw,42px)", fontWeight: 760, lineHeight: 1.04, letterSpacing: "-0.025em", margin: "0 0 18px", color: TEXT }}>
+                  把一段 prompt 交给你的 Agent，它就能生成受控的 Vault UI。
+                </h1>
+                <p style={{ fontSize: 17, lineHeight: 1.65, color: TEXT2, maxWidth: "56ch" }}>
+                  {quickStart.description}
+                </p>
+              </div>
+              <div style={{ background: PANEL2, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+                <p style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: TEXT3, margin: "0 0 6px" }}>
+                  {quickStart.promptLabel}
+                </p>
+                <pre style={{ fontFamily: MONO, fontSize: 13, lineHeight: 1.7, color: "#c5d2e6", background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
+                  <PromptHighlight text={quickStart.prompt} />
+                </pre>
               </div>
             </section>
 
-            <section className="space-y-4">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">{sop.label}</p>
-              <h1 className="break-words text-3xl font-semibold leading-tight tracking-normal text-white md:text-5xl">{sop.title}</h1>
-              <p className="max-w-3xl break-words text-base leading-7 text-white/64">{sop.description}</p>
+            {/* ── SOP intro ────────────────────────────────────────── */}
+            <section style={{ marginTop: 72 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 14px" }}>
+                {sop.label}
+              </p>
+              <h2 style={{ fontSize: "clamp(32px,4vw,42px)", fontWeight: 760, lineHeight: 1.04, letterSpacing: "-0.025em", margin: "0 0 22px", color: TEXT }}>
+                {sop.title}
+              </h2>
+              <p style={{ fontSize: 17, lineHeight: 1.65, color: TEXT2, maxWidth: "56ch" }}>
+                {sop.description}
+              </p>
             </section>
 
-            <section className="rounded-lg border border-[#8b5cf6]/25 bg-primary/10 p-4 md:p-5">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{developerEntry.kicker}</p>
-                  <h2 className="mt-2 break-words text-xl font-semibold leading-tight text-white md:text-2xl">{developerEntry.title}</h2>
-                  <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-white/64">{developerEntry.description}</p>
-                </div>
-                <div className="shrink-0 space-y-4 md:max-w-[34rem]">
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">{developerEntry.realExamplesLabel}</p>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Button asChild className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
-                        <Link href="/community-buyback-example">
-                          {developerEntry.openCommunityBuybackExample}
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button asChild variant="secondary" className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
-                        <Link href="/flapixel-example">
-                          {developerEntry.openFlapixelExample}
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                    <p className="max-w-2xl text-xs leading-5 text-white/54">{developerEntry.realExamplesDescription}</p>
-                  </div>
+            {/* ── Developer Entry card ─────────────────────────────── */}
+            <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
+                {developerEntry.kicker}
+              </p>
+              <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
+                {developerEntry.title}
+              </h3>
+              <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, maxWidth: "64ch", margin: "0 0 28px" }}>
+                {developerEntry.description}
+              </p>
 
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/54">{developerEntry.referenceExamplesLabel}</p>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Button asChild variant="outline" className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
-                        <Link href="/example">
-                          {developerEntry.openPreview}
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
-                        <Link href="/dex-listed-example">
-                          {developerEntry.openDexListedPreview}
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="border-[#8b5cf6]/45 hover:border-[#a78bfa]/65">
-                        <Link href="/action-gallery-example">
-                          {developerEntry.openActionGalleryPreview}
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                    <p className="max-w-2xl text-xs leading-5 text-white/54">{developerEntry.referenceExamplesDescription}</p>
-                  </div>
-                </div>
+              <hr style={{ height: 1, background: BORDER, border: 0, margin: "0 0 28px" }} />
+
+              {/* real examples */}
+              <SubLabel>{developerEntry.realExamplesLabel}</SubLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                <Link href="/community-buyback-example" style={btnPrimary}>
+                  {developerEntry.openCommunityBuybackExample} <ArrowSpan />
+                </Link>
+                <Link href="/flapixel-example" style={btnPrimary}>
+                  {developerEntry.openFlapixelExample} <ArrowSpan />
+                </Link>
               </div>
+              <p style={{ fontSize: 13.5, color: TEXT3, margin: "0 0 32px" }}>
+                {developerEntry.realExamplesDescription}
+              </p>
 
-              <div className="mt-5 grid overflow-hidden rounded-md border border-[#8b5cf6]/20 bg-black/20 lg:grid-cols-3">
-                {developerEntry.cards.map((card, index) => {
-                  const Icon = entryIcons[index] ?? FileText;
+              <SubLabel muted>{developerEntry.referenceExamplesLabel}</SubLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 14 }}>
+                <Link href="/example" style={btnSecondary}>
+                  {developerEntry.openPreview} <ArrowSpan />
+                </Link>
+                <Link href="/dex-listed-example" style={btnSecondary}>
+                  {developerEntry.openDexListedPreview} <ArrowSpan />
+                </Link>
+                <Link href="/action-gallery-example" style={btnSecondary}>
+                  {developerEntry.openActionGalleryPreview} <ArrowSpan />
+                </Link>
+              </div>
+              <p style={{ fontSize: 13.5, color: TEXT3, margin: "0 0 32px" }}>
+                {developerEntry.referenceExamplesDescription}
+              </p>
+
+              <hr style={{ height: 1, background: BORDER, border: 0, margin: "0 0 28px" }} />
+
+              {/* 3-col info grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+                {developerEntry.cards.map((card, i) => {
+                  const Icon = entryIcons[i] ?? FileText;
                   return (
-                    <div key={card.title} className="border-b border-[#8b5cf6]/20 p-4 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-primary" />
-                        <h3 className="text-sm font-semibold text-white">{card.title}</h3>
+                    <div key={card.title}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14, fontWeight: 640, color: TEXT, margin: "0 0 14px" }}>
+                        <Icon size={16} style={{ color: ACCENT2, flexShrink: 0 }} />
+                        {card.title}
                       </div>
-                      <p className="mt-2 text-xs leading-5 text-white/54">{card.body}</p>
-                      <ul className="mt-3 space-y-2">
+                      <p style={{ fontSize: 13.5, color: TEXT2, margin: "0 0 14px" }}>{card.body}</p>
+                      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9 }}>
                         {card.items.map((item) => (
-                          <li key={item} className="break-all font-mono text-xs leading-5 text-white/78">
-                            {item}
-                          </li>
+                          <li key={item} style={{ fontFamily: MONO, fontSize: 12.5, color: TEXT2 }}>{item}</li>
                         ))}
                       </ul>
                     </div>
@@ -136,82 +174,108 @@ export default function HomePage() {
                 })}
               </div>
 
-              <div className="mt-4 rounded-md border border-[#8b5cf6]/20 bg-black/20 px-3 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/54">{developerEntry.doneTitle}</p>
-                <p className="mt-1 text-sm leading-6 text-white/72">{developerEntry.doneBody}</p>
+              {/* done callout */}
+              <div style={{ display: "flex", gap: 14, borderRadius: 10, padding: "16px 18px", background: "rgba(54,211,153,0.07)", border: "1px solid rgba(54,211,153,0.2)", color: TEXT2, fontSize: 14, lineHeight: 1.6, marginTop: 28 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={OK} strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}><path d="M20 6 9 17l-5-5"/></svg>
+                <div>
+                  <strong style={{ color: TEXT, fontWeight: 600 }}>{developerEntry.doneTitle} · </strong>
+                  {developerEntry.doneBody}
+                </div>
               </div>
             </section>
 
-            <section className="rounded-lg border border-[#8b5cf6]/20 bg-white/[0.035] p-4 md:p-5">
-              <h2 className="text-base font-semibold text-white">{sop.scopeTitle}</h2>
-              <ul className="mt-4 space-y-2 text-sm leading-6 text-white/64">
+            {/* ── Dev scope card ───────────────────────────────────── */}
+            <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 24px" }}>
+                {sop.scopeTitle}
+              </p>
+              <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 24px", color: TEXT }}>
+                在模板提供的组件结构内完成 Vault UI 定制。
+              </h3>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
                 {sop.scopeItems.map((item) => (
-                  <li key={item} className="flex gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                    <span className="min-w-0 break-words">{item}</span>
+                  <li key={item} style={{ position: "relative", paddingLeft: 26, fontSize: 14.5, lineHeight: 1.62, color: TEXT2 }}>
+                    <span style={{ position: "absolute", left: 6, top: 9, width: 7, height: 7, borderRadius: "50%", border: `2px solid ${ACCENT}`, display: "inline-block" }} />
+                    <RichText text={item} />
                   </li>
                 ))}
               </ul>
             </section>
 
-            <section className="rounded-lg border border-[#8b5cf6]/20 bg-white/[0.035] p-4 md:p-5">
-              <div className="space-y-2">
-                <h2 className="text-base font-semibold text-white">{agentGuide.title}</h2>
-                <p className="break-words text-sm leading-6 text-white/64">{agentGuide.description}</p>
+            {/* ── Agent guide card ─────────────────────────────────── */}
+            <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
+                AI Agent / Skill
+              </p>
+              <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
+                {agentGuide.title}
+              </h3>
+              <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, maxWidth: "64ch", margin: "0 0 24px" }}>
+                {agentGuide.description}
+              </p>
+
+              {/* skill callout */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, background: ACCSOFT, border: `1px solid ${ACCLINE}`, borderRadius: 10, padding: "18px 20px" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(77,141,255,0.18)", display: "grid", placeItems: "center", color: ACCENT2, flexShrink: 0 }}>
+                  <Zap size={20} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: ACCENT, margin: "0 0 3px" }}>{agentGuide.skillTitle}</p>
+                  <div style={{ fontFamily: MONO, fontSize: 14, color: TEXT }}>{agentGuide.skillName}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 12.5, color: TEXT3, marginTop: 2 }}>{agentGuide.skillPath}</div>
+                </div>
               </div>
 
-              <div className="mt-5 rounded-md border border-[#8b5cf6]/30 bg-primary/10 px-3 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">{agentGuide.skillTitle}</p>
-                <p className="mt-2 font-mono text-sm text-white">{agentGuide.skillName}</p>
-                <p className="mt-1 break-all font-mono text-xs text-white/54">{agentGuide.skillPath}</p>
-              </div>
-
-              <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-white">{agentGuide.docsTitle}</h3>
-                  <div className="space-y-2">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28, marginTop: 28, alignItems: "start" }}>
+                {/* docs column */}
+                <div>
+                  <SubLabel>{agentGuide.docsTitle}</SubLabel>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {agentGuide.docs.map((doc) => (
-                      <div key={doc.path} className="rounded-md border border-[#8b5cf6]/20 bg-black/25 px-3 py-3">
-                        <p className="break-all font-mono text-xs text-white/82">{doc.path}</p>
-                        <p className="mt-1 break-words text-xs leading-5 text-white/54">{doc.description}</p>
+                      <div key={doc.path} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "14px 16px" }}>
+                        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT }}>{doc.path}</div>
+                        <div style={{ fontSize: 13, color: TEXT3, marginTop: 4 }}>{doc.description}</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                {/* inputs + outputs + workflow */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">{agentGuide.inputsTitle}</h3>
-                    <ul className="mt-2 space-y-2 text-sm leading-6 text-white/60">
+                    <SubLabel muted>{agentGuide.inputsTitle}</SubLabel>
+                    <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
                       {agentGuide.inputs.map((item) => (
-                        <li key={item} className="flex gap-3">
-                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                          <span className="min-w-0 break-words">{item}</span>
+                        <li key={item} style={{ position: "relative", paddingLeft: 26, fontSize: 14.5, lineHeight: 1.62, color: TEXT2 }}>
+                          <span style={{ position: "absolute", left: 6, top: 9, width: 7, height: 7, borderRadius: "50%", border: `2px solid ${ACCENT}`, display: "inline-block" }} />
+                          <RichText text={item} />
                         </li>
                       ))}
                     </ul>
                   </div>
 
+                  <hr style={{ height: 1, background: BORDER, border: 0 }} />
+
                   <div>
-                    <h3 className="text-sm font-semibold text-white">{agentGuide.outputsTitle}</h3>
-                    <ul className="mt-2 grid gap-2 text-xs leading-5 text-white/58">
-                      {agentGuide.outputs.map((file) => (
-                        <li key={file} className="break-all rounded-md border border-[#8b5cf6]/20 bg-black/25 px-3 py-2 font-mono">
-                          {file}
-                        </li>
+                    <SubLabel>{agentGuide.outputsTitle}</SubLabel>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      {agentGuide.outputs.map((f) => (
+                        <span key={f} style={{ display: "inline-flex", alignItems: "center", fontFamily: MONO, fontSize: 13, color: TEXT2, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px" }}>
+                          <strong style={{ color: ACCENT2, fontWeight: 500 }}>{f.replace("src/vaults/", "src/vaults/​")}</strong>
+                        </span>
                       ))}
-                    </ul>
+                    </div>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold text-white">{agentGuide.workflowTitle}</h3>
-                    <ol className="mt-2 space-y-2 text-sm leading-6 text-white/60">
-                      {agentGuide.workflow.map((item, index) => (
-                        <li key={item} className="flex gap-3">
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[#8b5cf6]/25 bg-black/25 text-[10px] text-white/70">
-                            {index + 1}
+                    <SubLabel>{agentGuide.workflowTitle}</SubLabel>
+                    <ol style={{ margin: 0, padding: 0, listStyle: "none", counterReset: "wf", display: "flex", flexDirection: "column", gap: 16 }}>
+                      {agentGuide.workflow.map((item, i) => (
+                        <li key={item} style={{ position: "relative", paddingLeft: 40, fontSize: 14.5, lineHeight: 1.6, color: TEXT2 }}>
+                          <span style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderRadius: 7, background: BG2, border: `1px solid ${BORDSTR}`, color: ACCENT2, fontFamily: MONO, fontSize: 12, fontWeight: 600, display: "grid", placeItems: "center" }}>
+                            {i + 1}
                           </span>
-                          <span className="min-w-0 break-words">{item}</span>
+                          <RichText text={item} />
                         </li>
                       ))}
                     </ol>
@@ -220,80 +284,182 @@ export default function HomePage() {
               </div>
             </section>
 
-            <section className="space-y-3">
-              {sop.steps.map((step, index) => (
-                <article key={step.title} className="grid gap-4 rounded-lg border border-[#8b5cf6]/20 bg-white/[0.035] p-4 md:grid-cols-[4rem_1fr] md:p-5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#8b5cf6]/25 bg-black/35 text-sm font-semibold text-white/72">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-white">{step.title}</h2>
-                    <p className="mt-2 text-sm leading-6 text-white/64">{step.body}</p>
-                    {step.code ? (
-                      <code className="mt-4 block overflow-x-auto rounded-md border border-[#8b5cf6]/20 bg-black/40 p-3 text-xs leading-6 text-white/82">
-                        {step.code}
-                      </code>
-                    ) : null}
-                    {step.files?.length ? (
-                      <ul className="mt-4 grid gap-2 text-xs leading-5 text-white/58 sm:grid-cols-2">
-                        {step.files.map((file) => (
-                          <li key={file} className="break-all rounded-md border border-[#8b5cf6]/20 bg-black/25 px-3 py-2 font-mono">
-                            {file}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    {step.items?.length ? (
-                      <ul className="mt-4 space-y-2 text-sm leading-6 text-white/60">
-                        {step.items.map((item) => (
-                          <li key={item} className="flex gap-3">
-                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/35" />
-                            <span className="min-w-0 break-words">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
-            </section>
+            {/* ── 7 Steps ──────────────────────────────────────────── */}
+            <section style={{ marginTop: 72 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
+                流程
+              </p>
+              <h2 style={{ fontSize: 28, fontWeight: 680, lineHeight: 1.2, margin: "0 0 8px", color: TEXT }}>
+                七步完成一个 Vault UI。
+              </h2>
+              <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, margin: "0 0 28px" }}>
+                从安装依赖到打包给 Artifact Workbench，按顺序执行即可。
+              </p>
 
-            <section className="rounded-lg border border-[#8b5cf6]/20 bg-white/[0.035] p-4 md:p-5">
-              <h2 className="text-base font-semibold text-white">{sop.rulesTitle}</h2>
-              <div className="mt-4 grid gap-2 md:grid-cols-2">
-                {sop.rules.map((rule) => (
-                  <div key={rule} className="break-words rounded-md border border-[#8b5cf6]/20 bg-black/25 px-3 py-2 text-sm leading-6 text-white/64">
-                    {rule}
+              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                {sop.steps.map((step, i) => (
+                  <div key={step.title} style={{ display: "grid", gridTemplateColumns: "64px 1fr", gap: 24, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "28px 32px" }}>
+                    <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: ACCENT2, width: 44, height: 44, borderRadius: 11, background: BG2, border: `1px solid ${BORDSTR}`, display: "grid", placeItems: "center" }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 660, color: TEXT, margin: "6px 0 6px" }}>{step.title}</div>
+                      <p style={{ fontSize: 14.5, lineHeight: 1.65, color: TEXT2, margin: "0 0 18px" }}>{step.body}</p>
+                      {step.code ? (
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, fontFamily: MONO, fontSize: 14, color: TEXT, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "14px 18px", marginBottom: step.files?.length || step.items?.length ? 14 : 0 }}>
+                          <span style={{ color: ACCENT, fontWeight: 700, flexShrink: 0 }}>$</span>
+                          <code style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{step.code}</code>
+                        </div>
+                      ) : null}
+                      {step.files?.length ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+                          {step.files.map((f) => (
+                            <span key={f} style={{ display: "inline-flex", alignItems: "center", fontFamily: MONO, fontSize: 13, color: TEXT2, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px" }}>{f}</span>
+                          ))}
+                        </div>
+                      ) : null}
+                      {step.items?.length ? (
+                        <ul style={{ margin: "14px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+                          {step.items.map((item) => (
+                            <li key={item} style={{ position: "relative", paddingLeft: 26, fontSize: 14.5, lineHeight: 1.62, color: TEXT2 }}>
+                              <span style={{ position: "absolute", left: 6, top: 9, width: 7, height: 7, borderRadius: "50%", border: `2px solid ${ACCENT}`, display: "inline-block" }} />
+                              <RichText text={item} />
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
             </section>
 
-            <footer className="border-t border-[#8b5cf6]/20 pt-6">
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button asChild size="lg" className="w-full border-[#8b5cf6]/45 hover:border-[#a78bfa]/65 sm:w-auto">
-                  <Link href="/example">
-                    {sop.cta}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="w-full border-[#8b5cf6]/45 hover:border-[#a78bfa]/65 sm:w-auto">
-                  <Link href="/dex-listed-example">
-                    {sop.dexListedCta}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="w-full border-[#8b5cf6]/45 hover:border-[#a78bfa]/65 sm:w-auto">
-                  <Link href="/action-gallery-example">
-                    {sop.actionGalleryCta}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
+            {/* ── Submission requirements ──────────────────────────── */}
+            <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 24px" }}>
+                提交要求
+              </p>
+              <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 24px", color: TEXT }}>
+                交付前逐条对照。
+              </h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                {sop.rules.map((rule, i) => (
+                  <div key={rule} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", fontSize: 14, lineHeight: 1.6, color: TEXT2, gridColumn: i === sop.rules.length - 1 && sop.rules.length % 2 !== 0 ? "1 / -1" : undefined }}>
+                    <RichText text={rule} />
+                  </div>
+                ))}
               </div>
-            </footer>
+            </section>
+
+            {/* ── Footer CTA ───────────────────────────────────────── */}
+            <section style={{ marginTop: 44 }}>
+              <hr style={{ height: 1, background: BORDER, border: 0, margin: "0 0 32px" }} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+                <Link href="/example" style={btnSecondary}>
+                  {developerEntry.openPreview} <ArrowSpan />
+                </Link>
+                <Link href="/dex-listed-example" style={btnSecondary}>
+                  {developerEntry.openDexListedPreview} <ArrowSpan />
+                </Link>
+                <Link href="/action-gallery-example" style={btnSecondary}>
+                  {developerEntry.openActionGalleryPreview} <ArrowSpan />
+                </Link>
+              </div>
+            </section>
+
           </div>
         </main>
+        </div>{/* /relative z-1 */}
       </div>
     </VaultRuntimeProvider>
   );
 }
+
+/* ── tiny helpers ──────────────────────────────────────────── */
+
+function SubLabel({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
+  return (
+    <p style={{ fontSize: 13, fontWeight: 600, color: muted ? "#4a5366" : "#e6e9ef", margin: "0 0 12px", display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ width: 6, height: 6, borderRadius: 2, background: muted ? "#4a5366" : ACCENT, flexShrink: 0 }} />
+      {children}
+    </p>
+  );
+}
+
+function ArrowSpan() {
+  return <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.5)" }}>→</span>;
+}
+
+/**
+ * Syntax-highlights the AI agent prompt template:
+ *   <placeholder>  → blue  (tok-key)
+ *   filename.ext   → green (tok-str)
+ */
+function PromptHighlight({ text }: { text: string }) {
+  // Split on <...> placeholders AND known file/path tokens
+  const TOKEN = /(<[^>]+>|(?:AGENTS|agent-contract|docs\/ai-agent|docs\/ui-pattern-snippets)\.(?:md|json))/g;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = TOKEN.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const tok = m[0];
+    const isPlaceholder = tok.startsWith("<");
+    parts.push(
+      <span key={m.index} style={{ color: isPlaceholder ? "#6aa9ff" : "#5fd0a8" }}>{tok}</span>
+    );
+    last = m.index + tok.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
+/** Wraps backtick-delimited tokens in a mono highlight span */
+function RichText({ text }: { text: string }) {
+  const parts = text.split(/(`[^`]+`)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith("`") && part.endsWith("`") ? (
+          <code key={i} style={{ fontFamily: MONO, fontSize: "0.92em", color: ACCENT2, background: ACCSOFT, padding: "1px 5px", borderRadius: 5 }}>
+            {part.slice(1, -1)}
+          </code>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
+const btnPrimary: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  height: 44,
+  padding: "0 18px",
+  borderRadius: 10,
+  fontSize: 14,
+  fontWeight: 600,
+  border: "none",
+  background: "linear-gradient(135deg,#3f7bff 0%,#2f9bff 100%)",
+  color: "#fff",
+  cursor: "pointer",
+  textDecoration: "none",
+};
+
+const btnSecondary: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  height: 44,
+  padding: "0 18px",
+  borderRadius: 10,
+  fontSize: 14,
+  fontWeight: 600,
+  border: `1px solid ${BORDSTR}`,
+  background: PANEL2,
+  color: TEXT,
+  cursor: "pointer",
+  textDecoration: "none",
+};

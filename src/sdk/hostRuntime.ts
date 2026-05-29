@@ -30,8 +30,8 @@ function resolveAddresses(input: Pick<HostRuntimeInput, "chainId" | "tokenAddres
     tokenAddress: input.tokenAddress,
     factoryAddressHint: input.factoryAddressHint,
     vaultAddressHint: input.vaultAddressHint,
-    factoryAddress: pickAddress(input.factoryAddressHint, snapshot?.vaultInfo?.vaultFactory, snapshot?.taxInfo?.vaultInfo?.factory ?? undefined),
-    vaultAddress: pickAddress(input.vaultAddressHint, snapshot?.vaultInfo?.vault, snapshot?.taxInfo?.vaultInfo?.addr ?? undefined),
+    factoryAddress: pickAddress(snapshot?.vaultInfo?.vaultFactory, snapshot?.taxInfo?.vaultInfo?.factory ?? undefined, input.factoryAddressHint),
+    vaultAddress: pickAddress(snapshot?.vaultInfo?.vault, snapshot?.taxInfo?.vaultInfo?.addr ?? undefined, input.vaultAddressHint),
   };
 }
 

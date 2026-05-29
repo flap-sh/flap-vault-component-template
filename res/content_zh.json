@@ -259,7 +259,7 @@
   "preview": {
     "tokens": "Tokens",
     "vault": "Vault",
-    "vaultInformation": "Vault Information",
+    "vaultInformation": "金库信息",
     "bindingHint": "chain + factory",
     "badge": "預覽",
     "manifestPanelLabel": "当前 manifest",

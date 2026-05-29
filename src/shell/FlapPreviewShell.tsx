@@ -319,11 +319,11 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
   const runtimePolicy: HostRuntimePolicy = "prefer-full-host";
   const runtimeFactoryHint = bindingFactoryHint ?? (shouldUseDefaultBinding ? resolvedBinding?.factoryAddress : undefined);
   const runtimeSnapshot = hostRuntime?.snapshot ?? null;
-  const runtimeFactoryAddress = requestedFactoryAddress ?? previewDefaults?.factoryAddress ?? hostRuntime?.addresses.factoryAddress ?? resolvedBinding?.factoryAddress;
+  const runtimeFactoryAddress = hostRuntime?.addresses.factoryAddress ?? requestedFactoryAddress ?? previewDefaults?.factoryAddress ?? resolvedBinding?.factoryAddress;
   const runtimeVaultAddress =
+    hostRuntime?.addresses.vaultAddress ??
     requestedVaultAddress ??
     previewDefaults?.vaultAddress ??
-    hostRuntime?.addresses.vaultAddress ??
     (usingNeutralPreviewFixture ? PREVIEW_VAULT_ADDRESS : undefined);
   const hostPresentationFetcher = useMemo(() => createLocalHostPresentationFetcher(), []);
 
