@@ -2,7 +2,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import ts from "typescript";
 
 const ROOT = process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
@@ -315,62 +314,400 @@ function isFolderNameRegistered(folderName) {
   return content.includes(`./${folderName}/Component`) && content.includes(`./${folderName}/manifest.json`) && content.includes(`./${folderName}/i18n.json`);
 }
 
-function getNodeText(sourceFile, node) {
-  return node?.getText(sourceFile) ?? "";
-}
-
-function extractObjectProperty(objectLiteral, propertyName) {
-  return objectLiteral.properties.find(
-    (property) =>
-      ts.isPropertyAssignment(property) &&
-      ((ts.isIdentifier(property.name) && property.name.text === propertyName) ||
-        (ts.isStringLiteral(property.name) && property.name.text === propertyName)),
-  );
-}
-
 function normalizeContractAddressExpression(expressionText) {
   return expressionText.replace(/\s+/g, "").toLowerCase();
 }
 
-function unwrapExpression(expression) {
-  let current = expression;
-  while (
-    ts.isAsExpression(current) ||
-    ts.isTypeAssertionExpression(current) ||
-    ts.isNonNullExpression(current) ||
-    ts.isParenthesizedExpression(current) ||
-    ts.isSatisfiesExpression(current)
-  ) {
-    current = current.expression;
+function skipQuoted(content, index) {
+  const quote = content[index];
+  let escaped = false;
+  for (let cursor = index + 1; cursor < content.length; cursor += 1) {
+    const char = content[cursor];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === quote) return cursor + 1;
+  }
+  return content.length;
+}
+
+function skipLineComment(content, index) {
+  const end = content.indexOf("\n", index + 2);
+  return end < 0 ? content.length : end + 1;
+}
+
+function skipBlockComment(content, index) {
+  const end = content.indexOf("*/", index + 2);
+  return end < 0 ? content.length : end + 2;
+}
+
+function isIdentifierStart(char) {
+  return /[$A-Z_a-z]/.test(char || "");
+}
+
+function isIdentifierPart(char) {
+  return /[$\w]/.test(char || "");
+}
+
+function skipWhitespace(content, index) {
+  let cursor = index;
+  while (cursor < content.length) {
+    const char = content[cursor];
+    if (/\s/.test(char)) {
+      cursor += 1;
+      continue;
+    }
+    if (char === "/" && content[cursor + 1] === "/") {
+      cursor = skipLineComment(content, cursor);
+      continue;
+    }
+    if (char === "/" && content[cursor + 1] === "*") {
+      cursor = skipBlockComment(content, cursor);
+      continue;
+    }
+    break;
+  }
+  return cursor;
+}
+
+function findMatchingDelimiter(content, openIndex, openChar, closeChar) {
+  let depth = 0;
+  for (let cursor = openIndex; cursor < content.length; cursor += 1) {
+    const char = content[cursor];
+    const next = content[cursor + 1];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      cursor = skipLineComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      cursor = skipBlockComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === openChar) {
+      depth += 1;
+    } else if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) return cursor;
+    }
+  }
+  return -1;
+}
+
+function findExpressionEnd(content, startIndex) {
+  let parenDepth = 0;
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  for (let cursor = startIndex; cursor < content.length; cursor += 1) {
+    const char = content[cursor];
+    const next = content[cursor + 1];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      cursor = skipLineComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      cursor = skipBlockComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === "(") parenDepth += 1;
+    if (char === ")") {
+      if (parenDepth === 0 && braceDepth === 0 && bracketDepth === 0) return cursor;
+      parenDepth = Math.max(0, parenDepth - 1);
+    }
+    if (char === "{") braceDepth += 1;
+    if (char === "}") {
+      if (braceDepth === 0 && parenDepth === 0 && bracketDepth === 0) return cursor;
+      braceDepth = Math.max(0, braceDepth - 1);
+    }
+    if (char === "[") bracketDepth += 1;
+    if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    if ((char === "," || char === ";") && parenDepth === 0 && braceDepth === 0 && bracketDepth === 0) return cursor;
+  }
+  return content.length;
+}
+
+function parseStaticStringLiteral(expressionText) {
+  const trimmed = expressionText.trim();
+  const quote = trimmed[0];
+  if (quote !== "\"" && quote !== "'" && quote !== "`") return null;
+
+  let escaped = false;
+  let value = "";
+  for (let cursor = 1; cursor < trimmed.length; cursor += 1) {
+    const char = trimmed[cursor];
+    if (escaped) {
+      value += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === quote) {
+      if (quote === "`" && value.includes("${")) return null;
+      return value;
+    }
+    value += char;
+  }
+  return null;
+}
+
+function hasBalancedOuterParens(value) {
+  if (!value.startsWith("(") || !value.endsWith(")")) return false;
+  return findMatchingDelimiter(value, 0, "(", ")") === value.length - 1;
+}
+
+function stripExpressionDecorators(expressionText) {
+  let current = expressionText.trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    if (hasBalancedOuterParens(current)) {
+      current = current.slice(1, -1).trim();
+      changed = true;
+    }
+    const withoutNonNull = current.replace(/!\s*$/, "").trim();
+    if (withoutNonNull !== current) {
+      current = withoutNonNull;
+      changed = true;
+    }
+    const withoutAsConst = current.replace(/\s+as\s+const\s*$/u, "").trim();
+    if (withoutAsConst !== current) {
+      current = withoutAsConst;
+      changed = true;
+    }
+    const withoutAssertion = current.replace(/\s+(?:as|satisfies)\s+[^,;)}\]]+$/u, "").trim();
+    if (withoutAssertion !== current) {
+      current = withoutAssertion;
+      changed = true;
+    }
   }
   return current;
 }
 
-function collectAddressConstants(sourceFile) {
+function collectAddressConstants(content) {
   const constants = new Map();
-  function visit(node) {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      const initializer = unwrapExpression(node.initializer);
-      if (ts.isStringLiteral(initializer) || ts.isNoSubstitutionTemplateLiteral(initializer)) {
-        const normalized = normalizeAddress(initializer.text);
-        if (normalized) constants.set(node.name.text, normalized);
-      }
+
+  for (let cursor = 0; cursor < content.length; cursor += 1) {
+    const char = content[cursor];
+    const next = content[cursor + 1];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(content, cursor) - 1;
+      continue;
     }
-    ts.forEachChild(node, visit);
+    if (char === "/" && next === "/") {
+      cursor = skipLineComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      cursor = skipBlockComment(content, cursor) - 1;
+      continue;
+    }
+    const declaration = /^(?:const|let|var)\b/u.exec(content.slice(cursor));
+    if (!declaration) continue;
+    cursor += declaration[0].length;
+    cursor = skipWhitespace(content, cursor);
+    if (!isIdentifierStart(content[cursor])) continue;
+    let nameEnd = cursor + 1;
+    while (isIdentifierPart(content[nameEnd])) nameEnd += 1;
+    const name = content.slice(cursor, nameEnd);
+    cursor = skipWhitespace(content, nameEnd);
+    if (content[cursor] === ":") {
+      cursor = findExpressionEnd(content, cursor + 1);
+      cursor = skipWhitespace(content, cursor);
+    }
+    if (content[cursor] !== "=") continue;
+    const valueStart = skipWhitespace(content, cursor + 1);
+    const valueEnd = findExpressionEnd(content, valueStart);
+    const literal = parseStaticStringLiteral(stripExpressionDecorators(content.slice(valueStart, valueEnd)));
+    const normalized = normalizeAddress(literal);
+    if (normalized) constants.set(name, normalized);
+    cursor = valueEnd;
   }
-  visit(sourceFile);
+
   return constants;
 }
 
-function resolveAddressExpression(expression, sourceFile, addressConstants) {
-  const unwrapped = unwrapExpression(expression);
-  if (ts.isStringLiteral(unwrapped) || ts.isNoSubstitutionTemplateLiteral(unwrapped)) {
-    return normalizeAddress(unwrapped.text);
-  }
-  if (ts.isIdentifier(unwrapped)) {
-    return addressConstants.get(unwrapped.text) ?? null;
+function resolveAddressExpressionText(expressionText, addressConstants) {
+  const expression = stripExpressionDecorators(expressionText);
+  const literal = parseStaticStringLiteral(expression);
+  if (literal !== null) return normalizeAddress(literal);
+  if (/^[$A-Z_a-z][$\w]*$/u.test(expression)) {
+    return addressConstants.get(expression) ?? null;
   }
   return null;
+}
+
+function readObjectKey(content, index) {
+  let cursor = skipWhitespace(content, index);
+  const quote = content[cursor];
+  if (quote === "\"" || quote === "'" || quote === "`") {
+    const end = skipQuoted(content, cursor);
+    const key = parseStaticStringLiteral(content.slice(cursor, end));
+    return { key, end };
+  }
+  if (!isIdentifierStart(content[cursor])) return null;
+  const start = cursor;
+  cursor += 1;
+  while (isIdentifierPart(content[cursor])) cursor += 1;
+  return { key: content.slice(start, cursor), end: cursor };
+}
+
+function extractObjectPropertyExpression(objectText, propertyName) {
+  let cursor = objectText[0] === "{" ? 1 : 0;
+  const objectEnd = objectText[0] === "{" ? objectText.length - 1 : objectText.length;
+
+  while (cursor < objectEnd) {
+    cursor = skipWhitespace(objectText, cursor);
+    if (objectText[cursor] === ",") {
+      cursor += 1;
+      continue;
+    }
+    const parsedKey = readObjectKey(objectText, cursor);
+    if (!parsedKey) {
+      cursor += 1;
+      continue;
+    }
+    cursor = skipWhitespace(objectText, parsedKey.end);
+    if (objectText[cursor] !== ":") {
+      cursor += 1;
+      continue;
+    }
+    const valueStart = skipWhitespace(objectText, cursor + 1);
+    const valueEnd = findExpressionEnd(objectText, valueStart);
+    if (parsedKey.key === propertyName) {
+      return {
+        text: objectText.slice(valueStart, valueEnd).trim(),
+        index: valueStart,
+      };
+    }
+    cursor = valueEnd;
+  }
+
+  return null;
+}
+
+function skipTypeArguments(content, index) {
+  let cursor = skipWhitespace(content, index);
+  if (content[cursor] !== "<") return cursor;
+  let depth = 0;
+  for (; cursor < content.length; cursor += 1) {
+    const char = content[cursor];
+    const next = content[cursor + 1];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      cursor = skipLineComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      cursor = skipBlockComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === "<") depth += 1;
+    if (char === ">") {
+      depth -= 1;
+      if (depth === 0) return cursor + 1;
+    }
+  }
+  return index;
+}
+
+function findSdkContractCalls(content) {
+  const calls = [];
+
+  for (let cursor = 0; cursor < content.length; cursor += 1) {
+    const char = content[cursor];
+    const next = content[cursor + 1];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      cursor = skipLineComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      cursor = skipBlockComment(content, cursor) - 1;
+      continue;
+    }
+
+    const methodMatch = /^(?:readContract|simulateContract|writeContract)\b/u.exec(content.slice(cursor));
+    if (!methodMatch) continue;
+    const before = content[cursor - 1];
+    if (isIdentifierPart(before)) continue;
+
+    const methodName = methodMatch[0];
+    let callCursor = skipTypeArguments(content, cursor + methodName.length);
+    callCursor = skipWhitespace(content, callCursor);
+    if (content[callCursor] !== "(") continue;
+    const argumentStart = skipWhitespace(content, callCursor + 1);
+    if (content[argumentStart] !== "{") continue;
+    const objectEnd = findMatchingDelimiter(content, argumentStart, "{", "}");
+    if (objectEnd < 0) continue;
+    calls.push({
+      methodName,
+      objectStart: argumentStart,
+      objectText: content.slice(argumentStart, objectEnd + 1),
+    });
+    cursor = objectEnd;
+  }
+
+  return calls;
+}
+
+function collectDynamicImportIssues(content, file) {
+  const issues = [];
+  for (let cursor = 0; cursor < content.length; cursor += 1) {
+    const char = content[cursor];
+    const next = content[cursor + 1];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      cursor = skipLineComment(content, cursor) - 1;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      cursor = skipBlockComment(content, cursor) - 1;
+      continue;
+    }
+    if (content.startsWith("import", cursor)) {
+      const before = content[cursor - 1];
+      const after = content[cursor + "import".length];
+      if (isIdentifierPart(before) || isIdentifierPart(after)) continue;
+      const openParenIndex = skipWhitespace(content, cursor + "import".length);
+      if (content[openParenIndex] === "(") {
+        const targetStart = skipWhitespace(content, openParenIndex + 1);
+        const targetEnd = findExpressionEnd(content, targetStart);
+        const specifier = content.slice(targetStart, targetEnd).trim() || "<dynamic>";
+        issues.push(
+          issue(BLOCKING, "imports-and-dependencies/dynamic-import", `Dynamic import ${specifier} is not allowed inside a Vault package.`, {
+            file,
+            line: lineForIndex(content, cursor),
+          }),
+        );
+      }
+    }
+  }
+
+  return issues;
 }
 
 function isApprovedContractAddressExpression(expressionText) {
@@ -384,113 +721,70 @@ function isApprovedContractAddressExpression(expressionText) {
 
 function collectContractInteractionIssues(content, file, contractPolicy) {
   const issues = [];
-  const scriptKind = file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const sourceFile = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
-  const addressConstants = collectAddressConstants(sourceFile);
+  const addressConstants = collectAddressConstants(content);
 
-  function visit(node) {
-    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
-      const methodName = node.expression.name.text;
-      if (methodName === "readContract" || methodName === "simulateContract" || methodName === "writeContract") {
-        const request = node.arguments[0];
-        if (methodName === "writeContract" && ts.isPropertyAccessExpression(request) && request.name.text === "request") {
-          return ts.forEachChild(node, visit);
-        }
-        if (request && ts.isObjectLiteralExpression(request)) {
-          const contractProperty = extractObjectProperty(request, "contract");
-          const addressProperty = extractObjectProperty(request, "address");
-          const resolvedAddress = addressProperty ? resolveAddressExpression(addressProperty.initializer, sourceFile, addressConstants) : null;
-          const isDeclaredExternalAddress = Boolean(resolvedAddress && contractPolicy.external.has(resolvedAddress));
-          if (!contractProperty) {
-            issues.push(
-              issue(BLOCKING, "contract-boundary/missing-contract-label", `${methodName} call is missing a contract label.`, {
-                file,
-                line: lineForIndex(content, request.getStart(sourceFile)),
-              }),
-            );
-          } else if (
-            !ts.isStringLiteral(contractProperty.initializer) &&
-            !ts.isNoSubstitutionTemplateLiteral(contractProperty.initializer)
-          ) {
-            issues.push(
-              issue(BLOCKING, "contract-boundary/disallowed-contract-label", `${methodName} contract label must be a simple string literal classified as vault/token/nft.`, {
-                file,
-                line: lineForIndex(content, contractProperty.initializer.getStart(sourceFile)),
-              }),
-            );
-          } else {
-            const contractLabel = contractProperty.initializer.text;
-            if (!isDeclaredExternalAddress && !APPROVED_CONTRACT_LABEL_RE.test(contractLabel)) {
-              issues.push(
-                issue(BLOCKING, "contract-boundary/disallowed-contract-label", `${methodName} target "${contractLabel}" is outside the allowed vault/token/nft boundary.`, {
-                  file,
-                  line: lineForIndex(content, contractProperty.initializer.getStart(sourceFile)),
-                }),
-              );
-            }
-          }
+  for (const call of findSdkContractCalls(content)) {
+    const contractProperty = extractObjectPropertyExpression(call.objectText, "contract");
+    const addressProperty = extractObjectPropertyExpression(call.objectText, "address");
+    const resolvedAddress = addressProperty ? resolveAddressExpressionText(addressProperty.text, addressConstants) : null;
+    const isDeclaredExternalAddress = Boolean(resolvedAddress && contractPolicy.external.has(resolvedAddress));
 
-          if (addressProperty) {
-            if (resolvedAddress) {
-              if (!contractPolicy.all.has(resolvedAddress)) {
-                issues.push(
-                  issue(
-                    BLOCKING,
-                    "contract-boundary/undeclared-contract-address",
-                    `${methodName} uses fixed contract address ${resolvedAddress}, but it is not a runtime Vault/token/factory address and is not declared in manifest match.bindings[].externalContracts.`,
-                    {
-                      file,
-                      line: lineForIndex(content, addressProperty.initializer.getStart(sourceFile)),
-                    },
-                  ),
-                );
-              }
-            } else {
-              const addressText = getNodeText(sourceFile, addressProperty.initializer);
-              if (!isApprovedContractAddressExpression(addressText)) {
-                issues.push(
-                  issue(
-                    BLOCKING,
-                    "contract-boundary/disallowed-contract-address-source",
-                    `${methodName} address source ${addressText} is outside the allowed Vault/token/factory runtime boundary. Fixed external contract targets must be declared in manifest match.bindings[].externalContracts.`,
-                    {
-                      file,
-                      line: lineForIndex(content, addressProperty.initializer.getStart(sourceFile)),
-                    },
-                  ),
-                );
-              }
-            }
-          }
-        }
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  return issues;
-}
-
-function collectDynamicImportIssues(content, file) {
-  const issues = [];
-  const scriptKind = file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const sourceFile = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
-
-  function visit(node) {
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-      const specifier = node.arguments[0] ? getNodeText(sourceFile, node.arguments[0]) : "<dynamic>";
+    if (!contractProperty) {
       issues.push(
-        issue(BLOCKING, "imports-and-dependencies/dynamic-import", `Dynamic import ${specifier} is not allowed inside a Vault package.`, {
+        issue(BLOCKING, "contract-boundary/missing-contract-label", `${call.methodName} call is missing a contract label.`, {
           file,
-          line: lineForIndex(content, node.getStart(sourceFile)),
+          line: lineForIndex(content, call.objectStart),
         }),
       );
+    } else {
+      const contractLabel = parseStaticStringLiteral(stripExpressionDecorators(contractProperty.text));
+      if (contractLabel === null) {
+        issues.push(
+          issue(BLOCKING, "contract-boundary/disallowed-contract-label", `${call.methodName} contract label must be a simple string literal classified as vault/token/nft.`, {
+            file,
+            line: lineForIndex(content, call.objectStart + contractProperty.index),
+          }),
+        );
+      } else if (!isDeclaredExternalAddress && !APPROVED_CONTRACT_LABEL_RE.test(contractLabel)) {
+        issues.push(
+          issue(BLOCKING, "contract-boundary/disallowed-contract-label", `${call.methodName} target "${contractLabel}" is outside the allowed vault/token/nft boundary.`, {
+            file,
+            line: lineForIndex(content, call.objectStart + contractProperty.index),
+          }),
+        );
+      }
     }
-    ts.forEachChild(node, visit);
+
+    if (!addressProperty) continue;
+    if (resolvedAddress) {
+      if (!contractPolicy.all.has(resolvedAddress)) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "contract-boundary/undeclared-contract-address",
+            `${call.methodName} uses fixed contract address ${resolvedAddress}, but it is not a runtime Vault/token/factory address and is not declared in manifest match.bindings[].externalContracts.`,
+            {
+              file,
+              line: lineForIndex(content, call.objectStart + addressProperty.index),
+            },
+          ),
+        );
+      }
+    } else if (!isApprovedContractAddressExpression(addressProperty.text)) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "contract-boundary/disallowed-contract-address-source",
+          `${call.methodName} address source ${addressProperty.text} is outside the allowed Vault/token/factory runtime boundary. Fixed external contract targets must be declared in manifest match.bindings[].externalContracts.`,
+          {
+            file,
+            line: lineForIndex(content, call.objectStart + addressProperty.index),
+          },
+        ),
+      );
+    }
   }
 
-  visit(sourceFile);
   return issues;
 }
 
