@@ -13,18 +13,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
-### Added
-
-- Added `src/vaults/worldcup-vault` as a registered WorldCup NFT preview package with BSC factory binding, declared `WorldCupViewer` external contract, and bilingual mint/claim/settlement UI copy.
-
-### Changed
-
-- `agent-contract.json` is now version 5 because agents must reject zero factory bindings and the preview host must block rendering when live token/Vault factory reads do not match `manifest.match.bindings`.
-- Preview runtime now marks a token unavailable when the live token/Vault factory for the active chain does not match the Vault manifest binding.
-
-### Fixed
-
-- `vault:check`, scaffold output validation, and the manifest schema now reject zero `factoryAddress` values in `match.bindings`.
+No unreleased changes.
 
 ## [0.1.2] - 2026-05-31
 
