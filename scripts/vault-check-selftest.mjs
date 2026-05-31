@@ -9,6 +9,7 @@ import { runVaultCheck } from "./vault-check.mjs";
 const ROOT = process.cwd();
 const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
 const FACTORY = "0x1000000000000000000000000000000000000001";
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TOKEN = "0x2000000000000000000000000000000000000002";
 const EXTERNAL_CONTRACT = "0x4000000000000000000000000000000000000004";
 const FIXTURE_ULID = "01K9V9Z0P0AAAAAAAAAAAAAAAA";
@@ -106,6 +107,16 @@ try {
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/ca-policy-not-in-manifest"), false);
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-token-address-list"), false);
   passed.push("binding-level tokenAddresses reference lists are allowed");
+
+  const zeroFactorySlug = `${FIXTURE_PREFIX}-zero-factory`;
+  writeVault(zeroFactorySlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: ZERO_ADDRESS }],
+      },
+    }),
+  });
+  assertRule("zero factory bindings are blocked", runVaultCheck(zeroFactorySlug, { silent: true }), "manifest-binding/zero-factory-address", "blocking");
 
   const duplicateBindingSlug = `${FIXTURE_PREFIX}-duplicate-binding`;
   writeVault(duplicateBindingSlug, {
@@ -560,6 +571,14 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertRule("write paths warn when market phase gating is missing", runVaultCheck(stageGatingSlug, { silent: true }), "manual-review/action-stage-gating", "warning");
 
   const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
+  assert.throws(() =>
+    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-zero-scaffold`, "--chain", "56", "--factory", ZERO_ADDRESS, "--locales", "en"], {
+      cwd: ROOT,
+      stdio: "pipe",
+    }),
+  );
+  passed.push("scaffold rejects zero factory input");
+
   createdFolderNames.push(scaffoldFlowSlug);
   createdPackagePaths.push(path.join(ROOT, "dist", `${scaffoldFlowSlug}.zip`));
   execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", scaffoldFlowSlug, "--chain", "56", "--factory", FACTORY, "--locales", "en,zh"], {

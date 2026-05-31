@@ -34,8 +34,8 @@
                 "description": "EVM chain ID, for example 56 for BNB Chain mainnet or 97 for BNB Chain testnet."
               },
               "factoryAddress": {
-                "$ref": "#/$defs/address",
-                "description": "Factory contract address on this chain."
+                "$ref": "#/$defs/nonZeroAddress",
+                "description": "Non-zero factory contract address on this chain. Zero address is not a valid custom UI binding target."
               },
               "vaultAddresses": {
                 "$ref": "#/$defs/addressArray",
@@ -75,6 +75,12 @@
   },
   "$defs": {
     "address": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "nonZeroAddress": {
+      "allOf": [
+        { "$ref": "#/$defs/address" },
+        { "not": { "const": "0x0000000000000000000000000000000000000000" } }
+      ]
+    },
     "httpsUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
     "addressArray": {
       "type": "array",

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 3,
+  "version": 4,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -97,7 +97,7 @@
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
-    "bindingsRule": "match.bindings is a non-empty array of unique {chainId, factoryAddress} pairs — one entry per deployment target. Each binding may also declare optional vaultAddresses, optional tokenAddresses, and optional externalContracts reference/review lists. Preview/runtime should prefer an exact chainId + factoryAddress match, treat partial hints as valid only when they are unambiguous, and use the first binding as a preview default only when the route provides no runtime hints. vaultAddresses and externalContracts do not participate in preview/runtime matching.",
+    "bindingsRule": "match.bindings is a non-empty array of unique {chainId, factoryAddress} pairs — one entry per deployment target. factoryAddress must be a non-zero deployed factory contract address; zero address is invalid because custom UI binding is factory-scoped, not token/Vault-only. Each binding may also declare optional vaultAddresses, optional tokenAddresses, and optional externalContracts reference/review lists. Preview/runtime should prefer an exact chainId + factoryAddress match, treat partial hints as valid only when they are unambiguous, and use the first binding as a preview default only when the route provides no runtime hints. vaultAddresses and externalContracts do not participate in preview/runtime matching.",
     "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. If a reference token CA list is needed, declare it only as match.bindings[].tokenAddresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry only when a deployment wants to record binding-scoped Vault references. Omit it when not needed. Preview/runtime validates the addresses but does not match on them.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks SDK contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
@@ -195,6 +195,10 @@
     "manifest-binding/duplicate-binding": {
       "severity": "blocking",
       "fixAction": "Remove duplicate match.bindings entries with the same chainId + factoryAddress pair. Merge any reference tokenAddresses or vaultAddresses into one binding entry."
+    },
+    "manifest-binding/zero-factory-address": {
+      "severity": "blocking",
+      "fixAction": "Replace the zero factoryAddress with the real deployed factory contract address for this chain. Do not model custom UI binding only by tokenAddress or vaultAddresses."
     },
     "manifest/ca-policy-not-in-manifest": {
       "severity": "blocking",

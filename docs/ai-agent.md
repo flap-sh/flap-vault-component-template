@@ -54,7 +54,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | --- | --- | --- |
 | `folder name` | Yes | Use 3-64 characters of lowercase kebab-case. Used in `src/vaults/{folder-name}` and preview route `/{folder-name}`. |
 | `name` | Yes | Human-readable manifest name shown in the Artifact Workbench. |
-| `bindings` | Yes | Explicit `(chainId, factoryAddress)` pairs — one per deployment target. Example: `[{chainId: 56, factoryAddress: "0x..."}, {chainId: 97, factoryAddress: "0x..."}]`. Same UI logic, different factory per deployment. |
+| `bindings` | Yes | Explicit `(chainId, factoryAddress)` pairs — one per deployment target. `factoryAddress` must be a real non-zero deployed factory contract address. Example: `[{chainId: 56, factoryAddress: "0x..."}, {chainId: 97, factoryAddress: "0x..."}]`. Same UI logic, different factory per deployment. |
 | `vaultAddresses` | Optional | Use only when a deployment wants to record binding-scoped Vault addresses inside a `match.bindings` entry. Preview/runtime does not match on this list. |
 | `tokenAddresses` | Optional | Use only as a reference token CA allowlist inside each `match.bindings` entry. The template validates the address list format but does not enforce it at preview/runtime. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |

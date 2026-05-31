@@ -6,6 +6,7 @@ import { assertNpmPackageFresh } from "./check-template-fresh.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const FOLDER_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FOLDER_NAME_MIN_LENGTH = 3;
 const FOLDER_NAME_MAX_LENGTH = 64;
@@ -75,6 +76,7 @@ const FIX_HINTS = {
   "manifest-binding/disallowed-binding-field": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, and optional externalContracts.",
   "manifest-binding/invalid-chain-id": "chainId must be a positive integer, for example 56 for BNB Chain or 97 for BNB Testnet.",
   "manifest-binding/invalid-address": "Use a full 20-byte EVM address matching 0x plus 40 hex characters.",
+  "manifest-binding/zero-factory-address": "Use the real deployed factory contract address for this binding. Zero address is not a valid factory and must not be used to model token/Vault-only custom UI routing.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only when a reference token CA list is needed.",
   "manifest-binding/invalid-vault-address-list": "Use a non-empty array for a binding entry's vaultAddresses reference list, or omit it when no binding-scoped Vault references need to be recorded.",
@@ -868,6 +870,10 @@ function normalizeAddress(value) {
   return value.toLowerCase();
 }
 
+function isZeroAddress(value) {
+  return normalizeAddress(value) === ZERO_ADDRESS;
+}
+
 function collectManifestContractPolicy(manifest) {
   const builtIn = new Set();
   const external = new Set();
@@ -1020,6 +1026,15 @@ function checkManifest(manifest, folderName) {
         }
         if (!ADDRESS_RE.test(bindingEntry.factoryAddress)) {
           issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.factoryAddress is not a valid 0x address.`, { field: `${field}.factoryAddress` }));
+        } else if (isZeroAddress(bindingEntry.factoryAddress)) {
+          issues.push(
+            issue(
+              BLOCKING,
+              "manifest-binding/zero-factory-address",
+              `${field}.factoryAddress must be a non-zero factory contract address. Custom UI binding is factory-scoped; zero address would collapse routing to token/Vault references only.`,
+              { field: `${field}.factoryAddress` },
+            ),
+          );
         }
         if (Number.isInteger(bindingEntry.chainId) && ADDRESS_RE.test(bindingEntry.factoryAddress)) {
           const bindingKey = `${bindingEntry.chainId}:${bindingEntry.factoryAddress.toLowerCase()}`;

@@ -35,6 +35,8 @@ Do not bind custom UI by type fields. The minimum registry match is:
 chainId + factoryAddress
 ```
 
+`factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` is invalid because it removes the factory-scoped binding and leaves only token/Vault references, which this source package treats as reference/review lists rather than runtime matching keys.
+
 If a deployment needs a token CA reference list, declare it only inside the relevant binding entry as `tokenAddresses`. This field is a reference allowlist in the source manifest: the template validates its format, but preview/runtime/package flow does not enforce it. Keep any CA restriction scoped to the binding that needs it instead of introducing a global switch.
 
 The Vault address is runtime-derived by Flap. If a deployment wants to record binding-scoped Vault references, declare them only as `match.bindings[].vaultAddresses`. This template validates their format, but preview/runtime does not use them for matching.

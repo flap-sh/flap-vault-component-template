@@ -8,6 +8,7 @@ import { isValidFolderName, registerVault } from "./vault-registration.mjs";
 
 const ROOT = process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const ARTIFACT_ID_RE = /^vaultui_([a-z0-9]+(?:-[a-z0-9]+)*)_([0-9A-HJKMNPQRSTVWXYZ]{26})$/;
 
@@ -290,6 +291,15 @@ function main() {
       fail(`Invalid address: ${address}`, {
         code: "manifest-binding/invalid-address",
         fixHint: "Use a full 20-byte EVM address matching 0x plus 40 hex characters.",
+        address,
+      });
+    }
+  }
+  for (const address of factoryValues) {
+    if (address.toLowerCase() === ZERO_ADDRESS) {
+      fail(`Invalid factory address: ${address}`, {
+        code: "manifest-binding/zero-factory-address",
+        fixHint: "Pass the real deployed factory contract address. Zero address is not a valid custom UI binding target.",
         address,
       });
     }
