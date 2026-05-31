@@ -21,7 +21,7 @@ const folderName = process.argv[2];
 const rootPackage = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const templateVersion = rootPackage.version;
 const runtimePackageVersion = rootPackage.version;
-const freshness = assertTemplateFresh({ folderName });
+const freshness = await assertTemplateFresh({ folderName });
 const runtimePackageGitHead = freshness.checks?.npm?.latestGitHead;
 if (!runtimePackageGitHead) {
   failAgent({

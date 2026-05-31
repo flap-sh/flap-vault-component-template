@@ -28,7 +28,7 @@ async function ensureUseClient(entryFile) {
 }
 
 async function main() {
-  assertNpmPackageFresh();
+  await assertNpmPackageFresh();
 
   execFileSync(yarnCommand(), ["tsup", "--config", "tsup.runtime.config.ts"], {
     cwd: ROOT,
