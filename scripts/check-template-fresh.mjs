@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { failAgent } from "./agent-error.mjs";
+import { readNpmLatestPackageMetadata } from "./npm-registry.mjs";
 
 const ROOT = process.cwd();
 const DEFAULT_OFFICIAL_REF = "origin/main";
@@ -117,33 +118,10 @@ function compareSemver(leftVersion, rightVersion) {
   return 0;
 }
 
-function parseNpmJsonOutput(output) {
-  const trimmed = output.trim();
-  if (!trimmed) return "";
+async function npmLatestMetadata(folderName) {
   try {
-    return JSON.parse(trimmed);
-  } catch {
-    return trimmed.replace(/^"|"$/g, "");
-  }
-}
-
-function npmLatestMetadata(folderName) {
-  try {
-    const parsed = parseNpmJsonOutput(
-      execFileSync("npm", ["view", `${NPM_PACKAGE_NAME}@latest`, "version", "gitHead", "--json"], {
-        cwd: ROOT,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      }),
-    );
-
-    if (typeof parsed === "string") {
-      return { version: parsed, gitHead: undefined };
-    }
-    return {
-      version: typeof parsed?.version === "string" ? parsed.version : "",
-      gitHead: typeof parsed?.gitHead === "string" ? parsed.gitHead : undefined,
-    };
+    const metadata = await readNpmLatestPackageMetadata(NPM_PACKAGE_NAME);
+    return { version: metadata.version ?? "", gitHead: metadata.gitHead };
   } catch (error) {
     failFreshness({
       code: "template-freshness/npm-fetch-failed",
@@ -208,10 +186,10 @@ function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion
   });
 }
 
-export function assertNpmPackageFresh({ folderName } = {}) {
+export async function assertNpmPackageFresh({ folderName } = {}) {
   const rootPackage = readRootPackageJson(folderName);
   const localVersion = rootPackage.version;
-  const latestMetadata = npmLatestMetadata(folderName);
+  const latestMetadata = await npmLatestMetadata(folderName);
   const latestVersion = latestMetadata.version;
   const comparison = typeof localVersion === "string" && typeof latestVersion === "string" ? compareSemver(localVersion, latestVersion) : null;
 
@@ -325,10 +303,10 @@ export function assertTemplateGitFresh({ folderName } = {}) {
   });
 }
 
-export function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true } = {}) {
+export async function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true } = {}) {
   const checks = {};
   if (includeGit) checks.git = assertTemplateGitFresh({ folderName });
-  if (includeNpm) checks.npm = assertNpmPackageFresh({ folderName });
+  if (includeNpm) checks.npm = await assertNpmPackageFresh({ folderName });
   return { ok: true, checks };
 }
 
@@ -343,5 +321,5 @@ function cliOptions(argv) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log(JSON.stringify(assertTemplateFresh(cliOptions(process.argv.slice(2))), null, 2));
+  console.log(JSON.stringify(await assertTemplateFresh(cliOptions(process.argv.slice(2))), null, 2));
 }

@@ -15,6 +15,12 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 No unreleased changes.
 
+## [0.1.2] - 2026-05-31
+
+### Fixed
+
+- Replaced `npm view` freshness lookups with direct npm registry metadata requests so `vault:check`, `vault:package`, `build`, and `runtime:package` no longer depend on npm CLI home/cache/log directories.
+
 ## [0.1.1] - 2026-05-29
 
 ### Added
