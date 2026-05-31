@@ -320,6 +320,12 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
   const runtimeFactoryHint = bindingFactoryHint ?? (shouldUseDefaultBinding ? resolvedBinding?.factoryAddress : undefined);
   const runtimeSnapshot = hostRuntime?.snapshot ?? null;
   const runtimeFactoryAddress = hostRuntime?.addresses.factoryAddress ?? requestedFactoryAddress ?? previewDefaults?.factoryAddress ?? resolvedBinding?.factoryAddress;
+  const chainFactoryAddress = useMemo(() => resolveChainFactoryAddress(runtimeSnapshot), [runtimeSnapshot]);
+  const factoryAddressForManifestCheck = chainFactoryAddress ?? runtimeFactoryAddress;
+  const manifestFactoryMismatch = useMemo(
+    () => isManifestFactoryMismatch(manifest, previewChainId, factoryAddressForManifestCheck),
+    [factoryAddressForManifestCheck, manifest, previewChainId],
+  );
   const runtimeVaultAddress =
     hostRuntime?.addresses.vaultAddress ??
     requestedVaultAddress ??
@@ -392,13 +398,30 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
       host: buildPreviewHostContext(searchParams, { factoryAddress, tokenAddress, vaultAddress }, runtimeSnapshot),
       extraConfig: {
         previewFixture,
+        ...(manifestFactoryMismatch
+          ? {
+              tokenUnavailable: true,
+              tokenUnavailableReason: "manifest-factory-mismatch",
+              manifestFactoryAddress: factoryAddressForManifestCheck,
+            }
+          : {}),
         ...(tokenName ? { tokenName } : {}),
         ...(tokenImageUrl ? { tokenImageUrl } : {}),
         ...(tokenDetailHref ? { tokenDetailHref } : {}),
         ...(chainHref ? { chainHref } : {}),
       },
     };
-  }, [hostRuntime, previewChainId, runtimeFactoryAddress, runtimeSnapshot, runtimeTokenAddress, runtimeVaultAddress, searchParams]);
+  }, [
+    factoryAddressForManifestCheck,
+    hostRuntime,
+    manifestFactoryMismatch,
+    previewChainId,
+    runtimeFactoryAddress,
+    runtimeSnapshot,
+    runtimeTokenAddress,
+    runtimeVaultAddress,
+    searchParams,
+  ]);
 
   const runtimeContext = useMemo(
     () =>
@@ -455,6 +478,19 @@ function readExtraBoolean(extraConfig: Record<string, unknown> | undefined, key:
 
 function isValidTokenAddress(address?: string) {
   return isValidAddress(address) && address !== ZERO_ADDRESS;
+}
+
+function resolveChainFactoryAddress(snapshot?: TokenRuntimeSnapshot | null) {
+  const vaultFactory = snapshot?.vaultInfo?.found ? snapshot.vaultInfo.vaultFactory : undefined;
+  const helperFactory = snapshot?.taxInfo?.vaultInfo?.factory;
+  if (vaultFactory && isValidAddress(vaultFactory)) return vaultFactory;
+  if (helperFactory && isValidAddress(helperFactory)) return helperFactory;
+  return undefined;
+}
+
+function isManifestFactoryMismatch(manifest: VaultManifest, chainId: number, factoryAddress?: Address) {
+  if (!factoryAddress) return false;
+  return !resolveManifestBinding(manifest, { chainId, factoryAddress });
 }
 
 function PreviewTaxInfoFrame({ children }: { children: ReactNode }) {

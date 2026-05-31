@@ -248,7 +248,7 @@ Use URL params when real runtime addresses are needed:
 http://localhost:3000/{folder-name}?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...
 ```
 
-Preview/runtime binding resolution is conservative. Prefer an exact `chainId + factoryAddress` match. A partial hint such as `chainId` alone or `factoryAddress` alone is only used when it resolves to one unambiguous binding. The first manifest binding is only a local-preview default when the route provides no runtime hints at all.
+Preview/runtime binding resolution is conservative. Prefer an exact `chainId + factoryAddress` match. A partial hint such as `chainId` alone or `factoryAddress` alone is only used when it resolves to one unambiguous binding. The first manifest binding is only a local-preview default when the route provides no runtime hints at all. When the preview host can read the live token/Vault factory from chain, that factory must match `manifest.match.bindings` for the active chain; mismatched or zero live factories make the preview token unavailable and the Vault component does not render.
 
 For real action-gating QA, first use a supported `chainId + tokenAddress` so the preview host reads the live Portal status and host context for that token. Use the right-side "Token phase self-test" panel only when you intentionally want to override that host context for isolated UI checks. In that panel, `Real` restores the live host phase, while `Internal` and `Listing` are explicit local overrides. `unknown` can still appear in runtime readout when host data is unavailable, but it is not a primary phase tab.
 
