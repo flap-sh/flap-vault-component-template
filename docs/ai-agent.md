@@ -17,6 +17,8 @@ Read in order before editing:
 5. `docs/ui-pattern-snippets.md` — read before implementing `Component.tsx`.
 6. `skills/flap-vault-ui-generator/SKILL.md` — generator skill with implementation checklist and references.
 
+If the AI assistant does not have direct repository access, use `docs/ai-copy-pack.md` or `yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md` to prepare a pasteable context pack first.
+
 ### Reference Docs
 
 Consult these for detail when the startup sequence doesn't answer a specific question:
@@ -26,6 +28,7 @@ Consult these for detail when the startup sequence doesn't answer a specific que
 - `docs/safety-boundaries.md` — blocking and allowed behavior reference
 - `docs/prd.md` — product scope, implemented acceptance criteria, and explicit non-goals
 - `docs/agent-entrypoints.md` — supported agents, entry points, and startup steps
+- `docs/ai-copy-pack.md` — copy/paste context pack guide for web-based AI tools without repo access
 - `docs/versioning.md` — when to increment agent-contract.json, manifest schema, package format version, and runtime contract version
 - `docs/artifact-intake.md` — Flap Artifact Workbench flow, source package vs runtime artifact
 - `docs/runtime-module-contract.md` — shared runtime import/build/host contract for `@/src/sdk`, `@/src/ui`, `context`, and `sdk`

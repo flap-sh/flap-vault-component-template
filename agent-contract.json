@@ -19,7 +19,7 @@
     "windsurf": ".windsurfrules",
     "copilot": ".github/copilot-instructions.md",
     "gemini": "GEMINI.md",
-    "generic": ["README.md", "docs/ai-agent.md", "docs/agent-entrypoints.md", "docs/ui-pattern-snippets.md"],
+    "generic": ["README.md", "docs/ai-copy-pack.md", "docs/ai-agent.md", "docs/agent-entrypoints.md", "docs/ui-pattern-snippets.md"],
     "index": "docs/agent-entrypoints.md"
   },
   "packageManager": "yarn",
@@ -117,6 +117,7 @@
     "install": "yarn",
     "freshness": "node scripts/check-template-fresh.mjs --npm-only",
     "scaffold": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh",
+    "aiContext": "yarn vault:ai-context [example-folder] --out vault-ai-context.md",
     "register": "yarn vault:register {folder-name}",
     "unregister": "yarn vault:register {folder-name} --remove",
     "preview": "yarn dev",

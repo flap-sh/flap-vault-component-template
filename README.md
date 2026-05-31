@@ -127,6 +127,20 @@ docs/ui-pattern-snippets.md
 skills/flap-vault-ui-generator/SKILL.md
 ```
 
+For web-based AI tools that cannot read this repo directly, use the copy-pack guide:
+
+```plain text
+docs/ai-copy-pack.md
+```
+
+Fast path:
+
+```bash
+yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
+```
+
+Paste the generated Markdown into ChatGPT, Claude, or another AI assistant before asking it to create a Vault UI. If you are unsure which example to use, start with `action-gallery-example`; it shows internal-market, DEX-listed, both-stage, and read-only action states in one package.
+
 Tool-specific entry points are included for common coding agents:
 
 - Codex and AGENTS-aware agents: `AGENTS.md`

@@ -15,6 +15,18 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 No unreleased changes.
 
+## [0.1.2] - 2026-05-31
+
+### Added
+
+- Added `docs/ai-copy-pack.md` for web-based AI tools that cannot read the repository directly, including the required file checklist, first prompt template, follow-up input checklist, and example selection guide.
+- Added `yarn vault:ai-context` to generate a pasteable Markdown context pack from the canonical Agent docs plus a selected reference example.
+
+### Changed
+
+- Documented the web AI copy-pack flow from the README and Agent entrypoint docs.
+- Added `vault-ai-context.md` to `.gitignore` so generated local context packs are not committed accidentally.
+
 ## [0.1.1] - 2026-05-29
 
 ### Added

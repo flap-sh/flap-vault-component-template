@@ -1,6 +1,6 @@
 {
   "name": "flap-vault-ui-template",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "license": "MIT",
   "packageManager": "yarn@1.22.22",
@@ -22,6 +22,7 @@
     "runtime:verify-package": "node scripts/verify-runtime-package.mjs",
     "vault:scaffold": "node scripts/vault-scaffold.mjs",
     "vault:register": "node scripts/vault-register.mjs",
+    "vault:ai-context": "node scripts/vault-ai-context.mjs",
     "vault:check": "node scripts/vault-check.mjs",
     "vault:check:selftest": "node scripts/vault-check-selftest.mjs",
     "vault:package": "node scripts/vault-package.mjs",

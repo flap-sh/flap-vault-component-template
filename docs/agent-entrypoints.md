@@ -23,6 +23,7 @@ Do not copy the full workflow into every Agent-specific file. Keep the source of
 | Cursor | `.cursor/rules/flap-vault-ui.mdc` | Versioned project rule that is always applied in Cursor. |
 | Legacy Cursor | `.cursorrules` | Minimal fallback for older Cursor setups. |
 | Generic coding agents | `README.md` then `docs/ai-agent.md` | Human-readable path when no tool-specific entry point is recognized. |
+| Web-based AI without repo access | `docs/ai-copy-pack.md` or `yarn vault:ai-context` | Pasteable context pack for ChatGPT, Claude, and similar tools. |
 
 ## Required Startup Sequence
 
@@ -58,6 +59,7 @@ These docs are not required reading for every task but are available for detail:
 - `docs/artifact-intake.md` — Flap Artifact Workbench flow and storage contract
 - `docs/runtime-module-contract.md` — shared runtime import/build/host contract for component packaging and execution
 - `docs/getting-started.md` — human developer quick-start guide. Agents should treat it as supporting context and follow `agent-contract.json` / `docs/ai-agent.md` for required workflow gates.
+- `docs/ai-copy-pack.md` — copy/paste context pack guide for web AI tools that cannot read local files.
 
 ## Error Recovery Contract
 

@@ -52,3 +52,6 @@ task.md
 
 # local Codex temporary docs
 /codex docs/
+
+# generated AI context packs
+/vault-ai-context.md
