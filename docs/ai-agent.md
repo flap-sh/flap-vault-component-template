@@ -279,7 +279,7 @@ Built-in reference packages:
 - `community-buyback-example`: live CA Store example for the Community Approved Buyback vault on BNB.
 - `flapixel-example`: live CA Store example for the FLAPixel NFT vault on BNB.
 
-`example`, `dex-listed-example`, and `action-gallery-example` use placeholder factory addresses and neutral preview token/Vault defaults, so their routes render without hand-written query params. Those three routes are workflow fixtures only. `community-buyback-example` and `flapixel-example` instead default to reviewed live BNB token/factory pairs so a developer can verify the real host/runtime flow without typing URL params. Do not treat any example as a factory, token, Vault, or project endorsement. For local testing with a different reviewed Store factory, pass real runtime values through URL params instead of committing additional addresses into a public template fixture.
+`example`, `dex-listed-example`, and `action-gallery-example` use no-factory neutral bindings with the preview Vault and token, so their routes render without inventing fake factory addresses. Those three routes are workflow fixtures only. `community-buyback-example` and `flapixel-example` instead default to reviewed live BNB token/factory/Vault bindings so a developer can verify the real host/runtime flow without typing URL params. Do not treat any example as a factory, token, Vault, or project endorsement. For local testing with a different reviewed Store factory or fixed Vault, pass real runtime values through URL params instead of committing additional addresses into a public template fixture.
 
 Token image preview is also addressable by URL. `tokenImageUrl` is the direct override when a local preview needs a different mocked image:
 

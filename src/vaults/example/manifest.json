@@ -3,8 +3,16 @@
   "name": "Example Reward Vault UI",
   "match": {
     "bindings": [
-      { "chainId": 56, "factoryAddress": "0x1000000000000000000000000000000000000001" },
-      { "chainId": 97, "factoryAddress": "0x1000000000000000000000000000000000000001" }
+      {
+        "chainId": 56,
+        "vaultAddresses": ["0x3000000000000000000000000000000000000003"],
+        "tokenAddresses": ["0x2000000000000000000000000000000000000002"]
+      },
+      {
+        "chainId": 97,
+        "vaultAddresses": ["0x3000000000000000000000000000000000000003"],
+        "tokenAddresses": ["0x2000000000000000000000000000000000000002"]
+      }
     ]
   },
   "i18n": ["en", "zh"]

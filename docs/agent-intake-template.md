@@ -37,33 +37,33 @@ Ask these in order. Each answer gates the next.
 
 - Example: `56` (BNB Chain mainnet only), `56` and `97` (mainnet + testnet)
 - Must be integers.
-- Each entry will be paired with exactly one factory address (Q4). The same chain can appear more than once when multiple factories share the same UI logic.
+- Each entry will be paired with either one factory address or one Vault address depending on the binding mode. The same chain can appear more than once when multiple targets share the same UI logic.
 
-### Q4: Factory addresses
+### Q4: Binding mode and target addresses
 
-> What is the factory contract address for each chain listed in Q3?
+> Is each binding factory-scoped, or is it a single Vault without a factory?
 
-- Provide one EVM address (`0x...`) per chain, in the same order as Q3.
-- Example: chain 56 → `0xAbcMainnet...`, chain 97 → `0xAbcTestnet...`
-- The same factory address may appear for multiple chains if the factory is deployed identically.
-- These are developer-facing deployment binding hints. If a deployment needs a reference token CA list, collect it per binding and store it later as `match.bindings[].tokenAddresses` in the UI manifest. This template validates the addresses but does not enforce them at preview/runtime.
+- For factory mode, provide one real non-zero factory address per chain.
+- For no-factory mode, omit `factoryAddress` and provide exactly one real non-zero Vault address per chain.
+- Example factory binding: chain 56 -> factory `0xAbcMainnet...`.
+- Example no-factory binding: chain 56 -> Vault `0xVault...`, optional token `0xToken...`.
+- Do not invent fake factory addresses. A zero factory address is invalid; use no-factory mode instead.
 
-### Q5: Vault addresses (optional reference list)
+### Q5: Vault addresses
 
-> Do you want the manifest to record any binding-scoped Vault contract addresses, or can the runtime derive the Vault from factory + token?
+> Does any factory-scoped binding also need Vault references?
 
-- Usually: omit (the runtime derives the Vault).
-- Only needed when you want to keep per-binding Vault references in the manifest for deployment notes or review context.
-- When needed, provide one Vault address per chain in the same order as Q3/Q4.
+- Factory mode: usually omit; provide binding-scoped Vault references only for review/deployment context.
+- No-factory mode: required exactly once and already collected in Q4.
+- Store all Vault addresses under `match.bindings[].vaultAddresses`, never as a top-level field.
 
-### Q6: Token address allowlist (optional reference)
+### Q6: Token address list (optional)
 
 > Does any binding need a reference token CA allowlist for this UI?
 
-- Usually: omit.
-- Only needed when you want the source manifest to carry a per-binding token list as a reference for later deployment setup.
-- When needed, provide one token CA list per chain/factory binding. It will be stored as `match.bindings[].tokenAddresses`.
-- This template validates the addresses but does not enforce the list at preview/runtime.
+- Usually: omit for factory-scoped shared UI unless the binding is intentionally token-specific.
+- In no-factory mode, this is optional but may contain at most one token address.
+- Store token addresses under `match.bindings[].tokenAddresses`, never as a top-level field.
 
 ---
 

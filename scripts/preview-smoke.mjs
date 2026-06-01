@@ -8,9 +8,6 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : await findAvailablePo
 const BASE_URL = `http://${HOST}:${PORT}`;
 const TOKEN = "0x2000000000000000000000000000000000000002";
 const VAULT = "0x3000000000000000000000000000000000000003";
-const FACTORY = "0x1000000000000000000000000000000000000001";
-const DEX_LISTED_FACTORY = "0x2000000000000000000000000000000000000002";
-const ACTION_GALLERY_FACTORY = "0x4000000000000000000000000000000000000004";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -91,18 +88,18 @@ async function main() {
 
   try {
     await waitForReady(`${BASE_URL}/example`);
-    const previewUrl = `${BASE_URL}/example?chainId=56&factoryAddress=${FACTORY}&tokenAddress=${TOKEN}&vaultAddress=${VAULT}&marketPhase=internal-market`;
+    const previewUrl = `${BASE_URL}/example?chainId=56&tokenAddress=${TOKEN}&vaultAddress=${VAULT}&marketPhase=internal-market`;
     const exampleHtml = await assertOk(previewUrl, "example preview route");
     assertIncludes(exampleHtml, "example?chainId=56", "example preview route");
     assertNotIncludes(exampleHtml, "NEXT_NOT_FOUND", "example preview route");
     const dexListedBareHtml = await assertOk(`${BASE_URL}/dex-listed-example`, "dex-listed example bare preview route");
     assertIncludes(dexListedBareHtml, "dex-listed-example", "dex-listed example bare preview route");
-    const dexListedPreviewUrl = `${BASE_URL}/dex-listed-example?chainId=56&factoryAddress=${DEX_LISTED_FACTORY}&tokenAddress=${TOKEN}&vaultAddress=${VAULT}&marketPhase=dex-listed`;
+    const dexListedPreviewUrl = `${BASE_URL}/dex-listed-example?chainId=56&tokenAddress=${TOKEN}&vaultAddress=${VAULT}&marketPhase=dex-listed`;
     const dexListedHtml = await assertOk(dexListedPreviewUrl, "dex-listed example preview route");
     assertIncludes(dexListedHtml, "dex-listed-example", "dex-listed example preview route");
     const actionGalleryBareHtml = await assertOk(`${BASE_URL}/action-gallery-example`, "action gallery example bare preview route");
     assertIncludes(actionGalleryBareHtml, "action-gallery-example", "action gallery example bare preview route");
-    const actionGalleryPreviewUrl = `${BASE_URL}/action-gallery-example?chainId=56&factoryAddress=${ACTION_GALLERY_FACTORY}&tokenAddress=${TOKEN}&vaultAddress=${VAULT}&marketPhase=internal-market`;
+    const actionGalleryPreviewUrl = `${BASE_URL}/action-gallery-example?chainId=56&tokenAddress=${TOKEN}&vaultAddress=${VAULT}&marketPhase=internal-market`;
     const actionGalleryHtml = await assertOk(actionGalleryPreviewUrl, "action gallery example preview route");
     assertIncludes(actionGalleryHtml, "action-gallery-example", "action gallery example preview route");
 

@@ -84,7 +84,7 @@ After the AI asks intake questions, answer with concrete inputs:
 
 - Folder name
 - Display name
-- Chain ID and factory address for each deployment target
+- Binding mode and target for each deployment: chain + factory, or chain + Vault without factory
 - Locales
 - Action availability stage
 - Minimal Vault ABI methods
@@ -92,6 +92,6 @@ After the AI asks intake questions, answer with concrete inputs:
 - Approval spender
 - Empty/error states
 - Risk posture
-- Preview token, Vault, and factory addresses if available
+- Preview token, Vault, and factory addresses when available; omit factory for no-factory mode
 
 Never paste private `flap.sh` business code, secrets, private endpoints, or project-specific private configuration into a web AI chat.

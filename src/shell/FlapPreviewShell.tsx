@@ -333,7 +333,7 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
     (usingNeutralPreviewFixture ? PREVIEW_VAULT_ADDRESS : undefined);
   const chainVaultAddress = useMemo(() => resolveChainVaultAddress(runtimeSnapshot), [runtimeSnapshot]);
   const factoryAddressForManifestCheck = chainFactoryAddress ?? runtimeFactoryAddress;
-  const vaultAddressForManifestCheck = chainVaultAddress ?? runtimeVaultAddress;
+  const vaultAddressForManifestCheck = chainVaultAddress ?? requestedVaultAddress ?? previewDefaults?.vaultAddress ?? (requestedFactoryAddress ? undefined : runtimeVaultAddress);
   const manifestBindingMismatch = useMemo(
     () =>
       isManifestBindingMismatch(manifest, {

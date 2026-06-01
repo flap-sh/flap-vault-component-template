@@ -237,7 +237,7 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Non-oracle endpoint declaration | Done | HTTPS endpoint declarations are review warnings; undeclared URLs are blocking. |
 | Preview shell | Done | `/example` and `/{folder-name}` render via `VaultPreviewClient`. |
 | Shell-owned header boundary | Done | Preview shell owns token header, close control, `Vault Information` frame, width, invalid-token fallback, and manifest panel; packaged Vault source is limited to business UI below that frame. |
-| Second example Vault | Done | `src/vaults/dex-listed-example` is a strict four-file package that demonstrates `dex-listed` stage gating and approve -> write with placeholder factory binding. |
+| Second example Vault | Done | `src/vaults/dex-listed-example` is a strict four-file package that demonstrates `dex-listed` stage gating and approve -> write with a no-factory neutral Vault binding. |
 | Multi-action example Vault | Done | `src/vaults/action-gallery-example` is a strict four-file package that demonstrates internal-market, DEX-listed, both-stage, and read-only action controls. |
 | Manifest display panel | Done | Current manifest is shown by the preview shell and homepage, outside Vault package source. |
 | Public-safe UI pattern snippets | Done | `docs/ui-pattern-snippets.md` provides sanitized layout, read/write, claim, quote, NFT/inventory, distribution, lending, prize/staking, submission/gallery, countdown, oracle, schema, risk, and error-state snippets without private names, addresses, endpoints, or copied private source. |
