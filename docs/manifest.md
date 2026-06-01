@@ -40,7 +40,7 @@ For factory-scoped UI, `factoryAddress` must be the real non-zero deployed facto
 
 If a deployment needs a token CA list, declare it only inside the relevant binding entry as `tokenAddresses`. In factory mode this remains a binding-scoped list. In no-factory mode it is optional and may contain at most one token address; when present, preview/runtime uses it with the Vault address for matching.
 
-In factory mode the Vault address can still be runtime-derived by Flap. If a factory-scoped deployment wants to record binding-scoped Vault references, declare them only as `match.bindings[].vaultAddresses`. In no-factory mode, `vaultAddresses` is not just a reference list; it is the required single-Vault binding target.
+Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the required single-Vault binding target.
 
 If the UI must call a fixed contract address that is not the runtime token, runtime Vault, runtime factory, or binding-scoped token/Vault reference, declare it only inside the relevant binding as `externalContracts`. This is a review declaration, not a preview/runtime match rule.
 
@@ -109,7 +109,7 @@ These fields are declared inside each `match.bindings` entry, not at the `match`
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `vaultAddresses` | Required without factory | Optional reference Vault-address list in factory mode. Required as exactly one non-zero Vault address when `factoryAddress` is omitted. |
+| `vaultAddresses` | Required without factory | Required as exactly one non-zero Vault address when `factoryAddress` is omitted. Do not include it in the same binding as `factoryAddress`. |
 | `tokenAddresses` | No | Optional token CA list. In no-factory mode it may contain at most one token address and participates in matching when token data is available. |
 | `externalContracts` | No | Optional review list for fixed contract targets that are not the runtime token, Vault, factory, or binding-scoped token/Vault references. Each entry must contain only `address` and `label`. The template validates it but does not use it for preview/runtime matching. |
 
@@ -187,6 +187,18 @@ src/vaults/{folder-name}/VaultABI.ts
 ```
 
 Keep ABI fragments minimal. Include only the Vault methods the component actually reads or writes. Do not include standard ERC20 token ABI fragments in `VaultABI.ts`.
+
+If you write human-readable ABI signatures, parse them before export:
+
+```ts
+import { parseAbi } from "viem";
+
+export const vaultAbi = parseAbi([
+  "function vaultInfo() view returns (uint256 totalDeposited)",
+]);
+```
+
+Do not export raw signature string arrays such as `export const vaultAbi = ["function ..."] as const`; runtime contract calls expect parsed ABI objects.
 
 Standard ERC20 token ABI is already available from the public SDK:
 

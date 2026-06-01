@@ -205,9 +205,17 @@
       "severity": "blocking",
       "fixAction": "Omit factoryAddress and provide exactly one non-zero vaultAddresses entry for single-Vault mode, or replace it with the real deployed factory contract address for factory mode."
     },
+    "manifest-binding/mixed-binding-target": {
+      "severity": "blocking",
+      "fixAction": "Use either factoryAddress for factory-scoped UI or exactly one vaultAddresses entry for single-Vault UI. Do not include both in one binding."
+    },
     "risk-status/missing-host-risk-state": {
       "severity": "blocking",
       "fixAction": "Read riskLevel from readTaxVaultHostContext(context.host).vaultInfo or .taxInfo.vaultInfo, display it prominently, and show a warning/danger message when the host risk level is unavailable."
+    },
+    "contract-abi/human-readable-requires-parse-abi": {
+      "severity": "blocking",
+      "fixAction": "Import parseAbi from viem and wrap human-readable ABI signature arrays with parseAbi([...]), or replace them with full object ABI fragments."
     },
     "manifest-binding/missing-binding-target": {
       "severity": "blocking",

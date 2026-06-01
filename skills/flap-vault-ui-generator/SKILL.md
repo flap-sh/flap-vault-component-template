@@ -85,6 +85,7 @@ Fix blocking issues before finishing.
 - Use minimal ABI fragments only.
 - Use `erc20Abi` or `standardErc20Abi` from `@/src/sdk` for standard ERC20 `balanceOf`, `allowance`, `approve`, `decimals`, `symbol`, `transfer`, and `transferFrom`. Do not copy standard ERC20 ABI into `VaultABI.ts`.
 - Add token ABI fragments to `VaultABI.ts` only for custom non-standard token methods or special token mechanics.
+- If `VaultABI.ts` uses human-readable ABI signature strings, import `parseAbi` from `viem` and export `parseAbi([...])`; do not export raw string arrays as ABI.
 - Put user-facing copy in `i18n.json` for every locale declared by `manifest.i18n`.
 - Test EN/ZH in the local example page; the preview shell uses Flap's `flap:language` localStorage key and `flap_language` cookie, and passes the active locale into `sdk.i18n`.
 - Do not import `res/content.json` or `res/content_zh.json` from a Vault component. Those files are only for the Flap preview shell/header.

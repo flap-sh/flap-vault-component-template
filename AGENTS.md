@@ -28,6 +28,7 @@ Core rules:
 - The only allowed local relative import is `./VaultABI`. Do not use `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports.
 - The template package is a source package for the Flap Artifact Workbench. Runtime Blob/R2/S3 artifacts must be Flap-built readable ESM JS (`component.mjs`), not TSX source, not hand-uploaded JS, and not minified by default.
 - Keep ABI fragments minimal.
+- If `VaultABI.ts` uses human-readable ABI strings such as `"function foo() view returns (...)"`, wrap them with `parseAbi([...])` from `viem`; raw signature string arrays are not valid runtime ABI objects and `vault:check` blocks them.
 - Keep all user-facing copy in `i18n.json`.
 - Do not use direct wallet APIs, iframe, eval, script injection, runtime remote imports, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, undeclared endpoints/resources, or undeclared fixed contract targets.
 - Do not add third-party images; media is controlled by Flap runtime/Artifact Workbench policy.

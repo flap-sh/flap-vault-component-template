@@ -193,7 +193,9 @@ The output is JSON and includes:
 
 If `summary.blocking` is greater than zero, fix those issues before doing anything else.
 If `manual-review/action-stage-gating` appears, the component has a write path but does not reference `marketPhase` or `isActionAvailableForPhase`. Add explicit stage gating and visible unavailable-state copy before packaging.
+If `manifest-binding/mixed-binding-target` appears, one binding contains both `factoryAddress` and `vaultAddresses`. Choose one scope: factory-scoped UI uses `factoryAddress`; single-Vault UI omits `factoryAddress` and uses exactly one `vaultAddresses` entry.
 If `risk-status/missing-host-risk-state` appears, the component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying.
+If `contract-abi/human-readable-requires-parse-abi` appears, `VaultABI.ts` exports human-readable ABI signature strings without `parseAbi(...)`. Import `parseAbi` from `viem` and wrap the string array, or use full object ABI fragments.
 
 When changing the check script or Agent contract itself, also run:
 
@@ -201,7 +203,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, malformed or credentialed endpoint declarations, endpoint-prefix escapes, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed or credentialed endpoint declarations, endpoint-prefix escapes, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 

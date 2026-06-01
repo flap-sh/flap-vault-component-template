@@ -143,6 +143,16 @@ try {
   });
   assertRule("bindings without factory or Vault are blocked", runVaultCheck(missingTargetSlug, { silent: true }), "manifest-binding/missing-binding-target", "blocking");
 
+  const mixedTargetSlug = `${FIXTURE_PREFIX}-mixed-target`;
+  writeVault(mixedTargetSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY, vaultAddresses: [VAULT] }],
+      },
+    }),
+  });
+  assertRule("bindings cannot mix factory and Vault targets", runVaultCheck(mixedTargetSlug, { silent: true }), "manifest-binding/mixed-binding-target", "blocking");
+
   const duplicateBindingSlug = `${FIXTURE_PREFIX}-duplicate-binding`;
   writeVault(duplicateBindingSlug, {
     manifest: baseManifest({
@@ -593,6 +603,28 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("standard ERC20 ABI names are flagged in VaultABI.ts", runVaultCheck(abiSlug, { silent: true }), "contract-abi/standard-erc20-in-vault-abi", "warning");
 
+  const humanReadableAbiSlug = `${FIXTURE_PREFIX}-human-readable-abi`;
+  writeVault(humanReadableAbiSlug, {
+    abi: `export const vaultAbi = [
+  "function currentSeasonId() view returns (uint256)",
+] as const;
+`,
+  });
+  assertRule("human-readable ABI strings require parseAbi", runVaultCheck(humanReadableAbiSlug, { silent: true }), "contract-abi/human-readable-requires-parse-abi", "blocking");
+
+  const parsedHumanReadableAbiSlug = `${FIXTURE_PREFIX}-parsed-human-readable-abi`;
+  writeVault(parsedHumanReadableAbiSlug, {
+    abi: `import { parseAbi } from "viem";
+
+export const vaultAbi = parseAbi([
+  "function currentSeasonId() view returns (uint256)",
+]);
+`,
+  });
+  const parsedHumanReadableAbiCheck = runVaultCheck(parsedHumanReadableAbiSlug, { silent: true });
+  assert.equal(parsedHumanReadableAbiCheck.issues.some((item) => item.ruleId === "contract-abi/human-readable-requires-parse-abi"), false);
+  passed.push("parseAbi-wrapped human-readable ABI strings are allowed");
+
   const stageGatingSlug = `${FIXTURE_PREFIX}-stage-gating`;
   writeVault(stageGatingSlug, {
     component: `"use client";
@@ -621,6 +653,24 @@ export default function SelftestVault(_props: VaultComponentProps) {
   const riskStatusSlug = `${FIXTURE_PREFIX}-risk-status`;
   writeVault(riskStatusSlug);
   assertRule("components must render host risk status", runVaultCheck(riskStatusSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
+
+  const riskStatusSpoofSlug = `${FIXTURE_PREFIX}-risk-status-spoof`;
+  writeVault(riskStatusSpoofSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { Alert } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const riskLevel = 1;
+  void context.host;
+  return <Alert>{i18n.t("title")}</Alert>;
+}
+`,
+  });
+  assertRule("risk status check is not satisfied by loose keyword mentions", runVaultCheck(riskStatusSpoofSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
 
   const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
   assert.throws(() =>

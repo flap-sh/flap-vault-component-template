@@ -78,6 +78,7 @@ const FIX_HINTS = {
   "manifest-binding/invalid-chain-id": "chainId must be a positive integer, for example 56 for BNB Chain or 97 for BNB Testnet.",
   "manifest-binding/invalid-address": "Use a full 20-byte EVM address matching 0x plus 40 hex characters.",
   "manifest-binding/zero-factory-address": "Omit factoryAddress for single-Vault mode, or use the real deployed non-zero factory contract address for factory mode.",
+  "manifest-binding/mixed-binding-target": "Use either factoryAddress for a factory-scoped UI or vaultAddresses for a single-Vault UI, not both in the same binding.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only when a reference token CA list is needed.",
   "manifest-binding/invalid-vault-address-list": "Use a non-empty array of valid non-zero EVM addresses. No-factory bindings must contain exactly one Vault address.",
@@ -132,6 +133,7 @@ const FIX_HINTS = {
   "contract-boundary/undeclared-contract-address": "Use runtime context addresses for Vault/token/factory targets. If this is an intentional fixed external contract, declare it under match.bindings[].externalContracts.",
   "performance/refetch-too-fast": "Use a refetch interval of at least 5000ms unless Flap approves a faster polling path.",
   "contract-abi/number-bigint": "Keep token amounts as bigint/Decimal and avoid Number(...) for transaction math.",
+  "contract-abi/human-readable-requires-parse-abi": "Wrap human-readable ABI string arrays with parseAbi([...]) from viem, or use full object ABI fragments. Do not export raw function/event signature strings as the runtime ABI.",
   "contract-abi/standard-erc20-in-vault-abi": "Use erc20Abi or standardErc20Abi from @/src/sdk for standard ERC20 methods. Add token ABI fragments to VaultABI.ts only for custom token mechanics.",
 };
 
@@ -254,6 +256,24 @@ function staticStringLiteral(rawExpression) {
   }
 
   return null;
+}
+
+function hasUnparsedHumanReadableAbi(content) {
+  if (/\bparseAbi\s*\(/.test(content)) return false;
+  return /["'`]\s*(?:function|event|error)\s+[A-Za-z_$][\w$]*\s*\(|["'`]\s*(?:constructor|fallback|receive)\s*\(/.test(content);
+}
+
+function hasRiskStatusIntegration(content) {
+  const usesHostAccessor = /\breadTaxVaultHostContext\s*\(\s*(?:context|sdk\.context)\.host\s*\)/.test(content);
+  const derivesHostRiskLevel =
+    /\briskLevel\b\s*=\s*[^;\n]*(?:vaultInfo\?\.\s*riskLevel|taxInfo\?\.\s*vaultInfo\?\.\s*riskLevel)/.test(content);
+  const displaysRiskStatus =
+    /<(?:StatusBadge|DetailTile|Metric|DataRow)\b[\s\S]{0,320}\b(?:riskLabel|riskLevel|riskTone)\b/.test(content);
+  const displaysMissingRiskWarning =
+    /\briskLevel\b\s*(?:===|==)\s*(?:null|undefined)[\s\S]{0,220}<Alert\b/.test(content) ||
+    /\briskLevel\b\s*(?:!==|!=)\s*(?:null|undefined)[\s\S]{0,220}:\s*<Alert\b/.test(content);
+
+  return usesHostAccessor && derivesHostRiskLevel && displaysRiskStatus && displaysMissingRiskWarning;
 }
 
 function hasTypeBasedBinding(value) {
@@ -1061,6 +1081,16 @@ function checkManifest(manifest, folderName) {
             ),
           );
         }
+        if (hasFactoryField && bindingEntry.vaultAddresses !== undefined) {
+          issues.push(
+            issue(
+              BLOCKING,
+              "manifest-binding/mixed-binding-target",
+              `${field} mixes factoryAddress with vaultAddresses. Use factoryAddress for shared factory-scoped UI, or omit factoryAddress and bind exactly one Vault address for single-Vault UI.`,
+              { field },
+            ),
+          );
+        }
         if (bindingEntry.vaultAddresses !== undefined) {
           if (!Array.isArray(bindingEntry.vaultAddresses) || bindingEntry.vaultAddresses.length === 0) {
             issues.push(issue(BLOCKING, "manifest-binding/invalid-vault-address-list", `${field}.vaultAddresses must be a non-empty array when provided.`, { field: `${field}.vaultAddresses` }));
@@ -1395,6 +1425,16 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const standardErc20NameRegex = new RegExp(
       String.raw`(?:\bname\s*:\s*["'](?:${STANDARD_ERC20_METHODS.join("|")})["']|\b(?:${STANDARD_ERC20_METHODS.join("|")})\s*\()`,
     );
+    if (item.name === "VaultABI.ts" && hasUnparsedHumanReadableAbi(content)) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "contract-abi/human-readable-requires-parse-abi",
+          "VaultABI.ts exports human-readable ABI signature strings without parseAbi(...). viem runtime calls expect parsed object ABI fragments, so raw signature strings can fail at preview/runtime.",
+          { file: rel },
+        ),
+      );
+    }
     if (item.name === "VaultABI.ts" && standardErc20NameRegex.test(content)) {
       issues.push(
         issue(
@@ -1417,12 +1457,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    const hasRiskStatusIntegration =
-      item.name === "Component.tsx" &&
-      /\briskLevel\b/.test(content) &&
-      /\b(?:readTaxVaultHostContext|context\.host|host\.(?:vaultInfo|taxInfo))\b/.test(content) &&
-      /\b(?:StatusBadge|Alert|DetailTile|Metric|DataRow)\b/.test(content);
-    if (item.name === "Component.tsx" && !hasRiskStatusIntegration) {
+    if (item.name === "Component.tsx" && !hasRiskStatusIntegration(content)) {
       issues.push(
         issue(
           BLOCKING,
