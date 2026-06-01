@@ -202,8 +202,10 @@ function i18nSource(locales, name) {
 
 function manifestSource({ artifactId, name, bindings, locales }) {
   const matchBindings = bindings.map((binding) => {
-    const entry = { chainId: binding.chainId, factoryAddress: binding.factoryAddress };
+    const entry = { chainId: binding.chainId };
+    if (binding.factoryAddress) entry.factoryAddress = binding.factoryAddress;
     if (binding.vaultAddresses.length) entry.vaultAddresses = binding.vaultAddresses;
+    if (binding.tokenAddresses.length) entry.tokenAddresses = binding.tokenAddresses;
     return entry;
   });
   const match = { bindings: matchBindings };
@@ -218,11 +220,11 @@ function main() {
 
   if (!folderName) {
     fail(
-      "Usage: yarn vault:scaffold <folder-name> --chain 56 --factory 0x... [--chain 97 --factory 0x...] [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
+      "Usage: yarn vault:scaffold <folder-name> --chain 56 --factory 0x... or --chain 56 --vault 0x... [--token 0x...] [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
       {
         code: "cli/missing-folder-name",
         fixHint:
-          "Provide a lowercase kebab-case folder name and at least one --chain/--factory pair, for example: yarn vault:scaffold my-vault --chain 56 --factory 0x1000000000000000000000000000000000000001",
+          "Provide a lowercase kebab-case folder name and at least one binding target, for example: yarn vault:scaffold my-vault --chain 56 --factory 0x1000000000000000000000000000000000000001 or yarn vault:scaffold my-vault --chain 56 --vault 0x3000000000000000000000000000000000000003",
       },
     );
   }
@@ -252,17 +254,19 @@ function main() {
   if (!chainValues.length || chainValues.some((chainId) => !Number.isInteger(chainId) || chainId <= 0)) {
     fail("--chain must be a positive integer chain ID, for example --chain 56.", {
       code: "manifest-binding/invalid-chain-ids",
-      fixHint: "Pass --chain 56 for a single chain. For multiple chains use --chain 56 --factory 0xAAA --chain 97 --factory 0xBBB (one --factory per --chain).",
+      fixHint: "Pass --chain 56 for a single chain. For multiple chains repeat --chain with one --factory or --vault target per chain.",
       chainValues,
     });
   }
-  if (!factoryValues.length) {
-    fail("--factory is required. Each --chain must be paired with one --factory.", {
-      code: "manifest-binding/missing-factory-address",
-      fixHint: "Pass --chain 56 --factory 0x... for each chain target. Number of --chain and --factory flags must match.",
+  const usingFactoryMode = factoryValues.length > 0;
+  const usingVaultMode = factoryValues.length === 0 && vaultValues.length > 0;
+  if (!usingFactoryMode && !usingVaultMode) {
+    fail("Each binding needs either --factory or --vault.", {
+      code: "manifest-binding/missing-binding-target",
+      fixHint: "Pass --chain 56 --factory 0x... for factory-scoped UI, or --chain 56 --vault 0x... [--token 0x...] for single-Vault UI.",
     });
   }
-  if (chainValues.length !== factoryValues.length) {
+  if (usingFactoryMode && chainValues.length !== factoryValues.length) {
     fail(`--chain and --factory must be paired: got ${chainValues.length} chain(s) and ${factoryValues.length} factory address(es).`, {
       code: "manifest-binding/chain-factory-count-mismatch",
       fixHint: "Provide exactly one --factory for each --chain, in the same order. Example: --chain 56 --factory 0xAAA --chain 97 --factory 0xBBB",
@@ -270,14 +274,30 @@ function main() {
       factoryCount: factoryValues.length,
     });
   }
-  if (parsed["restrict-token"] !== undefined || tokenValues.length) {
-    fail("Token CA reference lists are not accepted as scaffold flags.", {
+  if (usingVaultMode && vaultValues.length !== chainValues.length) {
+    fail(`--chain and --vault must be paired: got ${chainValues.length} chain(s) and ${vaultValues.length} vault address(es).`, {
+      code: "manifest-binding/chain-vault-count-mismatch",
+      fixHint: "Provide exactly one --vault for each --chain in the same order. Example: --chain 56 --vault 0xAAA --chain 97 --vault 0xBBB",
+      chainCount: chainValues.length,
+      vaultCount: vaultValues.length,
+    });
+  }
+  if (parsed["restrict-token"] !== undefined || (usingFactoryMode && tokenValues.length)) {
+    fail("Token CA reference lists are not accepted as factory-mode scaffold flags.", {
       code: "manifest-binding/ca-policy-not-in-manifest",
-      fixHint: "Remove --restrict-token and --token flags. If a reference token CA list is needed, scaffold first and then add tokenAddresses under the relevant match.bindings entry in manifest.json.",
+      fixHint: "Remove --restrict-token and --token flags for factory mode. If a reference token CA list is needed, scaffold first and then add tokenAddresses under the relevant match.bindings entry in manifest.json.",
       tokenCount: tokenValues.length,
     });
   }
-  if (vaultValues.length && vaultValues.length !== chainValues.length) {
+  if (usingVaultMode && tokenValues.length && tokenValues.length !== chainValues.length) {
+    fail(`--token count must match --chain count in single-Vault mode: got ${chainValues.length} chain(s) and ${tokenValues.length} token address(es).`, {
+      code: "manifest-binding/chain-token-count-mismatch",
+      fixHint: "Provide exactly one --token per --chain in the same order, or omit --token when token matching is not needed.",
+      chainCount: chainValues.length,
+      tokenCount: tokenValues.length,
+    });
+  }
+  if (usingFactoryMode && vaultValues.length && vaultValues.length !== chainValues.length) {
     fail(`--vault count must match --chain count: got ${chainValues.length} chain(s) and ${vaultValues.length} vault address(es).`, {
       code: "manifest-binding/chain-vault-count-mismatch",
       fixHint: "Provide exactly one --vault per --chain in the same order, or omit --vault to let the runtime derive Vault addresses.",
@@ -285,7 +305,7 @@ function main() {
       vaultCount: vaultValues.length,
     });
   }
-  const allAddresses = [...factoryValues, ...vaultValues];
+  const allAddresses = [...factoryValues, ...vaultValues, ...tokenValues];
   for (const address of allAddresses) {
     if (!ADDRESS_RE.test(address)) {
       fail(`Invalid address: ${address}`, {
@@ -304,6 +324,15 @@ function main() {
       });
     }
   }
+  for (const address of [...vaultValues, ...tokenValues]) {
+    if (address.toLowerCase() === ZERO_ADDRESS) {
+      fail(`Invalid zero address: ${address}`, {
+        code: "manifest-binding/invalid-address",
+        fixHint: "Use a real deployed Vault or token address, or omit the optional token address.",
+        address,
+      });
+    }
+  }
   if (!locales.length || locales.some((locale) => locale.length < 2)) {
     fail("--locales must contain at least one locale.", {
       code: "i18n-policy/manifest-locales",
@@ -316,6 +345,7 @@ function main() {
     chainId,
     factoryAddress: factoryValues[index],
     vaultAddresses: vaultValues[index] ? [vaultValues[index]] : [],
+    tokenAddresses: usingVaultMode && tokenValues[index] ? [tokenValues[index]] : [],
   }));
 
   const vaultDir = path.join(ROOT, "src", "vaults", folderName);

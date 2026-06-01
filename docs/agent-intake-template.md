@@ -179,7 +179,7 @@ What states must the UI handle explicitly?
 - `chainId`: e.g., `56`
 - `tokenAddress`: a real token CA on that chain
 - `vaultAddress`: the Vault contract address
-- `factoryAddress`: the factory contract address
+- `factoryAddress`: the factory contract address, if this UI has a factory
 
 These are used for `yarn dev` preview only and are not packaged. If unavailable, the preview can still render with the template's neutral preview defaults, but real addresses are needed before treating read/write behavior as validated.
 
@@ -193,18 +193,24 @@ Before running `yarn vault:scaffold`, confirm:
 | --- | --- |
 | Folder name | `{folder-name}` |
 | Display name | `{name}` |
-| Chain / factory bindings | `[{chainId: N, factoryAddress: "0x..."}]` (one row per deployment target) |
+| Chain / binding targets | `[{chainId: N, factoryAddress: "0x..."}]` or `[{chainId: N, vaultAddresses: ["0x..."], tokenAddresses: ["0x..."]}]` |
 | Locales | `{locales}` |
 | Action stage | `{actionAvailabilityStage}` |
 | Risk posture | `{riskPosture}` |
 
-Once confirmed, run (repeat `--chain` / `--factory` for each deployment target):
+Once confirmed, run (repeat `--chain` with the matching `--factory` or `--vault` for each deployment target):
 
 ```bash
 # Single chain
 yarn vault:scaffold {folder-name} \
   --name "{name}" \
   --chain 56 --factory 0xMainnetFactory \
+  --locales {locales}
+
+# Single Vault without factory
+yarn vault:scaffold {folder-name} \
+  --name "{name}" \
+  --chain 56 --vault 0xVaultAddress --token 0xTokenAddress \
   --locales {locales}
 
 # Mainnet + testnet

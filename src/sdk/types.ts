@@ -195,7 +195,7 @@ export interface VaultRuntimeExtraConfig extends Record<string, unknown> {
 
 export interface ManifestBindingEntry {
   chainId: number;
-  factoryAddress: Address;
+  factoryAddress?: Address;
   vaultAddresses?: Address[];
   tokenAddresses?: Address[];
   externalContracts?: ManifestExternalContract[];

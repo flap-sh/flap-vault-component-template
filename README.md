@@ -167,6 +167,12 @@ For a new Vault UI, prefer the scaffold command:
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
 ```
 
+For a UI without a factory, bind it to one Vault address and optionally one token address:
+
+```bash
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
+```
+
 This creates the strict four-file Vault package, generates a stable `artifactId`, and registers the folder name in `src/vaults/index.ts`. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
 
 If the four Vault files already exist because they were generated from a manifest first, register only the local preview mapping:
@@ -211,6 +217,14 @@ yarn vault:scaffold my-vault --name "My Vault UI" \
   --chain 97 --factory 0xTestnetFactory
 ```
 
+For no-factory mode, repeat `--chain` / `--vault` per target. `--token` is optional, but when provided it must also be paired one-for-one:
+
+```bash
+yarn vault:scaffold my-vault --name "My Vault UI" \
+  --chain 56 --vault 0xMainnetVault --token 0xMainnetToken \
+  --chain 97 --vault 0xTestnetVault --token 0xTestnetToken
+```
+
 Manual package shape:
 
 ```plain text
@@ -223,7 +237,7 @@ src/vaults/{folder-name}/
 
 Then run `yarn vault:register <folder-name>` if the package was not created by `vault:scaffold`. The register command updates `src/vaults/index.ts` so `/{folder-name}` can load the component during local preview.
 
-Local preview uses the real wallet/runtime path with safe default preview addresses, so a registered route should render without hand-written query params. Pass real addresses through the preview URL when needed, for example `?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...`. Binding resolution is conservative: the preview/runtime prefers an exact `chainId + factoryAddress` match, falls back to a single-field hint only when that hint is unambiguous, and uses the first manifest binding only when the route provides no runtime hints at all. On supported preview chains, `chainId + tokenAddress` triggers real chain reads for `Portal.getTokenV7` and, when the chain exposes them, the tax helper and VaultPortal reads used to populate `context.host`. Local preview also calls the same-origin `/api/runtime/token-presentation` proxy so `full-host` mode can fill host-owned token image/name/symbol data without exposing protected backend headers in the browser. Use the right-side "Token phase self-test" panel or URL params such as `marketPhase`, `isListed`, `status`, `tokenStatusCode`, `marketBps`, `feeMode`, `vaultType`, and `renderSurface` only when you intentionally want to override that host state for isolated UI QA. The panel now uses `Real` to restore the live host phase and `Internal` / `Listing` as explicit override buttons. `taxInfo=1` is now just a seed for neutral fixture routes or unsupported chains. The shell header still reads ERC20 `symbol()` / `name()` from `tokenAddress` automatically when host presentation is unavailable, and only the neutral preview fixture uses `/logo.png` as a mocked token image. Do not add auxiliary files to the template.
+Local preview uses the real wallet/runtime path with safe default preview addresses, so a registered route should render without hand-written query params. Pass real addresses through the preview URL when needed, for example `?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...` or no-factory `?chainId=56&vaultAddress=0x...&tokenAddress=0x...`. Binding resolution is conservative: preview/runtime prefers an exact `chainId + factoryAddress` match for factory mode, or exact `chainId + vaultAddress` plus optional `tokenAddress` for no-factory mode. It falls back to partial hints only when unambiguous, and uses the first manifest binding only when the route provides no runtime hints at all. On supported preview chains, `chainId + tokenAddress` triggers real chain reads for `Portal.getTokenV7` and, when the chain exposes them, the tax helper and VaultPortal reads used to populate `context.host`. Local preview also calls the same-origin `/api/runtime/token-presentation` proxy so `full-host` mode can fill host-owned token image/name/symbol data without exposing protected backend headers in the browser. Use the right-side "Token phase self-test" panel or URL params such as `marketPhase`, `isListed`, `status`, `tokenStatusCode`, `marketBps`, `feeMode`, `vaultType`, and `renderSurface` only when you intentionally want to override that host state for isolated UI QA. The panel now uses `Real` to restore the live host phase and `Internal` / `Listing` as explicit override buttons. `taxInfo=1` is now just a seed for neutral fixture routes or unsupported chains. The shell header still reads ERC20 `symbol()` / `name()` from `tokenAddress` automatically when host presentation is unavailable, and only the neutral preview fixture uses `/logo.png` as a mocked token image. Do not add auxiliary files to the template.
 
 The local runtime proxy forwards to `FLAP_RUNTIME_HOST_ORIGIN` when that env var is set; otherwise it defaults to `https://flap.sh`.
 
@@ -239,7 +253,7 @@ Versioning rules for the Agent contract, manifest schema, and source package for
 The Vault folder is a strict source package boundary. It may contain only:
 
 - `Component.tsx`: the controlled React Vault UI component.
-- `manifest.json`: required `artifactId`; required `match.bindings` — explicit `{chainId, factoryAddress}` pairs (one per deployment target); optional per-binding reference `vaultAddresses`; optional per-binding reference `tokenAddresses`; optional non-oracle `endpoints`; and `i18n`.
+- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}` or no-factory `{chainId, vaultAddresses: [vaultAddress]}` targets; optional per-binding `tokenAddresses`; optional non-oracle `endpoints`; and `i18n`.
 - `VaultABI.ts`: minimal Vault ABI fragments only. Standard ERC20 ABI is exported from `@/src/sdk`; add token ABI fragments here only for custom non-standard token methods.
 - `i18n.json`: locale dictionaries declared by `manifest.i18n`.
 
@@ -267,7 +281,7 @@ Blocking by default:
 - i18n keys missing from any locale declared by `manifest.i18n`
 - remote images inside Vault source
 - contract reads/writes to routers, bridges, aggregators, or unrelated contracts outside the Vault/token/NFT/factory/declaration boundary
-- binding by type field instead of registry-controlled chain / factory targets
+- binding by type field instead of registry-controlled chain/factory or chain/Vault targets
 - extra files, folders, or symlinks inside the Vault package
 - relative imports other than `./VaultABI`
 
@@ -300,7 +314,7 @@ Use `yarn vault:verify-package <zip>` to exercise the same package acceptance sh
 
 The Flap Artifact Workbench uses `artifactId` as the stable source-package artifact identity. The folder name remains the local source folder and preview route. Runtime build versions and storage paths are Workbench concerns; developers still do not declare runtime version in `manifest.json`.
 
-One shared artifact can declare one or more `chainId + factoryAddress` binding entries. If a deployment wants to record binding-scoped Vault addresses, declare them only as `match.bindings[].vaultAddresses`; this template validates the list format but does not use it for preview/runtime matching. If a deployment needs a reference token CA list, declare it only as `match.bindings[].tokenAddresses`; this template validates the list format but does not enforce it at preview/runtime.
+One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, or one or more no-factory `chainId + vaultAddress` entries. In no-factory mode, the binding must include exactly one Vault address and may include at most one token address. If a factory-scoped deployment needs a reference token CA list, declare it only as `match.bindings[].tokenAddresses`.
 
 Vault source should import shared runtime surfaces through public aliases:
 

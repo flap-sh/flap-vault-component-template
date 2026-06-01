@@ -103,9 +103,9 @@ Vault matching intent is captured by explicit chain/factory pairs:
 }
 ```
 
-`match.bindings` is a non-empty array where each entry declares one explicit `(chainId, factoryAddress)` binding. The same UI logic can target multiple chains or multiple factories by adding multiple entries. This removes the ambiguity of cross-multiplying a flat chain list against a flat factory list.
+`match.bindings` is a non-empty array where each entry declares one explicit runtime target: `(chainId, factoryAddress)` for factory-scoped UI or `(chainId, vaultAddress)` for single-Vault UI without a factory. The same UI logic can target multiple chains, factories, or fixed Vaults by adding multiple entries.
 
-Vault address is runtime-derived. If a deployment wants to record binding-scoped Vault references, it may declare them as `match.bindings[].vaultAddresses`, but preview/runtime does not use that list for matching. If a deployment needs a reference token CA list, it is declared only as `match.bindings[].tokenAddresses`. If a deployment needs a fixed non-token/non-Vault/non-factory contract target, it is declared only as `match.bindings[].externalContracts` with `address` and `label`. These lists are format-validated in this template but not enforced by preview/runtime. This `match` block is not the local route and does not auto-publish anything; it is a developer-facing binding declaration for deployment targets.
+In factory mode, the Vault address can be runtime-derived. In no-factory mode, `match.bindings[].vaultAddresses` is required and must contain exactly one non-zero Vault address; optional `tokenAddresses` may contain at most one token address. If a deployment needs a fixed non-token/non-Vault/non-factory contract target, it is declared only as `match.bindings[].externalContracts` with `address` and `label`. This `match` block is not the local route and does not auto-publish anything; it is a developer-facing binding declaration for deployment targets.
 
 ### i18n Policy
 

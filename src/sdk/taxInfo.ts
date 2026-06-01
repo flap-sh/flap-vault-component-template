@@ -20,7 +20,7 @@ type TupleLike = (Record<string, unknown> & readonly unknown[]) | Record<string,
 export interface VaultBindingPolicy {
   name: string;
   chainId: number;
-  factoryAddress: Address;
+  factoryAddress?: Address;
   vaultAddresses?: Address[];
   extra?: Record<string, unknown>;
   isAiPowered?: boolean;
@@ -29,6 +29,7 @@ export interface VaultBindingPolicy {
 export interface RuntimeMatchInput {
   chainId?: number;
   factoryAddress?: string | null;
+  vaultAddress?: string | null;
   tokenAddress?: string | null;
 }
 
@@ -213,31 +214,65 @@ export function resolveManifestBinding(manifest: Pick<VaultManifest, "match">, i
     return null;
   };
 
-  if (input.chainId && input.factoryAddress) {
-    return resolveUnique(bindings.filter((binding) => binding.chainId === input.chainId && isSameAddress(binding.factoryAddress, input.factoryAddress)));
+  const matchesChain = (binding: ManifestBindingEntry) => !input.chainId || binding.chainId === input.chainId;
+  const matchesToken = (binding: ManifestBindingEntry) =>
+    !input.tokenAddress || !binding.tokenAddresses?.length || binding.tokenAddresses.some((address) => isSameAddress(address, input.tokenAddress));
+  const isVaultScopedBinding = (binding: ManifestBindingEntry) => !binding.factoryAddress && Boolean(binding.vaultAddresses?.length);
+
+  if (input.factoryAddress) {
+    const factoryMatch = resolveUnique(
+      bindings.filter((binding) => matchesChain(binding) && Boolean(binding.factoryAddress) && isSameAddress(binding.factoryAddress, input.factoryAddress) && matchesToken(binding)),
+    );
+    if (factoryMatch || !input.vaultAddress) return factoryMatch;
+  }
+
+  if (input.vaultAddress) {
+    const vaultMatch = resolveUnique(
+      bindings.filter(
+        (binding) =>
+          matchesChain(binding) &&
+          isVaultScopedBinding(binding) &&
+          Boolean(binding.vaultAddresses?.some((address) => isSameAddress(address, input.vaultAddress))) &&
+          matchesToken(binding),
+      ),
+    );
+    if (vaultMatch) return vaultMatch;
+  }
+
+  if (input.factoryAddress || input.vaultAddress) {
+    return null;
   }
 
   if (input.chainId) {
-    return resolveUnique(bindings.filter((binding) => binding.chainId === input.chainId));
+    return resolveUnique(bindings.filter((binding) => binding.chainId === input.chainId && matchesToken(binding)));
   }
 
-  if (input.factoryAddress) {
-    return resolveUnique(bindings.filter((binding) => isSameAddress(binding.factoryAddress, input.factoryAddress)));
+  if (input.tokenAddress) {
+    return resolveUnique(bindings.filter((binding) => binding.tokenAddresses?.some((address) => isSameAddress(address, input.tokenAddress))));
   }
 
   return null;
 }
 
 export function isManifestRuntimeMatch(manifest: Pick<VaultManifest, "match">, input: RuntimeMatchInput) {
-  if (!input.chainId || !input.factoryAddress) return false;
+  if (!input.chainId || (!input.factoryAddress && !input.vaultAddress)) return false;
   const matchingBinding = resolveManifestBinding(manifest, input);
   if (!matchingBinding) return false;
-  return matchingBinding.chainId === input.chainId && isSameAddress(matchingBinding.factoryAddress, input.factoryAddress);
+  if (matchingBinding.chainId !== input.chainId) return false;
+  if (matchingBinding.factoryAddress) return isSameAddress(matchingBinding.factoryAddress, input.factoryAddress);
+  const vaultAddress = matchingBinding.vaultAddresses?.[0];
+  if (!vaultAddress || !isSameAddress(vaultAddress, input.vaultAddress)) return false;
+  if (input.tokenAddress && matchingBinding.tokenAddresses?.length) {
+    return matchingBinding.tokenAddresses.some((address) => isSameAddress(address, input.tokenAddress));
+  }
+  return true;
 }
 
 export function isVaultBindingMatch(binding: VaultBindingPolicy, input: RuntimeMatchInput) {
   if (!input.chainId || binding.chainId !== input.chainId) return false;
-  if (!input.factoryAddress || !isSameAddress(binding.factoryAddress, input.factoryAddress)) return false;
+  if (binding.factoryAddress) return Boolean(input.factoryAddress && isSameAddress(binding.factoryAddress, input.factoryAddress));
+  const vaultAddress = binding.vaultAddresses?.[0];
+  if (!vaultAddress || !input.vaultAddress || !isSameAddress(vaultAddress, input.vaultAddress)) return false;
   return true;
 }
 

@@ -5,7 +5,7 @@ Describe the Vault UI, target project, and user workflow.
 ## Binding Intent
 
 - match.bindings:
-- vaultAddresses (optional reference list; preview/runtime does not match on it):
+- vaultAddresses (required exactly once for no-factory mode; optional reference list for factory mode):
 - tokenAddresses (optional per-binding reference list; preview/runtime does not enforce it):
 - enforced CA policy: configured in flap.sh registry rules, not in this UI manifest
 

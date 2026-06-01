@@ -301,36 +301,49 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
   const requestedFactoryAddress = readAddressParam(searchParams, "factoryAddress", "factory");
   const requestedVaultAddress = readAddressParam(searchParams, "vaultAddress", "vault");
   const requestedTokenAddress = readAddressParam(searchParams, "tokenAddress", "token", "ca");
-  const usingNeutralPreviewFixture = !requestedTokenAddress && !previewDefaults?.tokenAddress;
-  const shouldUseDefaultBinding = !requestedChainId && !requestedFactoryAddress && !previewDefaults?.factoryAddress;
+  const shouldUseDefaultBinding = !requestedChainId && !requestedFactoryAddress && !requestedVaultAddress && !previewDefaults?.factoryAddress && !previewDefaults?.vaultAddress;
   const previewChainId = (requestedChainId && requestedChainId > 0 ? requestedChainId : undefined) ?? defaultChainId ?? connectedChainId ?? 56;
   const bindingFactoryHint = requestedFactoryAddress ?? previewDefaults?.factoryAddress;
+  const bindingVaultHint = requestedVaultAddress ?? previewDefaults?.vaultAddress;
   const resolvedBinding = useMemo(
     () =>
       resolveManifestBinding(manifest, {
         chainId: previewChainId,
         factoryAddress: bindingFactoryHint,
+        vaultAddress: bindingVaultHint,
+        tokenAddress: requestedTokenAddress,
       }) ?? (shouldUseDefaultBinding ? manifest.match.bindings[0] : null),
-    [bindingFactoryHint, manifest, previewChainId, shouldUseDefaultBinding],
+    [bindingFactoryHint, bindingVaultHint, manifest, previewChainId, requestedTokenAddress, shouldUseDefaultBinding],
   );
   const publicClient = usePublicClient({ chainId: previewChainId });
   const [hostRuntime, setHostRuntime] = useState<HostRuntimeResult | null>(null);
-  const runtimeTokenAddress = requestedTokenAddress ?? previewDefaults?.tokenAddress ?? PREVIEW_TOKEN_ADDRESS;
+  const runtimeTokenAddress = requestedTokenAddress ?? previewDefaults?.tokenAddress ?? resolvedBinding?.tokenAddresses?.[0] ?? PREVIEW_TOKEN_ADDRESS;
+  const usingNeutralPreviewFixture =
+    runtimeTokenAddress === PREVIEW_TOKEN_ADDRESS && !requestedVaultAddress && !previewDefaults?.vaultAddress && !resolvedBinding?.vaultAddresses?.[0];
   const runtimePolicy: HostRuntimePolicy = "prefer-full-host";
   const runtimeFactoryHint = bindingFactoryHint ?? (shouldUseDefaultBinding ? resolvedBinding?.factoryAddress : undefined);
   const runtimeSnapshot = hostRuntime?.snapshot ?? null;
   const runtimeFactoryAddress = hostRuntime?.addresses.factoryAddress ?? requestedFactoryAddress ?? previewDefaults?.factoryAddress ?? resolvedBinding?.factoryAddress;
   const chainFactoryAddress = useMemo(() => resolveChainFactoryAddress(runtimeSnapshot), [runtimeSnapshot]);
-  const factoryAddressForManifestCheck = chainFactoryAddress ?? runtimeFactoryAddress;
-  const manifestFactoryMismatch = useMemo(
-    () => isManifestFactoryMismatch(manifest, previewChainId, factoryAddressForManifestCheck),
-    [factoryAddressForManifestCheck, manifest, previewChainId],
-  );
   const runtimeVaultAddress =
     hostRuntime?.addresses.vaultAddress ??
     requestedVaultAddress ??
     previewDefaults?.vaultAddress ??
+    resolvedBinding?.vaultAddresses?.[0] ??
     (usingNeutralPreviewFixture ? PREVIEW_VAULT_ADDRESS : undefined);
+  const chainVaultAddress = useMemo(() => resolveChainVaultAddress(runtimeSnapshot), [runtimeSnapshot]);
+  const factoryAddressForManifestCheck = chainFactoryAddress ?? runtimeFactoryAddress;
+  const vaultAddressForManifestCheck = chainVaultAddress ?? runtimeVaultAddress;
+  const manifestBindingMismatch = useMemo(
+    () =>
+      isManifestBindingMismatch(manifest, {
+        chainId: previewChainId,
+        factoryAddress: factoryAddressForManifestCheck,
+        vaultAddress: vaultAddressForManifestCheck,
+        tokenAddress: runtimeTokenAddress,
+      }),
+    [factoryAddressForManifestCheck, manifest, previewChainId, runtimeTokenAddress, vaultAddressForManifestCheck],
+  );
   const hostPresentationFetcher = useMemo(() => createLocalHostPresentationFetcher(), []);
 
   useEffect(() => {
@@ -398,11 +411,12 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
       host: buildPreviewHostContext(searchParams, { factoryAddress, tokenAddress, vaultAddress }, runtimeSnapshot),
       extraConfig: {
         previewFixture,
-        ...(manifestFactoryMismatch
+        ...(manifestBindingMismatch
           ? {
               tokenUnavailable: true,
-              tokenUnavailableReason: "manifest-factory-mismatch",
+              tokenUnavailableReason: "manifest-binding-mismatch",
               manifestFactoryAddress: factoryAddressForManifestCheck,
+              manifestVaultAddress: vaultAddressForManifestCheck,
             }
           : {}),
         ...(tokenName ? { tokenName } : {}),
@@ -414,13 +428,14 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
   }, [
     factoryAddressForManifestCheck,
     hostRuntime,
-    manifestFactoryMismatch,
+    manifestBindingMismatch,
     previewChainId,
     runtimeFactoryAddress,
     runtimeSnapshot,
     runtimeTokenAddress,
     runtimeVaultAddress,
     searchParams,
+    vaultAddressForManifestCheck,
   ]);
 
   const runtimeContext = useMemo(
@@ -488,9 +503,20 @@ function resolveChainFactoryAddress(snapshot?: TokenRuntimeSnapshot | null) {
   return undefined;
 }
 
-function isManifestFactoryMismatch(manifest: VaultManifest, chainId: number, factoryAddress?: Address) {
-  if (!factoryAddress) return false;
-  return !resolveManifestBinding(manifest, { chainId, factoryAddress });
+function resolveChainVaultAddress(snapshot?: TokenRuntimeSnapshot | null) {
+  const portalVault = snapshot?.vaultInfo?.found ? snapshot.vaultInfo.vault : undefined;
+  const helperVault = snapshot?.taxInfo?.vaultInfo?.addr;
+  if (portalVault && isValidTokenAddress(portalVault)) return portalVault;
+  if (helperVault && isValidTokenAddress(helperVault)) return helperVault;
+  return undefined;
+}
+
+function isManifestBindingMismatch(
+  manifest: VaultManifest,
+  input: { chainId: number; factoryAddress?: Address; vaultAddress?: Address; tokenAddress?: Address },
+) {
+  if (!input.factoryAddress && !input.vaultAddress) return false;
+  return !resolveManifestBinding(manifest, input);
 }
 
 function PreviewTaxInfoFrame({ children }: { children: ReactNode }) {

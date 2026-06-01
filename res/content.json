@@ -29,7 +29,7 @@
         "kicker": "AI Agent Quick Start",
         "description": "Paste this prompt into your AI coding agent, replace the placeholders, and it can generate a controlled custom Vault UI from this repository.",
         "promptLabel": "Prompt template",
-        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, factoryAddress is <0x...>, preview tokenAddress is <0x...>, token CA restriction is <none | only 0x..., 0x...>. If restricted, write those CAs to match.bindings[].tokenAddresses. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>, and my minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
+        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, binding mode is <factory | single Vault without factory>, factoryAddress is <0x... | none>, Vault address is <required when no factory: 0x... | n/a>, preview tokenAddress is <0x... | optional>, token CA restriction is <none | only 0x...>. If restricted, write those CAs to match.bindings[].tokenAddresses. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>, and my minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
       },
       "developerEntry": {
         "kicker": "Developer Entry",
@@ -83,7 +83,7 @@
       "scopeItems": [
         "Build the Vault UI inside the component structure provided by this template.",
         "Use the folder name only for the folder and preview route; vault:scaffold generates the manifest artifactId automatically.",
-        "Declare Vault UI binding targets in the manifest with chain and factory address. If a deployment needs a token CA reference list or fixed extra contract targets, declare them only inside the relevant match.bindings[] entry.",
+        "Declare Vault UI binding targets in the manifest with chain plus either factory address or a single Vault address. If a deployment needs a token CA reference list or fixed extra contract targets, declare them only inside the relevant match.bindings[] entry.",
         "Avoid external endpoints, external resources, and fixed extra contract targets; special cases must be declared and approved by Flap review before publish.",
         "Keep the Vault package folder limited to Component.tsx, manifest.json, VaultABI.ts, and i18n.json.",
         "Register local preview routing with vault:scaffold or vault:register; do not hand-edit registration unless the script cannot parse the index file.",
@@ -122,9 +122,9 @@
         ],
         "inputsTitle": "Inputs Needed Before Generation",
         "inputs": [
-          "folder name, chain/factory binding targets, and optional vault address allowlists.",
+          "folder name and binding targets: chain/factory for factory mode, or chain/Vault plus optional token for no-factory mode.",
           "Optional per-binding token CA reference lists belong only in match.bindings[].tokenAddresses; this template validates the addresses but does not enforce them at preview/runtime.",
-          "Vault address only when it cannot be derived from factory + token, or when exact allowlist is required.",
+          "Vault address is required when there is no factory. In factory mode, provide Vault addresses only as optional binding-scoped references.",
           "Fixed external contract targets only when the UI must call a non-token/non-Vault/non-factory contract; provide externalContracts entries with address and label.",
           "Vault ABI is required. Standard ERC20 ABI is already provided by @/src/sdk; custom Token ABI is needed only for special token mechanics.",
           "Read/write methods, approve spender, UI workflow, real preview addresses, and i18n requirements; avoid oracle usage unless required, and let vault:check surface it for Flap review when unavoidable."
@@ -139,7 +139,7 @@
         "workflowTitle": "Agent Workflow",
         "workflow": [
           "Read the required docs and Skill first, then pick the closest pattern.",
-          "For a new Vault package, run yarn vault:scaffold {folder-name} with the required chain, factory, and locale inputs; it generates artifactId automatically.",
+          "For a new Vault package, run yarn vault:scaffold {folder-name} with chain/factory for factory mode, or chain/Vault plus optional token for no-factory mode; it generates artifactId automatically.",
           "Implement only inside the four core Vault files; do not add helpers, subcomponents, images, local docs, or sample data.",
           "Run yarn vault:register {folder-name} when scaffold did not create the package, then preview /{folder-name}.",
           "Use only @/src/sdk and @/src/ui for shared capabilities; the only local relative import allowed is ./VaultABI.",
@@ -330,6 +330,6 @@
     "viewOnExplorer": "View on explorer",
     "addressCopied": "Address copied",
     "tokenUnavailableTitle": "Token unavailable",
-    "tokenUnavailableDescription": "This token cannot be loaded in the preview. Ask the developer to check the token CA, chain, and manifest binding configuration before using this Vault UI."
+    "tokenUnavailableDescription": "This token cannot be loaded in the preview. Ask the developer to check the token CA, chain, and manifest factory/Vault binding before using this Vault UI."
   }
 }

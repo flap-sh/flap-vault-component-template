@@ -20,7 +20,7 @@ Before editing, read:
 Follow these rules:
 
 - Use `yarn`.
-- Create new Vault packages with `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...` whenever possible. Repeat `--chain N --factory 0x...` for each deployment target.
+- Create new Vault packages with `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...` for factory mode, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... [--token 0x...]` for single-Vault mode without a factory.
 - If the strict four Vault files already exist, run `yarn vault:register <folder-name>` for local preview wiring.
 - Keep each Vault package limited to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
 - Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.

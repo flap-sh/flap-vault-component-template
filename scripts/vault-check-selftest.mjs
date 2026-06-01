@@ -11,6 +11,7 @@ const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
 const FACTORY = "0x1000000000000000000000000000000000000001";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TOKEN = "0x2000000000000000000000000000000000000002";
+const VAULT = "0x3000000000000000000000000000000000000003";
 const EXTERNAL_CONTRACT = "0x4000000000000000000000000000000000000004";
 const FIXTURE_ULID = "01K9V9Z0P0AAAAAAAAAAAAAAAA";
 const INDEX_PATH = path.join(ROOT, "src", "vaults", "index.ts");
@@ -108,6 +109,20 @@ try {
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-token-address-list"), false);
   passed.push("binding-level tokenAddresses reference lists are allowed");
 
+  const vaultOnlySlug = `${FIXTURE_PREFIX}-vault-only`;
+  writeVault(vaultOnlySlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, vaultAddresses: [VAULT], tokenAddresses: [TOKEN] }],
+      },
+    }),
+  });
+  const vaultOnlyCheck = runVaultCheck(vaultOnlySlug, { silent: true });
+  assert.equal(vaultOnlyCheck.issues.some((item) => item.ruleId === "manifest-binding/missing-binding-target"), false);
+  assert.equal(vaultOnlyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-vault-address-list"), false);
+  assert.equal(vaultOnlyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-token-address-list"), false);
+  passed.push("single-Vault bindings without factory are allowed");
+
   const zeroFactorySlug = `${FIXTURE_PREFIX}-zero-factory`;
   writeVault(zeroFactorySlug, {
     manifest: baseManifest({
@@ -117,6 +132,16 @@ try {
     }),
   });
   assertRule("zero factory bindings are blocked", runVaultCheck(zeroFactorySlug, { silent: true }), "manifest-binding/zero-factory-address", "blocking");
+
+  const missingTargetSlug = `${FIXTURE_PREFIX}-missing-target`;
+  writeVault(missingTargetSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56 }],
+      },
+    }),
+  });
+  assertRule("bindings without factory or Vault are blocked", runVaultCheck(missingTargetSlug, { silent: true }), "manifest-binding/missing-binding-target", "blocking");
 
   const duplicateBindingSlug = `${FIXTURE_PREFIX}-duplicate-binding`;
   writeVault(duplicateBindingSlug, {
@@ -131,6 +156,19 @@ try {
   });
   assertRule("duplicate chain and factory bindings are blocked", runVaultCheck(duplicateBindingSlug, { silent: true }), "manifest-binding/duplicate-binding", "blocking");
 
+  const duplicateVaultBindingSlug = `${FIXTURE_PREFIX}-duplicate-vault-binding`;
+  writeVault(duplicateVaultBindingSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [
+          { chainId: 56, vaultAddresses: [VAULT] },
+          { chainId: 56, vaultAddresses: [VAULT.toLowerCase()] },
+        ],
+      },
+    }),
+  });
+  assertRule("duplicate chain and Vault bindings are blocked", runVaultCheck(duplicateVaultBindingSlug, { silent: true }), "manifest-binding/duplicate-binding", "blocking");
+
   const duplicateAddressSlug = `${FIXTURE_PREFIX}-duplicate-address`;
   writeVault(duplicateAddressSlug, {
     manifest: baseManifest({
@@ -140,6 +178,16 @@ try {
     }),
   });
   assertRule("duplicate binding-scoped addresses are blocked", runVaultCheck(duplicateAddressSlug, { silent: true }), "manifest-binding/duplicate-address", "blocking");
+
+  const multiTokenVaultSlug = `${FIXTURE_PREFIX}-multi-token-vault`;
+  writeVault(multiTokenVaultSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, vaultAddresses: [VAULT], tokenAddresses: [TOKEN, EXTERNAL_CONTRACT] }],
+      },
+    }),
+  });
+  assertRule("single-Vault bindings allow at most one token", runVaultCheck(multiTokenVaultSlug, { silent: true }), "manifest-binding/invalid-token-address-list", "blocking");
 
   const externalContractManifestSlug = `${FIXTURE_PREFIX}-external-contract-manifest`;
   writeVault(externalContractManifestSlug, {

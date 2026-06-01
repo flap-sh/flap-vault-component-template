@@ -131,14 +131,19 @@ export function ManifestPanel({
     const fallbackChainId = chainId && chainId > 0 ? chainId : undefined;
     const fallbackFactoryAddress = factoryAddress ?? undefined;
     const fallbackVaultAddress = vaultAddress ?? undefined;
-    const hasRuntimeHints = Boolean(fallbackChainId || fallbackFactoryAddress);
+    const fallbackTokenAddress = tokenAddress ?? undefined;
+    const hasRuntimeHints = Boolean(fallbackChainId || fallbackFactoryAddress || fallbackVaultAddress || fallbackTokenAddress);
     const resolvedBinding =
       resolveManifestBinding(manifest, {
         chainId: fallbackChainId,
         factoryAddress: fallbackFactoryAddress,
+        vaultAddress: fallbackVaultAddress,
+        tokenAddress: fallbackTokenAddress,
       }) ?? (hasRuntimeHints ? null : manifest.match.bindings[0]);
     const previewChainId = fallbackChainId ?? resolvedBinding?.chainId;
     const previewFactoryAddress = fallbackFactoryAddress ?? resolvedBinding?.factoryAddress;
+    const previewVaultAddress = fallbackVaultAddress ?? resolvedBinding?.vaultAddresses?.[0];
+    const previewTokenAddress = fallbackTokenAddress ?? resolvedBinding?.tokenAddresses?.[0] ?? PREVIEW_TOKEN_ADDRESS;
 
     if (previewChainId) {
       nextParams.set("chainId", String(previewChainId));
@@ -146,12 +151,11 @@ export function ManifestPanel({
     if (previewFactoryAddress) {
       nextParams.set("factoryAddress", previewFactoryAddress);
     }
-    const previewTokenAddress = tokenAddress ?? PREVIEW_TOKEN_ADDRESS;
     if (!nextParams.get("tokenAddress") && !nextParams.get("token") && !nextParams.get("ca")) {
       nextParams.set("tokenAddress", previewTokenAddress);
     }
-    if (fallbackVaultAddress) {
-      nextParams.set("vaultAddress", fallbackVaultAddress);
+    if (previewVaultAddress) {
+      nextParams.set("vaultAddress", previewVaultAddress);
     }
   }
 

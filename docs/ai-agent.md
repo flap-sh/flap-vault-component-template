@@ -54,15 +54,15 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | --- | --- | --- |
 | `folder name` | Yes | Use 3-64 characters of lowercase kebab-case. Used in `src/vaults/{folder-name}` and preview route `/{folder-name}`. |
 | `name` | Yes | Human-readable manifest name shown in the Artifact Workbench. |
-| `bindings` | Yes | Explicit `(chainId, factoryAddress)` pairs — one per deployment target. `factoryAddress` must be a real non-zero deployed factory contract address. Example: `[{chainId: 56, factoryAddress: "0x..."}, {chainId: 97, factoryAddress: "0x..."}]`. Same UI logic, different factory per deployment. |
-| `vaultAddresses` | Optional | Use only when a deployment wants to record binding-scoped Vault addresses inside a `match.bindings` entry. Preview/runtime does not match on this list. |
-| `tokenAddresses` | Optional | Use only as a reference token CA allowlist inside each `match.bindings` entry. The template validates the address list format but does not enforce it at preview/runtime. |
+| `bindings` | Yes | Explicit binding targets. Each entry needs `chainId` plus either non-zero `factoryAddress` for factory-scoped UI or exactly one non-zero `vaultAddresses` entry for single-Vault UI without a factory. |
+| `vaultAddresses` | Required without factory | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]`. In factory mode this list is optional. |
+| `tokenAddresses` | Optional | Use only inside each `match.bindings` entry. In no-factory mode it may contain at most one token CA and participates in matching when a token hint is available. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Check validates only declared locales. |
 | `VaultABI` | Yes | Minimal Vault ABI fragments used by the component. Do not include standard ERC20 here. |
 | `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, and risk posture. |
 | `actionAvailabilityStage` | Yes | One of `internal-market`, `dex-listed`, `both`, or `read-only`. Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for runtime gating. Do not hide available actions because the token is not DEX-listed. |
-| `preview addresses` | Recommended | Real `chainId`, `tokenAddress`, `vaultAddress`, and `factoryAddress` for local preview. |
+| `preview addresses` | Recommended | Real `chainId`, `tokenAddress`, `vaultAddress`, and, when available, `factoryAddress` for local preview. |
 
 ## Fast New Vault Flow
 
@@ -70,7 +70,7 @@ There are two supported creation paths:
 
 | Path | Use When | Required Commands |
 | --- | --- | --- |
-| Scaffold-first | The Agent is creating a new package from inputs such as folder name, chain, factory, and locales. | `yarn vault:scaffold {folder-name} ...` |
+| Scaffold-first | The Agent is creating a new package from inputs such as folder name, chain, factory or Vault, and locales. | `yarn vault:scaffold {folder-name} ...` |
 | Manifest-first | The Agent already has or generated the four Vault files from a provided manifest. | `yarn vault:register {folder-name}` |
 
 Both paths must end with `yarn vault:check {folder-name}` and `yarn vault:package {folder-name}`. Do not hand-edit `src/vaults/index.ts` unless `vault:register` reports that the index shape cannot be parsed.
@@ -81,13 +81,19 @@ Use the scaffold command to avoid folder and manifest mistakes:
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
 ```
 
+For a single-Vault UI that has no factory, omit `--factory` and provide one Vault address. Token is optional:
+
+```bash
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
+```
+
 For a single-language UI:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales zh
 ```
 
-If a UI needs a reference token CA allowlist, still scaffold the shared UI artifact first. Then add `tokenAddresses` manually under the relevant `match.bindings` entry in `manifest.json`; do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`, and do not pass CA flags to `vault:scaffold`.
+If a factory-scoped UI needs a reference token CA allowlist, still scaffold the shared UI artifact first. Then add `tokenAddresses` manually under the relevant `match.bindings` entry in `manifest.json`; do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`, and do not pass CA flags to factory-mode `vault:scaffold`.
 
 If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
 
@@ -245,10 +251,10 @@ If this route returns 404, run `yarn vault:check {folder-name}`. A missing local
 Use URL params when real runtime addresses are needed:
 
 ```plain text
-http://localhost:3000/{folder-name}?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...
+http://localhost:3000/{folder-name}?chainId=56&vaultAddress=0x...&tokenAddress=0x...
 ```
 
-Preview/runtime binding resolution is conservative. Prefer an exact `chainId + factoryAddress` match. A partial hint such as `chainId` alone or `factoryAddress` alone is only used when it resolves to one unambiguous binding. The first manifest binding is only a local-preview default when the route provides no runtime hints at all. When the preview host can read the live token/Vault factory from chain, that factory must match `manifest.match.bindings` for the active chain; mismatched or zero live factories make the preview token unavailable and the Vault component does not render.
+Preview/runtime binding resolution is conservative. Prefer an exact `chainId + factoryAddress` match for factory-scoped UI, or `chainId + vaultAddress` plus optional `tokenAddress` for no-factory UI. A partial hint such as `chainId` alone is only used when it resolves to one unambiguous binding. The first manifest binding is only a local-preview default when the route provides no runtime hints at all. When the preview host can read live token/Vault factory or Vault data from chain, the active runtime target must match `manifest.match.bindings`; mismatched targets make the preview token unavailable and the Vault component does not render.
 
 For real action-gating QA, first use a supported `chainId + tokenAddress` so the preview host reads the live Portal status and host context for that token. Use the right-side "Token phase self-test" panel only when you intentionally want to override that host context for isolated UI checks. In that panel, `Real` restores the live host phase, while `Internal` and `Listing` are explicit local overrides. `unknown` can still appear in runtime readout when host data is unavailable, but it is not a primary phase tab.
 

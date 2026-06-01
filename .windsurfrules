@@ -15,7 +15,7 @@ Core operating rules:
 
 - Use `yarn`.
 - Edit one Vault UI package at a time.
-- Prefer `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...` for new packages. Repeat `--chain N --factory 0x...` for each deployment target (mainnet, testnet, etc.).
+- Prefer `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...` for factory-scoped packages, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... [--token 0x...]` for single-Vault packages without a factory. Repeat `--chain` with the matching `--factory` or `--vault` target for each deployment.
 - If the four Vault files already exist, run `yarn vault:register <folder-name>`.
 - Keep `src/vaults/{folder-name}` limited to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
 - Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.

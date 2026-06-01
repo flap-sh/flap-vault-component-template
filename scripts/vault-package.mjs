@@ -139,7 +139,15 @@ const metadata = {
   artifactId: manifest.artifactId,
   folderName,
   name: manifest.name,
-  bindingKeys: (manifest.match?.bindings || []).map((binding) => `${binding.chainId}-${binding.factoryAddress.toLowerCase()}`),
+  bindingKeys: (manifest.match?.bindings || []).flatMap((binding) => {
+    if (binding.factoryAddress) return [`${binding.chainId}:${binding.factoryAddress.toLowerCase()}`];
+    const vaultAddress = binding.vaultAddresses?.[0];
+    if (!vaultAddress) return [];
+    if (Array.isArray(binding.tokenAddresses) && binding.tokenAddresses[0]) {
+      return [`${binding.chainId}:vault:${vaultAddress.toLowerCase()}:${binding.tokenAddresses[0].toLowerCase()}`];
+    }
+    return [`${binding.chainId}:vault:${vaultAddress.toLowerCase()}`];
+  }),
   packagedAt,
   manifestSha256: hashFile(path.join(vaultDir, "manifest.json")),
   sourcePackage: `src/vaults/${folderName}`,

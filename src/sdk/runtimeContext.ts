@@ -38,6 +38,8 @@ export function createVaultRuntimeContext(input: CreateVaultRuntimeContextInput)
   const resolvedBinding = resolveManifestBinding(input.manifest, {
     chainId: runtimeOverrides?.chainId ?? input.connectedChainId ?? input.hostRuntimeResult?.addresses.chainId,
     factoryAddress: runtimeOverrides?.factoryAddress ?? input.hostRuntimeResult?.addresses.factoryAddress,
+    vaultAddress: runtimeOverrides?.vaultAddress ?? input.hostRuntimeResult?.addresses.vaultAddress,
+    tokenAddress: runtimeOverrides?.tokenAddress ?? input.hostRuntimeResult?.addresses.tokenAddress,
   });
   const effectiveChainId =
     runtimeOverrides?.chainId ?? input.hostRuntimeResult?.addresses.chainId ?? input.connectedChainId ?? resolvedBinding?.chainId ?? input.manifest.match.bindings[0]?.chainId ?? 56;

@@ -29,7 +29,7 @@
         "kicker": "AI Agent 快速开始",
         "description": "把这段 prompt 贴进你的 AI coding Agent，替换占位符，它就可以按本仓库规则生成受控的自定义 Vault UI。",
         "promptLabel": "Prompt 模板",
-        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，factoryAddress 是 <0x...>，用于预览的 tokenAddress 是 <0x...>，是否限制 Token CA 是 <不限制 | 只允许 0x..., 0x...>。如果限制，请把这些 CA 写入 match.bindings[].tokenAddresses。固定额外合约目标是 <没有 | 地址 + label + purpose>；如果需要，请写入 match.bindings[].externalContracts。按钮可用阶段是 <internal-market | dex-listed | both | read-only>，最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
+        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，绑定模式是 <factory | 无 factory 的单 Vault>，factoryAddress 是 <0x... | 无>，Vault 地址是 <无 factory 时必填：0x... | 不适用>，用于预览的 tokenAddress 是 <0x... | 可选>，是否限制 Token CA 是 <不限制 | 只允许 0x...>。如果限制，请把这些 CA 写入 match.bindings[].tokenAddresses。固定额外合约目标是 <没有 | 地址 + label + purpose>；如果需要，请写入 match.bindings[].externalContracts。按钮可用阶段是 <internal-market | dex-listed | both | read-only>，最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
       },
       "developerEntry": {
         "kicker": "开发者入口",
@@ -83,7 +83,7 @@
       "scopeItems": [
         "请在模板提供的组件结构内完成 Vault UI 定制。",
         "目录名只作为目录和预览路由；manifest 里的 artifactId 默认由 vault:scaffold 自动生成。",
-        "Vault UI 绑定目标需要在 manifest 中声明 chain 和 factory 地址；如果某个部署需要 Token CA 参考列表或固定额外合约目标，只能写在对应 match.bindings[] 里。",
+        "Vault UI 绑定目标需要在 manifest 中声明 chain 加 factory 地址，或 chain 加单个 Vault 地址；如果某个部署需要 Token CA 参考列表或固定额外合约目标，只能写在对应 match.bindings[] 里。",
         "尽量避免外部 endpoint、外部资源和固定额外合约目标；特殊情况必须声明并通过 Flap 审查后才能发布。",
         "Vault 包目录只保留 Component.tsx、manifest.json、VaultABI.ts、i18n.json。",
         "本地预览路由由 vault:scaffold 或 vault:register 注册；除非脚本无法解析 index 文件，否则不要手写注册。",
@@ -122,9 +122,9 @@
         ],
         "inputsTitle": "生成前需要提供的信息",
         "inputs": [
-          "目录名、chain/factory 绑定目标，以及可选的 Vault 地址 allowlist。",
+          "目录名和绑定目标：factory 模式填写 chain/factory；无 factory 模式填写 chain/Vault，可选 token。",
           "可选的 Token CA 参考列表只能写在 match.bindings[].tokenAddresses；模板只校验地址格式，不会在预览/runtime 里强制执行。",
-          "Vault 地址只有不能由 factory + token 推导，或需要精确 allowlist 时才提供。",
+          "无 factory 时必须提供 Vault 地址。factory 模式下 Vault 地址只作为可选的 binding 级参考信息。",
           "只有 UI 必须调用非 Token / 非 Vault / 非 factory 的固定合约时，才提供 externalContracts，每项包含 address 和 label。",
           "Vault ABI 必须提供；标准 ERC20 ABI 已在 @/src/sdk 提供，只有特殊 Token 机制才需要自定义 Token ABI。",
           "read/write 方法、approve spender、UI 工作流、真实预览地址和 i18n 要求；尽量避免 oracle 使用，确实需要时由 vault:check 提示给 Flap 审查。"
@@ -139,7 +139,7 @@
         "workflowTitle": "Agent 执行顺序",
         "workflow": [
           "先读取必须文档和 Skill，再选最接近的 patterns。",
-          "如果是新 Vault 包，先用 yarn vault:scaffold {folder-name} 传入 chain、factory 和 locales；它会自动生成 artifactId。",
+          "如果是新 Vault 包，factory 模式传入 chain/factory，无 factory 模式传入 chain/Vault 和可选 token；vault:scaffold 会自动生成 artifactId。",
           "只在四个 Vault 核心文件内实现；不要新增 helpers、子组件、图片、本地文档或样例数据。",
           "如果不是 scaffold 创建的包，运行 yarn vault:register {folder-name}，然后预览 /{folder-name}。",
           "共享能力只用 @/src/sdk 和 @/src/ui；本地相对导入只允许 ./VaultABI。",
@@ -330,6 +330,6 @@
     "viewOnExplorer": "在瀏覽器查看",
     "addressCopied": "地址已複製",
     "tokenUnavailableTitle": "Token 不可用",
-    "tokenUnavailableDescription": "当前 Token 无法在预览环境加载。请让开发者检查 Token CA、链和 manifest 绑定配置，确认后再使用这个 Vault UI。"
+    "tokenUnavailableDescription": "当前 Token 无法在预览环境加载。请让开发者检查 Token CA、链，以及 manifest 里的 factory/Vault 绑定，确认后再使用这个 Vault UI。"
   }
 }

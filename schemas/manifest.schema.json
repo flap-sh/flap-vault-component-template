@@ -16,17 +16,36 @@
       "type": "object",
       "required": ["bindings"],
       "additionalProperties": false,
-      "description": "Developer-facing registry binding intent. Each binding pairs one chainId with one factoryAddress. Enforced token CA policy is owned by the flap.sh registry; optional binding-level tokenAddresses are reference lists only.",
+      "description": "Developer-facing registry binding intent. Each binding targets either chainId + factoryAddress or chainId + one vaultAddresses entry with an optional tokenAddresses entry.",
       "properties": {
         "bindings": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "description": "Explicit (chainId, factoryAddress) binding targets. One UI artifact can share logic across multiple deployment targets. Duplicate (chainId + factoryAddress) pairs are also blocked by vault:check.",
+          "description": "Explicit factory-scoped or single-Vault binding targets. One UI artifact can share logic across multiple deployment targets. Duplicate runtime binding keys are also blocked by vault:check.",
           "items": {
             "type": "object",
-            "required": ["chainId", "factoryAddress"],
+            "required": ["chainId"],
             "additionalProperties": false,
+            "allOf": [
+              {
+                "anyOf": [
+                  { "required": ["factoryAddress"] },
+                  { "required": ["vaultAddresses"] }
+                ]
+              },
+              {
+                "if": {
+                  "not": { "required": ["factoryAddress"] }
+                },
+                "then": {
+                  "properties": {
+                    "vaultAddresses": { "$ref": "#/$defs/singleAddressArray" },
+                    "tokenAddresses": { "$ref": "#/$defs/singleAddressArray" }
+                  }
+                }
+              }
+            ],
             "properties": {
               "chainId": {
                 "type": "integer",
@@ -35,15 +54,15 @@
               },
               "factoryAddress": {
                 "$ref": "#/$defs/nonZeroAddress",
-                "description": "Non-zero factory contract address on this chain. Zero address is not a valid custom UI binding target."
+                "description": "Non-zero factory contract address on this chain for factory-scoped custom UI binding."
               },
               "vaultAddresses": {
                 "$ref": "#/$defs/addressArray",
-                "description": "Optional reference Vault address list for this binding. Omit when not needed. The template validates the addresses but preview/runtime does not use this list for matching."
+                "description": "Vault address list for this binding. In no-factory mode this must contain exactly one Vault address and participates in preview/runtime matching."
               },
               "tokenAddresses": {
                 "$ref": "#/$defs/addressArray",
-                "description": "Optional reference token CA allowlist for this binding. vault:check validates the address format only; preview/runtime does not enforce the list. Use only when a deployment needs a per-binding token reference list."
+                "description": "Optional binding-scoped token CA list. In no-factory mode this may contain at most one token address and participates in preview/runtime matching when a token hint is available."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",
@@ -85,7 +104,13 @@
     "addressArray": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/address" }
+      "items": { "$ref": "#/$defs/nonZeroAddress" }
+    },
+    "singleAddressArray": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": { "$ref": "#/$defs/nonZeroAddress" }
     },
     "externalContract": {
       "type": "object",
