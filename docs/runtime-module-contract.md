@@ -110,6 +110,7 @@ Examples:
 - `paymentToken`
 - `marketPhase`
 - `isListed`
+- `riskLevel` from `vaultInfo` or `taxInfo.vaultInfo`
 - `tokenName`
 - `tokenImageUrl`
 

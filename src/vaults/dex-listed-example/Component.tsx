@@ -74,6 +74,20 @@ export default function DexListedExampleVault(_props: VaultComponentProps) {
       : marketPhase === "dex-listed"
         ? t("states.marketPhaseDexListed")
         : t("states.marketPhaseUnknown");
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel =
+    riskLevel === 1
+      ? t("states.riskLow")
+      : riskLevel === 2
+        ? t("states.riskLowMedium")
+        : riskLevel === 3
+          ? t("states.riskMedium")
+          : riskLevel === 4
+            ? t("states.riskHigh")
+            : riskLevel === 0
+              ? t("states.riskUnverified")
+              : t("states.riskMissing");
+  const riskTone = riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "danger" : riskLevel >= 3 ? "warning" : "success";
   const unavailableReason = !context.userAddress
     ? t("states.connectWallet")
     : !actionAvailable
@@ -220,11 +234,15 @@ export default function DexListedExampleVault(_props: VaultComponentProps) {
             <CardTitle>{t("sections.allocationStatus")}</CardTitle>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#a8b5c7]">{t("sections.allocationStatusDescription")}</p>
           </div>
-          <StatusBadge tone={actionAvailable ? "success" : "warning"}>
-            {actionAvailable ? t("states.actionAvailable") : t("states.actionUnavailable")}
-          </StatusBadge>
+          <div className="flex flex-wrap justify-end gap-2">
+            <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+            <StatusBadge tone={actionAvailable ? "success" : "warning"}>
+              {actionAvailable ? t("states.actionAvailable") : t("states.actionUnavailable")}
+            </StatusBadge>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
           <div className="rounded-lg border border-[#3d4f68] bg-[#121b2b] p-5 text-center">
             <div className="text-xs font-bold uppercase tracking-[0.32em] text-[#9facbf]">{t("labels.remainingWindow")}</div>
             <div className="mt-4 break-words text-4xl font-semibold leading-none text-white">
@@ -300,6 +318,7 @@ export default function DexListedExampleVault(_props: VaultComponentProps) {
             <DetailTile label={t("labels.token")} value={<AddressLink address={context.tokenAddress} explorerBaseUrl={context.explorerBaseUrl} label={context.tokenSymbol} />} tone="muted" />
             <DetailTile label={t("labels.factory")} value={<AddressLink address={context.factoryAddress} explorerBaseUrl={context.explorerBaseUrl} />} tone="muted" />
             <DetailTile label={t("labels.marketPhase")} value={marketPhaseLabel} tone={marketPhase === "dex-listed" ? "success" : "warning"} />
+            <DetailTile label={t("labels.riskStatus")} value={riskLabel} tone={riskTone === "success" ? "success" : "warning"} />
             <DetailTile label={t("labels.hostSurface")} value={host.renderSurface} tone="muted" />
           </div>
         </CardContent>

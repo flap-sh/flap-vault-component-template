@@ -91,6 +91,20 @@ export default function FlapixelExampleVault(_props: VaultComponentProps) {
   const resetTimerRef = useRef<number | null>(null);
 
   const writesAvailable = isActionAvailableForPhase("dex-listed", host.marketPhase);
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel =
+    riskLevel === 1
+      ? t("states.riskLow")
+      : riskLevel === 2
+        ? t("states.riskLowMedium")
+        : riskLevel === 3
+          ? t("states.riskMedium")
+          : riskLevel === 4
+            ? t("states.riskHigh")
+            : riskLevel === 0
+              ? t("states.riskUnverified")
+              : t("states.riskMissing");
+  const riskTone = riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "danger" : riskLevel >= 3 ? "warning" : "success";
   const wrongNetwork = sdk.wallet.isWrongNetwork;
   const parsedMintCount = useMemo(() => {
     const next = Number(mintCount);
@@ -454,6 +468,7 @@ export default function FlapixelExampleVault(_props: VaultComponentProps) {
         <CardHeader className="gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone="success">{t("badges.live")}</StatusBadge>
+            <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
             <StatusBadge tone={writesAvailable ? "neutral" : "warning"}>
               {host.marketPhase === "dex-listed" ? t("badges.dexListed") : host.marketPhase === "internal-market" ? t("badges.internalMarket") : t("badges.phaseUnknown")}
             </StatusBadge>
@@ -472,15 +487,18 @@ export default function FlapixelExampleVault(_props: VaultComponentProps) {
         </CardContent>
       </Card>
 
+      {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
+
       <Card>
         <CardHeader>
           <CardTitle>{t("sections.status")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
             <DetailTile label={t("labels.token")} value={<AddressLink address={context.tokenAddress} explorerBaseUrl={context.explorerBaseUrl} label={context.tokenSymbol} />} />
             <DetailTile label={t("labels.vault")} value={<AddressLink address={context.vaultAddress} explorerBaseUrl={context.explorerBaseUrl} />} />
             <DetailTile label={t("labels.nft")} value={<AddressLink address={snapshot?.nftAddress} explorerBaseUrl={context.explorerBaseUrl} label={snapshot?.nftName || snapshot?.nftSymbol} />} />
+            <DetailTile label={t("labels.riskStatus")} value={riskLabel} tone={riskTone === "success" ? "success" : "warning"} />
           </div>
           <div className="grid gap-3 md:grid-cols-4">
             <DetailTile label={t("status.minted")} value={`${snapshot?.mintedNfts?.toString() ?? "-"} / ${snapshot?.maxSupply?.toString() ?? "-"}`} />

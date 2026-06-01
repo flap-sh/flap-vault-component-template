@@ -101,6 +101,7 @@ const FIX_HINTS = {
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
   "manual-review/oracle-usage": "Do not add oracle config to manifest. Flap Artifact Workbench/runtime must provision the oracle id.",
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
+  "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
   "forbidden-api/direct-window-ethereum": "Use sdk.wallet and SDK contract methods instead of direct wallet APIs.",
   "forbidden-api/eval": "Remove eval and implement the logic as normal TypeScript.",
   "forbidden-api/function-constructor": "Remove Function constructor usage and implement the logic as normal TypeScript.",
@@ -1412,6 +1413,21 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           WARNING,
           "manual-review/action-stage-gating",
           "Component has a user write path but does not reference marketPhase or isActionAvailableForPhase. Stage-gated actions must state whether they run in internal-market, DEX-listed, both, or read-only mode.",
+          { file: rel },
+        ),
+      );
+    }
+    const hasRiskStatusIntegration =
+      item.name === "Component.tsx" &&
+      /\briskLevel\b/.test(content) &&
+      /\b(?:readTaxVaultHostContext|context\.host|host\.(?:vaultInfo|taxInfo))\b/.test(content) &&
+      /\b(?:StatusBadge|Alert|DetailTile|Metric|DataRow)\b/.test(content);
+    if (item.name === "Component.tsx" && !hasRiskStatusIntegration) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "risk-status/missing-host-risk-state",
+          "Every onboarded Vault UI must read and visibly render the current contract risk status from host Vault/TaxInfo context. If the host risk level is unavailable, render a prominent message that this Vault must add risk-status integration.",
           { file: rel },
         ),
       );

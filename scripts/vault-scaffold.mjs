@@ -142,20 +142,38 @@ function componentSource(componentName) {
   return `"use client";
 
 import type { VaultComponentProps } from "@/src/sdk";
-import { useFlapSdk } from "@/src/sdk";
-import { Alert, Card, CardContent, CardHeader, CardTitle, DataRow } from "@/src/ui";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, Card, CardContent, CardHeader, CardTitle, DataRow, StatusBadge } from "@/src/ui";
 import { vaultAbi } from "./VaultABI";
 
 export default function ${componentName}(_props: VaultComponentProps) {
   const { context, i18n } = useFlapSdk();
   const t = i18n.t;
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel =
+    riskLevel === 1
+      ? t("states.riskLow")
+      : riskLevel === 2
+        ? t("states.riskLowMedium")
+        : riskLevel === 3
+          ? t("states.riskMedium")
+          : riskLevel === 4
+            ? t("states.riskHigh")
+            : riskLevel === 0
+              ? t("states.riskUnverified")
+              : t("states.riskMissing");
+  const riskTone = riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "danger" : riskLevel >= 3 ? "warning" : "success";
   void vaultAbi;
 
   return (
     <div className="w-full space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <CardTitle>{t("title")}</CardTitle>
+            <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+          </div>
           <p className="text-sm leading-6 text-white/56">{t("subtitle")}</p>
         </CardHeader>
         <CardContent>
@@ -164,9 +182,11 @@ export default function ${componentName}(_props: VaultComponentProps) {
           <DataRow label={t("labels.vault")} value={context.vaultAddress} />
           <DataRow label={t("labels.token")} value={context.tokenAddress} />
           <DataRow label={t("labels.user")} value={context.userAddress ?? "-"} />
+          <DataRow label={t("labels.riskStatus")} value={riskLabel} />
         </CardContent>
       </Card>
 
+      {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
       <Alert>{t("notices.nextStep")}</Alert>
     </div>
   );
@@ -190,6 +210,18 @@ function i18nSource(locales, name) {
       "labels.vault": localeText(locale, "Vault", "Vault"),
       "labels.token": localeText(locale, "Token", "Token"),
       "labels.user": localeText(locale, "用户", "User"),
+      "labels.riskStatus": localeText(locale, "合约风险状态", "Contract risk status"),
+      "states.riskMissing": localeText(locale, "缺少风险状态", "Risk status missing"),
+      "states.riskUnverified": localeText(locale, "未验证", "Unverified"),
+      "states.riskLow": localeText(locale, "低风险", "Low risk"),
+      "states.riskLowMedium": localeText(locale, "中低风险", "Low-medium risk"),
+      "states.riskMedium": localeText(locale, "中风险", "Medium risk"),
+      "states.riskHigh": localeText(locale, "高风险", "High risk"),
+      "notices.riskMissing": localeText(
+        locale,
+        "必须接入当前合约风险状态后才能交付这个 Vault UI；请使用 host Vault/TaxInfo context 读取 riskLevel，并在界面中显著展示。",
+        "This Vault UI must integrate the current contract risk status before delivery; read riskLevel from host Vault/TaxInfo context and display it prominently.",
+      ),
       "notices.nextStep": localeText(
         locale,
         "下一步：补充最小 VaultABI，使用 sdk.readContract / sdk.simulateContract / sdk.writeContract 实现业务流程。",

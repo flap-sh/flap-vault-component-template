@@ -60,7 +60,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Check validates only declared locales. |
 | `VaultABI` | Yes | Minimal Vault ABI fragments used by the component. Do not include standard ERC20 here. |
-| `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, and risk posture. |
+| `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, risk posture, and current contract risk-status handling. |
 | `actionAvailabilityStage` | Yes | One of `internal-market`, `dex-listed`, `both`, or `read-only`. Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for runtime gating. Do not hide available actions because the token is not DEX-listed. |
 | `preview addresses` | Recommended | Real `chainId`, `tokenAddress`, `vaultAddress`, and, when available, `factoryAddress` for local preview. |
 
@@ -133,6 +133,7 @@ Use:
 - An explicit action availability stage: `internal-market`, `dex-listed`, `both`, or `read-only`.
 - `context.host?.marketPhase` as the stage source of truth. The current template preview host provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
 - `readTaxVaultHostContext(context.host)` as the normalized public SDK accessor for custom Vault host state. Custom Vault UI in this template targets the tax-token path, so the live runtime fields that matter are `marketPhase`, `isListed`, and host-injected token metadata rather than ad hoc token-type props.
+- Current contract risk status from `readTaxVaultHostContext(context.host)`. Derive it from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`, display it prominently near the top or runtime/status area, and render a warning/danger notice when the risk level is unavailable. This is required for every onboarded Vault UI and cannot be skipped.
 - `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` to keep stage-gated buttons consistent.
 - `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` when a write flow depends on the active wallet being on `context.chainId`. Keep the write section visible and render a clear switch-network state instead of attempting the write on the wrong chain.
 - `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token header/media data. The template preview shell first asks the same-origin runtime proxy for host presentation data, then falls back to ERC20 `symbol()` / `name()` from the preview `tokenAddress`; mocked image fallback is reserved for the neutral preview fixture only. `tokenAddress` alone is metadata-only in preview; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when token lifecycle state matters.
@@ -192,6 +193,7 @@ The output is JSON and includes:
 
 If `summary.blocking` is greater than zero, fix those issues before doing anything else.
 If `manual-review/action-stage-gating` appears, the component has a write path but does not reference `marketPhase` or `isActionAvailableForPhase`. Add explicit stage gating and visible unavailable-state copy before packaging.
+If `risk-status/missing-host-risk-state` appears, the component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying.
 
 When changing the check script or Agent contract itself, also run:
 
@@ -304,6 +306,7 @@ A generated Vault UI is done only when:
 - All user-facing copy used by `Component.tsx` exists in every locale declared by `manifest.i18n`.
 - The component uses runtime context addresses for reads and writes.
 - Stage-gated actions were previewed with both `marketPhase=internal-market` and `marketPhase=dex-listed`, and unavailable buttons remain visible with clear copy.
+- Current contract risk status is visible from host `riskLevel`, and the missing-risk state shows a prominent warning/danger message.
 - Any write-capable flow was also previewed in a wrong-network state, and the component rendered a clear switch-network path instead of attempting the write.
 
 ## Done Report

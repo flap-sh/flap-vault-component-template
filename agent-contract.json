@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 6,
+  "version": 7,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -40,7 +40,8 @@
       "approvalSpender",
       "refetchPoints",
       "emptyStates",
-      "riskPosture"
+      "riskPosture",
+      "riskStatusHandling"
     ],
     "actionVisibilityRule": "Do not silently hide supported actions. If an action is stage-gated or unavailable, render the section with a clear disabled/unavailable state."
   },
@@ -62,6 +63,8 @@
     "templatePreviewCapability": "The right-side preview panel in this template provides a token phase self-test API that can override the local preview host context used by context.host.marketPhase. The panel exposes Real to restore the live host phase and internal-market / dex-listed as explicit local overrides; unknown remains a runtime value rather than a primary tab. On supported preview chains, chainId + tokenAddress is the default source of truth: the preview host uses the public SDK chain-read path to read Portal token state and, when available, matching helper/VaultPortal data. If the live factory or Vault target does not match manifest.match.bindings for the active chain, preview marks the token unavailable and does not render the Vault component. Use marketPhase, isListed, status, or tokenStatusCode only when lifecycle override is intentional.",
     "marketPhaseRule": "The template preview host and production Flap host derive marketPhase from Portal token state: existing tokens with tokenInfo.status < 2 are internal-market; existing tokens with tokenInfo.status >= 2 are dex-listed; missing token info is unknown. In preview, taxInfo=1 is only a fixture seed when no real chain host data is available or when an explicit override is desired.",
     "actionAvailabilityHelper": "isActionAvailableForPhase(stage, context.host?.marketPhase ?? \"unknown\")",
+    "riskStatusSource": "readTaxVaultHostContext(context.host).vaultInfo.riskLevel or readTaxVaultHostContext(context.host).taxInfo.vaultInfo.riskLevel",
+    "riskStatusRule": "Every onboarded Vault UI must read and visibly render the current contract risk status from host Vault/TaxInfo context. If the risk level is unavailable, render a prominent warning/danger message that risk-status integration is required. vault:check blocks Component.tsx files that do not reference host riskLevel and a visible UI primitive.",
     "backwardsCompatibleListedFlag": "context.host.isListed",
     "wrongNetworkCapability": "sdk.wallet exposes isWrongNetwork, requiredChainId, requiredChainLabel, canSwitchChain, isSwitchingChain, and switchChain() so write-capable Vault UIs can render a switch-network state before attempting writes."
   },
@@ -142,7 +145,8 @@
     "rule": "Agents must parse command failures, fix agent.nextActions, and avoid retrying the same command without changes."
   },
   "checkerWarnings": {
-    "manual-review/action-stage-gating": "Component has a write path but no marketPhase or isActionAvailableForPhase usage. Add explicit internal-market / DEX-listed button gating and visible unavailable-state copy."
+    "manual-review/action-stage-gating": "Component has a write path but no marketPhase or isActionAvailableForPhase usage. Add explicit internal-market / DEX-listed button gating and visible unavailable-state copy.",
+    "risk-status/missing-host-risk-state": "Component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add riskLevel handling and a prominent unavailable-risk warning."
   },
   "errorCodes": {
     "template-freshness/npm-outdated": {
@@ -200,6 +204,10 @@
     "manifest-binding/zero-factory-address": {
       "severity": "blocking",
       "fixAction": "Omit factoryAddress and provide exactly one non-zero vaultAddresses entry for single-Vault mode, or replace it with the real deployed factory contract address for factory mode."
+    },
+    "risk-status/missing-host-risk-state": {
+      "severity": "blocking",
+      "fixAction": "Read riskLevel from readTaxVaultHostContext(context.host).vaultInfo or .taxInfo.vaultInfo, display it prominently, and show a warning/danger message when the host risk level is unavailable."
     },
     "manifest-binding/missing-binding-target": {
       "severity": "blocking",
@@ -495,7 +503,7 @@
   "preview": {
     "routePattern": "http://localhost:3000/{folder-name}",
     "exampleRoute": "http://localhost:3000/example",
-    "runtimeParams": ["chainId", "factoryAddress", "tokenAddress", "vaultAddress", "taxInfo", "marketBps", "feeMode", "vaultType", "renderSurface", "marketPhase", "isListed", "status", "tokenStatusCode", "tokenImageUrl"]
+    "runtimeParams": ["chainId", "factoryAddress", "tokenAddress", "vaultAddress", "taxInfo", "marketBps", "feeMode", "vaultType", "renderSurface", "marketPhase", "isListed", "status", "tokenStatusCode", "riskLevel", "vaultRiskLevel", "tokenImageUrl"]
   },
   "doneCriteria": [
     "folder name is registered in src/vaults/index.ts",
@@ -506,6 +514,7 @@
     "zip contains flap-vault-package.json generated by yarn vault:package with runtimePackageGitHead provenance",
     "preview route /{folder-name} resolves",
     "stage-gated actions are previewed with marketPhase=internal-market and marketPhase=dex-listed",
+    "current contract risk status is displayed from host riskLevel, with a prominent missing-risk warning state",
     "write-capable flows preview a wrong-network state and render a switch-network path instead of sending writes on the wrong chain",
     "Vault folder contains only the four allowed files",
     "Component.tsx follows a public-safe pattern from docs/ui-pattern-snippets.md",

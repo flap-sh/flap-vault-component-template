@@ -141,6 +141,8 @@ context.host?.renderSurface
 context.host?.vaultType
 context.host?.isListed
 context.host?.marketPhase
+context.host?.vaultInfo?.riskLevel
+context.host?.taxInfo?.vaultInfo?.riskLevel
 ```
 
 The SDK also exports a normalized host helper:
@@ -152,7 +154,9 @@ const { context } = useFlapSdk();
 const host = readTaxVaultHostContext(context.host);
 ```
 
-`host.isSupportedCustomVaultToken` remains available when the host wants to assert that it resolved an existing tax token. For component gating and AI-agent guidance, the main fields are `host.marketPhase` and `host.isListed`.
+`host.isSupportedCustomVaultToken` remains available when the host wants to assert that it resolved an existing tax token. For component gating and AI-agent guidance, the main fields are `host.marketPhase`, `host.isListed`, and current contract risk status from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`.
+
+Every onboarded Vault UI must visibly render the current contract risk status. If `riskLevel` is unavailable, the component must show a prominent warning/danger notice that risk-status integration is required before delivery.
 
 `marketPhase` is the normalized token lifecycle stage exposed to custom Vault UI. In this template, the local preview host computes and injects it from the real Portal token status when the route provides a supported `chainId + tokenAddress`; explicit preview params can still override it for UI QA:
 

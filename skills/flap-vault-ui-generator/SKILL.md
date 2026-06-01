@@ -96,6 +96,7 @@ Fix blocking issues before finishing.
 - Decide and state whether actions are available in internal-market, DEX-listed, both, or read-only stage. Do not silently hide supported actions; show disabled/unavailable states with clear copy.
 - Use `context.host?.marketPhase` as the runtime source for internal-market vs DEX-listed checks. The current template preview panel provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
 - Use `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` for stage-gated buttons.
+- Every onboarded Vault UI must read and visibly render the current contract risk status from host context. Use `readTaxVaultHostContext(context.host)` and derive `riskLevel` from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`; if it is unavailable, show a prominent warning/danger message that risk-status integration is required. `vault:check` blocks packages that omit this.
 - Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media/header data. The template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only. Do not call private token metadata APIs from `Component.tsx`.
 - Local preview uses real wallet/runtime data. If data is needed, use real addresses supplied by the user or preview URL params.
 - Preview both phase states with `marketPhase=internal-market` and `marketPhase=dex-listed` before packaging an action-heavy Vault UI.
@@ -113,6 +114,7 @@ Fix blocking issues before finishing.
 - undeclared URL, endpoint, or external resource
 - undeclared fixed extra contract target
 - hidden transaction target
+- missing current contract risk-status integration
 - unapproved dependency
 - custom third-party image or external resource not controlled by Flap runtime/Artifact Workbench
 - missing a locale declared by `manifest.i18n`

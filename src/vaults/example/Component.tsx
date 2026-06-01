@@ -78,6 +78,20 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
       : marketPhase === "dex-listed"
         ? t("states.marketPhaseDexListed")
         : t("states.marketPhaseUnknown");
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel =
+    riskLevel === 1
+      ? t("states.riskLow")
+      : riskLevel === 2
+        ? t("states.riskLowMedium")
+        : riskLevel === 3
+          ? t("states.riskMedium")
+          : riskLevel === 4
+            ? t("states.riskHigh")
+            : riskLevel === 0
+              ? t("states.riskUnverified")
+              : t("states.riskMissing");
+  const riskTone = riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "danger" : riskLevel >= 3 ? "warning" : "success";
 
   const applyPreviewData = useCallback(() => {
     const rewardEndsAt = Date.now() + 2 * 60 * 60 * 1000;
@@ -252,9 +266,13 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
             <CardTitle>{t("sections.rewardStatus")}</CardTitle>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#a8b5c7]">{t("sections.rewardStatusDescription")}</p>
           </div>
-          <StatusBadge tone={actionsAvailable ? "success" : "warning"}>{marketPhaseLabel}</StatusBadge>
+          <div className="flex flex-wrap justify-end gap-2">
+            <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+            <StatusBadge tone={actionsAvailable ? "success" : "warning"}>{marketPhaseLabel}</StatusBadge>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
           <div className="rounded-lg border border-[#3d4f68] bg-[#121b2b] p-5 text-center">
             <div className="text-xs font-bold uppercase tracking-[0.32em] text-[#9facbf]">{t("labels.rewardWindow")}</div>
             <div className="mt-4 text-4xl font-semibold leading-none text-white">
@@ -329,6 +347,7 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
             <DetailTile label={t("labels.vault")} value={<AddressLink address={context.vaultAddress} explorerBaseUrl={context.explorerBaseUrl} />} tone="muted" />
             <DetailTile label={t("labels.token")} value={<AddressLink address={context.tokenAddress} explorerBaseUrl={context.explorerBaseUrl} label={context.tokenSymbol} />} tone="muted" />
             <DetailTile label={t("labels.marketPhase")} value={marketPhaseLabel} tone={marketPhase === "unknown" ? "warning" : "success"} />
+            <DetailTile label={t("labels.riskStatus")} value={riskLabel} tone={riskTone === "success" ? "success" : "warning"} />
             <DetailTile label={t("labels.feeMode")} value={host.feeMode} />
             <DetailTile label={t("labels.renderSurface")} value={host.renderSurface} />
             <DetailTile label={t("labels.marketBps")} value={host.taxInfo ? String(host.taxInfo.marketBps) : "-"} />

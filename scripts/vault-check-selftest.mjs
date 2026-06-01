@@ -618,6 +618,10 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("write paths warn when market phase gating is missing", runVaultCheck(stageGatingSlug, { silent: true }), "manual-review/action-stage-gating", "warning");
 
+  const riskStatusSlug = `${FIXTURE_PREFIX}-risk-status`;
+  writeVault(riskStatusSlug);
+  assertRule("components must render host risk status", runVaultCheck(riskStatusSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
+
   const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
   assert.throws(() =>
     execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-zero-scaffold`, "--chain", "56", "--factory", ZERO_ADDRESS, "--locales", "en"], {

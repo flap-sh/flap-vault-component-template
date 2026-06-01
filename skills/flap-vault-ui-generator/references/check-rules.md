@@ -38,6 +38,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - non-HTTPS, IPFS, Arweave, WebSocket, or embedded data URL resource usage in Vault source
 - missing a locale declared by `manifest.i18n`
 - i18n key missing from any locale declared by `manifest.i18n`
+- missing current contract risk-status integration from host `riskLevel`, including the prominent unavailable-risk warning state
 - remote media inside Vault source
 - hardcoded EVM addresses in Vault source unless they are binding-scoped token/Vault/factory references or declared external contract targets
 - SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`

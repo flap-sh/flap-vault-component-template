@@ -78,6 +78,20 @@ export default function ActionGalleryExampleVault(_props: VaultComponentProps) {
       : marketPhase === "dex-listed"
         ? t("states.marketPhaseDexListed")
         : t("states.marketPhaseUnknown");
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel =
+    riskLevel === 1
+      ? t("states.riskLow")
+      : riskLevel === 2
+        ? t("states.riskLowMedium")
+        : riskLevel === 3
+          ? t("states.riskMedium")
+          : riskLevel === 4
+            ? t("states.riskHigh")
+            : riskLevel === 0
+              ? t("states.riskUnverified")
+              : t("states.riskMissing");
+  const riskTone = riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "danger" : riskLevel >= 3 ? "warning" : "success";
 
   const applyPreviewData = useCallback(() => {
     setGalleryState({
@@ -320,9 +334,13 @@ export default function ActionGalleryExampleVault(_props: VaultComponentProps) {
             <CardTitle>{t("sections.flowStatus")}</CardTitle>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#a8b5c7]">{t("sections.flowStatusDescription")}</p>
           </div>
-          <StatusBadge tone={marketPhase === "unknown" ? "warning" : "success"}>{marketPhaseLabel}</StatusBadge>
+          <div className="flex flex-wrap justify-end gap-2">
+            <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+            <StatusBadge tone={marketPhase === "unknown" ? "warning" : "success"}>{marketPhaseLabel}</StatusBadge>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
           <div className="rounded-lg border border-[#3d4f68] bg-[#121b2b] p-5 text-center">
             <div className="text-xs font-bold uppercase tracking-[0.32em] text-[#9facbf]">{t("labels.deadline")}</div>
             <div className="mt-4 text-4xl font-semibold leading-none text-white">
@@ -451,6 +469,7 @@ export default function ActionGalleryExampleVault(_props: VaultComponentProps) {
             <DetailTile label={t("labels.allowance")} value={formatTokenAmount(allowance, decimals)} detail={tokenSymbol} tone={needsApproval ? "warning" : "success"} />
             <DetailTile label={t("labels.deadline")} value={galleryState?.deadline ? new Date(galleryState.deadline * 1000).toLocaleString() : "-"} />
             <DetailTile label={t("labels.marketPhase")} value={marketPhaseLabel} tone={marketPhase === "unknown" ? "warning" : "success"} />
+            <DetailTile label={t("labels.riskStatus")} value={riskLabel} tone={riskTone === "success" ? "success" : "warning"} />
             <DetailTile label={t("labels.hostSurface")} value={host.renderSurface} tone="muted" />
           </div>
         </CardContent>

@@ -107,6 +107,20 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
   }, []);
 
   const writesAvailable = isActionAvailableForPhase("dex-listed", host.marketPhase);
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel =
+    riskLevel === 1
+      ? t("states.riskLow")
+      : riskLevel === 2
+        ? t("states.riskLowMedium")
+        : riskLevel === 3
+          ? t("states.riskMedium")
+          : riskLevel === 4
+            ? t("states.riskHigh")
+            : riskLevel === 0
+              ? t("states.riskUnverified")
+              : t("states.riskMissing");
+  const riskTone = riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "danger" : riskLevel >= 3 ? "warning" : "success";
   const wrongNetwork = sdk.wallet.isWrongNetwork;
   const tokenDecimals = snapshot?.tokenDecimals ?? 18;
   const parsedStakeAmount = useMemo(() => {
@@ -554,6 +568,7 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
         <CardHeader className="gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone="success">{t("badges.live")}</StatusBadge>
+            <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
             <StatusBadge tone={writesAvailable ? "neutral" : "warning"}>
               {host.marketPhase === "dex-listed" ? t("badges.dexListed") : host.marketPhase === "internal-market" ? t("badges.internalMarket") : t("badges.phaseUnknown")}
             </StatusBadge>
@@ -564,13 +579,16 @@ export default function CommunityBuybackExampleVault(_props: VaultComponentProps
             <p className="mt-2 text-sm leading-6 text-white/64">{context.host?.vaultInfo?.description || t("subtitle")}</p>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4">
+        <CardContent className="grid gap-3 md:grid-cols-5">
           <DetailTile label={t("overview.treasury")} value={`${formatTokenAmount(snapshot?.stats.treasuryBNB, 18, 4)} ${context.paymentToken?.symbol ?? "BNB"}`} />
           <DetailTile label={t("overview.taxRate")} value={formatPercentBps(snapshot?.taxRateBps)} />
           <DetailTile label={t("overview.proposalId")} value={snapshot?.stats.currentProposalId ? snapshot.stats.currentProposalId.toString() : "-"} />
+          <DetailTile label={t("overview.riskStatus")} value={riskLabel} tone={riskTone === "success" ? "success" : "warning"} />
           <DetailTile label={t("overview.status")} value={proposalStatusLabel} tone={proposalStatusTone === "success" ? "success" : proposalStatusTone === "danger" ? "warning" : "primary"} />
         </CardContent>
       </Card>
+
+      {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
 
       <Card>
         <CardHeader>

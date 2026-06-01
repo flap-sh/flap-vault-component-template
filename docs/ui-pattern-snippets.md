@@ -63,6 +63,7 @@ Before writing `Component.tsx`, decide and document these in implementation note
 - `primaryWrites`: write methods, approval spender, native value requirement, and refetch points.
 - `emptyStates`: no wallet, no user position, no claimable balance, unavailable oracle/proof, paused flow.
 - `riskPosture`: verified, review-required, unverified, or high-risk.
+- `riskStatusHandling`: read current contract risk status from host Vault/TaxInfo context and show a prominent missing-risk warning if unavailable.
 
 Do not hide actions only because the token is not DEX-listed. If the Vault is intended to work before listing, show the controls and disable them only when the contract state or missing inputs make the action unavailable.
 
@@ -132,7 +133,33 @@ Suggested i18n keys:
 
 ## Risk And Verification Banner
 
-Use for unverified, high-risk, fallback, AI-generated, or schema-generated Vaults. Keep the warning visible near the top of the Vault component.
+Use for current contract risk status, unverified, high-risk, fallback, AI-generated, or schema-generated Vaults. Every onboarded Vault UI must read `riskLevel` from host context and visibly render it; this is a strict package check.
+
+```tsx
+const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+const riskLabel =
+  riskLevel === 1
+    ? t("risk.low.title")
+    : riskLevel === 2
+      ? t("risk.lowMedium.title")
+      : riskLevel === 3
+        ? t("risk.medium.title")
+        : riskLevel === 4
+          ? t("risk.high.title")
+          : riskLevel === 0
+            ? t("risk.unverified.title")
+            : t("risk.missing.title");
+const riskTone = riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "danger" : riskLevel >= 3 ? "warning" : "success";
+
+return (
+  <>
+    <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+    {riskLevel === null ? <Alert tone="danger">{t("risk.missing.description")}</Alert> : null}
+  </>
+);
+```
+
+If the UI also needs an additional review posture banner, keep it separate from the host risk status so users can distinguish "the host risk level is missing" from "this UI needs review".
 
 ```tsx
 type RiskPosture = "verified" | "review-required" | "unverified" | "high-risk";
