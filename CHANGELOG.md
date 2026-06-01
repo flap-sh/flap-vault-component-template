@@ -13,7 +13,20 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
-No unreleased changes.
+### Added
+
+- Added source-package support for no-factory single-Vault bindings using `chainId + vaultAddresses[0]` with an optional single `tokenAddresses[0]`.
+- Added matching scaffold, package, validation, preview, runtime, prompt, and Agent-doc support for factory-scoped and no-factory Vault UI modes.
+
+### Changed
+
+- Updated neutral example manifests to use no-factory Vault/token fixture bindings instead of fake factory addresses.
+- Added token and Vault references to the live example manifests while keeping their real factory bindings.
+- Reworked AI intake/prompt copy so agents ask for binding mode first and do not invent factory addresses.
+
+### Fixed
+
+- Preview/runtime binding checks now reject explicit factory or Vault mismatches instead of falling back to an unrelated chain-only binding.
 
 ## [0.1.2] - 2026-05-31
 
