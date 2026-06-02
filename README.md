@@ -16,6 +16,49 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 - Private zip handoff to the Flap Artifact Workbench.
 - Flap-built remote artifact and runtime deployment binding in production.
 
+## From Zero To Verified Zip
+
+This is the shortest safe path for a developer who wants AI help but still owns the Vault facts and local testing.
+
+1. Prepare real inputs: folder name, display name, `chainId`, factory address or single Vault address, optional token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses.
+2. Give those inputs to an AI Agent with this repository context. If the AI cannot read the repo directly, generate a pasteable context pack:
+
+```bash
+yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
+```
+
+3. Scaffold the Vault package. Factory-scoped example:
+
+```bash
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
+```
+
+Single-Vault example without a factory:
+
+```bash
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
+```
+
+4. Edit only the four package files under `src/vaults/my-vault`: `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
+   Keep the scaffolded default business card structure unless the Vault needs a different pattern. The built-in example routes are behavior references, not the default visual style.
+5. Preview the route and test the actual workflow:
+
+```plain text
+http://localhost:3000/my-vault?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...
+```
+
+6. Package only after validation passes:
+
+```bash
+yarn vault:check my-vault
+yarn vault:package my-vault
+yarn vault:verify-package dist/my-vault.zip
+```
+
+The deliverable is the zip produced by `yarn vault:package <folder-name>`, plus the package output fields such as `sourcePackagePath` and `sha256`. A prompt-only result, a hand-made zip, or an untested AI output is not ready for Flap Artifact Workbench intake.
+
+For a slower step-by-step walkthrough, use [docs/from-zero-vault-ui.md](./docs/from-zero-vault-ui.md).
+
 ## Quick Start
 
 ```bash

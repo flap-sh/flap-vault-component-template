@@ -29,6 +29,7 @@ Consult these for detail when the startup sequence doesn't answer a specific que
 - `docs/prd.md` — product scope, implemented acceptance criteria, and explicit non-goals
 - `docs/agent-entrypoints.md` — supported agents, entry points, and startup steps
 - `docs/ai-copy-pack.md` — copy/paste context pack guide for web-based AI tools without repo access
+- `docs/from-zero-vault-ui.md` — beginner-friendly walkthrough from inputs to verified source zip
 - `docs/versioning.md` — when to increment agent-contract.json, manifest schema, package format version, and runtime contract version
 - `docs/artifact-intake.md` — Flap Artifact Workbench flow, source package vs runtime artifact
 - `docs/runtime-module-contract.md` — shared runtime import/build/host contract for `@/src/sdk`, `@/src/ui`, `context`, and `sdk`
@@ -74,6 +75,7 @@ There are two supported creation paths:
 | Manifest-first | The Agent already has or generated the four Vault files from a provided manifest. | `yarn vault:register {folder-name}` |
 
 Both paths must end with `yarn vault:check {folder-name}` and `yarn vault:package {folder-name}`. Do not hand-edit `src/vaults/index.ts` unless `vault:register` reports that the index shape cannot be parsed.
+For a step-by-step beginner path that starts from raw Vault requirements and ends with a verified zip, follow `docs/from-zero-vault-ui.md`.
 
 Use the scaffold command to avoid folder and manifest mistakes:
 
@@ -130,6 +132,7 @@ Use:
 - `./VaultABI` as the only local relative import.
 - No additional SDK package or SDK-like wrapper beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - `docs/ui-pattern-snippets.md` to choose section order, metric grids, action panels, transaction states, and empty/error states.
+- The scaffold default surface as the preferred visual starting point. Built-in examples are behavior references; do not copy their visual layout as the default.
 - An explicit action availability stage: `internal-market`, `dex-listed`, `both`, or `read-only`.
 - `context.host?.marketPhase` as the stage source of truth. The current template preview host provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
 - `readTaxVaultHostContext(context.host)` as the normalized public SDK accessor for custom Vault host state. Custom Vault UI in this template targets the tax-token path, so the live runtime fields that matter are `marketPhase`, `isListed`, and host-injected token metadata rather than ad hoc token-type props.

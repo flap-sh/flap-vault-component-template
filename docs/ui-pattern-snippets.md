@@ -13,8 +13,9 @@ Vault components should feel like compact business panels inside the Flap previe
 - Use `w-full space-y-4` as the outer component layout.
 - Start at the first Vault-specific business section below the shell-owned `Vault Information` frame.
 - Use `VaultBanner` only when the target host surface does not already provide a standard shared summary/header block. Do not treat a component-owned top banner as the default.
-- Use the current Flap Vault visual system: deep blue-gray panels, blue bordered status blocks, rounded status pills, dense metric tiles, and clear action cards.
-- Use `Card`, `CardHeader`, `CardTitle`, and `CardContent` for major sections.
+- Use the current Flap Vault visual system: dark neutral business surfaces, white low-opacity borders, compact status pills, dense metric strips, and one clear primary action panel.
+- Default new UIs should feel closer to a polished embedded tool than to a sample dashboard: one mechanism summary, a small metric grid, one primary action area, and runtime details pushed lower or kept compact.
+- Use `Card`, `CardHeader`, `CardTitle`, and `CardContent` for major sections, but override density when useful with `rounded-[14px]`, `rounded-[18px]`, `border-white/10`, `bg-black/25`, `bg-white/[0.03]`, and restrained accent borders.
 - Use `Metric` for top-level stats and `DetailTile` for compact action/runtime facts; reserve `DataRow` only for rare audit-style logs where row separation is the main value.
 - Use `Alert` for notices, warnings, errors, and empty states.
 - Use `StatusBadge` for ready, paused, unavailable, and review states.
@@ -25,8 +26,9 @@ Vault components should feel like compact business panels inside the Flap previe
 
 Avoid:
 
-- Marketing hero sections or large decorative banners.
+- Marketing hero sections, large decorative banners, or sample-dashboard filler.
 - Duplicating host-owned intro banners, token summaries, or top hero cards inside `Component.tsx`.
+- Treating `example` or `action-gallery-example` as the visual default. They are behavior references; the scaffold default and this document define the preferred default visual direction.
 - Third-party images or external media.
 - Hardcoded addresses or private endpoints.
 - Copying old Flap component names, constants, exact private flows, or legacy row-heavy layouts.
@@ -71,7 +73,7 @@ Do not hide actions only because the token is not DEX-listed. If the Vault is in
 
 Use `context.host?.marketPhase` as the runtime source of truth for internal-market vs DEX-listed state. The current template preview panel provides this API for local self-test; production Flap host injects equivalent context. The host derives it from token status: existing tokens with `status < 2` are `internal-market`, existing tokens with `status >= 2` are `dex-listed`, and missing token info is `unknown`. In preview, `tokenAddress` alone is metadata-only; pass `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when action-stage behavior matters.
 
-Reference implementations: `src/vaults/dex-listed-example` shows a focused listed-only action section, while `src/vaults/action-gallery-example` shows multiple internal-market, DEX-listed, both-stage, and read-only controls in one Vault.
+Reference implementations: `src/vaults/dex-listed-example` shows a focused listed-only action section, while `src/vaults/action-gallery-example` shows multiple internal-market, DEX-listed, both-stage, and read-only controls in one Vault. Use them for behavior and state coverage, not as the default visual style.
 
 Custom Vault actions must state when users can interact:
 
@@ -199,6 +201,78 @@ return (
   </div>
 );
 ```
+
+## Default Scaffold Surface
+
+Use this as the preferred starting shape for new custom Vault UIs. It avoids the older sample-dashboard look by keeping everything inside one compact business card: mechanism summary, status metrics, runtime targets, and one primary action slot.
+
+```tsx
+return (
+  <div className="w-full space-y-3 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[length:34px_34px] sm:space-y-4">
+    <Card className="overflow-hidden rounded-[18px] border-white/10 bg-gradient-to-b from-[#0e141d] to-[#070b11] shadow-[0_20px_70px_-38px_rgba(76,141,255,0.65)]">
+      <CardHeader className="p-4 pb-3 sm:p-5 sm:pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#4c8dff] shadow-[0_0_12px_rgba(76,141,255,0.85)]" />
+              <CardTitle className="text-base sm:text-lg">{t("title")}</CardTitle>
+            </div>
+            <p className="max-w-2xl text-sm font-medium leading-6 text-[#7c8899]">{t("subtitle")}</p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+            <StatusBadge tone="neutral">{marketPhaseLabel}</StatusBadge>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-3 p-4 pt-0 sm:space-y-4 sm:p-5 sm:pt-0">
+        <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
+          <div className="rounded-[14px] border border-white/10 bg-black/25 p-3 sm:rounded-[16px] sm:p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-[#eaf1f8]">{t("sections.mechanism")}</span>
+              <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs font-semibold text-[#7c8899]">
+                {t("badges.defaultShell")}
+              </span>
+            </div>
+            <p className="mt-3 text-xs font-semibold leading-5 text-[#7c8899] sm:mt-4 sm:text-sm sm:leading-6">
+              {t("flow.description")}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
+            <Metric label={t("labels.chain")} value={String(context.chainId)} tone="primary" />
+            <Metric label={t("labels.marketPhase")} value={marketPhaseLabel} />
+            <Metric label={t("labels.riskStatus")} value={riskLabel} tone={riskTone === "success" ? "success" : "warning"} />
+          </div>
+        </div>
+
+        {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
+
+        <div className="grid grid-cols-2 overflow-hidden rounded-[14px] border border-white/10 sm:rounded-[16px] lg:grid-cols-4">
+          {/* runtime targets and compact facts */}
+        </div>
+
+        <div className="rounded-[14px] border border-white/10 bg-black/30 p-3 sm:rounded-[16px] sm:p-4">
+          {/* one primary action flow: input, quote, warnings, approve/write button */}
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+);
+```
+
+Use accent colors by function rather than by project branding:
+
+| Function | Accent |
+| --- | --- |
+| Primary action / active route | `#4c8dff` |
+| Success / verified / claimable | `#2bd18f` |
+| Warning / waiting / missing review | `#f0b90b` |
+| Danger / high risk / failed write | `#ff6b6b` |
+| Neutral text and dividers | `#7c8899`, `#5a6678`, `border-white/10` |
+
+Keep the accent small: a dot, badge, border, or button state is enough. Do not turn the whole component into one color theme.
 
 ## Dashboard Frame
 

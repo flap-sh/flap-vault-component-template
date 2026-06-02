@@ -16,6 +16,7 @@ const BASE_FILES = [
   "docs/ai-agent.md",
   "docs/agent-entrypoints.md",
   "docs/agent-intake-template.md",
+  "docs/from-zero-vault-ui.md",
   "docs/ui-pattern-snippets.md",
   "skills/flap-vault-ui-generator/SKILL.md",
 ];
@@ -23,7 +24,7 @@ const BASE_FILES = [
 const EXAMPLE_HINTS = {
   example: "reward/oracle pattern with approve, simulate, write, claim, and refetch",
   "dex-listed-example": "DEX-listed-only action gate with visible disabled states before listing",
-  "action-gallery-example": "default choice when the user is unsure; shows internal-market, DEX-listed, both-stage, and read-only states",
+  "action-gallery-example": "default behavior reference when the user is unsure; shows internal-market, DEX-listed, both-stage, and read-only states",
   "community-buyback-example": "live governance or buyback-style vault reference",
   "flapixel-example": "live NFT vault reference",
 };
@@ -101,11 +102,13 @@ function promptTemplate(exampleFolder) {
 
 Before writing code:
 1. Summarize the strict Vault folder boundary, manifest rules, safety boundaries, and validation commands you must follow.
-2. Use docs/agent-intake-template.md to ask me for any missing required inputs.
+2. Use docs/agent-intake-template.md to ask me for missing inputs and docs/from-zero-vault-ui.md as the from-zero validation flow.
 3. Confirm which reference example is closest to my use case and why.
-4. Confirm actionAvailabilityStage as one of internal-market, dex-listed, both, or read-only.
-5. After inputs are complete, generate only the allowed four Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json.
-6. Keep all user-facing copy in i18n.json, include every locale declared in manifest.i18n, and do not add helper files, assets, external navigation, undeclared endpoints, direct wallet APIs, or private Flap code.
+4. Use the scaffold default surface / docs/ui-pattern-snippets.md as the visual default; use examples for behavior, not for visual styling.
+5. Confirm actionAvailabilityStage as one of internal-market, dex-listed, both, or read-only.
+6. After inputs are complete, generate only the allowed four Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json.
+7. Keep all user-facing copy in i18n.json, include every locale declared in manifest.i18n, and do not add helper files, assets, external navigation, undeclared endpoints, direct wallet APIs, or private Flap code.
+8. Do not call the package ready until yarn vault:check, yarn vault:package, and yarn vault:verify-package pass for the target folder.
 
 If anything is missing or unsafe, stop and ask questions instead of guessing. Answer in the language I use.`;
 }
@@ -127,11 +130,13 @@ ${promptTemplate(exampleFolder)}
 
 ## Example Selection Guide
 
-- \`action-gallery-example\`: start here when the user is unsure; it shows internal-market, DEX-listed, both-stage, and read-only action states.
+- \`action-gallery-example\`: start here when the user is unsure about behavior; it shows internal-market, DEX-listed, both-stage, and read-only action states.
 - \`example\`: use for reward/oracle flows with approve, simulate, write, claim, and refetch.
 - \`dex-listed-example\`: use when writes should be unavailable until \`marketPhase=dex-listed\`.
 - \`community-buyback-example\`: use for governance, reserve, or buyback-style vaults.
 - \`flapixel-example\`: use for NFT vault flows.
+
+Examples are behavior references, not the default visual style. Start visual structure from the scaffold default surface and the Default Scaffold Surface section in \`docs/ui-pattern-snippets.md\`.
 
 ## Files
 

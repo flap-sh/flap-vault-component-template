@@ -143,8 +143,8 @@ function componentSource(componentName) {
 
 import type { VaultComponentProps } from "@/src/sdk";
 import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
-import { Info, ShieldCheck, Wallet } from "lucide-react";
-import { AddressLink, Alert, Card, CardContent, CardHeader, CardTitle, DetailTile, Metric, StatusBadge } from "@/src/ui";
+import { Activity, ArrowRight, CheckCircle2, ClipboardCheck, ShieldCheck, Wallet } from "lucide-react";
+import { AddressLink, Alert, Button, Card, CardContent, CardHeader, CardTitle, DetailTile, Metric, StatusBadge } from "@/src/ui";
 import { vaultAbi } from "./VaultABI";
 
 export default function ${componentName}(_props: VaultComponentProps) {
@@ -175,13 +175,16 @@ export default function ${componentName}(_props: VaultComponentProps) {
   void vaultAbi;
 
   return (
-    <div className="w-full space-y-4">
-      <Card>
-        <CardHeader className="gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <CardTitle>{t("title")}</CardTitle>
-              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#a8b5c7]">{t("subtitle")}</p>
+    <div className="w-full space-y-3 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[length:34px_34px] sm:space-y-4">
+      <Card className="overflow-hidden rounded-[18px] border-white/10 bg-gradient-to-b from-[#0e141d] to-[#070b11] shadow-[0_20px_70px_-38px_rgba(76,141,255,0.65)]">
+        <CardHeader className="p-4 pb-3 sm:p-5 sm:pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#4c8dff] shadow-[0_0_12px_rgba(76,141,255,0.85)]" />
+                <CardTitle className="text-base sm:text-lg">{t("title")}</CardTitle>
+              </div>
+              <p className="max-w-2xl text-sm font-medium leading-6 text-[#7c8899]">{t("subtitle")}</p>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
@@ -189,31 +192,42 @@ export default function ${componentName}(_props: VaultComponentProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(16rem,0.95fr)]">
-            <div className="rounded-lg border border-[#344963] bg-[#101827] p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-[#d8e2ef]">
-                <Info className="h-4 w-4 text-[#a78bfa]" />
-                {t("sections.implementationPath")}
+        <CardContent className="space-y-3 p-4 pt-0 sm:space-y-4 sm:p-5 sm:pt-0">
+          <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
+            <div className="rounded-[14px] border border-white/10 bg-black/25 p-3 sm:rounded-[16px] sm:p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-[#eaf1f8]">{t("sections.mechanism")}</span>
+                <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs font-semibold text-[#7c8899]">
+                  {t("badges.defaultShell")}
+                </span>
               </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <div className="rounded-md border border-[#40536c] bg-[#172131] p-3 text-center">
-                  <div className="text-sm font-semibold text-white">{t("flow.context")}</div>
-                  <div className="mt-1 text-xs font-medium leading-5 text-[#8d9caf]">{t("flow.contextDetail")}</div>
+              <div className="mt-3 flex items-stretch gap-1.5 sm:mt-4 sm:gap-2">
+                <div className="min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.03] px-2 py-2 text-center sm:rounded-[11px] sm:py-3">
+                  <div className="truncate text-xs font-semibold text-[#eaf1f8] sm:text-sm">{t("flow.context")}</div>
+                  <div className="mt-0.5 truncate text-[10px] font-medium text-[#5a6678] sm:mt-1">{t("flow.contextDetail")}</div>
                 </div>
-                <div className="rounded-md border border-[#40536c] bg-[#172131] p-3 text-center">
-                  <div className="text-sm font-semibold text-white">{t("flow.reads")}</div>
-                  <div className="mt-1 text-xs font-medium leading-5 text-[#8d9caf]">{t("flow.readsDetail")}</div>
+                <div className="grid place-items-center font-mono text-sm font-semibold text-[#4c8dff]">
+                  <ArrowRight className="h-4 w-4" />
                 </div>
-                <div className="rounded-md border border-[#40536c] bg-[#172131] p-3 text-center">
-                  <div className="text-sm font-semibold text-white">{t("flow.actions")}</div>
-                  <div className="mt-1 text-xs font-medium leading-5 text-[#8d9caf]">{t("flow.actionsDetail")}</div>
+                <div className="min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.03] px-2 py-2 text-center sm:rounded-[11px] sm:py-3">
+                  <div className="truncate text-xs font-semibold text-[#eaf1f8] sm:text-sm">{t("flow.reads")}</div>
+                  <div className="mt-0.5 truncate text-[10px] font-medium text-[#5a6678] sm:mt-1">{t("flow.readsDetail")}</div>
+                </div>
+                <div className="grid place-items-center font-mono text-sm font-semibold text-[#4c8dff]">
+                  <ArrowRight className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.03] px-2 py-2 text-center sm:rounded-[11px] sm:py-3">
+                  <div className="truncate text-xs font-semibold text-[#eaf1f8] sm:text-sm">{t("flow.actions")}</div>
+                  <div className="mt-0.5 truncate text-[10px] font-medium text-[#5a6678] sm:mt-1">{t("flow.actionsDetail")}</div>
                 </div>
               </div>
-              <p className="mt-4 text-sm font-medium leading-6 text-[#9facbf]">{t("flow.description")}</p>
+              <p className="mt-3 text-xs font-semibold leading-5 text-[#7c8899] sm:mt-4 sm:text-sm sm:leading-6">{t("flow.description")}</p>
+              <div className="mt-3 rounded-[12px] border border-[#4c8dff]/30 bg-[#4c8dff]/10 px-3 py-2 text-sm font-medium leading-5 text-[#c8dcff] sm:mt-4">
+                {t("notices.defaultScope")}
+              </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
               <Metric label={t("labels.chain")} value={String(context.chainId)} hint={t("labels.runtimeChain")} tone="primary" />
               <Metric label={t("labels.marketPhase")} value={marketPhaseLabel} hint={host.renderSurface} />
               <Metric label={t("labels.riskStatus")} value={riskLabel} hint={t("labels.hostRisk")} tone={riskTone === "success" ? "success" : "warning"} />
@@ -222,21 +236,60 @@ export default function ${componentName}(_props: VaultComponentProps) {
 
           {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-2 overflow-hidden rounded-[14px] border border-white/10 sm:rounded-[16px] lg:grid-cols-4">
+            <div className="min-w-0 border-white/10 bg-[#0e141d] p-3 lg:border-r">
+              <div className="truncate text-xs font-medium text-[#7c8899]">{t("labels.vault")}</div>
+              <div className="mt-2 min-w-0 text-sm font-semibold leading-tight text-[#eaf1f8]">
+                <AddressLink address={context.vaultAddress} explorerBaseUrl={context.explorerBaseUrl} />
+              </div>
+            </div>
+            <div className="min-w-0 border-l border-white/10 bg-[#0e141d] p-3 lg:border-r">
+              <div className="truncate text-xs font-medium text-[#7c8899]">{t("labels.token")}</div>
+              <div className="mt-2 min-w-0 text-sm font-semibold leading-tight text-[#eaf1f8]">
+                <AddressLink address={context.tokenAddress} explorerBaseUrl={context.explorerBaseUrl} label={context.tokenSymbol} />
+              </div>
+            </div>
+            <div className="min-w-0 border-t border-white/10 bg-[#0e141d] p-3 sm:border-l lg:border-l-0 lg:border-t-0 lg:border-r">
+              <div className="truncate text-xs font-medium text-[#7c8899]">{t("labels.factory")}</div>
+              <div className="mt-2 min-w-0 break-words font-mono text-sm font-semibold leading-tight text-[#eaf1f8]">{context.factoryAddress || "-"}</div>
+            </div>
+            <div className="min-w-0 border-l border-t border-white/10 bg-[#0e141d] p-3 lg:border-t-0">
+              <div className="truncate text-xs font-medium text-[#7c8899]">{t("labels.user")}</div>
+              <div className="mt-2 min-w-0 break-words font-mono text-sm font-semibold leading-tight text-[#eaf1f8]">{context.userAddress ?? "-"}</div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
             <DetailTile
-              icon={<ShieldCheck className="h-4 w-4" />}
-              label={t("labels.vault")}
-              value={<AddressLink address={context.vaultAddress} explorerBaseUrl={context.explorerBaseUrl} />}
+              icon={<Activity className="h-4 w-4" />}
+              label={t("labels.primaryMetric")}
+              value={t("states.awaitingReads")}
+              detail={t("hints.primaryMetric")}
               tone="muted"
             />
             <DetailTile
               icon={<Wallet className="h-4 w-4" />}
-              label={t("labels.token")}
-              value={<AddressLink address={context.tokenAddress} explorerBaseUrl={context.explorerBaseUrl} label={context.tokenSymbol} />}
-              tone="muted"
+              label={t("labels.walletState")}
+              value={context.userAddress ? t("states.walletConnected") : t("states.walletRequired")}
+              detail={t("hints.walletState")}
+              tone={context.userAddress ? "success" : "warning"}
             />
-            <DetailTile label={t("labels.factory")} value={context.factoryAddress} tone="muted" />
-            <DetailTile label={t("labels.user")} value={context.userAddress ?? "-"} tone={context.userAddress ? "success" : "warning"} />
+          </div>
+
+          <div className="rounded-[14px] border border-white/10 bg-black/30 p-3 sm:rounded-[16px] sm:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#eaf1f8]">
+                  <ClipboardCheck className="h-4 w-4 text-[#4c8dff]" />
+                  {t("sections.primaryAction")}
+                </div>
+                <p className="mt-1 text-xs font-medium leading-5 text-[#7c8899]">{t("notices.actionPlaceholder")}</p>
+              </div>
+              <Button type="button" variant="secondary" disabled className="h-10 rounded-xl border-white/15 bg-white/[0.04]">
+                <CheckCircle2 className="h-4 w-4" />
+                {t("actions.wireAction")}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -258,8 +311,10 @@ function i18nSource(locales, name) {
   for (const locale of locales) {
     payload[locale] = {
       title: localeText(locale, `${name}`, `${name}`),
-      subtitle: localeText(locale, "基于 Flap runtime 数据生成的默认业务面板；继续补充最小 ABI 和真实读写流程。", "A default business panel generated from Flap runtime data. Continue by adding minimal ABI fragments and real read/write flows."),
-      "sections.implementationPath": localeText(locale, "实现路径", "Implementation path"),
+      subtitle: localeText(locale, "一个干净的默认 Vault 业务面板；补充最小 ABI、真实读取和主操作后即可作为第一版交付基础。", "A clean default Vault business panel. Add minimal ABI fragments, real reads, and the primary action to turn it into a first delivery build."),
+      "badges.defaultShell": localeText(locale, "默认结构", "Default shell"),
+      "sections.mechanism": localeText(locale, "Vault 机制", "Vault mechanism"),
+      "sections.primaryAction": localeText(locale, "主操作", "Primary action"),
       "flow.context": localeText(locale, "上下文", "Context"),
       "flow.contextDetail": localeText(locale, "链 / Token / Vault", "Chain / token / Vault"),
       "flow.reads": localeText(locale, "读取", "Reads"),
@@ -268,18 +323,26 @@ function i18nSource(locales, name) {
       "flow.actionsDetail": localeText(locale, "阶段门控", "Stage gated"),
       "flow.description": localeText(
         locale,
-        "这个默认组件先展示风险、阶段和运行时目标，再由开发者把具体 Vault 机制、指标和操作接入到同一结构中。",
-        "This default component shows risk, phase, and runtime targets first. Developers can then plug the real Vault mechanism, metrics, and actions into the same structure.",
+        "默认布局先把机制、合约风险、市场阶段和运行时目标放清楚，再把具体指标和主操作接入同一张业务卡片。",
+        "The default layout explains the mechanism, contract risk, market phase, and runtime targets first, then leaves room for concrete metrics and the primary action in the same business card.",
       ),
       "labels.chain": localeText(locale, "链", "Chain"),
       "labels.factory": localeText(locale, "Factory", "Factory"),
       "labels.vault": localeText(locale, "Vault", "Vault"),
       "labels.token": localeText(locale, "Token", "Token"),
       "labels.user": localeText(locale, "用户", "User"),
+      "labels.primaryMetric": localeText(locale, "核心指标", "Primary metric"),
+      "labels.walletState": localeText(locale, "钱包状态", "Wallet state"),
       "labels.riskStatus": localeText(locale, "合约风险状态", "Contract risk status"),
       "labels.marketPhase": localeText(locale, "市场阶段", "Market phase"),
       "labels.runtimeChain": localeText(locale, "运行时链", "Runtime chain"),
       "labels.hostRisk": localeText(locale, "Host 风险状态", "Host risk status"),
+      "actions.wireAction": localeText(locale, "接入真实操作", "Wire real action"),
+      "hints.primaryMetric": localeText(locale, "接入 Vault 读取后替换为真实数值。", "Replace this with real data after wiring Vault reads."),
+      "hints.walletState": localeText(locale, "写操作前请同时处理连接钱包、错误网络和阶段门控。", "Before writes, handle wallet connection, wrong network, and phase gating."),
+      "states.awaitingReads": localeText(locale, "等待接入", "Awaiting reads"),
+      "states.walletConnected": localeText(locale, "已连接", "Connected"),
+      "states.walletRequired": localeText(locale, "未连接", "Not connected"),
       "states.riskMissing": localeText(locale, "缺少风险状态", "Risk status missing"),
       "states.riskUnverified": localeText(locale, "未验证", "Unverified"),
       "states.riskLow": localeText(locale, "低风险", "Low risk"),
@@ -289,15 +352,25 @@ function i18nSource(locales, name) {
       "states.marketPhaseInternal": localeText(locale, "内盘阶段", "Internal market"),
       "states.marketPhaseDexListed": localeText(locale, "已 Listing", "DEX listed"),
       "states.marketPhaseUnknown": localeText(locale, "未知阶段", "Unknown phase"),
+      "notices.defaultScope": localeText(
+        locale,
+        "保留这张卡片的密度和层级：少量核心数字、明确状态、一个主操作区；不要重建上方 Token 头部。",
+        "Keep this card density and hierarchy: a few core numbers, clear status, and one primary action area; do not rebuild the host token header.",
+      ),
       "notices.riskMissing": localeText(
         locale,
         "必须接入当前合约风险状态后才能交付这个 Vault UI；请使用 host Vault/TaxInfo context 读取 riskLevel，并在界面中显著展示。",
         "This Vault UI must integrate the current contract risk status before delivery; read riskLevel from host Vault/TaxInfo context and display it prominently.",
       ),
+      "notices.actionPlaceholder": localeText(
+        locale,
+        "这里应替换为真实 approve / simulate / write / refetch 流程；阶段不匹配时保持可见并说明原因。",
+        "Replace this with the real approve / simulate / write / refetch flow; keep it visible with a reason when the phase does not match.",
+      ),
       "notices.nextStep": localeText(
         locale,
-        "下一步：补充最小 VaultABI，使用 sdk.readContract / sdk.simulateContract / sdk.writeContract 实现业务流程。",
-        "Next: add minimal VaultABI fragments and implement the workflow with sdk.readContract, sdk.simulateContract, and sdk.writeContract.",
+        "下一步：补充最小 VaultABI，接入真实读取和主操作，然后运行 vault:check、vault:package、vault:verify-package。",
+        "Next: add minimal VaultABI fragments, wire real reads and the primary action, then run vault:check, vault:package, and vault:verify-package.",
       ),
     };
   }
