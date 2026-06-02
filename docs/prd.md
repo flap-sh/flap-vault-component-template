@@ -230,11 +230,21 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Artifact identity | Done | `artifactId` is required, follows `vaultui_<folder-name>_<ULID>`, matches the Vault folder name, and is unique across Vault manifests. |
 | Minimal manifest | Done | Schema and check script allow only developer-facing fields. |
 | CA policy boundary | Done | `vault:check` blocks global `restrictTokenAddresses`, global `tokenAddresses`, and `caPolicy`, while allowing optional per-binding `match.bindings[].tokenAddresses` as a reference-only list. |
+| No-factory binding variants | Done | Schema, `vault:check`, preview resolution, and packaging allow no-factory `chainId + vaultAddress`, `chainId + tokenAddress`, and `chainId + vaultAddress + tokenAddress` targets; no-factory token lists may contain multiple token addresses. |
+| Runtime binding uniqueness | Done | `vault:check` blocks duplicate factory, Vault, token-only, and Vault+token runtime binding keys while allowing distinct token restrictions for the same no-factory Vault. |
 | External contract declaration boundary | Done | `vault:check` blocks fixed SDK contract targets outside runtime token/Vault/factory addresses, binding-scoped token/Vault references, or `match.bindings[].externalContracts`. |
 | Type-field binding ban | Done | Recursive manifest scan blocks `vaultType` / `vaultTypes` binding fields. |
 | Dynamic locale validation | Done | Checks follow `manifest.i18n`; single-locale manifests are valid. |
+| Risk status integration | Done | `vault:check` blocks Vault components that do not read host Vault/TaxInfo `riskLevel`, visibly render the risk state, and include an explicit missing-risk warning. |
 | Oracle review surface | Done | `sdk.readOracle(...)` usage is reported by `vault:check`; oracle config is not in manifest. |
 | Non-oracle endpoint declaration | Done | HTTPS endpoint declarations are review warnings; undeclared URLs are blocking. |
+| Direct fetch boundary | Done | `vault:check` blocks host-relative, dynamic, credentialed, HTTP, or undeclared direct `fetch(...)` targets; declared static HTTPS child paths remain reviewable. |
+| Browser API security boundary | Done | `vault:check` blocks browser storage, navigation, worker, cross-context messaging, permission, direct network/media APIs, computed browser-global access, and `document.write` / `document.writeln`. |
+| Navigation policy | Done | `vault:check` blocks arbitrary component-owned off-site navigation; explorer links should use the active chain explorer path instead of hardcoded external destinations. |
+| Import and dependency boundary | Done | `vault:check` blocks CommonJS `require(...)`, dynamic imports with expression specifiers, unreviewed packages, external SDK packages, and local imports outside `./VaultABI`. |
+| Contract call method coverage | Done | Contract-boundary checks cover SDK reads/writes plus event watches, log/filter calls, and gas estimates, and block routers, bridges, aggregators, unrelated labels, and undeclared fixed addresses. |
+| ABI policy | Done | `vault:check` warns when standard ERC20 methods are copied into `VaultABI.ts` and blocks human-readable ABI strings unless wrapped with `parseAbi([...])` from `viem`. |
+| Refetch interval guard | Done | `vault:check` warns when component query options use a `refetchInterval` below 5000 ms. |
 | Preview shell | Done | `/example` and `/{folder-name}` render via `VaultPreviewClient`. |
 | Shell-owned header boundary | Done | Preview shell owns token header, close control, `Vault Information` frame, width, invalid-token fallback, and manifest panel; packaged Vault source is limited to business UI below that frame. |
 | Second example Vault | Done | `src/vaults/dex-listed-example` is a strict four-file package that demonstrates `dex-listed` stage gating and approve -> write with a no-factory neutral Vault binding. |
@@ -246,9 +256,13 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Wrong-network wallet capability | Done | SDK exposes `sdk.wallet.isWrongNetwork`, `requiredChainId`, `requiredChainLabel`, `canSwitchChain`, `isSwitchingChain`, and `switchChain()` so write-capable Vault UIs can render a switch-network path before attempting writes. |
 | Token image preview capability | Done | Preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to ERC20 `symbol()` / `name()` from `tokenAddress`; `/logo.png` is reserved for the neutral preview fixture only. |
 | Source package output path | Done | `vault:package` prints relative and absolute zip paths. |
+| Binding key metadata | Done | `vault:package` writes binding keys for factory, no-factory Vault, no-factory Vault+token, and no-factory token-only targets so Workbench/manual mapping can inspect the intended runtime bindings. |
 | Script-generated package marker | Done | `vault:package` writes `flap-vault-package.json`, npm `gitHead` provenance, and file hashes for Workbench rejection of manual zips. |
 | Workbench-side package verifier | Done | `yarn vault:verify-package <zip>` checks marker, package kind/version, runtime npm provenance, exact file list, metadata, and hashes. |
+| Template freshness gate | Done | `yarn vault:check`, `yarn build`, `yarn runtime:package`, and `yarn vault:package` verify local version and git history against npm latest `@flapsdk/vault-runtime`, blocking stale or version-only edits. |
 | Runtime artifact boundary | Done | Docs state that the Flap Artifact Workbench builds runtime JS. |
+| Shared runtime package proof | Done | `yarn runtime:package` and `yarn runtime:verify-package` produce and validate the local shared runtime package and machine-readable runtime contract. |
+| Oracle proxy runtime defaults | Done | Template preview includes local oracle proxy/runtime defaults for common `sdk.readOracle(...)` paths, while Workbench/runtime review still owns production oracle provisioning. |
 | AI Agent entrypoint | Done | `docs/ai-agent.md` and `agent-contract.json` define the stable Agent workflow. |
 | Common Agent entrypoint adapters | Done | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.windsurfrules`, `.github/copilot-instructions.md`, `.cursor/rules/flap-vault-ui.mdc`, `.cursorrules`, and `docs/agent-entrypoints.md` route common agents to the same source-of-truth contract. |
 | Scaffold command | Done | `yarn vault:scaffold` creates the four-file package and registers the folder name. |
