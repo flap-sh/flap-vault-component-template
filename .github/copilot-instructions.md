@@ -25,7 +25,7 @@ This repository is a public template for controlled Flap Vault UI packages. Read
 - In preview, a supported `chainId + tokenAddress` triggers the public SDK chain-read path for token metadata and real Portal/helper/VaultPortal host state. Use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` only when you intentionally need to override action-stage behavior.
 - Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media. The template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only. Do not call private token metadata APIs from Vault source.
 - Declare fixed non-token/non-Vault/non-factory contract targets only under `match.bindings[].externalContracts` with `address` and `label`; undeclared fixed targets fail `vault:check`.
-- If a deployment needs a token CA list, declare it only as `match.bindings[].tokenAddresses`; in single-Vault mode this may contain at most one token CA. Do not add global CA policy fields.
+- If a deployment needs a token CA list, declare it only as `match.bindings[].tokenAddresses`; in no-factory mode this may be the token-scoped target and may contain multiple token CAs. Do not add global CA policy fields.
 - All user-facing copy must be in `i18n.json` for every locale declared by `manifest.i18n`.
 - Treat every Vault CLI failure as JSON. Read `code`, `fixHint`, and `agent.nextActions` before retrying.
 

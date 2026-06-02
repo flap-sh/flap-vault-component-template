@@ -13,7 +13,9 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
-No changes yet.
+### Changed
+
+- Relaxed no-factory manifest bindings so a package can target either one Vault address or one or more token addresses; package metadata now emits one binding key per no-factory token target.
 
 ## [0.1.4] - 2026-06-02
 

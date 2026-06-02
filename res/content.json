@@ -29,7 +29,7 @@
         "kicker": "AI Agent Quick Start",
         "description": "Paste this prompt into your AI coding agent, replace the placeholders, and it can generate a controlled custom Vault UI from this repository.",
         "promptLabel": "Prompt template",
-        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, binding mode is <factory | single Vault without factory>, factoryAddress is <0x... | none>, Vault address is <required when no factory: 0x... | n/a>, preview tokenAddress is <0x... | optional>, token CA restriction is <none | only 0x...>. If restricted, write those CAs to match.bindings[].tokenAddresses. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>, and my minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
+        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, binding mode is <factory | Vault without factory>, factoryAddress is <0x... | none>, Vault address is <0x... | none>, preview tokenAddress is <0x... | optional>, token CA restriction is <none | 0x..., 0x...>. If restricted, write those CAs to match.bindings[].tokenAddresses. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>, and my minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
       },
       "developerEntry": {
         "kicker": "Developer Entry",
@@ -124,7 +124,7 @@
         "inputs": [
           "folder name and binding targets: chain/factory for factory mode, or chain/Vault plus optional token for no-factory mode.",
           "Optional per-binding token CA lists belong only in match.bindings[].tokenAddresses; when present, preview/runtime uses them as part of binding matching.",
-          "Vault address is required when there is no factory. In factory mode, provide Vault addresses only as optional binding-scoped references.",
+          "Vault address is required for the core no-factory path. Token restrictions stay as optional binding-scoped tokenAddresses.",
           "Fixed external contract targets only when the UI must call a non-token/non-Vault/non-factory contract; provide externalContracts entries with address and label.",
           "Vault ABI is required. Standard ERC20 ABI is already provided by @/src/sdk; custom Token ABI is needed only for special token mechanics.",
           "Read/write methods, approve spender, UI workflow, real preview addresses, and i18n requirements; avoid oracle usage unless required, and let vault:check surface it for Flap review when unavoidable."
@@ -190,7 +190,7 @@
             "Routes render with safe preview defaults; pass real preview addresses through URL params such as chainId, tokenAddress, and vaultAddress when testing a specific Vault.",
             "Use public aliases for shared capabilities. The only local relative import allowed is ./VaultABI; do not use ./helpers, ../VaultABI, nested component imports, local asset imports, or dynamic imports.",
             "Reuse one UI across testnet, mainnet, or other factories when the logic is the same; the binding list only describes which deployments the shared UI is intended for.",
-            "In factory mode, Flap runtime can derive the Vault address; declare vaultAddresses only as binding-scoped references. In no-factory mode, exactly one Vault address is required.",
+            "In factory mode, Flap runtime can derive the Vault address. In the core no-factory path, use exactly one Vault address and optional binding-scoped tokenAddresses.",
             "If the UI calls a fixed extra contract target, declare it as match.bindings[].externalContracts before running check.",
             "Keep ABI fragments minimal.",
             "Keep Vault component copy in src/vaults/{folder-name}/i18n.json.",
@@ -234,7 +234,7 @@
         "You must use yarn vault:package {folder-name}; Workbench accepts only script-generated zips with flap-vault-package.json, runtimePackageGitHead, and matching hashes.",
         "The Vault package folder may contain only Component.tsx, manifest.json, VaultABI.ts, and i18n.json; no helpers, assets, nested folders, docs, sample data, symlinks, or extra files.",
         "Manifest fields are limited to artifactId, name, match, i18n, and optional endpoints. Binding-scoped tokenAddresses, vaultAddresses, and externalContracts live only under match.bindings[]. Do not add chainIds, id, owner, version, sdkVersion, actions, oracles, media, fallback, contracts, global tokenAddresses, restrictTokenAddresses, or caPolicy.",
-        "match.bindings must contain unique targets: either chainId + factoryAddress or chainId + exactly one vaultAddress. Optional tokenAddresses belong only inside each binding entry; no-factory bindings may contain at most one token. Duplicate addresses are rejected.",
+        "match.bindings must contain unique targets: chainId + factoryAddress, chainId + exactly one vaultAddress, or chainId + tokenAddress. Optional tokenAddresses belong only inside each binding entry; no-factory bindings may contain multiple tokens. Duplicate addresses are rejected.",
         "All visible Vault component copy must live in i18n.json, and every key used by Component.tsx must exist in every locale declared by manifest.i18n.",
         "Vault source may import only approved packages and shared surfaces: react, viem, decimal.js, lucide-react, @/src/sdk, @/src/ui, and ./VaultABI. CommonJS require(), dynamic import(), unapproved dependencies, and extra SDK packages are blocked.",
         "Do not use direct wallet APIs, eval, the Function constructor, iframe, script injection, dangerouslySetInnerHTML, or runtime remote imports.",

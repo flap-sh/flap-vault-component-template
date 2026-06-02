@@ -55,9 +55,9 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | --- | --- | --- |
 | `folder name` | Yes | Use 3-64 characters of lowercase kebab-case. Used in `src/vaults/{folder-name}` and preview route `/{folder-name}`. |
 | `name` | Yes | Human-readable manifest name shown in the Artifact Workbench. |
-| `bindings` | Yes | Explicit binding targets. Each entry needs `chainId` plus either non-zero `factoryAddress` for factory-scoped UI or exactly one non-zero `vaultAddresses` entry for single-Vault UI without a factory. |
-| `vaultAddresses` | Required without factory | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]`. In factory mode this list is optional. |
-| `tokenAddresses` | Optional | Use only inside each `match.bindings` entry. In no-factory mode it may contain at most one token CA and participates in matching when a token hint is available. |
+| `bindings` | Yes | Core generation uses `chainId` plus non-zero `factoryAddress` for factory-scoped UI, or exactly one non-zero `vaultAddresses` entry for no-factory UI. |
+| `vaultAddresses` | Required for core no-factory binding | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]` for the normal scaffold path. |
+| `tokenAddresses` | Optional | Use only inside each `match.bindings` entry. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Each locale string must be at least two characters. Check validates only declared locales. |
 | `VaultABI` | Yes | Minimal Vault ABI fragments used by the component. Do not include standard ERC20 here. |
@@ -261,7 +261,7 @@ Use URL params when real runtime addresses are needed:
 http://localhost:3000/{folder-name}?chainId=56&vaultAddress=0x...&tokenAddress=0x...
 ```
 
-Preview/runtime binding resolution is conservative. Prefer an exact `chainId + factoryAddress` match for factory-scoped UI, or `chainId + vaultAddress` plus optional `tokenAddress` for no-factory UI. A partial hint such as `chainId` alone is only used when it resolves to one unambiguous binding. The first manifest binding is only a local-preview default when the route provides no runtime hints at all. When the preview host can read live token/Vault factory or Vault data from chain, the active runtime target must match `manifest.match.bindings`; mismatched targets make the preview token unavailable and the Vault component does not render.
+Preview/runtime binding resolution is conservative. Prefer an exact `chainId + factoryAddress` match for factory-scoped UI, or `chainId + vaultAddress` plus optional `tokenAddress` for the core no-factory path. Manifest-provided no-factory token mappings can also match by `chainId + tokenAddress`. A partial hint such as `chainId` alone is only used when it resolves to one unambiguous binding. The first manifest binding is only a local-preview default when the route provides no runtime hints at all. When the preview host can read live token/Vault factory or Vault data from chain, the active runtime target must match `manifest.match.bindings`.
 
 For real action-gating QA, first use a supported `chainId + tokenAddress` so the preview host reads the live Portal status and host context for that token. Use the right-side "Token phase self-test" panel only when you intentionally want to override that host context for isolated UI checks. In that panel, `Real` restores the live host phase, while `Internal` and `Listing` are explicit local overrides. `unknown` can still appear in runtime readout when host data is unavailable, but it is not a primary phase tab.
 

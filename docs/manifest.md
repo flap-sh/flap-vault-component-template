@@ -29,22 +29,23 @@ vaultui_flap-nft-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N
 
 `artifactId` is not a runtime match rule. `match` stays in the manifest as the developer-facing deployment binding declaration so the same UI package can describe where it is intended to run.
 
-Do not bind custom UI by type fields. There are two supported registry match modes:
+Do not bind custom UI by type fields. There are three supported registry match modes:
 
 ```plain text
 chainId + factoryAddress
 chainId + vaultAddress (+ optional tokenAddress)
+chainId + tokenAddress
 ```
 
-For factory-scoped UI, `factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` is invalid. For UI without a factory, omit `factoryAddress` and provide exactly one real non-zero Vault address in `match.bindings[].vaultAddresses`.
+For factory-scoped UI, `factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` is invalid. For UI without a factory, omit `factoryAddress` and provide either exactly one real non-zero Vault address in `match.bindings[].vaultAddresses` or one or more real non-zero token addresses in `match.bindings[].tokenAddresses`.
 
-If a deployment needs a token CA list, declare it only inside the relevant binding entry as `tokenAddresses`. In factory mode this remains a binding-scoped list. In no-factory mode it is optional and may contain at most one token address; when present, preview/runtime uses it with the Vault address for matching.
+If a deployment needs a token CA list, declare it only inside the relevant binding entry as `tokenAddresses`. In factory mode this remains a binding-scoped list. In no-factory mode it can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
 
-Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the required single-Vault binding target.
+Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the Vault-scoped binding target and `tokenAddresses` can be the token-scoped binding target.
 
 If the UI must call a fixed contract address that is not the runtime token, runtime Vault, runtime factory, or binding-scoped token/Vault reference, declare it only inside the relevant binding as `externalContracts`. This is a review declaration, not a preview/runtime match rule.
 
-Preview/runtime resolution should respect those explicit bindings. Prefer an exact `chainId + factoryAddress` match for factory mode, or exact `chainId + vaultAddress` plus optional `tokenAddress` for no-factory mode. A partial hint such as `chainId` alone is only safe when it resolves to one unambiguous binding. Do not replace an explicit mismatched hint with an unrelated binding. In local preview, the first binding is only a default seed when the route provides no runtime hints at all. Do not repeat the same runtime target in multiple binding entries; merge any `vaultAddresses`, `tokenAddresses`, or `externalContracts` references into one entry.
+Preview/runtime resolution should respect those explicit bindings. Prefer an exact `chainId + factoryAddress` match for factory mode, exact `chainId + vaultAddress` plus optional `tokenAddress` for Vault-scoped no-factory mode, or exact `chainId + tokenAddress` for token-scoped no-factory mode. A partial hint such as `chainId` alone is only safe when it resolves to one unambiguous binding. Do not replace an explicit mismatched hint with an unrelated binding. In local preview, the first binding is only a default seed when the route provides no runtime hints at all. Do not repeat the same runtime target in multiple binding entries; merge any `vaultAddresses`, `tokenAddresses`, or `externalContracts` references into one entry.
 
 ## Required Fields
 
@@ -77,7 +78,7 @@ For a UI that supports both mainnet and testnet with different factory addresses
 }
 ```
 
-For a UI that has no factory and is bound to one Vault, use one Vault address and optionally one token address:
+For a UI that has no factory and is bound to one Vault, use one Vault address and optional token addresses:
 
 ```json
 {
@@ -88,7 +89,31 @@ For a UI that has no factory and is bound to one Vault, use one Vault address an
       {
         "chainId": 56,
         "vaultAddresses": ["0x3000000000000000000000000000000000000003"],
-        "tokenAddresses": ["0x2000000000000000000000000000000000000002"]
+        "tokenAddresses": [
+          "0x2000000000000000000000000000000000000002",
+          "0x2000000000000000000000000000000000000005"
+        ]
+      }
+    ]
+  },
+  "i18n": ["en", "zh"]
+}
+```
+
+For a UI that has no factory and is bound by token CA only, omit `vaultAddresses` and list the supported tokens:
+
+```json
+{
+  "artifactId": "vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N",
+  "name": "My Vault UI",
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "tokenAddresses": [
+          "0x2000000000000000000000000000000000000002",
+          "0x2000000000000000000000000000000000000005"
+        ]
       }
     ]
   },
@@ -100,7 +125,7 @@ For a UI that has no factory and is bound to one Vault, use one Vault address an
 | --- | --- | --- |
 | `artifactId` | Yes | Stable unique artifact identity. Must match `vaultui_<folder-name>_<ULID>` and the folder-name segment must match the Vault folder name. |
 | `name` | Yes | Human-readable UI name for Workbench review. |
-| `match.bindings` | Yes | Non-empty array of explicit runtime targets. Each entry must include `chainId` plus either non-zero `factoryAddress` or exactly one non-zero `vaultAddresses` entry. |
+| `match.bindings` | Yes | Non-empty array of explicit runtime targets. Each entry must include `chainId` plus non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry, or one or more non-zero `tokenAddresses`. |
 | `i18n` | Yes | Supported locale list. Each locale string must be at least two characters, and `vault:check` validates exactly these locales. |
 
 ## Optional Chain Entry Fields
@@ -109,8 +134,8 @@ These fields are declared inside each `match.bindings` entry, not at the `match`
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `vaultAddresses` | Required without factory | Required as exactly one non-zero Vault address when `factoryAddress` is omitted. Do not include it in the same binding as `factoryAddress`. |
-| `tokenAddresses` | No | Optional token CA list. In no-factory mode it may contain at most one token address and participates in matching when token data is available. |
+| `vaultAddresses` | Required for Vault-scoped no-factory binding | Optional for factory-scoped and token-scoped bindings. If provided without `factoryAddress`, it must contain exactly one non-zero Vault address. Do not include it in the same binding as `factoryAddress`. |
+| `tokenAddresses` | Required for token-scoped no-factory binding | Optional token CA list. In no-factory mode it may contain multiple token addresses and participates in matching when token data is available. |
 | `externalContracts` | No | Optional review list for fixed contract targets that are not the runtime token, Vault, factory, or binding-scoped token/Vault references. Each entry must contain only `address` and `label`. The template validates it but does not use it for preview/runtime matching. |
 
 Example:

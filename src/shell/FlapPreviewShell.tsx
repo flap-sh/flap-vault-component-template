@@ -515,7 +515,7 @@ function isManifestBindingMismatch(
   manifest: VaultManifest,
   input: { chainId: number; factoryAddress?: Address; vaultAddress?: Address; tokenAddress?: Address },
 ) {
-  if (!input.factoryAddress && !input.vaultAddress) return false;
+  if (!input.factoryAddress && !input.vaultAddress && !input.tokenAddress) return false;
   return !resolveManifestBinding(manifest, input);
 }
 

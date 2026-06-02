@@ -71,21 +71,21 @@ const FIX_HINTS = {
   "manifest-schema/artifact-id-folder-name-mismatch": "Make the artifactId folder-name segment match the src/vaults/<folder-name> folder name.",
   "manifest-schema/duplicate-artifact-id": "Generate a new artifactId; each Vault package in the repo must have a unique artifactId.",
   "manifest-schema/invalid-name": "Set manifest.name to a human-readable string with at least two characters.",
-  "manifest-schema/invalid-match": "Set manifest.match to an object with bindings (array of factory-scoped or single-Vault binding entries).",
+  "manifest-schema/invalid-match": "Set manifest.match to an object with bindings (array of factory-scoped, single-Vault, or token-scoped binding entries).",
   "manifest-schema/disallowed-match-field": "Keep match limited to bindings. If a reference token CA list is needed, declare it only as match.bindings[].tokenAddresses.",
-  "manifest-binding/missing-bindings": "Add match.bindings as a non-empty array. Each entry needs chainId plus either factoryAddress or exactly one vaultAddresses entry.",
-  "manifest-binding/missing-binding-target": "Add either a non-zero factoryAddress or exactly one vaultAddresses entry to this binding.",
+  "manifest-binding/missing-bindings": "Add match.bindings as a non-empty array. Each entry needs chainId plus a non-zero factoryAddress, exactly one vaultAddresses entry, or one or more tokenAddresses.",
+  "manifest-binding/missing-binding-target": "Add a non-zero factoryAddress, exactly one vaultAddresses entry, or one or more tokenAddresses to this binding.",
   "manifest-binding/duplicate-binding": "Remove duplicate match.bindings entries with the same runtime target. Merge any binding-scoped reference lists into one entry.",
-  "manifest-binding/invalid-binding-entry": "Each match.bindings entry must be an object with chainId plus either factoryAddress or exactly one vaultAddresses entry.",
+  "manifest-binding/invalid-binding-entry": "Each match.bindings entry must be an object with chainId plus factoryAddress, vaultAddresses, or tokenAddresses.",
   "manifest-binding/disallowed-binding-field": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, and optional externalContracts.",
   "manifest-binding/invalid-chain-id": "chainId must be a positive integer, for example 56 for BNB Chain or 97 for BNB Testnet.",
   "manifest-binding/invalid-address": "Use a full 20-byte EVM address matching 0x plus 40 hex characters.",
-  "manifest-binding/zero-factory-address": "Omit factoryAddress for single-Vault mode, or use the real deployed non-zero factory contract address for factory mode.",
-  "manifest-binding/mixed-binding-target": "Use either factoryAddress for a factory-scoped UI or vaultAddresses for a single-Vault UI, not both in the same binding.",
+  "manifest-binding/zero-factory-address": "Omit factoryAddress for no-factory mode, or use the real deployed non-zero factory contract address for factory mode.",
+  "manifest-binding/mixed-binding-target": "Use factoryAddress for a factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only when a reference token CA list is needed.",
-  "manifest-binding/invalid-vault-address-list": "Use a non-empty array of valid non-zero EVM addresses. No-factory bindings must contain exactly one Vault address.",
-  "manifest-binding/invalid-token-address-list": "Use a non-empty array of valid non-zero EVM addresses, or omit it when no token CA list is needed. No-factory bindings may contain at most one token address.",
+  "manifest-binding/invalid-vault-address-list": "Use a non-empty array of valid non-zero EVM addresses. No-factory Vault bindings may contain exactly one Vault address.",
+  "manifest-binding/invalid-token-address-list": "Use a non-empty array of valid non-zero EVM addresses, or omit it when no token CA list is needed.",
   "manifest-binding/invalid-external-contract-list": "Use a non-empty externalContracts array only when this binding needs fixed non-token/non-Vault/non-factory contract targets.",
   "manifest-binding/invalid-external-contract-entry": "Each externalContracts entry must be an object with address and label only.",
   "manifest-binding/no-type-based-binding": "Remove vaultType/vaultTypes from manifest matching. Binding intent must use chain and factory targets.",
@@ -937,15 +937,26 @@ function isNonZeroAddress(value) {
   return ADDRESS_RE.test(value || "") && !isZeroAddress(value);
 }
 
-function bindingIdentityKey(bindingEntry) {
+function bindingIdentityKeys(bindingEntry) {
   if (!Number.isInteger(bindingEntry?.chainId) || bindingEntry.chainId <= 0) return null;
   if (isNonZeroAddress(bindingEntry.factoryAddress)) {
-    return `factory:${bindingEntry.chainId}:${bindingEntry.factoryAddress.toLowerCase()}`;
+    return [`factory:${bindingEntry.chainId}:${bindingEntry.factoryAddress.toLowerCase()}`];
   }
   if (!bindingEntry.factoryAddress && Array.isArray(bindingEntry.vaultAddresses) && bindingEntry.vaultAddresses.length === 1 && isNonZeroAddress(bindingEntry.vaultAddresses[0])) {
-    return `vault:${bindingEntry.chainId}:${bindingEntry.vaultAddresses[0].toLowerCase()}`;
+    const vaultKey = `vault:${bindingEntry.chainId}:${bindingEntry.vaultAddresses[0].toLowerCase()}`;
+    if (Array.isArray(bindingEntry.tokenAddresses) && bindingEntry.tokenAddresses.length > 0) {
+      return bindingEntry.tokenAddresses
+        .filter((address) => isNonZeroAddress(address))
+        .map((address) => `${vaultKey}:${address.toLowerCase()}`);
+    }
+    return [vaultKey];
   }
-  return null;
+  if (!bindingEntry.factoryAddress && Array.isArray(bindingEntry.tokenAddresses) && bindingEntry.tokenAddresses.length > 0) {
+    return bindingEntry.tokenAddresses
+      .filter((address) => isNonZeroAddress(address))
+      .map((address) => `token:${bindingEntry.chainId}:${address.toLowerCase()}`);
+  }
+  return [];
 }
 
 function collectManifestContractPolicy(manifest) {
@@ -1084,7 +1095,7 @@ function checkManifest(manifest, folderName) {
         issue(
           BLOCKING,
           "manifest-binding/missing-bindings",
-          "manifest.match.bindings must be a non-empty array. Each entry needs chainId plus either factoryAddress or exactly one vaultAddresses entry.",
+          "manifest.match.bindings must be a non-empty array. Each entry needs chainId plus factoryAddress, exactly one vaultAddresses entry, or tokenAddresses.",
           { field: "match.bindings" },
         ),
       );
@@ -1093,7 +1104,7 @@ function checkManifest(manifest, folderName) {
       for (const [index, bindingEntry] of manifest.match.bindings.entries()) {
         const field = `match.bindings[${index}]`;
         if (!bindingEntry || typeof bindingEntry !== "object" || Array.isArray(bindingEntry)) {
-          issues.push(issue(BLOCKING, "manifest-binding/invalid-binding-entry", `${field} must be an object with chainId plus either factoryAddress or exactly one vaultAddresses entry.`, { field }));
+          issues.push(issue(BLOCKING, "manifest-binding/invalid-binding-entry", `${field} must be an object with chainId plus factoryAddress, vaultAddresses, or tokenAddresses.`, { field }));
           continue;
         }
         for (const key of Object.keys(bindingEntry)) {
@@ -1113,7 +1124,7 @@ function checkManifest(manifest, folderName) {
             issue(
               BLOCKING,
               "manifest-binding/zero-factory-address",
-              `${field}.factoryAddress must be omitted for single-Vault mode or set to a real non-zero factory contract address for factory mode.`,
+              `${field}.factoryAddress must be omitted for no-factory mode or set to a real non-zero factory contract address for factory mode.`,
               { field: `${field}.factoryAddress` },
             ),
           );
@@ -1123,7 +1134,7 @@ function checkManifest(manifest, folderName) {
             issue(
               BLOCKING,
               "manifest-binding/mixed-binding-target",
-              `${field} mixes factoryAddress with vaultAddresses. Use factoryAddress for shared factory-scoped UI, or omit factoryAddress and bind exactly one Vault address for single-Vault UI.`,
+              `${field} mixes factoryAddress with vaultAddresses. Use factoryAddress for shared factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI.`,
               { field },
             ),
           );
@@ -1142,8 +1153,8 @@ function checkManifest(manifest, folderName) {
             }
             issues.push(...checkAddressListDuplicates(bindingEntry.vaultAddresses, `${field}.vaultAddresses`));
           }
-        } else if (!hasFactoryField) {
-          issues.push(issue(BLOCKING, "manifest-binding/missing-binding-target", `${field} must include either factoryAddress or exactly one vaultAddresses entry.`, { field }));
+        } else if (!hasFactoryField && bindingEntry.tokenAddresses === undefined) {
+          issues.push(issue(BLOCKING, "manifest-binding/missing-binding-target", `${field} must include factoryAddress, exactly one vaultAddresses entry, or tokenAddresses.`, { field }));
         }
         if (bindingEntry.tokenAddresses !== undefined) {
           if (!Array.isArray(bindingEntry.tokenAddresses) || bindingEntry.tokenAddresses.length === 0) {
@@ -1154,14 +1165,11 @@ function checkManifest(manifest, folderName) {
                 issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.tokenAddresses contains invalid or zero address: ${addr}.`, { field: `${field}.tokenAddresses` }));
               }
             }
-            if (!hasFactoryField && bindingEntry.tokenAddresses.length > 1) {
-              issues.push(issue(BLOCKING, "manifest-binding/invalid-token-address-list", `${field}.tokenAddresses may contain at most one token address when factoryAddress is omitted.`, { field: `${field}.tokenAddresses` }));
-            }
             issues.push(...checkAddressListDuplicates(bindingEntry.tokenAddresses, `${field}.tokenAddresses`));
           }
         }
-        const bindingKey = bindingIdentityKey(bindingEntry);
-        if (bindingKey) {
+        const bindingKeys = bindingIdentityKeys(bindingEntry);
+        for (const bindingKey of bindingKeys || []) {
           const firstField = seenBindingKeys.get(bindingKey);
           if (firstField) {
             issues.push(issue(BLOCKING, "manifest-binding/duplicate-binding", `${field} duplicates ${firstField}. Each runtime binding target must appear only once.`, { field }));

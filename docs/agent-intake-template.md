@@ -37,14 +37,14 @@ Ask these in order. Each answer gates the next.
 
 - Example: `56` (BNB Chain mainnet only), `56` and `97` (mainnet + testnet)
 - Must be integers.
-- Each entry will be paired with either one factory address or one Vault address depending on the binding mode. The same chain can appear more than once when multiple targets share the same UI logic.
+- Each entry will be paired with a factory address or one Vault address depending on the core binding mode. The same chain can appear more than once when multiple targets share the same UI logic.
 
 ### Q4: Binding mode and target addresses
 
-> Is each binding factory-scoped, or is it a single Vault without a factory?
+> Is each binding factory-scoped or Vault-scoped without a factory?
 
 - For factory mode, provide one real non-zero factory address per chain.
-- For no-factory mode, omit `factoryAddress` and provide exactly one real non-zero Vault address per chain.
+- For no-factory Vault-scoped mode, omit `factoryAddress` and provide exactly one real non-zero Vault address per chain.
 - Example factory binding: chain 56 -> factory `0xAbcMainnet...`.
 - Example no-factory binding: chain 56 -> Vault `0xVault...`, optional token `0xToken...`.
 - Do not invent fake factory addresses. A zero factory address is invalid; use no-factory mode instead.
@@ -54,7 +54,7 @@ Ask these in order. Each answer gates the next.
 > Does any factory-scoped binding also need Vault references?
 
 - Factory mode: usually omit; provide binding-scoped Vault references only for review/deployment context.
-- No-factory mode: required exactly once and already collected in Q4.
+- No-factory Vault-scoped mode: required exactly once and already collected in Q4. Token-scoped mode may omit it.
 - Store all Vault addresses under `match.bindings[].vaultAddresses`, never as a top-level field.
 
 ### Q6: Token address list (optional)
@@ -62,7 +62,7 @@ Ask these in order. Each answer gates the next.
 > Does any binding need a reference token CA allowlist for this UI?
 
 - Usually: omit for factory-scoped shared UI unless the binding is intentionally token-specific.
-- In no-factory mode, this is optional but may contain at most one token address.
+- In no-factory mode, this may contain multiple token addresses when Flap review/runtime supplies that mapping; the core scaffold path still starts from a Vault address.
 - Store token addresses under `match.bindings[].tokenAddresses`, never as a top-level field.
 
 ---

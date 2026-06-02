@@ -18,11 +18,11 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - local relative import other than `./VaultABI`
 - dynamic import
 - forbidden files like `.env`, `.git`, `.vercel`, `node_modules`
-- invalid manifest binding: `match.bindings` must be a non-empty array of factory-scoped or single-Vault targets
+- invalid manifest binding: `match.bindings` must be a non-empty array of factory-scoped, Vault-scoped, or token-scoped targets
 - duplicate `match.bindings` entries with the same runtime target
 - legacy `chainIds` top-level field present (removed; chain IDs must live inside `match.bindings` entries)
 - disallowed fields at `match` level (only `bindings` is allowed)
-- invalid binding entry: missing or invalid `chainId`, missing target, zero factory, or no-factory binding without exactly one Vault address
+- invalid binding entry: missing or invalid `chainId`, missing target, zero factory, no-factory Vault binding without exactly one Vault address, or invalid token target list
 - global or match-level CA policy fields such as `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy`; binding-level `match.bindings[].tokenAddresses` is allowed as a reference list
 - malformed `match.bindings[].externalContracts`; each entry must include only `address` and `label`
 - any type-field UI binding

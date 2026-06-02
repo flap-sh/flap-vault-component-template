@@ -98,6 +98,26 @@ const sourceFileHashes = Object.fromEntries(
 const schemaPath = "schemas/manifest.schema.json";
 const schemaSha256 = hashFile(path.join(ROOT, schemaPath));
 const checkSummary = summarizeCheck(result.issues);
+
+function bindingKeysForEntry(binding) {
+  if (binding.factoryAddress) {
+    const factory = binding.factoryAddress.toLowerCase();
+    return [`${binding.chainId}:${factory}`];
+  }
+  const vaultAddress = binding.vaultAddresses?.[0];
+  if (vaultAddress) {
+    const vaultKey = `${binding.chainId}:vault:${vaultAddress.toLowerCase()}`;
+    if (Array.isArray(binding.tokenAddresses) && binding.tokenAddresses.length) {
+      return binding.tokenAddresses.map((tokenAddress) => `${vaultKey}:${tokenAddress.toLowerCase()}`);
+    }
+    return [vaultKey];
+  }
+  if (Array.isArray(binding.tokenAddresses) && binding.tokenAddresses.length) {
+    return binding.tokenAddresses.map((tokenAddress) => `${binding.chainId}:token:${tokenAddress.toLowerCase()}`);
+  }
+  return [];
+}
+
 const packageMarker = {
   kind: PACKAGE_KIND,
   formatVersion: PACKAGE_FORMAT_VERSION,
@@ -139,15 +159,7 @@ const metadata = {
   artifactId: manifest.artifactId,
   folderName,
   name: manifest.name,
-  bindingKeys: (manifest.match?.bindings || []).flatMap((binding) => {
-    if (binding.factoryAddress) return [`${binding.chainId}:${binding.factoryAddress.toLowerCase()}`];
-    const vaultAddress = binding.vaultAddresses?.[0];
-    if (!vaultAddress) return [];
-    if (Array.isArray(binding.tokenAddresses) && binding.tokenAddresses[0]) {
-      return [`${binding.chainId}:vault:${vaultAddress.toLowerCase()}:${binding.tokenAddresses[0].toLowerCase()}`];
-    }
-    return [`${binding.chainId}:vault:${vaultAddress.toLowerCase()}`];
-  }),
+  bindingKeys: (manifest.match?.bindings || []).flatMap(bindingKeysForEntry),
   packagedAt,
   manifestSha256: hashFile(path.join(vaultDir, "manifest.json")),
   sourcePackage: `src/vaults/${folderName}`,

@@ -164,7 +164,7 @@ Versioning rules for `agent-contract.json`, `schemas/manifest.schema.json`, and 
 
 The Vault folder name is the source folder and local preview route. `artifactId` is the stable unique source-package artifact identity and follows `vaultui_<folder-name>_<ULID>`. The Flap Artifact Workbench should use that `artifactId` to track the artifact family, while runtime build versions and storage paths remain Workbench-owned.
 
-One runtime artifact can serve testnet, mainnet, future factories, or fixed single-Vault deployments when the UI logic is the same. Deployment bindings map either `chainId + factoryAddress` or no-factory `chainId + vaultAddress` targets to the shared artifact id. If a no-factory source package needs token scoping, it should carry at most one token CA in `match.bindings[].tokenAddresses`. If it needs a fixed extra contract target, it should do so only as `match.bindings[].externalContracts`.
+One runtime artifact can serve testnet, mainnet, future factories, fixed single-Vault deployments, or token-scoped deployments when the UI logic is the same. Deployment bindings map `chainId + factoryAddress`, no-factory `chainId + vaultAddress`, or no-factory `chainId + tokenAddress` targets to the shared artifact id. No-factory token scoping may carry multiple token CAs in `match.bindings[].tokenAddresses`. If it needs a fixed extra contract target, it should do so only as `match.bindings[].externalContracts`.
 
 ## Import Contract
 

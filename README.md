@@ -210,13 +210,13 @@ For a new Vault UI, prefer the scaffold command:
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
 ```
 
-For a UI without a factory, bind it to one Vault address and optionally one token address:
+For a UI without a factory, scaffold from one Vault address and optionally one token address:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
 ```
 
-This creates the strict four-file Vault package, generates a stable `artifactId`, and registers the folder name in `src/vaults/index.ts`. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
+This creates the strict four-file Vault package, generates a stable `artifactId`, and registers the folder name in `src/vaults/index.ts`. If Flap review supplies extra no-factory token restrictions, keep them as `tokenAddresses` inside `match.bindings[]`; Flap review/runtime owns the final publish routing. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
 
 If the four Vault files already exist because they were generated from a manifest first, register only the local preview mapping:
 
@@ -357,7 +357,7 @@ Use `yarn vault:verify-package <zip>` to exercise the same package acceptance sh
 
 The Flap Artifact Workbench uses `artifactId` as the stable source-package artifact identity. The folder name remains the local source folder and preview route. Runtime build versions and storage paths are Workbench concerns; developers still do not declare runtime version in `manifest.json`.
 
-One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, or one or more no-factory `chainId + vaultAddress` entries. In no-factory mode, the binding must include exactly one Vault address and may include at most one token address. If a factory-scoped deployment needs a reference token CA list, declare it only as `match.bindings[].tokenAddresses`.
+One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Declare token CA lists only as `match.bindings[].tokenAddresses`.
 
 Vault source should import shared runtime surfaces through public aliases:
 

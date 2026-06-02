@@ -103,9 +103,9 @@ Vault matching intent is captured by explicit chain/factory pairs:
 }
 ```
 
-`match.bindings` is a non-empty array where each entry declares one explicit runtime target: `(chainId, factoryAddress)` for factory-scoped UI or `(chainId, vaultAddress)` for single-Vault UI without a factory. The same UI logic can target multiple chains, factories, or fixed Vaults by adding multiple entries.
+`match.bindings` is a non-empty array where each entry declares one explicit runtime target: `(chainId, factoryAddress)` for factory-scoped UI, `(chainId, vaultAddress)` for Vault-scoped UI without a factory, or `(chainId, tokenAddress)` for token-scoped UI without a factory. The same UI logic can target multiple chains, factories, fixed Vaults, or token CAs by adding entries or token lists.
 
-In factory mode, the Vault address can be runtime-derived. In no-factory mode, `match.bindings[].vaultAddresses` is required and must contain exactly one non-zero Vault address; optional `tokenAddresses` may contain at most one token address. If a deployment needs a fixed non-token/non-Vault/non-factory contract target, it is declared only as `match.bindings[].externalContracts` with `address` and `label`. This `match` block is not the local route and does not auto-publish anything; it is a developer-facing binding declaration for deployment targets.
+In factory mode, the Vault address can be runtime-derived. In no-factory mode, `match.bindings[].vaultAddresses` is optional unless the binding is Vault-scoped; if provided without factoryAddress it must contain exactly one non-zero Vault address. `tokenAddresses` may be used as the no-factory token-scoped target and may contain multiple token addresses. If a deployment needs a fixed non-token/non-Vault/non-factory contract target, it is declared only as `match.bindings[].externalContracts` with `address` and `label`. This `match` block is not the local route and does not auto-publish anything; it is a developer-facing binding declaration for deployment targets.
 
 ### i18n Policy
 
