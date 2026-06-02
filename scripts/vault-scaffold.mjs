@@ -143,13 +143,21 @@ function componentSource(componentName) {
 
 import type { VaultComponentProps } from "@/src/sdk";
 import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
-import { Alert, Card, CardContent, CardHeader, CardTitle, DataRow, StatusBadge } from "@/src/ui";
+import { Info, ShieldCheck, Wallet } from "lucide-react";
+import { AddressLink, Alert, Card, CardContent, CardHeader, CardTitle, DetailTile, Metric, StatusBadge } from "@/src/ui";
 import { vaultAbi } from "./VaultABI";
 
 export default function ${componentName}(_props: VaultComponentProps) {
   const { context, i18n } = useFlapSdk();
   const t = i18n.t;
   const host = readTaxVaultHostContext(context.host);
+  const marketPhase = host.marketPhase;
+  const marketPhaseLabel =
+    marketPhase === "internal-market"
+      ? t("states.marketPhaseInternal")
+      : marketPhase === "dex-listed"
+        ? t("states.marketPhaseDexListed")
+        : t("states.marketPhaseUnknown");
   const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
   const riskLabel =
     riskLevel === 1
@@ -169,24 +177,70 @@ export default function ${componentName}(_props: VaultComponentProps) {
   return (
     <div className="w-full space-y-4">
       <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <CardTitle>{t("title")}</CardTitle>
-            <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+        <CardHeader className="gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <CardTitle>{t("title")}</CardTitle>
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#a8b5c7]">{t("subtitle")}</p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+              <StatusBadge tone="neutral">{marketPhaseLabel}</StatusBadge>
+            </div>
           </div>
-          <p className="text-sm leading-6 text-white/56">{t("subtitle")}</p>
         </CardHeader>
-        <CardContent>
-          <DataRow label={t("labels.chain")} value={String(context.chainId)} />
-          <DataRow label={t("labels.factory")} value={context.factoryAddress} />
-          <DataRow label={t("labels.vault")} value={context.vaultAddress} />
-          <DataRow label={t("labels.token")} value={context.tokenAddress} />
-          <DataRow label={t("labels.user")} value={context.userAddress ?? "-"} />
-          <DataRow label={t("labels.riskStatus")} value={riskLabel} />
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(16rem,0.95fr)]">
+            <div className="rounded-lg border border-[#344963] bg-[#101827] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-[#d8e2ef]">
+                <Info className="h-4 w-4 text-[#a78bfa]" />
+                {t("sections.implementationPath")}
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-md border border-[#40536c] bg-[#172131] p-3 text-center">
+                  <div className="text-sm font-semibold text-white">{t("flow.context")}</div>
+                  <div className="mt-1 text-xs font-medium leading-5 text-[#8d9caf]">{t("flow.contextDetail")}</div>
+                </div>
+                <div className="rounded-md border border-[#40536c] bg-[#172131] p-3 text-center">
+                  <div className="text-sm font-semibold text-white">{t("flow.reads")}</div>
+                  <div className="mt-1 text-xs font-medium leading-5 text-[#8d9caf]">{t("flow.readsDetail")}</div>
+                </div>
+                <div className="rounded-md border border-[#40536c] bg-[#172131] p-3 text-center">
+                  <div className="text-sm font-semibold text-white">{t("flow.actions")}</div>
+                  <div className="mt-1 text-xs font-medium leading-5 text-[#8d9caf]">{t("flow.actionsDetail")}</div>
+                </div>
+              </div>
+              <p className="mt-4 text-sm font-medium leading-6 text-[#9facbf]">{t("flow.description")}</p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <Metric label={t("labels.chain")} value={String(context.chainId)} hint={t("labels.runtimeChain")} tone="primary" />
+              <Metric label={t("labels.marketPhase")} value={marketPhaseLabel} hint={host.renderSurface} />
+              <Metric label={t("labels.riskStatus")} value={riskLabel} hint={t("labels.hostRisk")} tone={riskTone === "success" ? "success" : "warning"} />
+            </div>
+          </div>
+
+          {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailTile
+              icon={<ShieldCheck className="h-4 w-4" />}
+              label={t("labels.vault")}
+              value={<AddressLink address={context.vaultAddress} explorerBaseUrl={context.explorerBaseUrl} />}
+              tone="muted"
+            />
+            <DetailTile
+              icon={<Wallet className="h-4 w-4" />}
+              label={t("labels.token")}
+              value={<AddressLink address={context.tokenAddress} explorerBaseUrl={context.explorerBaseUrl} label={context.tokenSymbol} />}
+              tone="muted"
+            />
+            <DetailTile label={t("labels.factory")} value={context.factoryAddress} tone="muted" />
+            <DetailTile label={t("labels.user")} value={context.userAddress ?? "-"} tone={context.userAddress ? "success" : "warning"} />
+          </div>
         </CardContent>
       </Card>
 
-      {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
       <Alert>{t("notices.nextStep")}</Alert>
     </div>
   );
@@ -204,19 +258,37 @@ function i18nSource(locales, name) {
   for (const locale of locales) {
     payload[locale] = {
       title: localeText(locale, `${name}`, `${name}`),
-      subtitle: localeText(locale, "使用 Flap runtime 数据开始实现这个 Vault UI。", "Start this Vault UI with Flap runtime data."),
+      subtitle: localeText(locale, "基于 Flap runtime 数据生成的默认业务面板；继续补充最小 ABI 和真实读写流程。", "A default business panel generated from Flap runtime data. Continue by adding minimal ABI fragments and real read/write flows."),
+      "sections.implementationPath": localeText(locale, "实现路径", "Implementation path"),
+      "flow.context": localeText(locale, "上下文", "Context"),
+      "flow.contextDetail": localeText(locale, "链 / Token / Vault", "Chain / token / Vault"),
+      "flow.reads": localeText(locale, "读取", "Reads"),
+      "flow.readsDetail": localeText(locale, "Vault 状态", "Vault state"),
+      "flow.actions": localeText(locale, "操作", "Actions"),
+      "flow.actionsDetail": localeText(locale, "阶段门控", "Stage gated"),
+      "flow.description": localeText(
+        locale,
+        "这个默认组件先展示风险、阶段和运行时目标，再由开发者把具体 Vault 机制、指标和操作接入到同一结构中。",
+        "This default component shows risk, phase, and runtime targets first. Developers can then plug the real Vault mechanism, metrics, and actions into the same structure.",
+      ),
       "labels.chain": localeText(locale, "链", "Chain"),
       "labels.factory": localeText(locale, "Factory", "Factory"),
       "labels.vault": localeText(locale, "Vault", "Vault"),
       "labels.token": localeText(locale, "Token", "Token"),
       "labels.user": localeText(locale, "用户", "User"),
       "labels.riskStatus": localeText(locale, "合约风险状态", "Contract risk status"),
+      "labels.marketPhase": localeText(locale, "市场阶段", "Market phase"),
+      "labels.runtimeChain": localeText(locale, "运行时链", "Runtime chain"),
+      "labels.hostRisk": localeText(locale, "Host 风险状态", "Host risk status"),
       "states.riskMissing": localeText(locale, "缺少风险状态", "Risk status missing"),
       "states.riskUnverified": localeText(locale, "未验证", "Unverified"),
       "states.riskLow": localeText(locale, "低风险", "Low risk"),
       "states.riskLowMedium": localeText(locale, "中低风险", "Low-medium risk"),
       "states.riskMedium": localeText(locale, "中风险", "Medium risk"),
       "states.riskHigh": localeText(locale, "高风险", "High risk"),
+      "states.marketPhaseInternal": localeText(locale, "内盘阶段", "Internal market"),
+      "states.marketPhaseDexListed": localeText(locale, "已 Listing", "DEX listed"),
+      "states.marketPhaseUnknown": localeText(locale, "未知阶段", "Unknown phase"),
       "notices.riskMissing": localeText(
         locale,
         "必须接入当前合约风险状态后才能交付这个 Vault UI；请使用 host Vault/TaxInfo context 读取 riskLevel，并在界面中显著展示。",
