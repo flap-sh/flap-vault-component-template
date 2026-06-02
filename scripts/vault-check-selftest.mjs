@@ -819,6 +819,33 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("risk status check is not satisfied by loose keyword mentions", runVaultCheck(riskStatusSpoofSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
 
+  const riskStatusMissingWarningSlug = `${FIXTURE_PREFIX}-risk-status-no-warning`;
+  writeVault(riskStatusMissingWarningSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = String(riskLevel ?? "unknown");
+  return (
+    <div>
+      <StatusBadge>{riskLabel}</StatusBadge>
+      <Alert>{riskLabel}</Alert>
+    </div>
+  );
+}
+`,
+  });
+  assertRule("risk status integration must include an explicit missing-risk warning", runVaultCheck(riskStatusMissingWarningSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
+
   const riskStatusLooseSlug = `${FIXTURE_PREFIX}-risk-status-loose`;
   writeVault(riskStatusLooseSlug, {
     component: `"use client";

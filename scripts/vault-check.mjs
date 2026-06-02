@@ -272,7 +272,11 @@ function hasRiskStatusIntegration(content) {
     /\briskLevel\b\s*=\s*[\s\S]{0,260}(?:vaultInfo\?\.\s*riskLevel|taxInfo\?\.\s*vaultInfo\?\.\s*riskLevel)/.test(content);
   const displaysRiskStatus =
     /<(?:StatusBadge|DetailTile|Metric|DataRow)\b[\s\S]{0,320}\b(?:riskLabel|riskLevel|riskTone)\b/.test(content);
-  const displaysMissingRiskWarning = /<Alert\b/.test(content) && /\briskLevel\b/.test(content);
+  const displaysMissingRiskWarning =
+    /\briskLevel\b\s*(?:===|==)\s*(?:null|undefined)[\s\S]{0,400}<Alert\b/.test(content) ||
+    /\briskLevel\b\s*(?:!==|!=)\s*(?:null|undefined)[\s\S]{0,400}[:{(]\s*<Alert\b/.test(content) ||
+    /[{(]\s*!\s*riskLevel\b[\s\S]{0,400}<Alert\b/.test(content) ||
+    /<Alert\b[\s\S]{0,400}\briskLevel\b[\s\S]{0,100}(?:null|undefined)/.test(content);
 
   return usesHostAccessor && derivesHostRiskLevel && displaysRiskStatus && displaysMissingRiskWarning;
 }
