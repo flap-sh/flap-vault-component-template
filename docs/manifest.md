@@ -101,7 +101,7 @@ For a UI that has no factory and is bound to one Vault, use one Vault address an
 | `artifactId` | Yes | Stable unique artifact identity. Must match `vaultui_<folder-name>_<ULID>` and the folder-name segment must match the Vault folder name. |
 | `name` | Yes | Human-readable UI name for Workbench review. |
 | `match.bindings` | Yes | Non-empty array of explicit runtime targets. Each entry must include `chainId` plus either non-zero `factoryAddress` or exactly one non-zero `vaultAddresses` entry. |
-| `i18n` | Yes | Supported locale list. `vault:check` validates exactly these locales. |
+| `i18n` | Yes | Supported locale list. Each locale string must be at least two characters, and `vault:check` validates exactly these locales. |
 
 ## Optional Chain Entry Fields
 
@@ -240,7 +240,7 @@ Vault source may call SDK contract methods against:
 - binding-scoped `vaultAddresses`
 - fixed addresses declared in `match.bindings[].externalContracts`
 
-If `Component.tsx` calls `sdk.readContract`, `sdk.simulateContract`, or `sdk.writeContract` against a fixed address that is not one of those allowed targets, `yarn vault:check <folder-name>` reports a blocking issue. This is the on-chain equivalent of endpoint declaration: extra contract dependencies must be visible before Workbench review.
+If `Component.tsx` calls `readContract`, `simulateContract`, `writeContract`, `watchContractEvent`, `createContractEventFilter`, `getLogs`, or `estimateContractGas` against a fixed address that is not one of those allowed targets, `yarn vault:check <folder-name>` reports a blocking issue. This is the on-chain equivalent of endpoint declaration: extra contract dependencies must be visible before Workbench review.
 
 `externalContracts` does not make a target approved. It only makes the target reviewable and checkable.
 

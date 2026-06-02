@@ -30,7 +30,7 @@ Core rules:
 - Keep ABI fragments minimal.
 - If `VaultABI.ts` uses human-readable ABI strings such as `"function foo() view returns (...)"`, wrap them with `parseAbi([...])` from `viem`; raw signature string arrays are not valid runtime ABI objects and `vault:check` blocks them.
 - Keep all user-facing copy in `i18n.json`.
-- Do not use direct wallet APIs, iframe, eval, script injection, runtime remote imports, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, undeclared endpoints/resources, or undeclared fixed contract targets.
+- Do not use direct wallet APIs, iframe, eval, script injection including `document.write` / `document.writeln`, runtime remote imports, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/cross-context/permission APIs, direct browser network/media APIs, undeclared endpoints/resources, or undeclared fixed contract targets.
 - Do not add third-party images; media is controlled by Flap runtime/Artifact Workbench policy.
 - Register every Vault folder name in `src/vaults/index.ts` so `/{folder-name}` preview works.
 - Registration is local preview wiring only, not production publish registration. `yarn vault:scaffold <folder-name>` does it automatically; if the four Vault files already exist, run `yarn vault:register <folder-name>` instead of editing `src/vaults/index.ts` by hand.

@@ -43,9 +43,9 @@ For code-base changes: `yarn ci`.
 
 ## Forbidden
 
-- `window.ethereum`, `eval`, the `Function` constructor, iframe, script injection, dynamic import, CommonJS `require(...)`, or symlinks
+- `window.ethereum`, `eval`, the `Function` constructor, iframe, script injection including `document.write` / `document.writeln`, dynamic import, CommonJS `require(...)`, or symlinks
 - Undeclared, host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global `fetch(...)`
-- Browser storage/navigation/worker/permission APIs and direct browser network/media APIs
+- Browser storage/navigation/worker/cross-context/permission APIs and direct browser network/media APIs
 - Undeclared hardcoded EVM addresses in Vault source
 - Standard ERC20 ABI in `VaultABI.ts` — use `erc20Abi` from `@/src/sdk`
 - `wagmi`, `ethers`, `axios`, `next/image`, `framer-motion`, `recharts` as direct Vault imports

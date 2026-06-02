@@ -13,6 +13,10 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.1.3] - 2026-06-02
+
 ### Added
 
 - Added source-package support for no-factory single-Vault bindings using `chainId + vaultAddresses[0]` with an optional single `tokenAddresses[0]`.
@@ -23,10 +27,18 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 - Updated neutral example manifests to use no-factory Vault/token fixture bindings instead of fake factory addresses.
 - Added token and Vault references to the live example manifests while keeping their real factory bindings.
 - Reworked AI intake/prompt copy so agents ask for binding mode first and do not invent factory addresses.
+- Bumped `agent-contract.json` to version 8 for the tightened checker safety surface.
 
 ### Fixed
 
 - Preview/runtime binding checks now reject explicit factory or Vault mismatches instead of falling back to an unrelated chain-only binding.
+- `vault:check` no longer treats `refetchInterval: 5000` as below the 5000ms polling floor.
+- URL endpoint/resource scanning now ignores single-line, block, and JSDoc-style comments.
+- `vault:check` now blocks `document.write` / `document.writeln` and postMessage event listeners inside Vault source.
+- Contract address boundary checks now cover `watchContractEvent`, `createContractEventFilter`, `getLogs`, and `estimateContractGas`.
+- Runtime token/Vault address source recognition now includes fee vault, wrapped native, native token, and base token variables while keeping router targets disallowed.
+- Risk-status integration checks now accept multiline host risk derivation and boolean missing-risk guards while still requiring host-derived `riskLevel` and visible UI.
+- Script locale validation now matches `schemas/manifest.schema.json` by rejecting manifest locale strings shorter than two characters.
 
 ## [0.1.2] - 2026-05-31
 

@@ -42,8 +42,11 @@ const APPROVED_EXPLORER_ORIGINS = new Set(["https://bscscan.com", "https://testn
 const DEFAULT_ALLOWED_URL_PREFIXES = [];
 const APPROVED_CONTRACT_LABEL_RE = /\b(?:vault|token|nft)\b/i;
 const APPROVED_CONTRACT_ADDRESS_KEYWORD_RE =
-  /(paymenttoken|quotetoken|dividendtoken|rewardtoken|staketoken|taxtoken|targettoken|targetasset|approvedbuybacktoken|proposedtoken|nftaddress|nft|lptoken|assettoken|underlyingtoken|buybacktoken)/i;
+  /(paymenttoken|quotetoken|dividendtoken|rewardtoken|staketoken|taxtoken|targettoken|targetasset|approvedbuybacktoken|proposedtoken|nftaddress|nft|lptoken|assettoken|underlyingtoken|buybacktoken|feevaultaddress|feevault|wrappednativetoken|wrappednative|nativetoken|basetoken)/i;
 const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|oracle|aggregator|pair|amm|treasury|governor)/i;
+const CONTRACT_INTERACTION_METHODS = ["readContract", "simulateContract", "writeContract", "watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"];
+const CONTRACT_LABEL_REQUIRED_METHODS = new Set(["readContract", "simulateContract", "writeContract"]);
+const CONTRACT_INTERACTION_METHOD_RE = new RegExp(`^(?:${CONTRACT_INTERACTION_METHODS.join("|")})\\b`, "u");
 
 const BLOCKING = "blocking";
 const WARNING = "warning";
@@ -86,7 +89,7 @@ const FIX_HINTS = {
   "manifest-binding/invalid-external-contract-list": "Use a non-empty externalContracts array only when this binding needs fixed non-token/non-Vault/non-factory contract targets.",
   "manifest-binding/invalid-external-contract-entry": "Each externalContracts entry must be an object with address and label only.",
   "manifest-binding/no-type-based-binding": "Remove vaultType/vaultTypes from manifest matching. Binding intent must use chain and factory targets.",
-  "i18n-policy/manifest-locales": "Declare at least one locale in manifest.i18n.",
+  "i18n-policy/manifest-locales": "Declare at least one locale in manifest.i18n, using locale strings with at least two characters.",
   "i18n-policy/duplicate-manifest-locale": "Remove duplicate locale entries from manifest.i18n.",
   "i18n-policy/invalid-json": "Fix JSON syntax in i18n.json.",
   "i18n-policy/missing-locale": "Add the locale object to i18n.json or remove that locale from manifest.i18n.",
@@ -266,12 +269,10 @@ function hasUnparsedHumanReadableAbi(content) {
 function hasRiskStatusIntegration(content) {
   const usesHostAccessor = /\breadTaxVaultHostContext\s*\(\s*(?:context|sdk\.context)\.host\s*\)/.test(content);
   const derivesHostRiskLevel =
-    /\briskLevel\b\s*=\s*[^;\n]*(?:vaultInfo\?\.\s*riskLevel|taxInfo\?\.\s*vaultInfo\?\.\s*riskLevel)/.test(content);
+    /\briskLevel\b\s*=\s*[\s\S]{0,260}(?:vaultInfo\?\.\s*riskLevel|taxInfo\?\.\s*vaultInfo\?\.\s*riskLevel)/.test(content);
   const displaysRiskStatus =
     /<(?:StatusBadge|DetailTile|Metric|DataRow)\b[\s\S]{0,320}\b(?:riskLabel|riskLevel|riskTone)\b/.test(content);
-  const displaysMissingRiskWarning =
-    /\briskLevel\b\s*(?:===|==)\s*(?:null|undefined)[\s\S]{0,220}<Alert\b/.test(content) ||
-    /\briskLevel\b\s*(?:!==|!=)\s*(?:null|undefined)[\s\S]{0,220}:\s*<Alert\b/.test(content);
+  const displaysMissingRiskWarning = /<Alert\b/.test(content) && /\briskLevel\b/.test(content);
 
   return usesHostAccessor && derivesHostRiskLevel && displaysRiskStatus && displaysMissingRiskWarning;
 }
@@ -331,7 +332,7 @@ function isValidFolderName(folderName) {
 
 function getManifestLocales(manifest) {
   if (!Array.isArray(manifest.i18n)) return [];
-  return manifest.i18n.filter((locale) => typeof locale === "string" && locale.trim().length > 0).map((locale) => locale.trim());
+  return manifest.i18n.filter((locale) => typeof locale === "string" && locale.trim().length >= 2).map((locale) => locale.trim());
 }
 
 function isFolderNameRegistered(folderName) {
@@ -371,6 +372,38 @@ function skipLineComment(content, index) {
 function skipBlockComment(content, index) {
   const end = content.indexOf("*/", index + 2);
   return end < 0 ? content.length : end + 2;
+}
+
+function blankPreservingNewlines(value) {
+  return value.replace(/[^\n]/g, " ");
+}
+
+function stripCommentsForScanning(content) {
+  let output = "";
+  for (let cursor = 0; cursor < content.length; cursor += 1) {
+    const char = content[cursor];
+    const next = content[cursor + 1];
+    if (char === "\"" || char === "'" || char === "`") {
+      const end = skipQuoted(content, cursor);
+      output += content.slice(cursor, end);
+      cursor = end - 1;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      const end = skipLineComment(content, cursor);
+      output += blankPreservingNewlines(content.slice(cursor, end));
+      cursor = end - 1;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      const end = skipBlockComment(content, cursor);
+      output += blankPreservingNewlines(content.slice(cursor, end));
+      cursor = end - 1;
+      continue;
+    }
+    output += char;
+  }
+  return output;
 }
 
 function isIdentifierStart(char) {
@@ -674,7 +707,7 @@ function findSdkContractCalls(content) {
       continue;
     }
 
-    const methodMatch = /^(?:readContract|simulateContract|writeContract)\b/u.exec(content.slice(cursor));
+    const methodMatch = CONTRACT_INTERACTION_METHOD_RE.exec(content.slice(cursor));
     if (!methodMatch) continue;
     const before = content[cursor - 1];
     if (isIdentifierPart(before)) continue;
@@ -756,14 +789,7 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
     const resolvedAddress = addressProperty ? resolveAddressExpressionText(addressProperty.text, addressConstants) : null;
     const isDeclaredExternalAddress = Boolean(resolvedAddress && contractPolicy.external.has(resolvedAddress));
 
-    if (!contractProperty) {
-      issues.push(
-        issue(BLOCKING, "contract-boundary/missing-contract-label", `${call.methodName} call is missing a contract label.`, {
-          file,
-          line: lineForIndex(content, call.objectStart),
-        }),
-      );
-    } else {
+    if (contractProperty) {
       const contractLabel = parseStaticStringLiteral(stripExpressionDecorators(contractProperty.text));
       if (contractLabel === null) {
         issues.push(
@@ -780,6 +806,13 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
           }),
         );
       }
+    } else if (CONTRACT_LABEL_REQUIRED_METHODS.has(call.methodName)) {
+      issues.push(
+        issue(BLOCKING, "contract-boundary/missing-contract-label", `${call.methodName} call is missing a contract label.`, {
+          file,
+          line: lineForIndex(content, call.objectStart),
+        }),
+      );
     }
 
     if (!addressProperty) continue;
@@ -1149,8 +1182,9 @@ function checkManifest(manifest, folderName) {
     issues.push(issue(BLOCKING, "manifest-binding/no-type-based-binding", "Do not use type-based binding for custom UI matching."));
   }
   const manifestLocales = getManifestLocales(manifest);
-  if (!Array.isArray(manifest.i18n) || manifestLocales.length === 0) {
-    issues.push(issue(BLOCKING, "i18n-policy/manifest-locales", "manifest.i18n must declare at least one locale."));
+  const invalidManifestLocales = Array.isArray(manifest.i18n) ? manifest.i18n.filter((locale) => typeof locale !== "string" || locale.trim().length < 2) : [];
+  if (!Array.isArray(manifest.i18n) || manifestLocales.length === 0 || invalidManifestLocales.length > 0) {
+    issues.push(issue(BLOCKING, "i18n-policy/manifest-locales", "manifest.i18n must declare at least one locale, and every locale must be a string with at least two characters."));
   } else if (new Set(manifestLocales).size !== manifestLocales.length) {
     issues.push(issue(BLOCKING, "i18n-policy/duplicate-manifest-locale", "manifest.i18n must not contain duplicate locales."));
   }
@@ -1215,6 +1249,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
     const content = fs.readFileSync(item.path, "utf8");
+    const scanContent = stripCommentsForScanning(content);
     const checks = [
       [/window\.ethereum/, "forbidden-api/direct-window-ethereum", "Direct window.ethereum access is not allowed."],
       [/\b(?:window|globalThis|global)\s*\[\s*["'`]ethereum["'`]\s*\]/, "forbidden-api/direct-window-ethereum", "Direct ethereum provider access is not allowed."],
@@ -1226,6 +1261,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/document\.createElement\s*\(\s*["'`]iframe["'`]\s*\)/, "forbidden-api/iframe", "iframe creation is not allowed."],
       [/<script\b/i, "forbidden-api/script", "script injection is not allowed."],
       [/document\.createElement\s*\(\s*["'`]script["'`]\s*\)/, "forbidden-api/script", "script injection is not allowed."],
+      [/\bdocument\.write(?:ln)?\s*\(/, "forbidden-api/script", "document.write/writeln is not allowed inside Vault components."],
       [/dangerouslySetInnerHTML/, "forbidden-api/dangerously-set-inner-html", "dangerouslySetInnerHTML needs explicit review and is blocked by default."],
       [/import\s*\(\s*["'`]https?:\/\//, "forbidden-api/remote-import", "Runtime remote import is not allowed inside Vault components."],
       [/\b(?:window|globalThis|global|self|navigator|document)\s*\[[^\]\n]+\]/, "forbidden-api/browser-global-escape", "Computed browser global access is not allowed inside Vault components."],
@@ -1282,6 +1318,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\b(?:window|globalThis|self)\.postMessage\b/, "forbidden-api/cross-context-messaging", "postMessage is not allowed inside Vault components."],
       [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|self)\.postMessage\b/, "forbidden-api/cross-context-messaging", "Aliasing postMessage is not allowed inside Vault components."],
       [/\{\s*postMessage\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/cross-context-messaging", "Destructuring postMessage from browser globals is not allowed inside Vault components."],
+      [/\baddEventListener\s*\(\s*["'`]message["'`]/, "forbidden-api/cross-context-messaging", "Listening to postMessage events is not allowed inside Vault components."],
+      [/\b(?:window|globalThis|self)\.onmessage\s*=/, "forbidden-api/cross-context-messaging", "Listening to postMessage events is not allowed inside Vault components."],
       [/\bnavigator\.(?:clipboard|geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Browser permission APIs are not allowed inside Vault components."],
       [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*navigator\.(?:clipboard|geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Aliasing browser permission APIs is not allowed inside Vault components."],
       [/\{\s*(?:clipboard|geolocation|mediaDevices|permissions)\b[^}]*\}\s*=\s*navigator\b/, "forbidden-api/browser-permission", "Destructuring browser permission APIs from navigator is not allowed inside Vault components."],
@@ -1290,12 +1328,13 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\{\s*Notification\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-permission", "Destructuring Notification from browser globals is not allowed inside Vault components."],
     ];
     for (const [pattern, ruleId, message] of checks) {
-      if (pattern.test(content)) {
-        issues.push(issue(BLOCKING, ruleId, message, { file: rel, line: lineFor(content, pattern) }));
+      const match = pattern.exec(scanContent);
+      if (match) {
+        issues.push(issue(BLOCKING, ruleId, message, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
     const importRegex = /from\s+["'`]([^"'`]+)["'`]|import\s+["'`]([^"'`]+)["'`]/g;
-    for (const match of content.matchAll(importRegex)) {
+    for (const match of scanContent.matchAll(importRegex)) {
       const spec = match[1] || match[2];
       if (spec.startsWith("./") || spec.startsWith("../")) {
         if (!ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
@@ -1311,12 +1350,12 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     issues.push(...collectDynamicImportIssues(content, rel));
     const requireRegex = /\brequire\s*\(/g;
-    for (const match of content.matchAll(requireRegex)) {
-      issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(content, match.index ?? -1) }));
+    for (const match of scanContent.matchAll(requireRegex)) {
+      issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
     }
     const oracleIds = new Set();
     const oracleCallRegex = /\breadOracle(?:<[^>]+>)?\(\s*["'`]([^"'`]+)["'`]/g;
-    for (const match of content.matchAll(oracleCallRegex)) {
+    for (const match of scanContent.matchAll(oracleCallRegex)) {
       oracleIds.add(match[1]);
     }
     for (const oracleId of oracleIds) {
@@ -1339,18 +1378,18 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       /\blocation\.(?:assign|replace)\s*\(\s*["'`](https?:\/\/[^"'`\s]+)["'`]/g,
       /\brouter\.(?:push|replace)\s*\(\s*["'`](https?:\/\/[^"'`\s]+)["'`]/g,
     ];
-    for (const match of content.matchAll(relativeFetchRegex)) {
+    for (const match of scanContent.matchAll(relativeFetchRegex)) {
       issues.push(
         issue(
           BLOCKING,
           "endpoint-policy/relative-endpoint",
           "Host-relative fetch calls are not allowed inside Vault source because they can hide private app endpoints.",
-          { file: rel, line: lineForIndex(content, match.index) },
+          { file: rel, line: lineForIndex(scanContent, match.index) },
         ),
       );
     }
     const fetchCallRegex = /\bfetch\s*\(\s*([^,\n)]*)/g;
-    for (const match of content.matchAll(fetchCallRegex)) {
+    for (const match of scanContent.matchAll(fetchCallRegex)) {
       const rawTarget = match[1]?.trim() ?? "";
       const staticTarget = staticStringLiteral(rawTarget);
       const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
@@ -1360,13 +1399,13 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
             BLOCKING,
             "endpoint-policy/direct-fetch",
             "fetch() targets inside Vault source must be static absolute HTTPS URLs without credentials and declared in manifest.endpoints for Flap review.",
-            { file: rel, line: lineForIndex(content, match.index ?? -1) },
+            { file: rel, line: lineForIndex(scanContent, match.index ?? -1) },
           ),
         );
       }
     }
     for (const navigationRegex of externalNavigationRegexes) {
-      for (const match of content.matchAll(navigationRegex)) {
+      for (const match of scanContent.matchAll(navigationRegex)) {
         const url = sanitizeUrlLiteral(match[1]);
         if (!isApprovedNavigationUrl(url)) {
           issues.push(
@@ -1374,58 +1413,58 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
               BLOCKING,
               "navigation-policy/unapproved-external-navigation",
               `External navigation ${url} is not allowed inside a Vault component. Keep user-facing navigation on the chain explorer only.`,
-              { file: rel, line: lineForIndex(content, match.index) },
+              { file: rel, line: lineForIndex(scanContent, match.index) },
             ),
           );
         }
       }
     }
-    for (const match of content.matchAll(externalUrlRegex)) {
+    for (const match of scanContent.matchAll(externalUrlRegex)) {
       const url = sanitizeUrlLiteral(match[0]);
       if (!isAllowlistedExternalUrl(url, declaredUrls)) {
-        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints. Undeclared endpoints and external resources are rejected.`, { file: rel, line: lineForIndex(content, match.index) }));
+        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints. Undeclared endpoints and external resources are rejected.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
-    for (const match of content.matchAll(dataUrlRegex)) {
+    for (const match of scanContent.matchAll(dataUrlRegex)) {
       issues.push(
         issue(
           BLOCKING,
           "media-policy/remote-media",
           "Embedded data URL media is not allowed inside Vault source. Use Flap-controlled media/runtime policy instead.",
-          { file: rel, line: lineForIndex(content, match.index) },
+          { file: rel, line: lineForIndex(scanContent, match.index) },
         ),
       );
     }
     for (const scheme of UNSAFE_RESOURCE_SCHEMES) {
-      const schemeIndex = content.toLowerCase().indexOf(scheme);
+      const schemeIndex = scanContent.toLowerCase().indexOf(scheme);
       if (schemeIndex >= 0) {
         issues.push(
           issue(
             BLOCKING,
             "endpoint-policy/undeclared-url",
             `${scheme} resource literals are not allowed inside Vault source. Use Flap-controlled runtime media/oracle provisioning instead.`,
-            { file: rel, line: lineForIndex(content, schemeIndex) },
+            { file: rel, line: lineForIndex(scanContent, schemeIndex) },
           ),
         );
       }
     }
-    if (/url\(\s*["']?(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(content) || /<img[^>]+src=["'](?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(content)) {
+    if (/url\(\s*["']?(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(scanContent) || /<img[^>]+src=["'](?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(scanContent)) {
       issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote media is not developer-declared in this template. Use Flap-controlled media/runtime policy instead.", { file: rel }));
     }
     const hardcodedAddressRegex = /["'`]0x[a-fA-F0-9]{40}["'`]/g;
-    for (const match of content.matchAll(hardcodedAddressRegex)) {
+    for (const match of scanContent.matchAll(hardcodedAddressRegex)) {
       const normalizedAddress = normalizeAddress(match[0].slice(1, -1));
       if (!normalizedAddress || !contractPolicy.all.has(normalizedAddress)) {
-        issues.push(issue(BLOCKING, "security/hardcoded-address", `Hardcoded address ${match[0]} found in Vault source. Use runtime context addresses or declare intentional external contract addresses in manifest.`, { file: rel, line: lineForIndex(content, match.index) }));
+        issues.push(issue(BLOCKING, "security/hardcoded-address", `Hardcoded address ${match[0]} found in Vault source. Use runtime context addresses or declare intentional external contract addresses in manifest.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
-    if (/refetchInterval\s*:\s*([0-4]?\d{1,3})/.test(content)) {
+    if (/refetchInterval\s*:\s*([0-4]?\d{1,3})(?!\d)/.test(scanContent)) {
       issues.push(issue(WARNING, "performance/refetch-too-fast", "refetchInterval below 5000ms needs review.", { file: rel }));
     }
     const standardErc20NameRegex = new RegExp(
       String.raw`(?:\bname\s*:\s*["'](?:${STANDARD_ERC20_METHODS.join("|")})["']|\b(?:${STANDARD_ERC20_METHODS.join("|")})\s*\()`,
     );
-    if (item.name === "VaultABI.ts" && hasUnparsedHumanReadableAbi(content)) {
+    if (item.name === "VaultABI.ts" && hasUnparsedHumanReadableAbi(scanContent)) {
       issues.push(
         issue(
           BLOCKING,
@@ -1435,7 +1474,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    if (item.name === "VaultABI.ts" && standardErc20NameRegex.test(content)) {
+    if (item.name === "VaultABI.ts" && standardErc20NameRegex.test(scanContent)) {
       issues.push(
         issue(
           WARNING,
@@ -1445,8 +1484,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    const hasUserWritePath = /\b(?:writeContract|simulateContract)\s*\(|<TxButton\b/.test(content);
-    const hasMarketPhaseHandling = /\b(?:marketPhase|isActionAvailableForPhase)\b/.test(content);
+    const hasUserWritePath = /\b(?:writeContract|simulateContract)\s*\(|<TxButton\b/.test(scanContent);
+    const hasMarketPhaseHandling = /\b(?:marketPhase|isActionAvailableForPhase)\b/.test(scanContent);
     if (item.name === "Component.tsx" && hasUserWritePath && !hasMarketPhaseHandling) {
       issues.push(
         issue(
@@ -1457,7 +1496,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    if (item.name === "Component.tsx" && !hasRiskStatusIntegration(content)) {
+    if (item.name === "Component.tsx" && !hasRiskStatusIntegration(scanContent)) {
       issues.push(
         issue(
           BLOCKING,
@@ -1467,12 +1506,12 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    if (/Number\s*\([^)]*(amount|balance|allowance|deposit|claim|reward)/i.test(content)) {
+    if (/Number\s*\([^)]*(amount|balance|allowance|deposit|claim|reward)/i.test(scanContent)) {
       issues.push(issue(WARNING, "contract-abi/number-bigint", "Avoid Number(...) for token amounts used in transaction logic.", { file: rel }));
     }
     issues.push(...collectContractInteractionIssues(content, rel, contractPolicy));
     const i18nCallRegex = /(?:^|[^\w.])(?:t|i18n\.t)\(\s*["'`]([^"'`]+)["'`]/g;
-    for (const match of content.matchAll(i18nCallRegex)) {
+    for (const match of scanContent.matchAll(i18nCallRegex)) {
       const key = match[1];
       for (const locale of manifestLocales) {
         if (!i18n[locale]?.[key]) {

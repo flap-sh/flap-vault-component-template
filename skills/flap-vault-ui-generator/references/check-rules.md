@@ -28,20 +28,20 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - any type-field UI binding
 - direct wallet access
 - `eval` / the `Function` constructor
-- iframe/script injection
+- iframe/script injection, including `document.write` / `document.writeln`
 - runtime remote import
 - dynamic import or CommonJS `require(...)`
 - symlink inside the Vault folder
 - undeclared URL, endpoint, or external resource
 - host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch target
-- browser storage/navigation/worker/permission API or direct browser network/media API
+- browser storage/navigation/worker/cross-context/permission API or direct browser network/media API
 - non-HTTPS, IPFS, Arweave, WebSocket, or embedded data URL resource usage in Vault source
-- missing a locale declared by `manifest.i18n`
+- missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - i18n key missing from any locale declared by `manifest.i18n`
 - missing current contract risk-status integration from host `riskLevel`, including the prominent unavailable-risk warning state
 - remote media inside Vault source
 - hardcoded EVM addresses in Vault source unless they are binding-scoped token/Vault/factory references or declared external contract targets
-- SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`
+- contract reads/writes, event watches, log/filter calls, or gas estimates against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`
 
 ## Selftest
 

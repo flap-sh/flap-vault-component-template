@@ -74,7 +74,7 @@ Ask these in order. Each answer gates the next.
 > Which languages should this UI support?
 
 - Options: `en` (English), `zh` (Chinese), or both `[en, zh]`.
-- `vault:check` validates exactly the locales you declare. Single-locale Vaults are valid.
+- `vault:check` validates exactly the locales you declare. Single-locale Vaults are valid, and every locale string must be at least two characters.
 
 ---
 

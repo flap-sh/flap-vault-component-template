@@ -110,7 +110,7 @@ Fix blocking issues before finishing.
 
 - `window.ethereum.request`
 - `eval` / the `Function` constructor
-- iframe or script injection
+- iframe or script injection, including `document.write` / `document.writeln`
 - runtime remote import
 - undeclared URL, endpoint, or external resource
 - undeclared fixed extra contract target
@@ -118,7 +118,7 @@ Fix blocking issues before finishing.
 - missing current contract risk-status integration
 - unapproved dependency
 - custom third-party image or external resource not controlled by Flap runtime/Artifact Workbench
-- missing a locale declared by `manifest.i18n`
+- missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - binding by type fields
 
 ## References

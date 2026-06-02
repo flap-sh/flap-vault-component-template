@@ -69,6 +69,12 @@ function assertRule(label, result, ruleId, severity) {
   passed.push(label);
 }
 
+function assertNoRule(label, result, ruleId, severity) {
+  const found = result.issues.find((item) => item.ruleId === ruleId && (!severity || item.severity === severity));
+  assert.equal(found, undefined, `${label}: did not expect ${severity || "any"} ${ruleId}`);
+  passed.push(label);
+}
+
 try {
   const invalidFolderResult = runVaultCheck("../bad", { silent: true });
   assertRule("invalid folder name is reported as JSON-compatible result", invalidFolderResult, "cli/invalid-folder-name", "blocking");
@@ -108,6 +114,13 @@ try {
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/ca-policy-not-in-manifest"), false);
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-token-address-list"), false);
   passed.push("binding-level tokenAddresses reference lists are allowed");
+
+  const shortLocaleSlug = `${FIXTURE_PREFIX}-short-locale`;
+  writeVault(shortLocaleSlug, {
+    manifest: baseManifest({ i18n: ["e", "en"] }),
+    i18n: { e: { title: "Selftest" }, en: { title: "Selftest" } },
+  });
+  assertRule("single-character manifest locales are blocked like the JSON schema", runVaultCheck(shortLocaleSlug, { silent: true }), "i18n-policy/manifest-locales", "blocking");
 
   const vaultOnlySlug = `${FIXTURE_PREFIX}-vault-only`;
   writeVault(vaultOnlySlug, {
@@ -285,6 +298,23 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("endpoint declaration does not allow unsafe prefix matches", runVaultCheck(endpointPrefixSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
 
+  const commentedUrlSlug = `${FIXTURE_PREFIX}-commented-url`;
+  writeVault(commentedUrlSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+// See https://docs.viem.sh for reference only.
+/* Reference URL: https://api.example.com/commented */
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule("comment-only URLs do not require manifest endpoint declarations", runVaultCheck(commentedUrlSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+
   const externalResourceSlug = `${FIXTURE_PREFIX}-external`;
   writeVault(externalResourceSlug, {
     component: `"use client";
@@ -423,6 +453,38 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertRule("cross-context messaging APIs are blocked", browserEscapeCheck, "forbidden-api/cross-context-messaging", "blocking");
   assertRule("browser permission APIs are blocked", browserEscapeCheck, "forbidden-api/browser-permission", "blocking");
 
+  const documentWriteSlug = `${FIXTURE_PREFIX}-document-write`;
+  writeVault(documentWriteSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  document.writeln("<div>unsafe</div>");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("document.write and document.writeln are blocked as script injection", runVaultCheck(documentWriteSlug, { silent: true }), "forbidden-api/script", "blocking");
+
+  const messageListenerSlug = `${FIXTURE_PREFIX}-message-listener`;
+  writeVault(messageListenerSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  window.addEventListener("message", () => undefined);
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("postMessage listeners are blocked", runVaultCheck(messageListenerSlug, { silent: true }), "forbidden-api/cross-context-messaging", "blocking");
+
   const symlinkSlug = `${FIXTURE_PREFIX}-symlink`;
   writeVault(symlinkSlug);
   fs.symlinkSync("Component.tsx", path.join(ROOT, "src", "vaults", symlinkSlug, "Alias.tsx"));
@@ -478,6 +540,40 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
   });
   assertRule("dynamic imports with expression specifiers are blocked", runVaultCheck(dynamicImportSlug, { silent: true }), "imports-and-dependencies/dynamic-import", "blocking");
+
+  const refetchMinimumSlug = `${FIXTURE_PREFIX}-refetch-minimum`;
+  writeVault(refetchMinimumSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const queryOptions = { refetchInterval: 5000 };
+  void queryOptions;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule("refetchInterval 5000ms is not treated as too fast", runVaultCheck(refetchMinimumSlug, { silent: true }), "performance/refetch-too-fast", "warning");
+
+  const refetchFastSlug = `${FIXTURE_PREFIX}-refetch-fast`;
+  writeVault(refetchFastSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const queryOptions = { refetchInterval: 4999 };
+  void queryOptions;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("refetchInterval below 5000ms is still reported", runVaultCheck(refetchFastSlug, { silent: true }), "performance/refetch-too-fast", "warning");
 
   const navigationSlug = `${FIXTURE_PREFIX}-navigation`;
   writeVault(navigationSlug, {
@@ -556,6 +652,57 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
   });
   assertRule("generic subTokenAddress sources are blocked like Workbench", runVaultCheck(derivedTokenAddressSlug, { silent: true }), "contract-boundary/undeclared-contract-address", "blocking");
+
+  const contractEventMethodSlug = `${FIXTURE_PREFIX}-contract-event-methods`;
+  writeVault(contractEventMethodSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { createContractEventFilter, estimateContractGas, getLogs, watchContractEvent } from "viem";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  const rogueLogAddress = "not-a-static-address" as unknown as \`0x\${string}\`;
+  void watchContractEvent({ address: rogueLogAddress, abi: [], eventName: "Transfer" });
+  void createContractEventFilter({ address: rogueLogAddress, abi: [], eventName: "Transfer" });
+  void getLogs({ address: rogueLogAddress });
+  void estimateContractGas({ address: rogueLogAddress, abi: [], functionName: "sync" });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const contractEventMethodCheck = runVaultCheck(contractEventMethodSlug, { silent: true });
+  for (const methodName of ["watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"]) {
+    assert.ok(
+      contractEventMethodCheck.issues.some((item) => item.ruleId === "contract-boundary/undeclared-contract-address" && item.message.startsWith(`${methodName} address source`)),
+      `${methodName} address source should be checked`,
+    );
+  }
+  passed.push("event, log, and gas contract methods are checked for address boundaries");
+
+  const runtimeAddressKeywordSlug = `${FIXTURE_PREFIX}-runtime-address-keywords`;
+  writeVault(runtimeAddressKeywordSlug, {
+    component: `"use client";
+
+import type { Address, VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  const feeVaultAddress = "not-a-static-address" as unknown as Address;
+  const wrappedNativeToken = "not-a-static-address" as unknown as Address;
+  const nativeToken = "not-a-static-address" as unknown as Address;
+  const baseToken = "not-a-static-address" as unknown as Address;
+  void sdk.readContract({ contract: "vault", address: feeVaultAddress, abi: [], functionName: "status" });
+  void sdk.readContract({ contract: "token", address: wrappedNativeToken, abi: [], functionName: "symbol" });
+  void sdk.readContract({ contract: "token", address: nativeToken, abi: [], functionName: "symbol" });
+  void sdk.readContract({ contract: "token", address: baseToken, abi: [], functionName: "symbol" });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule("runtime fee/native/base token address variables are allowed", runVaultCheck(runtimeAddressKeywordSlug, { silent: true }), "contract-boundary/undeclared-contract-address", "blocking");
 
   const declaredExternalContractSlug = `${FIXTURE_PREFIX}-declared-external-contract`;
   writeVault(declaredExternalContractSlug, {
@@ -671,6 +818,34 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
   });
   assertRule("risk status check is not satisfied by loose keyword mentions", runVaultCheck(riskStatusSpoofSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
+
+  const riskStatusLooseSlug = `${FIXTURE_PREFIX}-risk-status-loose`;
+  writeVault(riskStatusLooseSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const isRiskUnknown = riskLevel == null;
+  const riskLabel = isRiskUnknown ? i18n.t("title") : String(riskLevel);
+  return (
+    <div>
+      <StatusBadge>{riskLabel}</StatusBadge>
+      {isRiskUnknown && <Alert>{i18n.t("title")}</Alert>}
+    </div>
+  );
+}
+`,
+  });
+  assertNoRule("risk status integration accepts multiline risk derivation and boolean missing-risk guards", runVaultCheck(riskStatusLooseSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
 
   const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
   assert.throws(() =>

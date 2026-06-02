@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 7,
+  "version": 8,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -103,18 +103,18 @@
     "bindingsRule": "match.bindings is a non-empty array of unique runtime targets. Each entry must declare chainId plus either a non-zero factoryAddress for factory-scoped UI or exactly one non-zero vaultAddresses entry for single-Vault UI without a factory. A zero factoryAddress is invalid; omit factoryAddress and provide vaultAddresses[0] instead. In single-Vault mode tokenAddresses is optional and may contain at most one token CA. Preview/runtime should prefer exact chainId + factoryAddress or chainId + vaultAddress (+ optional tokenAddress) matches, treat partial hints as valid only when unambiguous, and use the first binding as a preview default only when the route provides no runtime hints.",
     "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. If a token CA list is needed, declare it only as match.bindings[].tokenAddresses. Single-Vault bindings may contain at most one token address.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped bindings, but required with exactly one non-zero Vault address when factoryAddress is omitted.",
-    "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks SDK contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
+    "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
-    "localeRule": "Only locales declared by manifest.i18n are required and compared.",
+    "localeRule": "manifest.i18n entries must be locale strings with at least two characters. Only locales declared by manifest.i18n are required and compared.",
     "oracleRule": "Do not declare oracle config in manifest.json. sdk.readOracle usage is reported by vault:check for Flap review.",
     "endpointRule": "Avoid endpoints. Non-oracle fetch targets must be static absolute HTTPS URLs without username/password credentials and declared in manifest.endpoints as a single URL string or an array of URL strings for review. Dynamic, relative, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked.",
     "navigationRule": "Component-owned navigation should stay on the active chain explorer only. Do not send users to arbitrary websites from a Vault package.",
     "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
   },
   "securityBoundaries": {
-    "contractInteractionRule": "Reads and writes must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
+    "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
     "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation.",
-    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, cross-context messaging APIs, and browser permission APIs before packaging."
+    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, script injection APIs such as document.write/writeln, cross-context messaging APIs including postMessage listeners, and browser permission APIs before packaging."
   },
   "commands": {
     "install": "yarn",
@@ -382,10 +382,10 @@
       },
       "locales": {
         "type": "array",
-        "items": { "type": "string", "enum": ["en", "zh"] },
+        "items": { "type": "string", "minLength": 2, "enum": ["en", "zh"] },
         "required": true,
         "minItems": 1,
-        "description": "Supported locale list. vault:check validates exactly these locales. Example: [en, zh] or [zh]."
+        "description": "Supported locale list. Each locale must be at least two characters. vault:check validates exactly these locales. Example: [en, zh] or [zh]."
       },
       "vaultAbi": {
         "type": "array",

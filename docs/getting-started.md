@@ -173,7 +173,7 @@ yarn vault:check my-vault
 
 Fix all blocking issues before submitting to Flap.
 
-The check script returns JSON with `ok`, `summary`, `agent.verdict`, `agent.nextActions`, and `issues`. It blocks missing locales declared by `manifest.i18n` and missing keys across those declared locales. If the manifest declares only one locale, only that locale is validated. It also reports oracle usage for Flap review/provisioning without requiring oracle config in `manifest.json`.
+The check script returns JSON with `ok`, `summary`, `agent.verdict`, `agent.nextActions`, and `issues`. It blocks manifest locale strings shorter than two characters, missing locales declared by `manifest.i18n`, and missing keys across those declared locales. If the manifest declares only one valid locale, only that locale is validated. It also reports oracle usage for Flap review/provisioning without requiring oracle config in `manifest.json`.
 
 ## 6. Package
 

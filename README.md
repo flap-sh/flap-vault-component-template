@@ -255,7 +255,7 @@ The Vault folder is a strict source package boundary. It may contain only:
 - `Component.tsx`: the controlled React Vault UI component.
 - `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}` or no-factory `{chainId, vaultAddresses: [vaultAddress]}` targets; optional per-binding `tokenAddresses`; optional non-oracle `endpoints`; and `i18n`.
 - `VaultABI.ts`: minimal Vault ABI fragments only. Standard ERC20 ABI is exported from `@/src/sdk`; add token ABI fragments here only for custom non-standard token methods.
-- `i18n.json`: locale dictionaries declared by `manifest.i18n`.
+- `i18n.json`: locale dictionaries declared by `manifest.i18n`; manifest locale strings must be at least two characters.
 
 Any other file or subfolder under `src/vaults/{folder-name}` is a blocking check issue.
 
@@ -266,12 +266,12 @@ Blocking by default:
 - `window.ethereum.request`
 - `eval` / `new Function`
 - iframe UI
-- script injection
+- script injection, including `document.write` and `document.writeln`
 - runtime remote imports
 - dynamic imports and CommonJS `require(...)`
 - undeclared external URLs, endpoints, or external resources
 - dynamic, relative, HTTP, credentialed, aliased, destructured, or computed browser-global `fetch(...)` targets
-- browser storage, navigation, worker, cross-context messaging, and permission APIs
+- browser storage, navigation, worker, cross-context messaging including postMessage listeners, and permission APIs
 - direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`
 - arbitrary off-site navigation or phishing-sensitive external jumps
 - hidden transaction targets
@@ -280,7 +280,7 @@ Blocking by default:
 - missing locales declared by `manifest.i18n`
 - i18n keys missing from any locale declared by `manifest.i18n`
 - remote images inside Vault source
-- contract reads/writes to routers, bridges, aggregators, or unrelated contracts outside the Vault/token/NFT/factory/declaration boundary
+- contract reads/writes, event watches, log/filter calls, or gas estimates to routers, bridges, aggregators, or unrelated contracts outside the Vault/token/NFT/factory/declaration boundary
 - binding by type field instead of registry-controlled chain/factory or chain/Vault targets
 - extra files, folders, or symlinks inside the Vault package
 - relative imports other than `./VaultABI`

@@ -16,16 +16,16 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` target.
 - Browser storage or host-state escape APIs such as `localStorage`, `sessionStorage`, `indexedDB`, Cache Storage, or `document.cookie`.
 - Browser navigation APIs such as `window.open`, `location`, or `history` mutation.
-- Worker and cross-context APIs such as `Worker`, `SharedWorker`, `navigator.serviceWorker`, `BroadcastChannel`, or `postMessage`.
+- Worker and cross-context APIs such as `Worker`, `SharedWorker`, `navigator.serviceWorker`, `BroadcastChannel`, `postMessage`, or message event listeners.
 - Browser permission APIs such as `navigator.clipboard`, `navigator.geolocation`, `navigator.permissions`, or `Notification`.
-- iframe or script injection.
+- iframe or script injection, including `document.write` and `document.writeln`.
 - `eval` or the `Function` constructor.
 - Unapproved dependencies.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - Missing i18n.
 - Remote image inside Vault source.
 - Arbitrary external navigation or hardcoded off-site jumps that are not the current chain explorer.
-- Contract reads/writes to unrelated contracts such as routers, bridges, aggregators, or other app contracts outside the Vault/token/NFT/factory/declaration boundary.
+- Contract reads/writes, event watches, log/filter calls, or gas estimates to unrelated contracts such as routers, bridges, aggregators, or other app contracts outside the Vault/token/NFT/factory/declaration boundary.
 - Binding by unreliable type fields.
 - Reimplementing Flap host preflight for taxinfo/feeinfo type mapping, fee mode detection, or deployment binding inside a submitted Vault component.
 - Extra files, folders, local utility modules, or local component modules inside the Vault package.

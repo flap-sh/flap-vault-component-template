@@ -58,7 +58,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `vaultAddresses` | Required without factory | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]`. In factory mode this list is optional. |
 | `tokenAddresses` | Optional | Use only inside each `match.bindings` entry. In no-factory mode it may contain at most one token CA and participates in matching when a token hint is available. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
-| `locales` | Yes | Example: `en,zh` or `zh`. Check validates only declared locales. |
+| `locales` | Yes | Example: `en,zh` or `zh`. Each locale string must be at least two characters. Check validates only declared locales. |
 | `VaultABI` | Yes | Minimal Vault ABI fragments used by the component. Do not include standard ERC20 here. |
 | `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, risk posture, and current contract risk-status handling. |
 | `actionAvailabilityStage` | Yes | One of `internal-market`, `dex-listed`, `both`, or `read-only`. Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for runtime gating. Do not hide available actions because the token is not DEX-listed. |
@@ -146,11 +146,11 @@ Use:
 Do not use:
 
 - Direct wallet APIs such as `window.ethereum`.
-- `eval`, the `Function` constructor, iframe, script injection, or `dangerouslySetInnerHTML`.
+- `eval`, the `Function` constructor, iframe, script injection including `document.write` / `document.writeln`, or `dangerouslySetInnerHTML`.
 - CommonJS `require(...)`; use static ESM imports only.
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
-- Browser storage, cookie, navigation, Worker, cross-context messaging, clipboard, geolocation, permission, or notification APIs.
+- Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, clipboard, geolocation, permission, or notification APIs.
 - External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` targets. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`.
 - Fixed contract targets outside `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, binding-scoped `tokenAddresses`/`vaultAddresses`, or `match.bindings[].externalContracts`.

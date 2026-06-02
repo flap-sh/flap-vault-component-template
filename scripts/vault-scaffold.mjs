@@ -368,7 +368,7 @@ function main() {
   if (!locales.length || locales.some((locale) => locale.length < 2)) {
     fail("--locales must contain at least one locale.", {
       code: "i18n-policy/manifest-locales",
-      fixHint: "Pass --locales en,zh or another non-empty locale list.",
+      fixHint: "Pass --locales en,zh or another locale list where every locale has at least two characters.",
       locales,
     });
   }
