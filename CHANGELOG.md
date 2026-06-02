@@ -15,6 +15,18 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 No changes yet.
 
+## [0.1.4] - 2026-06-02
+
+### Added
+
+- Added a built-in display-only `bnb-usd-price` runtime oracle for BNB-to-USD conversion, using the same Binance `avgPrice` primary source and Pyth fallback strategy already used by `beta-multichain`.
+- Standardized the built-in `bnb-usd-price` response shape as `{ price: number, symbol: string, timestamp: number, source: string }` so Vault UI source packages can consume it through `sdk.readOracle("bnb-usd-price")` without declaring external endpoints.
+
+### Changed
+
+- `loadRuntimeOracle(...)` now falls back to built-in runtime oracle handlers when `FLAP_RUNTIME_ORACLE_REGISTRY` does not provision the requested oracle id, while still letting host registry entries override built-ins.
+- Documented `bnb-usd-price` in the SDK and runtime package notes as a host/runtime-owned display conversion oracle.
+
 ## [0.1.3] - 2026-06-02
 
 ### Added
