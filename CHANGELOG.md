@@ -13,6 +13,10 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+### Added
+
+- Added optional `account` forwarding to `sdk.readContract(...)` so Vault components can read `msg.sender`-dependent view functions without falling back to transaction simulation.
+
 ### Changed
 
 - Relaxed no-factory manifest bindings so a package can target either one Vault address or one or more token addresses; package metadata now emits one binding key per no-factory token target.

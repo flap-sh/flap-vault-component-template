@@ -268,6 +268,8 @@ export interface ContractReadRequest {
   abi?: Abi;
   functionName: string;
   args?: unknown[];
+  /** Optional call account for view functions that depend on msg.sender. */
+  account?: Address;
 }
 
 export interface ContractWriteRequest extends ContractReadRequest {

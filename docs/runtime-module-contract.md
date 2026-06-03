@@ -140,6 +140,8 @@ The component should consume:
 - `sdk.writeContract(...)`
 - `sdk.readOracle(...)` when approved/provisioned
 
+`sdk.readContract(...)` may include `account` for read-only contract functions whose return value depends on `msg.sender`. Hosts must forward that field to their public client instead of forcing components to use simulation for read-only user-state queries.
+
 Wrong-network handling belongs in this public component contract as well. A write-capable component should keep its action area visible, render a switch-network state when the connected wallet is on the wrong chain, and only proceed with writes after the wallet matches `context.chainId`.
 
 The component should not directly call:

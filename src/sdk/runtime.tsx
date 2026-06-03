@@ -183,6 +183,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
         abi: request.abi,
         functionName: request.functionName,
         args: request.args,
+        account: request.account,
       })) as T;
     },
     [publicClient],

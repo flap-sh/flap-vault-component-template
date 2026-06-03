@@ -21,6 +21,8 @@ sdk.refetchNonce
 sdk.openExplorerTx(hash)
 ```
 
+`sdk.readContract(...)` accepts an optional `account` field. Use it when a view function depends on `msg.sender`, for example `sdk.readContract({ contract: "vault", address: context.vaultAddress, abi: vaultAbi, functionName: "myInfo", account: context.userAddress })`.
+
 `VaultRuntimeProvider` can now receive an `oracleReader` so the host/runtime owns oracle provisioning instead of the component owning raw endpoint URLs:
 
 ```ts
