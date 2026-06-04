@@ -43,7 +43,7 @@ For code-base changes: `yarn ci`.
 
 ## Forbidden
 
-- `window.ethereum`, `eval`, the `Function` constructor, iframe, script injection including `document.write` / `document.writeln`, dynamic import, CommonJS `require(...)`, or symlinks
+- `window.ethereum`, `eval`, the `Function` constructor, raw iframe, iframe `srcDoc`, script injection including `document.write` / `document.writeln`, dynamic import, CommonJS `require(...)`, or symlinks. The single reviewed display-only chart frame must use `manifest.externalFrames` plus one `ReviewedFrame`.
 - Undeclared, host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global `fetch(...)`
 - Browser storage/navigation/worker/cross-context/permission APIs and direct browser network/media APIs
 - Undeclared hardcoded EVM addresses in Vault source

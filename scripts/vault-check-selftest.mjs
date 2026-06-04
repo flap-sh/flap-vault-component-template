@@ -15,6 +15,8 @@ const SECOND_TOKEN = "0x2000000000000000000000000000000000000005";
 const VAULT = "0x3000000000000000000000000000000000000003";
 const EXTERNAL_CONTRACT = "0x4000000000000000000000000000000000000004";
 const FIXTURE_ULID = "01K9V9Z0P0AAAAAAAAAAAAAAAA";
+const TRADINGVIEW_FRAME_SRC = "https://s.tradingview.com/widgetembed/?symbol=NASDAQ%3ANVDA&interval=60&theme=dark&style=1";
+const DEXSCREENER_FRAME_SRC = "https://dexscreener.com/bsc/0x1111111111111111111111111111111111111111?embed=1&theme=dark";
 const INDEX_PATH = path.join(ROOT, "src", "vaults", "index.ts");
 const originalIndex = fs.readFileSync(INDEX_PATH, "utf8");
 
@@ -436,6 +438,257 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assert.equal(runVaultCheck(declaredFetchSlug, { silent: true }).issues.some((item) => item.ruleId === "endpoint-policy/direct-fetch"), false);
   passed.push("declared static HTTPS fetch child paths are allowed for review");
+
+  const validFrameSlug = `${FIXTURE_PREFIX}-valid-frame`;
+  writeVault(validFrameSlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "nvidia-chart",
+          provider: "tradingview",
+          src: TRADINGVIEW_FRAME_SRC,
+          title: "TradingView NVDA chart",
+        },
+      ],
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ReviewedFrame } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <ReviewedFrame
+        frameId="nvidia-chart"
+        provider="tradingview"
+        src="${TRADINGVIEW_FRAME_SRC}"
+        title="TradingView NVDA chart"
+      />
+      <span>{i18n.t("title")}</span>
+    </div>
+  );
+}
+`,
+  });
+  const validFrameCheck = runVaultCheck(validFrameSlug, { silent: true });
+  assert.equal(
+    validFrameCheck.issues.some((item) => item.severity === "blocking" && item.ruleId.startsWith("frame-policy/")),
+    false,
+  );
+  assertNoRule("declared frame URL is not treated as an undeclared endpoint", validFrameCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertRule("declared external frames require manual review", validFrameCheck, "manual-review/external-frame", "warning");
+  const validFrameWarning = validFrameCheck.issues.find((item) => item.ruleId === "manual-review/external-frame");
+  assert.equal(validFrameWarning?.src, TRADINGVIEW_FRAME_SRC);
+  assert.ok(validFrameWarning?.message.includes(TRADINGVIEW_FRAME_SRC));
+  assert.deepEqual(validFrameCheck.review.externalFrames, [
+    {
+      frameId: "nvidia-chart",
+      provider: "tradingview",
+      src: TRADINGVIEW_FRAME_SRC,
+      title: "TradingView NVDA chart",
+      field: "externalFrames[0]",
+      severity: "warning",
+      ruleId: "manual-review/external-frame",
+    },
+  ]);
+  passed.push("external frame review output prints the iframe src for Workbench review");
+
+  const tooManyFrameDeclarationsSlug = `${FIXTURE_PREFIX}-too-many-frame-declarations`;
+  writeVault(tooManyFrameDeclarationsSlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "nvidia-chart",
+          provider: "tradingview",
+          src: TRADINGVIEW_FRAME_SRC,
+          title: "TradingView NVDA chart",
+        },
+        {
+          id: "dex-chart",
+          provider: "dexscreener",
+          src: DEXSCREENER_FRAME_SRC,
+          title: "DexScreener chart",
+        },
+      ],
+    }),
+  });
+  assertRule("external frame declarations are limited to one per Vault UI", runVaultCheck(tooManyFrameDeclarationsSlug, { silent: true }), "frame-policy/too-many-reviewed-frames", "blocking");
+
+  const tooManyReviewedFrameUsageSlug = `${FIXTURE_PREFIX}-too-many-reviewed-frames`;
+  writeVault(tooManyReviewedFrameUsageSlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "nvidia-chart",
+          provider: "tradingview",
+          src: TRADINGVIEW_FRAME_SRC,
+          title: "TradingView NVDA chart",
+        },
+      ],
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ReviewedFrame } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <ReviewedFrame frameId="nvidia-chart" provider="tradingview" src="${TRADINGVIEW_FRAME_SRC}" title="TradingView NVDA chart" />
+      <ReviewedFrame frameId="nvidia-chart" provider="tradingview" src="${TRADINGVIEW_FRAME_SRC}" title="TradingView NVDA chart" />
+      <span>{i18n.t("title")}</span>
+    </div>
+  );
+}
+`,
+  });
+  assertRule("ReviewedFrame usage is limited to one per Vault UI", runVaultCheck(tooManyReviewedFrameUsageSlug, { silent: true }), "frame-policy/too-many-reviewed-frames", "blocking");
+
+  const unsupportedFrameOriginSlug = `${FIXTURE_PREFIX}-bad-frame-origin`;
+  writeVault(unsupportedFrameOriginSlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "bad-chart",
+          provider: "tradingview",
+          src: "https://evil.example.com/widget/?symbol=NASDAQ%3ANVDA",
+          title: "Bad chart",
+        },
+      ],
+    }),
+  });
+  assertRule("external frame origins are provider-scoped", runVaultCheck(unsupportedFrameOriginSlug, { silent: true }), "frame-policy/unsupported-origin", "blocking");
+
+  const unsupportedFrameProviderSlug = `${FIXTURE_PREFIX}-bad-frame-provider`;
+  writeVault(unsupportedFrameProviderSlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "bad-chart",
+          provider: "unknown-provider",
+          src: TRADINGVIEW_FRAME_SRC,
+          title: "Bad chart",
+        },
+      ],
+    }),
+  });
+  assertRule("external frame providers are fixed", runVaultCheck(unsupportedFrameProviderSlug, { silent: true }), "frame-policy/unsupported-provider", "blocking");
+
+  const frameQuerySlug = `${FIXTURE_PREFIX}-frame-no-query`;
+  writeVault(frameQuerySlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "queryless-chart",
+          provider: "tradingview",
+          src: "https://s.tradingview.com/widgetembed/",
+          title: "Queryless chart",
+        },
+      ],
+    }),
+  });
+  assertRule("external frame declarations require fixed query strings", runVaultCheck(frameQuerySlug, { silent: true }), "frame-policy/fixed-query-required", "blocking");
+
+  const dynamicFrameSlug = `${FIXTURE_PREFIX}-dynamic-frame`;
+  writeVault(dynamicFrameSlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "nvidia-chart",
+          provider: "tradingview",
+          src: TRADINGVIEW_FRAME_SRC,
+          title: "TradingView NVDA chart",
+        },
+      ],
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ReviewedFrame } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void i18n;
+  const chartSrc = "${TRADINGVIEW_FRAME_SRC}";
+  return <ReviewedFrame frameId="nvidia-chart" provider="tradingview" src={chartSrc} title="TradingView NVDA chart" />;
+}
+`,
+  });
+  const dynamicFrameCheck = runVaultCheck(dynamicFrameSlug, { silent: true });
+  assertRule("ReviewedFrame blocks dynamic src values", dynamicFrameCheck, "frame-policy/dynamic-frame-src", "blocking");
+
+  const undeclaredFrameSlug = `${FIXTURE_PREFIX}-undeclared-frame`;
+  writeVault(undeclaredFrameSlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "nvidia-chart",
+          provider: "tradingview",
+          src: TRADINGVIEW_FRAME_SRC,
+          title: "TradingView NVDA chart",
+        },
+      ],
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ReviewedFrame } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <ReviewedFrame frameId="nvidia-chart" provider="tradingview" src="https://s.tradingview.com/widgetembed/?symbol=NASDAQ%3ANVDA&interval=1&theme=dark&style=1" title="TradingView NVDA chart" />;
+}
+`,
+  });
+  assertRule("ReviewedFrame src must exactly match manifest.externalFrames", runVaultCheck(undeclaredFrameSlug, { silent: true }), "frame-policy/undeclared-frame-src", "blocking");
+
+  const frameSrcDocSlug = `${FIXTURE_PREFIX}-frame-srcdoc`;
+  writeVault(frameSrcDocSlug, {
+    manifest: baseManifest({
+      externalFrames: [
+        {
+          id: "nvidia-chart",
+          provider: "tradingview",
+          src: TRADINGVIEW_FRAME_SRC,
+          title: "TradingView NVDA chart",
+        },
+      ],
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ReviewedFrame } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <ReviewedFrame frameId="nvidia-chart" provider="tradingview" src="${TRADINGVIEW_FRAME_SRC}" title="TradingView NVDA chart" srcDoc={i18n.t("title")} />;
+}
+`,
+  });
+  assertRule("ReviewedFrame srcDoc is blocked", runVaultCheck(frameSrcDocSlug, { silent: true }), "frame-policy/invalid-reviewed-frame-usage", "blocking");
+
+  const rawIframeSlug = `${FIXTURE_PREFIX}-raw-iframe`;
+  writeVault(rawIframeSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <iframe src="${TRADINGVIEW_FRAME_SRC}" title={i18n.t("title")} />;
+}
+`,
+  });
+  assertRule("raw iframe remains blocked", runVaultCheck(rawIframeSlug, { silent: true }), "forbidden-api/iframe", "blocking");
 
   const requireSlug = `${FIXTURE_PREFIX}-require`;
   writeVault(requireSlug, {

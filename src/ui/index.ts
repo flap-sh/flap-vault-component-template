@@ -7,6 +7,7 @@ export * from "./DataRow";
 export * from "./DetailTile";
 export * from "./Input";
 export * from "./Metric";
+export * from "./ReviewedFrame";
 export * from "./StatusBadge";
 export * from "./TxButton";
 export * from "./VaultBanner";

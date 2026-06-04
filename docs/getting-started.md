@@ -133,7 +133,7 @@ Use:
 - `erc20Abi` or `standardErc20Abi` from `@/src/sdk` for normal ERC20 balance, allowance, approval, decimals, symbol, transfer, and transferFrom flows.
 - `@/src/ui` for Flap UI primitives.
 - `./VaultABI` as the only allowed local relative import.
-- `manifest.json` for required `artifactId`, match fields, i18n, optional per-binding `tokenAddresses`, optional per-binding `externalContracts`, and optional non-oracle endpoints. Each binding needs `chainId` plus either non-zero `factoryAddress` or exactly one non-zero `vaultAddresses` entry when there is no factory.
+- `manifest.json` for required `artifactId`, match fields, i18n, optional per-binding `tokenAddresses`, optional per-binding `externalContracts`, optional non-oracle endpoints, and optional reviewed `externalFrames`. Each binding needs `chainId` plus either non-zero `factoryAddress` or exactly one non-zero `vaultAddresses` entry when there is no factory.
 
 Do not copy standard ERC20 ABI into `VaultABI.ts`. Add token ABI fragments there only when a token has custom non-standard methods or a special mechanism.
 
@@ -142,7 +142,7 @@ Use `context.host?.marketPhase` or the normalized `readTaxVaultHostContext(conte
 Wrong-network handling is separate from market-phase handling. Use `sdk.wallet.isWrongNetwork` to keep write buttons visible but disabled, then prompt `sdk.wallet.switchChain()` or show a clear switch-network state before any write.
 Do not fetch private token metadata or image APIs from the Vault component. If token media is needed, read `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol`; the template preview shell now injects these host values through the same-origin runtime proxy when available, then falls back to on-chain ERC20 metadata. Production Flap host should inject equivalent data.
 
-Avoid external endpoints and external resources. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` as a single absolute HTTPS URL string without username/password credentials or an array of those strings; it will enter Flap review and must be approved before publish. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in the manifest. Declaration does not guarantee approval, and undeclared, host-relative, dynamic, HTTP, or credentialed fetch targets are rejected.
+Avoid external endpoints, resources, and frames. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` as a single absolute HTTPS URL string without username/password credentials or an array of those strings; it will enter Flap review and must be approved before publish. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. If a display-only chart iframe is unavoidable, declare at most one entry in `manifest.externalFrames[]` and render it only through one `ReviewedFrame` from `@/src/ui`; providers are limited to TradingView, DexScreener, and CoinGecko Terminal/GeckoTerminal, and the `src` must be a complete static HTTPS URL with fixed query params. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in the manifest. Declaration does not guarantee approval, and undeclared, host-relative, dynamic, HTTP, credentialed, raw iframe, or multiple `ReviewedFrame` usage is rejected.
 
 Avoid fixed extra contract targets. If a component must call a fixed contract address that is not `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, or a binding-scoped token/Vault reference, declare it in the relevant binding:
 
@@ -161,7 +161,7 @@ Avoid fixed extra contract targets. If a component must call a fixed contract ad
 
 Undeclared fixed contract targets are blocking `vault:check` issues.
 
-Do not use direct wallet APIs, undeclared endpoints/resources, undeclared fixed contract targets, `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports.
+Do not use direct wallet APIs, undeclared endpoints/resources/frames, undeclared fixed contract targets, raw iframe or `srcDoc`, `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports.
 
 Keep all Vault component text in `i18n.json`. The local preview uses Flap's language preference keys (`flap:language` and `flap_language`) and passes the active locale into the SDK.
 

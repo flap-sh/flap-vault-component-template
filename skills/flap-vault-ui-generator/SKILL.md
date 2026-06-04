@@ -41,6 +41,7 @@ chainId + tokenAddress
    - approve spender
    - oracle usage, only if unavoidable; do not declare oracle config in manifest
    - non-oracle endpoints, only if unavoidable and explicitly declared for review
+   - one display-only external frame, only if unavoidable and explicitly declared in `manifest.externalFrames` for TradingView, DexScreener, or CoinGecko Terminal/GeckoTerminal with a full static query URL
    - UI workflow
    - action availability stage: internal-market, dex-listed, both, or read-only
    - market phase handling through `context.host?.marketPhase`
@@ -77,7 +78,7 @@ Fix blocking issues before finishing.
 - Vault folder name controls `src/vaults/{folder-name}` and preview route `/{folder-name}`. It must be 3-64 characters of lowercase kebab-case.
 - `artifactId` controls unique artifact identity and must match `vaultui_<folder-name>_<ULID>`. It is not the route and not the registry match.
 - Manifest match requires explicit runtime targets in `match.bindings`. Use `{chainId, factoryAddress}` for factory mode or `{chainId, vaultAddresses: [vaultAddress]}` for the core no-factory path. The checker also accepts no-factory `tokenAddresses` and `vaultAddresses + tokenAddresses` mappings when Flap review/runtime supplies them. Do not use zero factory addresses; omit `factoryAddress` for no-factory mode. Optional `externalContracts` belongs inside the specific binding only.
-- Manifest is intentionally minimal: `artifactId`, `name`, `match`, `i18n`, and optional non-oracle `endpoints` only. Do not add `chainIds`, `id`, `owner`, `version`, `sdkVersion`, `actions`, `oracles`, `media`, `fallback`, `contracts`, `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy`. Chain IDs, factory or Vault targets, optional `tokenAddresses`, and optional `externalContracts` live inside `match.bindings` entries.
+- Manifest is intentionally minimal: `artifactId`, `name`, `match`, `i18n`, optional non-oracle `endpoints`, and optional reviewed `externalFrames` only. Do not add `chainIds`, `id`, `owner`, `version`, `sdkVersion`, `actions`, `oracles`, `media`, `fallback`, `contracts`, `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy`. Chain IDs, factory or Vault targets, optional `tokenAddresses`, and optional `externalContracts` live inside `match.bindings` entries.
 - The only allowed local relative import is `./VaultABI`. Do not use `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports. Use public aliases such as `@/src/sdk` and `@/src/ui` for shared runtime surfaces.
 - Treat `yarn vault:package {folder-name}` as the only local packaging path. It runs `vault:check` before producing the source zip for the Flap Artifact Workbench.
 - Submit only the zip produced by `yarn vault:package {folder-name}`. The script writes `flap-vault-package.json` and source file hashes; hand-made zips without the marker or with mismatched hashes should be rejected by the Flap Artifact Workbench.
@@ -91,6 +92,7 @@ Fix blocking issues before finishing.
 - Test EN/ZH in the local example page; the preview shell uses Flap's `flap:language` localStorage key and `flap_language` cookie, and passes the active locale into `sdk.i18n`.
 - Do not import `res/content.json` or `res/content_zh.json` from a Vault component. Those files are only for the Flap preview shell/header.
 - Avoid external endpoints and external resources by default. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` for Flap review as a single absolute HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in manifest. Declaration does not guarantee approval, and undeclared endpoints/resources are rejected.
+- Avoid external frames by default. If a display-only chart embed is unavoidable, declare at most one entry in `manifest.externalFrames[]` with `id`, `provider`, `src`, and `title`; provider must be `tradingview`, `dexscreener`, or `coingecko-terminal`, and `src` must be one complete static HTTPS provider URL with a fixed non-empty query string. Render it only through at most one `ReviewedFrame` from `@/src/ui` with static string literal props that exactly match the manifest declaration. Do not use raw iframe, multiple `ReviewedFrame` instances, `srcDoc`, dynamic URL construction, postMessage, wallet connection, transaction flows, or frame-driven quote/risk/settlement logic. Declaration does not guarantee approval.
 - Avoid fixed extra contract targets by default. If a non-token/non-Vault/non-factory contract target is unavoidable, declare it under `match.bindings[].externalContracts` with `address` and `label`; declaration does not guarantee approval, and undeclared fixed targets are rejected.
 - Do not declare write/approve actions in `manifest.json`; transaction behavior belongs in `Component.tsx` through SDK methods and runtime context addresses.
 - Do not hardcode undeclared transaction target addresses in Vault source. Use `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, and other runtime context values. If a fixed extra contract target is unavoidable, declare it under `match.bindings[].externalContracts`.
@@ -111,7 +113,7 @@ Fix blocking issues before finishing.
 
 - `window.ethereum.request`
 - `eval` / the `Function` constructor
-- iframe or script injection, including `document.write` / `document.writeln`
+- raw iframe, iframe `srcDoc`, or script injection, including `document.write` / `document.writeln`; `ReviewedFrame` is the only reviewed frame path
 - runtime remote import
 - undeclared URL, endpoint, or external resource
 - undeclared fixed extra contract target

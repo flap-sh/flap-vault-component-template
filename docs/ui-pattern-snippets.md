@@ -31,6 +31,7 @@ Avoid:
 - Treating `example` or `action-gallery-example` as the visual default. They are behavior references; the scaffold default and this document define the preferred default visual direction.
 - Third-party images or external media.
 - Hardcoded addresses or private endpoints.
+- Raw iframe, `srcDoc`, or dynamic chart URLs. If a display-only market chart is approved, use `ReviewedFrame` with a static `manifest.externalFrames` URL only.
 - Copying old Flap component names, constants, exact private flows, or legacy row-heavy layouts.
 
 ## Coverage Matrix

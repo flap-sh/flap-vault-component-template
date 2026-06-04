@@ -84,7 +84,7 @@ Build a controlled Flap Vault UI for:
 - empty/error states:
 - preview URL addresses:
 
-Use only the four files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Do not rebuild the host token header, do not call private token metadata APIs, do not add external navigation, and do not add undeclared endpoints or fixed contract targets.
+Use only the four files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Do not rebuild the host token header, do not call private token metadata APIs, do not add external navigation, and do not add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`.
 
 After editing, run yarn vault:check {folder-name}, yarn vault:package {folder-name}, and yarn vault:verify-package dist/{folder-name}.zip. Do not call the work done until those pass.
 ```

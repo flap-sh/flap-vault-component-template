@@ -18,7 +18,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Browser navigation APIs such as `window.open`, `location`, or `history` mutation.
 - Worker and cross-context APIs such as `Worker`, `SharedWorker`, `navigator.serviceWorker`, `BroadcastChannel`, `postMessage`, or message event listeners.
 - Browser permission APIs such as `navigator.clipboard`, `navigator.geolocation`, `navigator.permissions`, or `Notification`.
-- iframe or script injection, including `document.write` and `document.writeln`.
+- Raw iframe, iframe `srcDoc`, or script injection, including `document.write` and `document.writeln`.
 - `eval` or the `Function` constructor.
 - Unapproved dependencies.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
@@ -45,10 +45,13 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - SDK contract writes using runtime context addresses such as `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress`, plus token/NFT addresses derived from runtime context or Vault reads and fixed targets declared in `match.bindings[].externalContracts`.
 - Explorer links through `context.explorerBaseUrl`, `AddressLink`, or `sdk.openExplorerTx(...)`.
 - Token logo and NFT media only through Flap-controlled host/runtime media policy.
+- One display-only `ReviewedFrame` chart from `@/src/ui` only when the exact static provider URL is declared in `manifest.externalFrames` and approved by Flap review.
 
 Declared non-oracle endpoints are review candidates, not automatic approvals. Avoid them by default. If a special non-oracle endpoint is unavoidable, it must be declared in the manifest and reviewed by Flap before publish. Endpoint URLs must not include username/password credentials. A declaration covers only the exact URL path or child paths on the same origin, never sibling paths or lookalike hosts. Direct `fetch(...)` calls must use static absolute HTTPS targets covered by that declaration. Oracle usage is detected by `vault:check` and provisioned outside the manifest. Anything not declared or provisioned is rejected.
 Endpoint declarations must be a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials.
 If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in `manifest.endpoints` and keep the use to data fetches only. Do not turn declared endpoints into user-facing off-site navigation. Internal Oracle endpoints should normally arrive through `sdk.readOracle(...)`; if review needs a raw URL exception, allowlist it out of band for checker/runtime review rather than hardcoding private host policy into the public template.
+
+Declared external frames are review candidates, not automatic approvals. Avoid them by default. If a display-only market chart is unavoidable, declare at most one entry in `manifest.externalFrames` with `id`, `provider`, `src`, and `title`, then render it only through one `ReviewedFrame`. Providers are limited to TradingView, DexScreener, and CoinGecko Terminal/GeckoTerminal exact origins. Frame URLs must be complete static HTTPS URLs with fixed non-empty query strings; more than one `ReviewedFrame`, dynamic URL construction, credentials, hashes, `srcDoc`, postMessage integration, wallet connection, and frame-driven quotes/risk/settlement/transactions are rejected. Frame declarations do not allow `fetch(...)`, navigation, scripts, images, or other external resources.
 
 Declared external contracts are also review candidates, not automatic approvals. Avoid them by default. If a special fixed contract target is unavoidable and is not the runtime token, Vault, factory, or binding-scoped token/Vault reference, declare it under the relevant `match.bindings[].externalContracts` entry with `address` and `label`. Undeclared fixed contract targets are rejected by `vault:check`.
 

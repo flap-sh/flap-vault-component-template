@@ -15,9 +15,27 @@ const FORBIDDEN_NAMES = new Set(["node_modules", ".git", ".vercel", ".env", ".en
 const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const ALLOWED_VAULT_FILES = new Set(REQUIRED_FILES);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "endpoints"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "endpoints", "externalFrames"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
+const FRAME_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const FRAME_ID_MIN_LENGTH = 3;
+const FRAME_ID_MAX_LENGTH = 64;
+const MAX_REVIEWED_FRAMES_PER_VAULT = 1;
+const FRAME_PROVIDER_POLICIES = {
+  tradingview: {
+    label: "TradingView",
+    origins: new Set(["https://www.tradingview.com", "https://s.tradingview.com"]),
+  },
+  dexscreener: {
+    label: "DexScreener",
+    origins: new Set(["https://dexscreener.com"]),
+  },
+  "coingecko-terminal": {
+    label: "CoinGecko Terminal",
+    origins: new Set(["https://www.geckoterminal.com"]),
+  },
+};
 const STANDARD_ERC20_METHODS = ["balanceOf", "allowance", "approve", "decimals", "symbol", "transfer", "transferFrom"];
 const ALLOWED_IMPORTS = [
   "react",
@@ -65,7 +83,7 @@ const FIX_HINTS = {
   "forbidden-files/disallowed-entry": "Remove environment, dependency, git, or build output files from the Vault package.",
   "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
-  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, and optional endpoints. chain IDs are declared inside match.bindings entries.",
+  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
   "manifest-schema/missing-field": "Add the required manifest field.",
   "manifest-schema/invalid-artifact-id": "Use artifactId format vaultui_<folder-name>_<26-char ULID>, for example vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N.",
   "manifest-schema/artifact-id-folder-name-mismatch": "Make the artifactId folder-name segment match the src/vaults/<folder-name> folder name.",
@@ -103,13 +121,25 @@ const FIX_HINTS = {
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
   "endpoint-policy/direct-fetch": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
+  "frame-policy/invalid-frames": "Set manifest.externalFrames to a non-empty array of reviewed frame declarations, or remove it.",
+  "frame-policy/invalid-frame-declaration": "Each externalFrames entry must include id, provider, src, and title only.",
+  "frame-policy/duplicate-frame-id": "Use a unique lowercase kebab-case id for each external frame declaration.",
+  "frame-policy/unsupported-provider": "Use provider tradingview, dexscreener, or coingecko-terminal.",
+  "frame-policy/unsupported-origin": "Use only the exact reviewed provider origins: TradingView, DexScreener, or GeckoTerminal.",
+  "frame-policy/https-required": "Use a static absolute HTTPS frame URL without credentials.",
+  "frame-policy/fixed-query-required": "Declare the complete frame URL with a fixed non-empty query string. Do not derive query params at runtime.",
+  "frame-policy/invalid-reviewed-frame-usage": "Use ReviewedFrame with static string literal frameId, provider, src, and title props.",
+  "frame-policy/dynamic-frame-src": "Use a static string literal src prop on ReviewedFrame. Do not compose frame URLs dynamically.",
+  "frame-policy/undeclared-frame-src": "Declare the exact static ReviewedFrame src in manifest.externalFrames with the same provider and frameId.",
+  "frame-policy/too-many-reviewed-frames": "Use at most one ReviewedFrame and one manifest.externalFrames entry per Vault UI.",
+  "manual-review/external-frame": "External frames are review candidates only. Keep the frame display-only and wait for Flap review approval before publish.",
   "manual-review/oracle-usage": "Do not add oracle config to manifest. Flap Artifact Workbench/runtime must provision the oracle id.",
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
   "forbidden-api/direct-window-ethereum": "Use sdk.wallet and SDK contract methods instead of direct wallet APIs.",
   "forbidden-api/eval": "Remove eval and implement the logic as normal TypeScript.",
   "forbidden-api/function-constructor": "Remove Function constructor usage and implement the logic as normal TypeScript.",
-  "forbidden-api/iframe": "Do not embed iframe UI inside a Vault component.",
+  "forbidden-api/iframe": "Do not embed raw iframe UI inside a Vault component. Use ReviewedFrame only for manifest.externalFrames review candidates.",
   "forbidden-api/script": "Do not inject scripts inside a Vault component.",
   "forbidden-api/dangerously-set-inner-html": "Render structured React content instead of raw HTML.",
   "forbidden-api/remote-import": "Remove runtime remote imports. Use only approved local package imports.",
@@ -184,6 +214,12 @@ function normalizeManifestEndpoints(endpoints) {
   return null;
 }
 
+function normalizeManifestExternalFrames(externalFrames) {
+  if (externalFrames === undefined) return [];
+  if (Array.isArray(externalFrames)) return externalFrames;
+  return null;
+}
+
 function collectDeclaredUrls(manifest) {
   const urls = new Set();
   const normalized = normalizeManifestEndpoints(manifest.endpoints);
@@ -192,6 +228,24 @@ function collectDeclaredUrls(manifest) {
     if (typeof endpoint === "string") urls.add(endpoint);
   }
   return urls;
+}
+
+function collectDeclaredFrames(manifest) {
+  const frames = new Map();
+  const normalized = normalizeManifestExternalFrames(manifest.externalFrames);
+  if (!normalized) return frames;
+  for (const frame of normalized) {
+    if (!frame || typeof frame !== "object" || Array.isArray(frame)) continue;
+    if (!isNonEmptyString(frame.id) || !isNonEmptyString(frame.provider) || !isNonEmptyString(frame.src)) continue;
+    const src = normalizeFrameSrc(frame.src);
+    if (!src) continue;
+    frames.set(frame.id, {
+      id: frame.id,
+      provider: frame.provider,
+      src,
+    });
+  }
+  return frames;
 }
 
 function parseUrl(value) {
@@ -229,6 +283,22 @@ function isDeclaredUrl(url, declaredUrls) {
       continue;
     }
     if (isSamePathOrChild(candidate.pathname, allowed.pathname)) return true;
+  }
+  return false;
+}
+
+function normalizeFrameSrc(value) {
+  if (typeof value !== "string") return null;
+  const parsed = parseUrl(value);
+  if (!parsed) return null;
+  return parsed.href;
+}
+
+function isDeclaredExternalFrameUrl(url, declaredFrames) {
+  const src = normalizeFrameSrc(url);
+  if (!src) return false;
+  for (const frame of declaredFrames.values()) {
+    if (frame.src === src) return true;
   }
   return false;
 }
@@ -321,8 +391,8 @@ function isApprovedNavigationUrl(url) {
   return Boolean(origin && APPROVED_EXPLORER_ORIGINS.has(origin));
 }
 
-function isAllowlistedExternalUrl(url, declaredUrls) {
-  return isDeclaredUrl(url, declaredUrls) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
+function isAllowlistedExternalUrl(url, declaredUrls, declaredFrames = new Map()) {
+  return isDeclaredUrl(url, declaredUrls) || isDeclaredExternalFrameUrl(url, declaredFrames) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
 }
 
 function isValidFolderName(folderName) {
@@ -774,6 +844,95 @@ function collectDynamicImportIssues(content, file) {
   return issues;
 }
 
+function extractStaticJsxStringProp(tagText, propName) {
+  const staticPropRegex = new RegExp(
+    String.raw`\b${propName}\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*"([^"]*)"\s*\}|\{\s*'([^']*)'\s*\})`,
+    "u",
+  );
+  const match = staticPropRegex.exec(tagText);
+  if (match) {
+    return {
+      value: match.slice(1).find((item) => item !== undefined) ?? "",
+      dynamic: false,
+      present: true,
+    };
+  }
+  const propRegex = new RegExp(String.raw`\b${propName}\s*=`, "u");
+  return propRegex.test(tagText) ? { value: null, dynamic: true, present: true } : { value: null, dynamic: false, present: false };
+}
+
+function collectReviewedFrameIssues(content, file, declaredFrames) {
+  const issues = [];
+  const tagRegex = /<ReviewedFrame\b[\s\S]*?(?:\/>|>)/g;
+  const matches = [...content.matchAll(tagRegex)];
+  if (matches.length > MAX_REVIEWED_FRAMES_PER_VAULT) {
+    issues.push(
+      issue(
+        BLOCKING,
+        "frame-policy/too-many-reviewed-frames",
+        "A Vault UI may render at most one ReviewedFrame.",
+        { file, line: lineForIndex(content, matches[MAX_REVIEWED_FRAMES_PER_VAULT].index ?? -1) },
+      ),
+    );
+  }
+  for (const match of matches) {
+    const tagText = match[0];
+    const line = lineForIndex(content, match.index ?? -1);
+    const frameId = extractStaticJsxStringProp(tagText, "frameId");
+    const provider = extractStaticJsxStringProp(tagText, "provider");
+    const src = extractStaticJsxStringProp(tagText, "src");
+    const title = extractStaticJsxStringProp(tagText, "title");
+
+    if (/\bsrcDoc\s*=/.test(tagText)) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "frame-policy/invalid-reviewed-frame-usage",
+          "ReviewedFrame must use a reviewed provider src URL and must not use srcDoc.",
+          { file, line },
+        ),
+      );
+      continue;
+    }
+    if (!frameId.present || frameId.dynamic || !provider.present || provider.dynamic || !title.present || title.dynamic) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "frame-policy/invalid-reviewed-frame-usage",
+          "ReviewedFrame must include static string literal frameId, provider, and title props.",
+          { file, line },
+        ),
+      );
+      continue;
+    }
+    if (!src.present || src.dynamic) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "frame-policy/dynamic-frame-src",
+          "ReviewedFrame src must be a complete static string literal. Do not compose provider, path, or query params at runtime.",
+          { file, line },
+        ),
+      );
+      continue;
+    }
+
+    const normalizedSrc = normalizeFrameSrc(src.value);
+    const declaredFrame = declaredFrames.get(frameId.value);
+    if (!normalizedSrc || !declaredFrame || declaredFrame.provider !== provider.value || declaredFrame.src !== normalizedSrc) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "frame-policy/undeclared-frame-src",
+          `ReviewedFrame ${frameId.value || "<missing>"} src must exactly match manifest.externalFrames with the same frameId and provider.`,
+          { file, line },
+        ),
+      );
+    }
+  }
+  return issues;
+}
+
 function isApprovedContractAddressExpression(expressionText) {
   const normalized = normalizeContractAddressExpression(expressionText);
   if (!normalized) return false;
@@ -1023,6 +1182,124 @@ function checkExternalContracts(value, field, builtInAddresses = new Set()) {
   return issues;
 }
 
+function isValidFrameId(value) {
+  return (
+    typeof value === "string" &&
+    value.length >= FRAME_ID_MIN_LENGTH &&
+    value.length <= FRAME_ID_MAX_LENGTH &&
+    FRAME_ID_RE.test(value)
+  );
+}
+
+function checkExternalFrameDeclaration(frame, field, seenIds, seenSrcs) {
+  const issues = [];
+  if (!frame || typeof frame !== "object" || Array.isArray(frame)) {
+    issues.push(issue(BLOCKING, "frame-policy/invalid-frame-declaration", `${field} must be an object with id, provider, src, and title.`, { field }));
+    return issues;
+  }
+
+  const allowedKeys = new Set(["id", "provider", "src", "title"]);
+  for (const key of Object.keys(frame)) {
+    if (!allowedKeys.has(key)) {
+      issues.push(issue(BLOCKING, "frame-policy/invalid-frame-declaration", `${field}.${key} is not allowed.`, { field: `${field}.${key}` }));
+    }
+  }
+  for (const key of ["id", "provider", "src", "title"]) {
+    if (frame[key] === undefined) {
+      issues.push(issue(BLOCKING, "frame-policy/invalid-frame-declaration", `${field}.${key} is required.`, { field: `${field}.${key}` }));
+    }
+  }
+
+  if (frame.id !== undefined) {
+    if (!isValidFrameId(frame.id)) {
+      issues.push(issue(BLOCKING, "frame-policy/invalid-frame-declaration", `${field}.id must be 3-64 characters of lowercase kebab-case.`, { field: `${field}.id` }));
+    } else if (seenIds.has(frame.id)) {
+      issues.push(issue(BLOCKING, "frame-policy/duplicate-frame-id", `${field}.id duplicates ${seenIds.get(frame.id)}.id.`, { field: `${field}.id` }));
+    } else {
+      seenIds.set(frame.id, field);
+    }
+  }
+
+  const policy = typeof frame.provider === "string" ? FRAME_PROVIDER_POLICIES[frame.provider] : undefined;
+  if (!policy) {
+    issues.push(issue(BLOCKING, "frame-policy/unsupported-provider", `${field}.provider must be tradingview, dexscreener, or coingecko-terminal.`, { field: `${field}.provider` }));
+  }
+
+  const parsedSrc = typeof frame.src === "string" ? parseUrl(frame.src) : null;
+  if (!isNonEmptyString(frame.src) || !parsedSrc) {
+    issues.push(issue(BLOCKING, "frame-policy/https-required", `${field}.src must be a static absolute HTTPS URL.`, { field: `${field}.src` }));
+  } else {
+    const normalizedSrc = parsedSrc.href;
+    if (parsedSrc.protocol !== "https:" || parsedSrc.username || parsedSrc.password || parsedSrc.hash) {
+      issues.push(issue(BLOCKING, "frame-policy/https-required", `${field}.src must use https, must not include credentials, and must not include a hash.`, { field: `${field}.src` }));
+    }
+    if (!parsedSrc.search) {
+      issues.push(issue(BLOCKING, "frame-policy/fixed-query-required", `${field}.src must include the complete fixed query string used by the provider embed.`, { field: `${field}.src` }));
+    }
+    if (policy && !policy.origins.has(parsedSrc.origin)) {
+      issues.push(issue(BLOCKING, "frame-policy/unsupported-origin", `${field}.src origin ${parsedSrc.origin} is not allowed for ${policy.label}.`, { field: `${field}.src` }));
+    }
+    const firstField = seenSrcs.get(normalizedSrc);
+    if (firstField) {
+      issues.push(issue(BLOCKING, "frame-policy/invalid-frame-declaration", `${field}.src duplicates ${firstField}.src.`, { field: `${field}.src` }));
+    } else {
+      seenSrcs.set(normalizedSrc, field);
+    }
+  }
+
+  if (!isNonEmptyString(frame.title) || frame.title.trim().length < 2) {
+    issues.push(issue(BLOCKING, "frame-policy/invalid-frame-declaration", `${field}.title must be a human-readable accessibility title.`, { field: `${field}.title` }));
+  }
+
+  if (issues.length === 0) {
+    issues.push(
+      issue(
+        WARNING,
+        "manual-review/external-frame",
+        `Declared ${FRAME_PROVIDER_POLICIES[frame.provider].label} external frame ${frame.id}: ${frame.src}. External frames require Flap review approval before publish.`,
+        {
+          field,
+          frameId: frame.id,
+          provider: frame.provider,
+          src: frame.src,
+          title: frame.title,
+        },
+      ),
+    );
+  }
+  return issues;
+}
+
+function checkExternalFrames(value) {
+  const issues = [];
+  const normalized = normalizeManifestExternalFrames(value);
+  if (normalized === null) {
+    issues.push(issue(BLOCKING, "frame-policy/invalid-frames", "manifest.externalFrames must be an array when provided.", { field: "externalFrames" }));
+    return issues;
+  }
+  if (value !== undefined && normalized.length === 0) {
+    issues.push(issue(BLOCKING, "frame-policy/invalid-frames", "manifest.externalFrames must contain at least one reviewed frame declaration when provided.", { field: "externalFrames" }));
+    return issues;
+  }
+  if (normalized.length > MAX_REVIEWED_FRAMES_PER_VAULT) {
+    issues.push(
+      issue(
+        BLOCKING,
+        "frame-policy/too-many-reviewed-frames",
+        "manifest.externalFrames may contain at most one reviewed frame declaration per Vault UI.",
+        { field: "externalFrames" },
+      ),
+    );
+  }
+
+  const seenIds = new Map();
+  const seenSrcs = new Map();
+  for (const [index, frame] of normalized.entries()) {
+    issues.push(...checkExternalFrameDeclaration(frame, `externalFrames[${index}]`, seenIds, seenSrcs));
+  }
+  return issues;
+}
+
 function checkManifest(manifest, folderName) {
   const issues = [];
   for (const key of Object.keys(manifest || {})) {
@@ -1032,7 +1309,7 @@ function checkManifest(manifest, folderName) {
         issue(
           BLOCKING,
           ruleId,
-          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, match, i18n, and endpoints.`,
+          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, match, i18n, endpoints, and externalFrames.`,
           { field: key },
         ),
       );
@@ -1223,6 +1500,7 @@ function checkManifest(manifest, folderName) {
       }
     }
   }
+  issues.push(...checkExternalFrames(manifest.externalFrames));
   return issues;
 }
 
@@ -1256,6 +1534,7 @@ function checkI18n(i18n, manifestLocales) {
 function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
   const declaredUrls = collectDeclaredUrls(manifest);
+  const declaredFrames = collectDeclaredFrames(manifest);
   const contractPolicy = collectManifestContractPolicy(manifest);
   const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
   for (const item of sourceFiles) {
@@ -1269,8 +1548,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\{\s*ethereum\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/direct-window-ethereum", "Destructuring ethereum from browser globals is not allowed."],
       [/\beval\s*\(/, "forbidden-api/eval", "eval() is not allowed."],
       [/\b(?:new\s+)?Function\s*\(/, "forbidden-api/function-constructor", "Function constructor usage is not allowed."],
-      [/<iframe\b/i, "forbidden-api/iframe", "iframe UI is not allowed."],
-      [/document\.createElement\s*\(\s*["'`]iframe["'`]\s*\)/, "forbidden-api/iframe", "iframe creation is not allowed."],
+      [/<iframe\b/i, "forbidden-api/iframe", "raw iframe UI is not allowed. Use ReviewedFrame for reviewed display-only externalFrames."],
+      [/document\.createElement\s*\(\s*["'`]iframe["'`]\s*\)/, "forbidden-api/iframe", "raw iframe creation is not allowed. Use ReviewedFrame for reviewed display-only externalFrames."],
       [/<script\b/i, "forbidden-api/script", "script injection is not allowed."],
       [/document\.createElement\s*\(\s*["'`]script["'`]\s*\)/, "forbidden-api/script", "script injection is not allowed."],
       [/\bdocument\.write(?:ln)?\s*\(/, "forbidden-api/script", "document.write/writeln is not allowed inside Vault components."],
@@ -1361,6 +1640,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     issues.push(...collectDynamicImportIssues(content, rel));
+    issues.push(...collectReviewedFrameIssues(scanContent, rel, declaredFrames));
     const requireRegex = /\brequire\s*\(/g;
     for (const match of scanContent.matchAll(requireRegex)) {
       issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
@@ -1433,8 +1713,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     for (const match of scanContent.matchAll(externalUrlRegex)) {
       const url = sanitizeUrlLiteral(match[0]);
-      if (!isAllowlistedExternalUrl(url, declaredUrls)) {
-        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints. Undeclared endpoints and external resources are rejected.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
+      if (!isAllowlistedExternalUrl(url, declaredUrls, declaredFrames)) {
+        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints or externalFrames. Undeclared endpoints and external resources are rejected.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
     for (const match of scanContent.matchAll(dataUrlRegex)) {
@@ -1545,10 +1825,29 @@ function buildAgentNextActions(issues) {
     severity: item.severity,
     file: item.file,
     field: item.field,
+    frameId: item.frameId,
+    provider: item.provider,
+    src: item.src,
     locale: item.locale,
     key: item.key,
     fixHint: item.fixHint,
   }));
+}
+
+function collectManualReview(issues) {
+  const externalFrames = issues
+    .filter((item) => item.ruleId === "manual-review/external-frame" && item.src)
+    .map((item) => ({
+      frameId: item.frameId,
+      provider: item.provider,
+      src: item.src,
+      title: item.title,
+      field: item.field,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  return { externalFrames };
 }
 
 function buildCheckReport(folderName, issues) {
@@ -1568,6 +1867,7 @@ function buildCheckReport(folderName, issues) {
     ...failureFields,
     folderName,
     summary: { blocking, warning, info },
+    review: collectManualReview(issues),
     agent: {
       verdict: blocking > 0 ? "fix-blocking" : warning > 0 ? "review-warnings" : "package-ready",
       nextActions: buildAgentNextActions(issues),

@@ -296,7 +296,7 @@ Versioning rules for the Agent contract, manifest schema, and source package for
 The Vault folder is a strict source package boundary. It may contain only:
 
 - `Component.tsx`: the controlled React Vault UI component.
-- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}` or no-factory `{chainId, vaultAddresses: [vaultAddress]}` targets; optional per-binding `tokenAddresses`; optional non-oracle `endpoints`; and `i18n`.
+- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}` or no-factory `{chainId, vaultAddresses: [vaultAddress]}` targets; optional per-binding `tokenAddresses`; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`.
 - `VaultABI.ts`: minimal Vault ABI fragments only. Standard ERC20 ABI is exported from `@/src/sdk`; add token ABI fragments here only for custom non-standard token methods.
 - `i18n.json`: locale dictionaries declared by `manifest.i18n`; manifest locale strings must be at least two characters.
 
@@ -308,11 +308,11 @@ Blocking by default:
 
 - `window.ethereum.request`
 - `eval` / `new Function`
-- iframe UI
+- raw iframe UI or iframe `srcDoc`; the single reviewed display-only chart frame must use `manifest.externalFrames` plus one `ReviewedFrame`
 - script injection, including `document.write` and `document.writeln`
 - runtime remote imports
 - dynamic imports and CommonJS `require(...)`
-- undeclared external URLs, endpoints, or external resources
+- undeclared external URLs, endpoints, external frames, or external resources
 - dynamic, relative, HTTP, credentialed, aliased, destructured, or computed browser-global `fetch(...)` targets
 - browser storage, navigation, worker, cross-context messaging including postMessage listeners, and permission APIs
 - direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`

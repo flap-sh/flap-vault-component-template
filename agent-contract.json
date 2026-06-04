@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 9,
+  "version": 11,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -96,7 +96,7 @@
     "recharts"
   ],
   "manifest": {
-    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "endpoints"],
+    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "endpoints", "externalFrames"],
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
@@ -108,13 +108,16 @@
     "localeRule": "manifest.i18n entries must be locale strings with at least two characters. Only locales declared by manifest.i18n are required and compared.",
     "oracleRule": "Do not declare oracle config in manifest.json. sdk.readOracle usage is reported by vault:check for Flap review.",
     "endpointRule": "Avoid endpoints. Non-oracle fetch targets must be static absolute HTTPS URLs without username/password credentials and declared in manifest.endpoints as a single URL string or an array of URL strings for review. Dynamic, relative, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked.",
+    "externalFrameRule": "Avoid external frames. If a display-only market chart is unavoidable, declare at most one entry in manifest.externalFrames with id, provider, src, and title. Providers are limited to tradingview, dexscreener, and coingecko-terminal. src must be a complete static HTTPS provider URL with a fixed non-empty query string, no credentials, and no hash. Component code may render at most one ReviewedFrame from @/src/ui with static string literal frameId, provider, src, and title props that exactly match the manifest declaration. Do not build iframe URLs dynamically or use srcDoc.",
+    "externalFrameReviewOutputRule": "vault:check must print the valid external frame src in the manual-review/external-frame warning and in review.externalFrames[] so Workbench can display the exact iframe src value for human review.",
     "navigationRule": "Component-owned navigation should stay on the active chain explorer only. Do not send users to arbitrary websites from a Vault package.",
     "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
   },
   "securityBoundaries": {
     "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
     "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation.",
-    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, script injection APIs such as document.write/writeln, cross-context messaging APIs including postMessage listeners, and browser permission APIs before packaging."
+    "externalFrameBoundaryRule": "ReviewedFrame is the only iframe path and may be used at most once per Vault UI. External frames are display-only review candidates and must not connect wallets, drive quotes, route trades, influence risk/settlement, receive postMessage data, or replace SDK/on-chain/oracle reads.",
+    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, script injection APIs such as document.write/writeln, raw iframe/srcDoc usage outside ReviewedFrame, cross-context messaging APIs including postMessage listeners, and browser permission APIs before packaging."
   },
   "commands": {
     "install": "yarn",
@@ -275,11 +278,43 @@
     },
     "security/iframe-or-script-injection": {
       "severity": "blocking",
-      "fixAction": "Remove iframe elements and script injection. Use Flap SDK methods for all data and transaction flows."
+      "fixAction": "Remove raw iframe elements and script injection. If a display-only TradingView, DexScreener, or CoinGecko Terminal chart is unavoidable, use manifest.externalFrames plus ReviewedFrame with a static src after review."
+    },
+    "frame-policy/invalid-frames": {
+      "severity": "blocking",
+      "fixAction": "Set manifest.externalFrames to a non-empty array of reviewed frame declarations, or remove it."
+    },
+    "frame-policy/invalid-frame-declaration": {
+      "severity": "blocking",
+      "fixAction": "Each manifest.externalFrames entry must include only id, provider, src, and title. src must be a complete static HTTPS provider URL with a fixed query string."
+    },
+    "frame-policy/unsupported-provider": {
+      "severity": "blocking",
+      "fixAction": "Use provider tradingview, dexscreener, or coingecko-terminal only."
+    },
+    "frame-policy/unsupported-origin": {
+      "severity": "blocking",
+      "fixAction": "Use only the exact reviewed provider origins for TradingView, DexScreener, or CoinGecko Terminal."
+    },
+    "frame-policy/dynamic-frame-src": {
+      "severity": "blocking",
+      "fixAction": "Pass a complete static string literal src to ReviewedFrame. Do not compose provider, path, or query params from runtime data."
+    },
+    "frame-policy/undeclared-frame-src": {
+      "severity": "blocking",
+      "fixAction": "Declare the exact ReviewedFrame src in manifest.externalFrames with the same frameId and provider, or remove the frame."
+    },
+    "frame-policy/too-many-reviewed-frames": {
+      "severity": "blocking",
+      "fixAction": "Keep at most one manifest.externalFrames entry and one ReviewedFrame usage per Vault UI."
+    },
+    "manual-review/external-frame": {
+      "severity": "warning",
+      "fixAction": "The external frame requires Flap review before production publish. Confirm the frame is display-only and cannot affect quotes, risk, settlement, or transactions."
     },
     "security/undeclared-url": {
       "severity": "blocking",
-      "fixAction": "Declare the endpoint in manifest.endpoints as one absolute HTTPS URL string without credentials or an array of those strings. Or remove the URL and use sdk.readContract or sdk.readOracle instead."
+      "fixAction": "Declare data fetch URLs in manifest.endpoints, declare the reviewed display-only chart frame in manifest.externalFrames, or remove the URL and use sdk.readContract or sdk.readOracle instead."
     },
     "security/host-relative-fetch": {
       "severity": "blocking",
@@ -422,6 +457,23 @@
           "factoryAddress": { "type": "string" }
         },
         "description": "Real addresses for local preview. Recommended. Not packaged into the source zip."
+      },
+      "externalFrames": {
+        "type": "array",
+        "required": false,
+        "maxItems": 1,
+        "items": {
+          "type": "object",
+          "required": ["id", "provider", "src", "title", "purpose"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+            "provider": { "type": "string", "enum": ["tradingview", "dexscreener", "coingecko-terminal"] },
+            "src": { "type": "string", "pattern": "^https://[^#?]+\\?.+$" },
+            "title": { "type": "string", "minLength": 2 },
+            "purpose": { "type": "string", "description": "Why the display-only frame is needed instead of SDK/on-chain/oracle data." }
+          }
+        },
+        "description": "Optional reviewed display-only chart embeds. Each src must be the complete static provider URL with fixed query params."
       }
     }
   },
@@ -440,14 +492,15 @@
       { "name": "actionAvailabilityStage", "description": "Stage decision made for this Vault: internal-market, dex-listed, both, or read-only." },
       { "name": "selectedPatterns", "description": "One or more pattern names from docs/ui-pattern-snippets.md coverage matrix." },
       { "name": "locales", "description": "Locales declared in manifest.i18n and validated by vault:check." },
-      { "name": "openItems", "description": "Unresolved assumptions, missing contract inputs, oracle IDs pending Flap provisioning, or endpoint declarations pending Flap review." }
+      { "name": "openItems", "description": "Unresolved assumptions, missing contract inputs, oracle IDs pending Flap provisioning, endpoint declarations pending Flap review, or external frame declarations pending Flap review." }
     ],
     "openItemsSources": [
       "Any vault:check issue with ruleId manual-review/oracle-usage; include the oracle id and expected response assumption.",
       "Any vault:check warning with ruleId manual-review/external-endpoint; include each endpoint URL, purpose, and why SDK/on-chain reads are insufficient.",
+      "Any vault:check warning with ruleId manual-review/external-frame; include the frame id, provider, src, and why SDK/on-chain/oracle reads are insufficient.",
       "Any skipped preview requirement, especially marketPhase=internal-market, marketPhase=dex-listed, or wrong-network state for write-capable flows.",
       "Any missing contract input, unresolved ABI assumption, missing preview address, or user-confirmation dependency.",
-      "Any Workbench review dependency outside this template, including endpoint approval, oracle provisioning, registry binding, or runtime publish approval."
+      "Any Workbench review dependency outside this template, including endpoint approval, external frame approval, oracle provisioning, registry binding, or runtime publish approval."
     ],
     "rule": "Agents must produce this report after vault:verify-package succeeds. If openItems is non-empty, list each item explicitly so the user knows what still requires Flap review or manual input. If openItems is empty, state openItems: none."
   },

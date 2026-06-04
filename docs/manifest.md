@@ -158,6 +158,7 @@ Example:
 | Field | Required | Description |
 | --- | --- | --- |
 | `endpoints` | No | Optional non-oracle external endpoint declarations. Use a single absolute HTTPS URL string without username/password credentials or an array of those strings. Avoid by default; declared endpoints enter Flap review and must be approved before publish. |
+| `externalFrames` | No | Optional reviewed display-only chart iframe declaration. At most one entry is allowed. Use only for `tradingview`, `dexscreener`, or `coingecko-terminal` provider embeds with a complete static HTTPS `src` URL and fixed query string. |
 
 ## Do Not Declare
 
@@ -316,3 +317,47 @@ Or:
 
 A declared endpoint enters Flap review; it is not automatically approved and can still be rejected. Undeclared external URLs in Vault source are blocking check issues.
 Endpoint declarations must be valid absolute HTTPS URL strings without username/password credentials. A declaration covers only that URL path or child paths on the same origin; it does not allow sibling paths or lookalike hosts. Direct `fetch(...)` calls must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked. IPFS/Arweave links, WebSocket URLs, embedded data URL media, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, symlinks, and CommonJS `require(...)` are also blocked inside Vault source by default.
+
+## External Frames
+
+Avoid external frames. If a display-only market chart is unavoidable, declare one entry under `externalFrames` and render it only through one `ReviewedFrame` from `@/src/ui`:
+
+```json
+{
+  "externalFrames": [
+    {
+      "id": "nvidia-tradingview-chart",
+      "provider": "tradingview",
+      "src": "https://s.tradingview.com/widgetembed/?symbol=NASDAQ%3ANVDA&interval=60&theme=dark&style=1",
+      "title": "TradingView NVDA chart"
+    }
+  ]
+}
+```
+
+Supported providers and exact origins:
+
+| Provider | Allowed origins |
+| --- | --- |
+| `tradingview` | `https://www.tradingview.com`, `https://s.tradingview.com` |
+| `dexscreener` | `https://dexscreener.com` |
+| `coingecko-terminal` | `https://www.geckoterminal.com` |
+
+The `src` must be one complete static HTTPS URL with a non-empty fixed query string, no username/password credentials, and no hash. Query params must be written directly in `manifest.json`; do not derive `symbol`, pair address, network, theme, or embed flags from runtime state.
+
+Component code must reference the same static values:
+
+```tsx
+import { ReviewedFrame } from "@/src/ui";
+
+<ReviewedFrame
+  frameId="nvidia-tradingview-chart"
+  provider="tradingview"
+  src="https://s.tradingview.com/widgetembed/?symbol=NASDAQ%3ANVDA&interval=60&theme=dark&style=1"
+  title="TradingView NVDA chart"
+/>
+```
+
+Raw `<iframe>`, more than one `ReviewedFrame`, `document.createElement("iframe")`, `srcDoc`, dynamic `src={chartUrl}`, template-string URLs, postMessage handlers, wallet connection inside frames, and frame-driven quotes/risk/settlement/transaction flows are blocked. A frame declaration enters Flap review; it is not automatically approved and can still be rejected. `manifest.externalFrames` does not allow `fetch(...)`, user-facing navigation, scripts, images, or arbitrary provider domains.
+
+`vault:check` prints the valid frame declaration in `review.externalFrames[]` and includes the full iframe `src` in the `manual-review/external-frame` warning so Workbench can surface it directly for human review.

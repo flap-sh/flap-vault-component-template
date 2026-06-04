@@ -71,6 +71,7 @@ Allowed fields:
 - `match`
 - `i18n`
 - `endpoints`
+- `externalFrames`
 
 Disallowed developer fields:
 
@@ -152,7 +153,7 @@ Vault components should use:
 - `@/src/ui` for shared UI primitives
 - `./VaultABI` as the only local relative import
 
-Vault components must not use direct wallet APIs, iframe, eval, script injection, runtime remote imports, host app private imports, or undeclared endpoints/resources.
+Vault components must not use direct wallet APIs, raw iframe, iframe `srcDoc`, eval, script injection, runtime remote imports, host app private imports, or undeclared endpoints/resources/frames. The only iframe path is one reviewed `manifest.externalFrames` entry plus one `ReviewedFrame` for a display-only TradingView, DexScreener, or CoinGecko Terminal chart.
 
 ### AI Agent Workflow
 
@@ -190,8 +191,8 @@ Oracle config is not declared in `manifest.json`.
 
 If component code calls `sdk.readOracle("id")`, `vault:check` reports the oracle id as an info item for Flap review/provisioning. The Flap Artifact Workbench/runtime owns endpoint and signing policy.
 
-Non-oracle external endpoints and fixed extra contract targets are discouraged. If unavoidable, endpoints may be declared in `manifest.endpoints`, and fixed extra contract targets may be declared in `match.bindings[].externalContracts`; declaration only makes them reviewable and does not guarantee approval.
-Endpoint declarations must be a single HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS target covered by that declaration. Host-relative, dynamic, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked. WebSocket URLs, IPFS/Arweave links, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are blocked inside Vault source by default so the template does not package code that the Workbench intake will reject.
+Non-oracle external endpoints, one display-only external frame, and fixed extra contract targets are discouraged. If unavoidable, endpoints may be declared in `manifest.endpoints`, one display-only chart frame may be declared in `manifest.externalFrames`, and fixed extra contract targets may be declared in `match.bindings[].externalContracts`; declaration only makes them reviewable and does not guarantee approval.
+Endpoint declarations must be a single HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS target covered by that declaration. The external frame declaration is limited to TradingView, DexScreener, or CoinGecko Terminal/GeckoTerminal exact provider origins and must use one complete static HTTPS URL with fixed query string rendered through one `ReviewedFrame`. Host-relative, dynamic, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked. Raw iframe, more than one `ReviewedFrame`, `srcDoc`, dynamic frame URLs, WebSocket URLs, IPFS/Arweave links, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are blocked inside Vault source by default so the template does not package code that the Workbench intake will reject.
 
 ### Packaging
 

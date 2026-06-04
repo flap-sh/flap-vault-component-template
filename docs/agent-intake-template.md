@@ -162,7 +162,15 @@ Also confirm how the UI will render current contract risk status from host `risk
 - If unavoidable: provide either one full HTTPS endpoint URL without username/password credentials or a list of those URLs. These are declared in `manifest.endpoints` and enter Flap review; declaration does not guarantee approval. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration.
 - Host-relative URLs (`/api/...`), dynamic fetch targets, credentialed URLs, non-HTTPS, IPFS/Arweave, WebSocket, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are always blocked.
 
-### Q15: Fixed external contracts (optional)
+### Q15: External chart frames (optional)
+
+> Does this UI need to embed a display-only TradingView, DexScreener, or CoinGecko Terminal chart?
+
+- Default: no. Prefer Flap SDK methods, on-chain reads, and `sdk.readOracle(...)` for business data.
+- If unavoidable: provide `id`, provider (`tradingview`, `dexscreener`, or `coingecko-terminal`), full static HTTPS `src` with fixed query params, accessibility title, and why the frame is display-only.
+- At most one is allowed. It must be declared in `manifest.externalFrames` and rendered through one `ReviewedFrame`; declaration does not guarantee approval. Raw iframe, multiple `ReviewedFrame` instances, `srcDoc`, dynamic `src`, postMessage, wallet/transaction flows, and frame-driven quote/risk/settlement logic are blocked.
+
+### Q16: Fixed external contracts (optional)
 
 > Does this UI need to call a fixed contract address that is not the runtime token, Vault, factory, or binding-scoped token/Vault reference?
 

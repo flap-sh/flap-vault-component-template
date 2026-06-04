@@ -59,6 +59,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `vaultAddresses` | Required for core no-factory binding | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]` for the normal scaffold path. |
 | `tokenAddresses` | Optional | Use only inside each `match.bindings` entry. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
+| `externalFrames` | Optional | Use only when a display-only chart embed is unavoidable. At most one entry is allowed. Providers are limited to `tradingview`, `dexscreener`, and `coingecko-terminal`; `src` must be one complete static HTTPS provider URL with fixed query params. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Each locale string must be at least two characters. Check validates only declared locales. |
 | `VaultABI` | Yes | Minimal Vault ABI fragments used by the component. Do not include standard ERC20 here. |
 | `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, risk posture, and current contract risk-status handling. |
@@ -99,6 +100,8 @@ If a factory-scoped UI needs a reference token CA allowlist, still scaffold the 
 
 If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
 
+If the UI needs a display-only market chart iframe, declare it in `manifest.externalFrames` and render it only through `ReviewedFrame` from `@/src/ui`. The declaration must be an array with at most one entry containing `id`, `provider`, `src`, and `title`. Supported providers are only `tradingview`, `dexscreener`, and `coingecko-terminal`; CoinGecko Terminal embeds use the GeckoTerminal domain. The `src` must be the complete static HTTPS provider URL with a non-empty fixed query string, no username/password credentials, and no hash. Component code may render at most one `ReviewedFrame` and must pass static string literal `frameId`, `provider`, `src`, and `title` props that exactly match the manifest entry. Do not use raw `<iframe>`, `srcDoc`, dynamic URL construction, postMessage, wallet connection, transaction flows, quote/risk/settlement logic, or arbitrary third-party embeds. Add the external frame as an `openItems` entry until Flap review explicitly approves it.
+
 If the UI needs a fixed non-token/non-Vault/non-factory contract target, declare it under the relevant `match.bindings[].externalContracts` entry with `address` and `label`. Also add it as an `openItems` entry until Flap review explicitly approves the target. The `openItems` entry must include: address, label, chain/factory binding, purpose, read/write methods, why runtime token/Vault/factory addresses are insufficient, and fallback behavior when the call fails. Do not use a top-level `contracts` field.
 
 Then edit only:
@@ -129,6 +132,7 @@ Use:
 - `@/src/sdk` for runtime context, contract reads/writes, oracle reads, notifications, i18n, formatting, and tx errors.
 - `@/src/sdk` exported `erc20Abi` or `standardErc20Abi` for standard ERC20 `balanceOf`, `allowance`, `approve`, `decimals`, `symbol`, `transfer`, and `transferFrom`.
 - `@/src/ui` for shared UI primitives.
+- `ReviewedFrame` from `@/src/ui` only for the single reviewed display-only `manifest.externalFrames` entry.
 - `./VaultABI` as the only local relative import.
 - No additional SDK package or SDK-like wrapper beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - `docs/ui-pattern-snippets.md` to choose section order, metric grids, action panels, transaction states, and empty/error states.
@@ -149,12 +153,13 @@ Use:
 Do not use:
 
 - Direct wallet APIs such as `window.ethereum`.
-- `eval`, the `Function` constructor, iframe, script injection including `document.write` / `document.writeln`, or `dangerouslySetInnerHTML`.
+- `eval`, the `Function` constructor, raw iframe, `srcDoc`, script injection including `document.write` / `document.writeln`, or `dangerouslySetInnerHTML`.
 - CommonJS `require(...)`; use static ESM imports only.
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
 - Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, clipboard, geolocation, permission, or notification APIs.
 - External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials.
+- More than one `ReviewedFrame`, or external frames unless declared in `manifest.externalFrames` and rendered through `ReviewedFrame` with static string literal props that exactly match the declaration.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` targets. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`.
 - Fixed contract targets outside `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, binding-scoped `tokenAddresses`/`vaultAddresses`, or `match.bindings[].externalContracts`.
 - Arbitrary off-site navigation. Component-owned links should stay on the current chain explorer only; do not send users to other websites from a Vault package.
@@ -206,7 +211,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed or credentialed endpoint declarations, endpoint-prefix escapes, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 

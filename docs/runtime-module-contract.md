@@ -162,6 +162,7 @@ Contract interaction should stay on:
 - fixed addresses declared in `match.bindings[].externalContracts`
 
 Do not use the shared runtime surface to reach unrelated routers, bridges, aggregators, or arbitrary app contracts.
+Do not use it to create arbitrary embeds either. The only reviewed iframe primitive is `ReviewedFrame` from `@/src/ui`, and a Vault UI may render it at most once with the single display-only `manifest.externalFrames` chart URL approved by the host/Workbench review path.
 
 Those belong to the host/runtime layer.
 
@@ -232,6 +233,8 @@ The host may implement different adapters behind the scenes:
 - `flap.sh` production adapter
 
 That shared surface should also own oracle provisioning. Components still call `sdk.readOracle(...)`, but the host/runtime should inject the actual reader through `VaultRuntimeProvider` rather than pushing raw oracle URLs into Vault source. In this template, local preview wires `oracleReader={createLocalOracleReader()}` and serves the request through `/api/runtime/oracle/{oracleId}` backed by server-side runtime defaults.
+
+That shared surface also owns the reviewed frame primitive. Components may render at most one `ReviewedFrame`, and only with a static URL declared in the single `manifest.externalFrames` entry; Workbench and production hosts can rely on source-package review plus the `ReviewedFrame` primitive first. CSP `frame-src` allowlisting is optional follow-up hardening, not a required host change for this template contract.
 
 But the component-facing module contract must remain the same.
 
