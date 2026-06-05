@@ -105,7 +105,8 @@ For the first version, keep the scaffolded default surface and replace placehold
 - Show two or three Vault-specific metrics, not every possible contract field.
 - Keep one primary action area visible. Include input, quote/proof state, warnings, and the approve/write button there.
 - Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for phase gating.
-- Read current risk status from `readTaxVaultHostContext(context.host)` and render a prominent warning if it is missing.
+- Read current risk status from `readTaxVaultHostContext(context.host)`, place it in the first or second row of the Vault-specific business UI, and render a prominent warning if it is missing.
+- Do not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`.
 - Use the host token name, symbol, and image from `context.tokenName`, `context.tokenSymbol`, and `context.tokenImageUrl`.
 - Use `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` before writes.
 - Use `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress` instead of hardcoded transaction targets.
@@ -130,7 +131,7 @@ Check these before packaging:
 
 - The page renders under the host-owned `Vault Information` frame.
 - The component does not duplicate the token breadcrumb, token header, close control, or shell summary.
-- Risk status is visible.
+- Risk status is visible in the first or second business UI row.
 - Missing risk status shows a warning.
 - English and Chinese copy both render if both locales are declared.
 - Wrong-network state blocks writes.
@@ -176,5 +177,5 @@ The package is not ready if:
 - The UI was not opened locally.
 - The oracle, proof, read, or write path was never tested.
 - The UI hides unavailable actions instead of explaining why they are disabled.
-- The component does not render host risk status.
+- The component does not render host risk status in the first or second business UI row.
 - The Vault folder contains anything beyond `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.

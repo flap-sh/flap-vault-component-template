@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 11,
+  "version": 12,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -64,7 +64,7 @@
     "marketPhaseRule": "The template preview host and production Flap host derive marketPhase from Portal token state: existing tokens with tokenInfo.status < 2 are internal-market; existing tokens with tokenInfo.status >= 2 are dex-listed; missing token info is unknown. In preview, taxInfo=1 is only a fixture seed when no real chain host data is available or when an explicit override is desired.",
     "actionAvailabilityHelper": "isActionAvailableForPhase(stage, context.host?.marketPhase ?? \"unknown\")",
     "riskStatusSource": "readTaxVaultHostContext(context.host).vaultInfo.riskLevel or readTaxVaultHostContext(context.host).taxInfo.vaultInfo.riskLevel",
-    "riskStatusRule": "Every onboarded Vault UI must read and visibly render the current contract risk status from host Vault/TaxInfo context. If the risk level is unavailable, render a prominent warning/danger message that risk-status integration is required. vault:check blocks Component.tsx files that do not reference host riskLevel and a visible UI primitive.",
+    "riskStatusRule": "Every onboarded Vault UI must read and visibly render the current contract risk status from host Vault/TaxInfo context. The risk status must be placed in the first or second row of the Vault-specific business UI so it is visible in the first viewport. If the risk level is unavailable, render a prominent warning/danger message that risk-status integration is required. Do not hardcode or unconditionally render Low risk / 低风险 labels, badges, summaries, or reassuring copy; a low-risk label may appear only when selected from the host-derived riskLevel === 1 branch. vault:check blocks Component.tsx files that do not reference host riskLevel and a visible UI primitive, blocks risk status placed too low in the UI, and blocks manual low-risk labels that are not derived from host riskLevel.",
     "backwardsCompatibleListedFlag": "context.host.isListed",
     "wrongNetworkCapability": "sdk.wallet exposes isWrongNetwork, requiredChainId, requiredChainLabel, canSwitchChain, isSwitchingChain, and switchChain() so write-capable Vault UIs can render a switch-network state before attempting writes."
   },
@@ -149,7 +149,9 @@
   },
   "checkerWarnings": {
     "manual-review/action-stage-gating": "Component has a write path but no marketPhase or isActionAvailableForPhase usage. Add explicit internal-market / DEX-listed button gating and visible unavailable-state copy.",
-    "risk-status/missing-host-risk-state": "Component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add riskLevel handling and a prominent unavailable-risk warning."
+    "risk-status/missing-host-risk-state": "Component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add riskLevel handling and a prominent unavailable-risk warning.",
+    "risk-status/not-prominent-placement": "Component renders host risk status too low in the Vault business UI. Move it into the first or second row so it is visible in the first viewport.",
+    "risk-status/manual-low-risk-label": "Component renders Low risk / 低风险 copy without selecting it from host riskLevel === 1. Remove the manual label or map the host-derived risk level explicitly."
   },
   "errorCodes": {
     "template-freshness/npm-outdated": {
@@ -215,6 +217,14 @@
     "risk-status/missing-host-risk-state": {
       "severity": "blocking",
       "fixAction": "Read riskLevel from readTaxVaultHostContext(context.host).vaultInfo or .taxInfo.vaultInfo, display it prominently, and show a warning/danger message when the host risk level is unavailable."
+    },
+    "risk-status/manual-low-risk-label": {
+      "severity": "blocking",
+      "fixAction": "Remove hardcoded or unconditional Low risk / 低风险 copy. Low-risk labels may appear only in the host-derived riskLevel === 1 render branch."
+    },
+    "risk-status/not-prominent-placement": {
+      "severity": "blocking",
+      "fixAction": "Move the host-derived risk status into the first or second row of the Vault-specific business UI so users can see it in the first viewport."
     },
     "contract-abi/human-readable-requires-parse-abi": {
       "severity": "blocking",
@@ -576,6 +586,8 @@
     "preview route /{folder-name} resolves",
     "stage-gated actions are previewed with marketPhase=internal-market and marketPhase=dex-listed",
     "current contract risk status is displayed from host riskLevel, with a prominent missing-risk warning state",
+    "contract risk status appears in the first or second row of the Vault-specific business UI",
+    "no Low risk / 低风险 label or reassuring low-risk copy appears unless selected from host riskLevel === 1",
     "write-capable flows preview a wrong-network state and render a switch-network path instead of sending writes on the wrong chain",
     "Vault folder contains only the four allowed files",
     "Component.tsx follows a public-safe pattern from docs/ui-pattern-snippets.md",

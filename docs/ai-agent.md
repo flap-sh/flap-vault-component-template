@@ -140,7 +140,7 @@ Use:
 - An explicit action availability stage: `internal-market`, `dex-listed`, `both`, or `read-only`.
 - `context.host?.marketPhase` as the stage source of truth. The current template preview host provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
 - `readTaxVaultHostContext(context.host)` as the normalized public SDK accessor for custom Vault host state. Custom Vault UI in this template targets the tax-token path, so the live runtime fields that matter are `marketPhase`, `isListed`, and host-injected token metadata rather than ad hoc token-type props.
-- Current contract risk status from `readTaxVaultHostContext(context.host)`. Derive it from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`, display it prominently near the top or runtime/status area, and render a warning/danger notice when the risk level is unavailable. This is required for every onboarded Vault UI and cannot be skipped.
+- Current contract risk status from `readTaxVaultHostContext(context.host)`. Derive it from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`, display it in the first or second row of the Vault-specific business UI so it is visible in the first viewport, and render a warning/danger notice when the risk level is unavailable. This is required for every onboarded Vault UI and cannot be skipped. Do not hardcode or unconditionally render `Low risk` / `低风险` labels, badges, summaries, or reassuring copy; those labels may appear only when selected from the host-derived `riskLevel === 1` branch.
 - `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` to keep stage-gated buttons consistent.
 - `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` when a write flow depends on the active wallet being on `context.chainId`. Keep the write section visible and render a clear switch-network state instead of attempting the write on the wrong chain.
 - `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token header/media data. The template preview shell first asks the same-origin runtime proxy for host presentation data, then falls back to ERC20 `symbol()` / `name()` from the preview `tokenAddress`; mocked image fallback is reserved for the neutral preview fixture only. `tokenAddress` alone is metadata-only in preview; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when token lifecycle state matters.
@@ -203,6 +203,8 @@ If `summary.blocking` is greater than zero, fix those issues before doing anythi
 If `manual-review/action-stage-gating` appears, the component has a write path but does not reference `marketPhase` or `isActionAvailableForPhase`. Add explicit stage gating and visible unavailable-state copy before packaging.
 If `manifest-binding/mixed-binding-target` appears, one binding contains both `factoryAddress` and `vaultAddresses`. Choose one scope: factory-scoped UI uses `factoryAddress`; single-Vault UI omits `factoryAddress` and uses exactly one `vaultAddresses` entry.
 If `risk-status/missing-host-risk-state` appears, the component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying.
+If `risk-status/not-prominent-placement` appears, the component renders host risk status too low in the Vault business UI. Move the risk badge, metric, or row into the first or second row of the Vault-specific business UI before retrying.
+If `risk-status/manual-low-risk-label` appears, the component renders `Low risk` / `低风险` copy without deriving it from host `riskLevel === 1`. Remove the manual label or move it into the explicit host-risk mapping branch before retrying.
 If `contract-abi/human-readable-requires-parse-abi` appears, `VaultABI.ts` exports human-readable ABI signature strings without `parseAbi(...)`. Import `parseAbi` from `viem` and wrap the string array, or use full object ABI fragments.
 
 When changing the check script or Agent contract itself, also run:
@@ -317,6 +319,8 @@ A generated Vault UI is done only when:
 - The component uses runtime context addresses for reads and writes.
 - Stage-gated actions were previewed with both `marketPhase=internal-market` and `marketPhase=dex-listed`, and unavailable buttons remain visible with clear copy.
 - Current contract risk status is visible from host `riskLevel`, and the missing-risk state shows a prominent warning/danger message.
+- The host risk status appears in the first or second row of the Vault-specific business UI.
+- No `Low risk` / `低风险` label or reassuring low-risk copy appears unless it is selected from the host-derived `riskLevel === 1` branch.
 - Any write-capable flow was also previewed in a wrong-network state, and the component rendered a clear switch-network path instead of attempting the write.
 
 ## Done Report

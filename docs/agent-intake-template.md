@@ -140,7 +140,7 @@ What states must the UI handle explicitly?
 | `unverified` | Not reviewed; user must acknowledge risk. |
 | `high-risk` | Irreversible, dangerous, or AI-generated actions. Show explicit risk gate. |
 
-Also confirm how the UI will render current contract risk status from host `riskLevel`. Every onboarded Vault UI must display `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel` and show a prominent warning/danger message if that value is unavailable.
+Also confirm how the UI will render current contract risk status from host `riskLevel`. Every onboarded Vault UI must display `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel` in the first or second row of the Vault-specific business UI and show a prominent warning/danger message if that value is unavailable. The UI must not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`.
 
 ---
 

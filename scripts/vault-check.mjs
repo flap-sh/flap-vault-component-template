@@ -65,6 +65,8 @@ const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|oracle|aggregator|
 const CONTRACT_INTERACTION_METHODS = ["readContract", "simulateContract", "writeContract", "watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"];
 const CONTRACT_LABEL_REQUIRED_METHODS = new Set(["readContract", "simulateContract", "writeContract"]);
 const CONTRACT_INTERACTION_METHOD_RE = new RegExp(`^(?:${CONTRACT_INTERACTION_METHODS.join("|")})\\b`, "u");
+const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow)\b(?=[\s\S]{0,640}\b(?:riskLabel|riskLevel|riskTone)\b)/;
+const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 
 const BLOCKING = "blocking";
 const WARNING = "warning";
@@ -136,6 +138,8 @@ const FIX_HINTS = {
   "manual-review/oracle-usage": "Do not add oracle config to manifest. Flap Artifact Workbench/runtime must provision the oracle id.",
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
+  "risk-status/manual-low-risk-label": "Do not hardcode or unconditionally render Low risk / 低风险 labels. A low-risk label is allowed only when selected from the host-derived riskLevel === 1 branch.",
+  "risk-status/not-prominent-placement": "Place the contract risk status in the first or second row of the Vault business UI so it is visible in the first viewport.",
   "forbidden-api/direct-window-ethereum": "Use sdk.wallet and SDK contract methods instead of direct wallet APIs.",
   "forbidden-api/eval": "Remove eval and implement the logic as normal TypeScript.",
   "forbidden-api/function-constructor": "Remove Function constructor usage and implement the logic as normal TypeScript.",
@@ -340,8 +344,7 @@ function hasRiskStatusIntegration(content) {
   const usesHostAccessor = /\breadTaxVaultHostContext\s*\(\s*(?:context|sdk\.context)\.host\s*\)/.test(content);
   const derivesHostRiskLevel =
     /\briskLevel\b\s*=\s*[\s\S]{0,260}(?:vaultInfo\?\.\s*riskLevel|taxInfo\?\.\s*vaultInfo\?\.\s*riskLevel)/.test(content);
-  const displaysRiskStatus =
-    /<(?:StatusBadge|DetailTile|Metric|DataRow)\b[\s\S]{0,320}\b(?:riskLabel|riskLevel|riskTone)\b/.test(content);
+  const displaysRiskStatus = RISK_STATUS_DISPLAY_RE.test(content);
   const displaysMissingRiskWarning =
     /\briskLevel\b\s*(?:===|==)\s*(?:null|undefined)[\s\S]{0,400}<Alert\b/.test(content) ||
     /\briskLevel\b\s*(?:!==|!=)\s*(?:null|undefined)[\s\S]{0,400}[:{(]\s*<Alert\b/.test(content) ||
@@ -349,6 +352,86 @@ function hasRiskStatusIntegration(content) {
     /<Alert\b[\s\S]{0,400}\briskLevel\b[\s\S]{0,100}(?:null|undefined)/.test(content);
 
   return usesHostAccessor && derivesHostRiskLevel && displaysRiskStatus && displaysMissingRiskWarning;
+}
+
+function lastReturnIndexBefore(content, index) {
+  let lastIndex = -1;
+  for (const match of content.slice(0, index).matchAll(/\breturn\s*(?:\(|<)/g)) {
+    lastIndex = match.index ?? lastIndex;
+  }
+  return lastIndex;
+}
+
+function hasProminentRiskStatusPlacement(content) {
+  const displayRegex = new RegExp(RISK_STATUS_DISPLAY_RE.source, "g");
+  for (const match of content.matchAll(displayRegex)) {
+    const index = match.index ?? 0;
+    const returnIndex = lastReturnIndexBefore(content, index);
+    if (returnIndex >= 0 && index - returnIndex <= RISK_STATUS_TOP_OFFSET_LIMIT) return true;
+  }
+  return false;
+}
+
+function hasManualLowRiskCopy(value) {
+  if (typeof value !== "string") return false;
+  return /\blow\s*risk\b/i.test(value) || value.replaceAll("中低风险", "").includes("低风险");
+}
+
+function collectLowRiskI18nKeys(i18n, manifestLocales) {
+  const keys = new Set();
+  for (const locale of manifestLocales) {
+    const dictionary = i18n?.[locale];
+    if (!dictionary || typeof dictionary !== "object" || Array.isArray(dictionary)) continue;
+    for (const [key, value] of Object.entries(dictionary)) {
+      if (hasManualLowRiskCopy(value)) keys.add(key);
+    }
+  }
+  return keys;
+}
+
+function isRiskLevelOneGuarded(content, index) {
+  const before = content.slice(Math.max(0, index - 520), index);
+  const after = content.slice(index, Math.min(content.length, index + 260));
+  const around = `${before}${after}`;
+  if (/\briskLevel\b\s*={2,3}\s*1\b|\b1\b\s*={2,3}\s*\briskLevel\b/.test(around)) return true;
+  return /\bswitch\s*\(\s*riskLevel\s*\)/.test(before) && /\bcase\s+1\s*:/.test(around);
+}
+
+function collectManualLowRiskLabelIssues(content, i18n, manifestLocales, rel) {
+  const issues = [];
+  const stringLiteralRegex = /(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+  for (const match of content.matchAll(stringLiteralRegex)) {
+    if (!hasManualLowRiskCopy(match[2])) continue;
+    const index = match.index ?? 0;
+    if (isRiskLevelOneGuarded(content, index)) continue;
+    issues.push(
+      issue(
+        BLOCKING,
+        "risk-status/manual-low-risk-label",
+        "Component contains Low risk / 低风险 copy that is not selected from the host-derived riskLevel === 1 branch.",
+        { file: rel, line: lineForIndex(content, index) },
+      ),
+    );
+  }
+
+  const lowRiskI18nKeys = collectLowRiskI18nKeys(i18n, manifestLocales);
+  if (!lowRiskI18nKeys.size) return issues;
+  const i18nCallRegex = /(?:^|[^\w.])(?:t|i18n\.t)\(\s*["'`]([^"'`]+)["'`]/g;
+  for (const match of content.matchAll(i18nCallRegex)) {
+    const key = match[1];
+    if (!lowRiskI18nKeys.has(key)) continue;
+    const index = match.index ?? 0;
+    if (isRiskLevelOneGuarded(content, index)) continue;
+    issues.push(
+      issue(
+        BLOCKING,
+        "risk-status/manual-low-risk-label",
+        `Component renders low-risk i18n key ${key} without deriving it from host riskLevel === 1.`,
+        { file: rel, line: lineForIndex(content, index), key },
+      ),
+    );
+  }
+  return issues;
 }
 
 function hasTypeBasedBinding(value) {
@@ -1788,7 +1871,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    if (item.name === "Component.tsx" && !hasRiskStatusIntegration(scanContent)) {
+    const hasComponentRiskStatusIntegration = item.name === "Component.tsx" ? hasRiskStatusIntegration(scanContent) : false;
+    if (item.name === "Component.tsx" && !hasComponentRiskStatusIntegration) {
       issues.push(
         issue(
           BLOCKING,
@@ -1797,6 +1881,19 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           { file: rel },
         ),
       );
+    }
+    if (item.name === "Component.tsx") {
+      if (hasComponentRiskStatusIntegration && !hasProminentRiskStatusPlacement(scanContent)) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "risk-status/not-prominent-placement",
+            "The current contract risk status must be placed in the first or second row of the Vault business UI, not below other sections or outside the first viewport.",
+            { file: rel },
+          ),
+        );
+      }
+      issues.push(...collectManualLowRiskLabelIssues(scanContent, i18n, manifestLocales, rel));
     }
     if (/Number\s*\([^)]*(amount|balance|allowance|deposit|claim|reward)/i.test(scanContent)) {
       issues.push(issue(WARNING, "contract-abi/number-bigint", "Avoid Number(...) for token amounts used in transaction logic.", { file: rel }));

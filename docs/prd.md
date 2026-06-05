@@ -236,7 +236,7 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | External contract declaration boundary | Done | `vault:check` blocks fixed SDK contract targets outside runtime token/Vault/factory addresses, binding-scoped token/Vault references, or `match.bindings[].externalContracts`. |
 | Type-field binding ban | Done | Recursive manifest scan blocks `vaultType` / `vaultTypes` binding fields. |
 | Dynamic locale validation | Done | Checks follow `manifest.i18n`; single-locale manifests are valid. |
-| Risk status integration | Done | `vault:check` blocks Vault components that do not read host Vault/TaxInfo `riskLevel`, visibly render the risk state, and include an explicit missing-risk warning. |
+| Risk status integration | Done | `vault:check` blocks Vault components that do not read host Vault/TaxInfo `riskLevel`, visibly render the risk state in the first or second business UI row, include an explicit missing-risk warning, or add manual `Low risk` / `低风险` copy outside the host-derived `riskLevel === 1` branch. |
 | Oracle review surface | Done | `sdk.readOracle(...)` usage is reported by `vault:check`; oracle config is not in manifest. |
 | Non-oracle endpoint declaration | Done | HTTPS endpoint declarations are review warnings; undeclared URLs are blocking. |
 | Direct fetch boundary | Done | `vault:check` blocks host-relative, dynamic, credentialed, HTTP, or undeclared direct `fetch(...)` targets; declared static HTTPS child paths remain reviewable. |

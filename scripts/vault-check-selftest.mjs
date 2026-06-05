@@ -1157,6 +1157,98 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertNoRule("risk status integration accepts multiline risk derivation and boolean missing-risk guards", runVaultCheck(riskStatusLooseSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
 
+  const manualLowRiskSlug = `${FIXTURE_PREFIX}-manual-low-risk`;
+  writeVault(manualLowRiskSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  return (
+    <div>
+      <StatusBadge>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+      <StatusBadge>{i18n.t("risk.low")}</StatusBadge>
+    </div>
+  );
+}
+`,
+    i18n: { en: { "risk.low": "Low risk", "risk.missing": "Risk status missing" } },
+  });
+  assertRule("manual low-risk labels are blocked even when host risk status is wired", runVaultCheck(manualLowRiskSlug, { silent: true }), "risk-status/manual-low-risk-label", "blocking");
+
+  const hostDerivedLowRiskSlug = `${FIXTURE_PREFIX}-host-derived-low-risk`;
+  writeVault(hostDerivedLowRiskSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel =
+    riskLevel === 1
+      ? i18n.t("risk.low")
+      : riskLevel == null
+        ? i18n.t("risk.missing")
+        : String(riskLevel);
+  return (
+    <div>
+      <StatusBadge>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );
+}
+`,
+    i18n: { en: { "risk.low": "Low risk", "risk.missing": "Risk status missing" } },
+  });
+  assertNoRule("host-derived low-risk label is accepted", runVaultCheck(hostDerivedLowRiskSlug, { silent: true }), "risk-status/manual-low-risk-label", "blocking");
+
+  const lateRiskStatusSlug = `${FIXTURE_PREFIX}-late-risk-status`;
+  const lateRiskStatusFiller = Array.from({ length: 36 }, (_, index) => `      <div data-row="${index}">{i18n.t("risk.missing")}</div>`).join("\n");
+  writeVault(lateRiskStatusSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  return (
+    <div>
+${lateRiskStatusFiller}
+      <StatusBadge>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );
+}
+`,
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertRule("risk status must stay in the first or second business UI row", runVaultCheck(lateRiskStatusSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+
   const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
   assert.throws(() =>
     execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-zero-scaffold`, "--chain", "56", "--factory", ZERO_ADDRESS, "--locales", "en"], {

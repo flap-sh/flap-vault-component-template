@@ -136,7 +136,7 @@ Suggested i18n keys:
 
 ## Risk And Verification Banner
 
-Use for current contract risk status, unverified, high-risk, fallback, AI-generated, or schema-generated Vaults. Every onboarded Vault UI must read `riskLevel` from host context and visibly render it; this is a strict package check.
+Use for current contract risk status, unverified, high-risk, fallback, AI-generated, or schema-generated Vaults. Every onboarded Vault UI must read `riskLevel` from host context and visibly render it in the first or second row of the Vault-specific business UI; this is a strict package check. Low-risk copy must only be selected from the host-derived `riskLevel === 1` branch; do not add separate manual `Low risk` / `低风险` badges or reassuring copy.
 
 ```tsx
 const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;

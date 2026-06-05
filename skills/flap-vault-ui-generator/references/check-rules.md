@@ -40,6 +40,8 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - i18n key missing from any locale declared by `manifest.i18n`
 - missing current contract risk-status integration from host `riskLevel`, including the prominent unavailable-risk warning state
+- current contract risk status placed below the first two rows of the Vault-specific business UI
+- manual `Low risk` / `低风险` labels, badges, summaries, or reassuring copy that are not selected from the host-derived `riskLevel === 1` branch
 - remote media inside Vault source
 - hardcoded EVM addresses in Vault source unless they are binding-scoped token/Vault/factory references or declared external contract targets
 - contract reads/writes, event watches, log/filter calls, or gas estimates against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`
