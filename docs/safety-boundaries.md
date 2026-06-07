@@ -4,7 +4,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 
 ## Blocking
 
-- Direct wallet API access.
+- Direct wallet API access, injected wallet providers, provider discovery, wallet-client signing utilities, or raw provider `request` / `send` / signing / transaction RPC methods.
 - Hidden transaction target.
 - Hardcoded EVM addresses in Vault source unless the address is a binding-scoped factory/token/Vault reference or an explicitly declared `match.bindings[].externalContracts` target.
 - SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`.
@@ -15,11 +15,12 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Direct browser network/media APIs such as `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`, including aliasing, destructuring, string-indexed, or variable-indexed computed browser-global access to those APIs.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` target.
 - Browser storage or host-state escape APIs such as `localStorage`, `sessionStorage`, `indexedDB`, Cache Storage, or `document.cookie`.
-- Browser navigation APIs such as `window.open`, `location`, or `history` mutation.
+- Browser-global member access except safe timer APIs and reviewed explorer-only `window.open`.
+- Browser navigation APIs such as arbitrary `window.open`, bare `open(...)`, `location`, or `history` mutation. `window.open` is allowed only for current-chain explorer address/transaction URLs with `noopener` or `noreferrer`.
 - Worker and cross-context APIs such as `Worker`, `SharedWorker`, `navigator.serviceWorker`, `BroadcastChannel`, `postMessage`, or message event listeners.
 - Browser permission APIs such as `navigator.clipboard`, `navigator.geolocation`, `navigator.permissions`, or `Notification`.
-- Raw iframe, iframe `srcDoc`, or script injection, including `document.write` and `document.writeln`.
-- `eval` or the `Function` constructor.
+- Raw iframe, iframe `srcDoc`, direct HTML replacement, or script injection, including `document.write`, `document.writeln`, `document.open`, `document.close`, `innerHTML`, `outerHTML`, and `insertAdjacentHTML`.
+- `eval`, string-based timer callbacks, the `Function` constructor, or constructor-based scope escapes.
 - Unapproved dependencies.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - Missing i18n.
@@ -43,7 +44,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Reading Flap-provided `context.host` values for token info, parsed tax info, VaultPortal info, fee mode, render surface, and registry-selected Vault type.
 - `sdk.readOracle(...)` only when the Flap Artifact Workbench/runtime can review and provision the oracle id.
 - SDK contract writes using runtime context addresses such as `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress`, plus token/NFT addresses derived from runtime context or Vault reads and fixed targets declared in `match.bindings[].externalContracts`.
-- Explorer links through `context.explorerBaseUrl`, `AddressLink`, or `sdk.openExplorerTx(...)`.
+- Explorer links through `context.explorerBaseUrl`, `AddressLink`, `sdk.openExplorerTx(...)`, or reviewed `window.open` calls that target `context.explorerBaseUrl` address/transaction URLs with `noopener` or `noreferrer`.
 - Token logo and NFT media only through Flap-controlled host/runtime media policy.
 - One display-only `ReviewedFrame` chart from `@/src/ui` only when the exact static provider URL is declared in `manifest.externalFrames` and approved by Flap review.
 

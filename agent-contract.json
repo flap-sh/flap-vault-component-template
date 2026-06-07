@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 12,
+  "version": 13,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -117,7 +117,7 @@
     "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
     "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation.",
     "externalFrameBoundaryRule": "ReviewedFrame is the only iframe path and may be used at most once per Vault UI. External frames are display-only review candidates and must not connect wallets, drive quotes, route trades, influence risk/settlement, receive postMessage data, or replace SDK/on-chain/oracle reads.",
-    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, script injection APIs such as document.write/writeln, raw iframe/srcDoc usage outside ReviewedFrame, cross-context messaging APIs including postMessage listeners, and browser permission APIs before packaging."
+    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser-global member access except safe window timers and reviewed explorer-only window.open, injected wallet providers, wallet RPC request/send/signing/transaction methods, wallet-client signing utilities, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, script injection APIs such as document.write/writeln and document.open/close, raw iframe/srcDoc usage outside ReviewedFrame, cross-context messaging APIs including postMessage listeners and EIP-6963 provider discovery, and browser permission APIs before packaging."
   },
   "commands": {
     "install": "yarn",
@@ -280,11 +280,11 @@
     },
     "security/direct-wallet-access": {
       "severity": "blocking",
-      "fixAction": "Remove window.ethereum, window.solana, or other direct wallet API usage. Use sdk.writeContract and sdk.simulateContract from @/src/sdk."
+      "fixAction": "Remove window.ethereum, window.solana, web3/currentProvider, EIP-6963 provider discovery, viem wallet-client/account signing utilities, and raw provider request/send/signing/transaction methods. Use sdk.wallet, sdk.writeContract, and sdk.simulateContract from @/src/sdk."
     },
     "security/eval": {
       "severity": "blocking",
-      "fixAction": "Remove eval() or the Function constructor. Runtime code execution is not allowed inside Vault source."
+      "fixAction": "Remove eval(), string-based timer callbacks, Function constructor, and constructor-constructor escapes. Runtime code execution is not allowed inside Vault source."
     },
     "security/iframe-or-script-injection": {
       "severity": "blocking",

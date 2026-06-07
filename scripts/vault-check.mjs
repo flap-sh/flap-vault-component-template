@@ -55,6 +55,7 @@ const FORBIDDEN_IMPORTS = [
   "next/script",
   "framer-motion",
   "recharts",
+  "viem/accounts",
 ];
 const APPROVED_EXPLORER_ORIGINS = new Set(["https://bscscan.com", "https://testnet.bscscan.com"]);
 const DEFAULT_ALLOWED_URL_PREFIXES = [];
@@ -67,6 +68,9 @@ const CONTRACT_LABEL_REQUIRED_METHODS = new Set(["readContract", "simulateContra
 const CONTRACT_INTERACTION_METHOD_RE = new RegExp(`^(?:${CONTRACT_INTERACTION_METHODS.join("|")})\\b`, "u");
 const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow)\b(?=[\s\S]{0,640}\b(?:riskLabel|riskLevel|riskTone)\b)/;
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
+const ALLOWED_BROWSER_GLOBAL_MEMBERS = new Map([
+  ["window", new Set(["setTimeout", "clearTimeout", "setInterval", "clearInterval", "open"])],
+]);
 
 const BLOCKING = "blocking";
 const WARNING = "warning";
@@ -140,7 +144,7 @@ const FIX_HINTS = {
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
   "risk-status/manual-low-risk-label": "Do not hardcode or unconditionally render Low risk / 低风险 labels. A low-risk label is allowed only when selected from the host-derived riskLevel === 1 branch.",
   "risk-status/not-prominent-placement": "Place the contract risk status in the first or second row of the Vault business UI so it is visible in the first viewport.",
-  "forbidden-api/direct-window-ethereum": "Use sdk.wallet and SDK contract methods instead of direct wallet APIs.",
+  "forbidden-api/direct-window-ethereum": "Use sdk.wallet and SDK contract methods instead of direct wallet/provider APIs. Do not call injected provider request, send, signing, or transaction methods.",
   "forbidden-api/eval": "Remove eval and implement the logic as normal TypeScript.",
   "forbidden-api/function-constructor": "Remove Function constructor usage and implement the logic as normal TypeScript.",
   "forbidden-api/iframe": "Do not embed raw iframe UI inside a Vault component. Use ReviewedFrame only for manifest.externalFrames review candidates.",
@@ -472,6 +476,73 @@ function matchesAllowlistPrefix(url, prefixes) {
 function isApprovedNavigationUrl(url) {
   const origin = normalizeOrigin(url);
   return Boolean(origin && APPROVED_EXPLORER_ORIGINS.has(origin));
+}
+
+function isAllowedBrowserGlobalMember(globalName, memberName) {
+  return ALLOWED_BROWSER_GLOBAL_MEMBERS.get(globalName)?.has(memberName) ?? false;
+}
+
+function collectBrowserGlobalMemberIssues(content, file) {
+  const issues = [];
+  const memberRegex = /\b(window|globalThis|global|self|navigator|document)\s*(?:\?\.|\.)\s*([A-Za-z_$][\w$]*)/g;
+  for (const match of content.matchAll(memberRegex)) {
+    const globalName = match[1];
+    const memberName = match[2];
+    if (isAllowedBrowserGlobalMember(globalName, memberName)) continue;
+    issues.push(
+      issue(
+        BLOCKING,
+        "forbidden-api/browser-global-escape",
+        `${globalName}.${memberName} access is not allowed inside Vault components. Use Flap SDK/runtime APIs instead.`,
+        { file, line: lineForIndex(content, match.index ?? -1) },
+      ),
+    );
+  }
+  return issues;
+}
+
+function isExplorerBaseUrlExpression(expressionText) {
+  const compact = expressionText.replace(/\s+/g, "");
+  return (
+    /(?:^|[^.\w$])(?:context|sdk\.context)\.explorerBaseUrl\b/.test(compact) &&
+    /\/(?:address|tx)\//.test(expressionText)
+  );
+}
+
+function hasNoOpenerFeature(callText) {
+  return /["'`][^"'`]*(?:noopener|noreferrer)[^"'`]*["'`]/i.test(callText);
+}
+
+function isApprovedWindowOpenTarget(expressionText) {
+  const expression = stripExpressionDecorators(expressionText);
+  const staticTarget = staticStringLiteral(expression);
+  if (staticTarget !== null) return isApprovedNavigationUrl(staticTarget);
+  return isExplorerBaseUrlExpression(expression);
+}
+
+function collectWindowOpenIssues(content, file) {
+  const issues = [];
+  const openRegex = /\bwindow\s*(?:\?\.|\.)\s*open\s*\(/g;
+  for (const match of content.matchAll(openRegex)) {
+    const openParenIndex = content.indexOf("(", match.index ?? 0);
+    if (openParenIndex < 0) continue;
+    const callEnd = findMatchingDelimiter(content, openParenIndex, "(", ")");
+    if (callEnd < 0) continue;
+    const targetStart = skipWhitespace(content, openParenIndex + 1);
+    const targetEnd = findExpressionEnd(content, targetStart);
+    const targetExpression = content.slice(targetStart, targetEnd).trim();
+    const callText = content.slice(openParenIndex, callEnd + 1);
+    if (isApprovedWindowOpenTarget(targetExpression) && hasNoOpenerFeature(callText)) continue;
+    issues.push(
+      issue(
+        BLOCKING,
+        "forbidden-api/browser-navigation",
+        "window.open is allowed only for current-chain explorer address/tx URLs and must include noopener or noreferrer.",
+        { file, line: lineForIndex(content, match.index ?? -1) },
+      ),
+    );
+  }
+  return issues;
 }
 
 function isAllowlistedExternalUrl(url, declaredUrls, declaredFrames = new Map()) {
@@ -1625,17 +1696,25 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const content = fs.readFileSync(item.path, "utf8");
     const scanContent = stripCommentsForScanning(content);
     const checks = [
-      [/window\.ethereum/, "forbidden-api/direct-window-ethereum", "Direct window.ethereum access is not allowed."],
-      [/\b(?:window|globalThis|global)\s*\[\s*["'`]ethereum["'`]\s*\]/, "forbidden-api/direct-window-ethereum", "Direct ethereum provider access is not allowed."],
-      [/\b(?:globalThis|global)\.ethereum\b/, "forbidden-api/direct-window-ethereum", "Direct ethereum provider access is not allowed."],
-      [/\{\s*ethereum\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/direct-window-ethereum", "Destructuring ethereum from browser globals is not allowed."],
+      [/\b(?:window|globalThis|global|self)\.(?:ethereum|web3|solana|BinanceChain|tronWeb|coinbaseWalletExtension|okxwallet|trustwallet)\b/, "forbidden-api/direct-window-ethereum", "Direct injected wallet provider access is not allowed."],
+      [/\b(?:window|globalThis|global|self)\s*\[\s*["'`](?:ethereum|web3|solana|BinanceChain|tronWeb|coinbaseWalletExtension|okxwallet|trustwallet)["'`]\s*\]/, "forbidden-api/direct-window-ethereum", "Direct injected wallet provider access is not allowed."],
+      [/\b(?:ethereum|web3|solana|BinanceChain|tronWeb)\.(?:request|send|sendAsync|enable|currentProvider|signMessage|signTransaction|signAllTransactions|signAndSendTransaction)\b/, "forbidden-api/direct-window-ethereum", "Direct wallet provider request/signing APIs are not allowed."],
+      [/\bweb3\.eth\.(?:sendTransaction|sign|personal)\b/, "forbidden-api/direct-window-ethereum", "Direct web3 wallet transaction/signing APIs are not allowed."],
+      [/\{\s*(?:ethereum|web3|solana|BinanceChain|tronWeb|coinbaseWalletExtension|okxwallet|trustwallet)\b[^}]*\}\s*=\s*(?:window|globalThis|global|self)\b/, "forbidden-api/direct-window-ethereum", "Destructuring injected wallet providers from browser globals is not allowed."],
+      [/\b(?:request|send|sendAsync)\s*\(\s*(?:\{\s*method\s*:\s*)?["'`](?:eth_|wallet_|personal_)/, "forbidden-api/direct-window-ethereum", "Raw wallet RPC request/send calls are not allowed."],
+      [/["'`](?:personal_sign|eth_sign(?:TypedData(?:_v[134])?)?|eth_sendTransaction|eth_requestAccounts|wallet_[A-Za-z0-9_]+|eth_decrypt|eth_getEncryptionPublicKey|eip6963:(?:requestProvider|announceProvider))["'`]/, "forbidden-api/direct-window-ethereum", "Wallet signing, transaction, permission, or provider-discovery RPC methods are not allowed."],
       [/\beval\s*\(/, "forbidden-api/eval", "eval() is not allowed."],
       [/\b(?:new\s+)?Function\s*\(/, "forbidden-api/function-constructor", "Function constructor usage is not allowed."],
+      [/\.\s*constructor\s*\(\s*["'`]/, "forbidden-api/function-constructor", "Calling .constructor(...) as a Function-constructor escape is not allowed."],
+      [/\b(?:window\.)?set(?:Timeout|Interval)\s*\(\s*["'`]/, "forbidden-api/eval", "String-based timer callbacks are eval-like and are not allowed."],
       [/<iframe\b/i, "forbidden-api/iframe", "raw iframe UI is not allowed. Use ReviewedFrame for reviewed display-only externalFrames."],
       [/document\.createElement\s*\(\s*["'`]iframe["'`]\s*\)/, "forbidden-api/iframe", "raw iframe creation is not allowed. Use ReviewedFrame for reviewed display-only externalFrames."],
       [/<script\b/i, "forbidden-api/script", "script injection is not allowed."],
       [/document\.createElement\s*\(\s*["'`]script["'`]\s*\)/, "forbidden-api/script", "script injection is not allowed."],
       [/\bdocument\.write(?:ln)?\s*\(/, "forbidden-api/script", "document.write/writeln is not allowed inside Vault components."],
+      [/\bdocument\.(?:open|close)\s*\(/, "forbidden-api/script", "document.open/close can replace the host page and are not allowed inside Vault components."],
+      [/\.\s*(?:innerHTML|outerHTML)\s*=/, "forbidden-api/script", "Direct HTML replacement is not allowed inside Vault components."],
+      [/\.\s*insertAdjacentHTML\s*\(/, "forbidden-api/script", "HTML injection APIs are not allowed inside Vault components."],
       [/dangerouslySetInnerHTML/, "forbidden-api/dangerously-set-inner-html", "dangerouslySetInnerHTML needs explicit review and is blocked by default."],
       [/import\s*\(\s*["'`]https?:\/\//, "forbidden-api/remote-import", "Runtime remote import is not allowed inside Vault components."],
       [/\b(?:window|globalThis|global|self|navigator|document)\s*\[[^\]\n]+\]/, "forbidden-api/browser-global-escape", "Computed browser global access is not allowed inside Vault components."],
@@ -1669,9 +1748,9 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\b(?:window\.|globalThis\.|self\.)?indexedDB\b/, "forbidden-api/browser-storage", "indexedDB is not allowed inside Vault components."],
       [/\b(?:window\.|globalThis\.|self\.)?caches\b/, "forbidden-api/browser-storage", "Cache Storage is not allowed inside Vault components."],
       [/\bdocument\.cookie\b/, "forbidden-api/browser-storage", "document.cookie is not allowed inside Vault components."],
-      [/\b(?:window|globalThis|self)\.open\b/, "forbidden-api/browser-navigation", "Opening new windows is not allowed inside Vault components."],
       [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|self)\.open\b/, "forbidden-api/browser-navigation", "Aliasing window.open is not allowed inside Vault components."],
       [/\{\s*open\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-navigation", "Destructuring open from browser globals is not allowed inside Vault components."],
+      [/(?<![.\w$])open\s*(?:\?\.)?\(\s*["'`]/, "forbidden-api/browser-navigation", "Global open() is not allowed. Use reviewed explorer-only window.open or AddressLink."],
       [/\b(?:window|globalThis|self)\.location\b|\blocation\.(?:href|assign|replace|reload)\b/, "forbidden-api/browser-navigation", "Browser navigation is not allowed inside Vault components."],
       [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|self)\.location\b/, "forbidden-api/browser-navigation", "Aliasing browser location is not allowed inside Vault components."],
       [/\{\s*location\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-navigation", "Destructuring location from browser globals is not allowed inside Vault components."],
@@ -1707,6 +1786,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         issues.push(issue(BLOCKING, ruleId, message, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
+    issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel));
+    issues.push(...collectWindowOpenIssues(scanContent, rel));
     const importRegex = /from\s+["'`]([^"'`]+)["'`]|import\s+["'`]([^"'`]+)["'`]/g;
     for (const match of scanContent.matchAll(importRegex)) {
       const spec = match[1] || match[2];
@@ -1721,6 +1802,18 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       } else if (!ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(`${allowed}/`))) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/unreviewed-import", `Import ${spec} is not in the approved allowlist.`, { file: rel }));
       }
+    }
+    const walletUtilityImportRegex =
+      /import\s*\{[^}]*\b(?:createWalletClient|custom|privateKeyToAccount|toAccount|signMessage|signTypedData|signTransaction)\b[^}]*\}\s*from\s*["'`]viem(?:\/accounts)?["'`]/g;
+    for (const match of scanContent.matchAll(walletUtilityImportRegex)) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "imports-and-dependencies/forbidden-import",
+          "Wallet-client and signing utilities from viem are not allowed inside Vault source. Use the Flap SDK wallet/contract methods.",
+          { file: rel, line: lineForIndex(scanContent, match.index ?? -1) },
+        ),
+      );
     }
     issues.push(...collectDynamicImportIssues(content, rel));
     issues.push(...collectReviewedFrameIssues(scanContent, rel, declaredFrames));

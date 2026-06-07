@@ -152,8 +152,10 @@ Use:
 
 Do not use:
 
-- Direct wallet APIs such as `window.ethereum`.
-- `eval`, the `Function` constructor, raw iframe, `srcDoc`, script injection including `document.write` / `document.writeln`, or `dangerouslySetInnerHTML`.
+- Direct wallet APIs such as `window.ethereum`, injected wallet providers such as `web3.currentProvider`, EIP-6963 provider discovery, wallet-client/account signing utilities, or raw provider `request` / `send` / signing / transaction RPC methods.
+- Direct browser-global member access such as `window.*`, `document.*`, or `navigator.*`, except safe `window.setTimeout` / `window.clearTimeout` / `window.setInterval` / `window.clearInterval` timers and reviewed explorer-only `window.open` calls.
+- Arbitrary `window.open` or bare `open(...)`. `window.open` may be used only for current-chain explorer `/address/` or `/tx/` URLs derived from `context.explorerBaseUrl`, and must include `noopener` or `noreferrer`.
+- `eval`, string-based timer callbacks, the `Function` constructor, constructor-based scope escapes, raw iframe, `srcDoc`, script injection including `document.write` / `document.writeln` / `document.open` / `document.close`, direct HTML replacement such as `innerHTML` / `outerHTML` / `insertAdjacentHTML`, or `dangerouslySetInnerHTML`.
 - CommonJS `require(...)`; use static ESM imports only.
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
@@ -213,7 +215,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 

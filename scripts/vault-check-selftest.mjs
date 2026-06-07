@@ -736,6 +736,106 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertRule("cross-context messaging APIs are blocked", browserEscapeCheck, "forbidden-api/cross-context-messaging", "blocking");
   assertRule("browser permission APIs are blocked", browserEscapeCheck, "forbidden-api/browser-permission", "blocking");
 
+  const explorerWindowOpenSlug = `${FIXTURE_PREFIX}-explorer-window-open`;
+  writeVault(explorerWindowOpenSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  window.open(\`\${context.explorerBaseUrl}/address/\${context.vaultAddress}\`, "_blank", "noopener,noreferrer");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule("window.open is allowed for context explorer address links with opener protection", runVaultCheck(explorerWindowOpenSlug, { silent: true }), "forbidden-api/browser-navigation", "blocking");
+
+  const unsafeWindowOpenSlug = `${FIXTURE_PREFIX}-unsafe-window-open`;
+  writeVault(unsafeWindowOpenSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  open("https://evil.example.com/claim");
+  window.open("https://evil.example.com/claim", "_blank");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("global open and non-explorer window.open are blocked", runVaultCheck(unsafeWindowOpenSlug, { silent: true }), "forbidden-api/browser-navigation", "blocking");
+
+  const walletBypassSlug = `${FIXTURE_PREFIX}-wallet-bypass`;
+  writeVault(walletBypassSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { createWalletClient, custom } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const provider = web3.currentProvider;
+  void ethereum.request({ method: "personal_sign", params: [] });
+  void window.BinanceChain.request({ method: "eth_sendTransaction", params: [] });
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  void provider;
+  void createWalletClient;
+  void custom;
+  void privateKeyToAccount;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  const walletBypassCheck = runVaultCheck(walletBypassSlug, { silent: true });
+  assertRule("injected wallet providers and signing/transaction RPC methods are blocked", walletBypassCheck, "forbidden-api/direct-window-ethereum", "blocking");
+  assertRule("wallet-client and account signing utilities are blocked", walletBypassCheck, "imports-and-dependencies/forbidden-import", "blocking");
+
+  const evalEscapeSlug = `${FIXTURE_PREFIX}-eval-escape`;
+  writeVault(evalEscapeSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  setTimeout("alert(1)", 0);
+  const fn = (async () => undefined).constructor("return globalThis");
+  void fn;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  const evalEscapeCheck = runVaultCheck(evalEscapeSlug, { silent: true });
+  assertRule("string timers are blocked as eval-like execution", evalEscapeCheck, "forbidden-api/eval", "blocking");
+  assertRule("constructor-based scope escapes are blocked", evalEscapeCheck, "forbidden-api/function-constructor", "blocking");
+
+  const domOverwriteSlug = `${FIXTURE_PREFIX}-dom-overwrite`;
+  writeVault(domOverwriteSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  document.open();
+  document.body.innerHTML = "<h1>Claim</h1>";
+  document.close();
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  const domOverwriteCheck = runVaultCheck(domOverwriteSlug, { silent: true });
+  assertRule("document open and direct HTML replacement are blocked", domOverwriteCheck, "forbidden-api/script", "blocking");
+  assertRule("direct document access is blocked as browser-global escape", domOverwriteCheck, "forbidden-api/browser-global-escape", "blocking");
+
   const documentWriteSlug = `${FIXTURE_PREFIX}-document-write`;
   writeVault(documentWriteSlug, {
     component: `"use client";
