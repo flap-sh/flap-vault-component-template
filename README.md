@@ -1,5 +1,19 @@
 # Flap Vault UI Template
 
+[简体中文](./README.zh-CN.md)
+
+## Table of Contents
+
+- [From Zero To Verified Zip](#from-zero-to-verified-zip)
+- [Quick Start](#quick-start)
+- [AI Agent Entry Point](#ai-agent-entry-point)
+- [Add a Vault UI](#add-a-vault-ui)
+- [Required Files](#required-files)
+- [Safety Rules](#safety-rules)
+- [Artifact Model](#artifact-model)
+- [Useful Commands](#useful-commands)
+- [License](#license)
+
 This repository is a public starter for building private custom Flap Vault UI components.
 
 It is not a free-form website container. A Vault UI component must run inside Flap's controlled runtime boundary:
