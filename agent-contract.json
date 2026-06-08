@@ -78,8 +78,9 @@
   },
   "allowedImports": {
     "localRelative": ["./VaultABI"],
-    "packagePrefixes": ["react", "viem", "decimal.js", "lucide-react", "@/src/sdk", "@/src/ui"],
-    "sharedRuntimeOnlyRule": "Do not introduce any additional SDK package or SDK-like runtime wrapper. Vault source may use only the shared @/src/sdk and @/src/ui surfaces plus the explicit default allowlist.",
+    "packagePrefixes": ["react", "viem", "decimal.js", "lucide-react"],
+    "sharedRuntimeModules": ["@/src/sdk", "@/src/ui"],
+    "sharedRuntimeOnlyRule": "Do not introduce any additional SDK package or SDK-like runtime wrapper. Vault source may use only exact imports from the shared @/src/sdk and @/src/ui barrel surfaces plus the explicit default allowlist; deep imports such as @/src/sdk/format or @/src/ui/Button are not allowed.",
     "standardAbiExports": {
       "@/src/sdk": ["erc20Abi", "standardErc20Abi"]
     }
@@ -272,11 +273,11 @@
     },
     "import/forbidden-package": {
       "severity": "blocking",
-      "fixAction": "Remove the forbidden dependency. Allowed packages: react, viem, decimal.js, lucide-react, @/src/sdk, @/src/ui, ./VaultABI."
+      "fixAction": "Remove the forbidden dependency. Allowed package prefixes: react, viem, decimal.js, lucide-react. Shared runtime imports must be exactly @/src/sdk or @/src/ui, plus ./VaultABI as the only local relative import."
     },
     "import/external-sdk-package": {
       "severity": "blocking",
-      "fixAction": "Remove the extra SDK package. Vault source may use only the shared @/src/sdk and @/src/ui runtime surfaces."
+      "fixAction": "Remove the extra SDK package. Vault source may use only exact imports from the shared @/src/sdk and @/src/ui runtime surfaces."
     },
     "security/direct-wallet-access": {
       "severity": "blocking",

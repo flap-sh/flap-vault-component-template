@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ActionAvailabilityStage, VaultComponentProps } from "@/src/sdk";
 import { erc20Abi, formatTokenAmount, handleTxError, isActionAvailableForPhase, parseTokenAmount, readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
-import { AddressLink, Alert, Card, CardContent, CardHeader, CardTitle, DetailTile, Input, Metric, StatusBadge, TxButton } from "@/src/ui";
-import type { TxButtonState } from "@/src/ui/TxButton";
+import { AddressLink, Alert, Card, CardContent, CardHeader, CardTitle, DetailTile, Input, Metric, StatusBadge, TxButton, type TxButtonState } from "@/src/ui";
 import { dexListedExampleVaultAbi } from "./VaultABI";
 
 interface SaleInfo {

@@ -134,7 +134,7 @@ Use:
 - `@/src/ui` for shared UI primitives.
 - `ReviewedFrame` from `@/src/ui` only for the single reviewed display-only `manifest.externalFrames` entry.
 - `./VaultABI` as the only local relative import.
-- No additional SDK package or SDK-like wrapper beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
+- No additional SDK package, SDK-like wrapper, or shared-runtime deep import beyond exact `@/src/sdk` and `@/src/ui` barrel imports. Do not import `@/src/sdk/format`, `@/src/ui/Button`, or any other `@/src/sdk/*` / `@/src/ui/*` path from Vault source.
 - `docs/ui-pattern-snippets.md` to choose section order, metric grids, action panels, transaction states, and empty/error states.
 - The scaffold default surface as the preferred visual starting point. Built-in examples are behavior references; do not copy their visual layout as the default.
 - An explicit action availability stage: `internal-market`, `dex-listed`, `both`, or `read-only`.

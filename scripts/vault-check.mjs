@@ -45,6 +45,7 @@ const ALLOWED_IMPORTS = [
   "@/src/sdk",
   "@/src/ui",
 ];
+const SHARED_RUNTIME_IMPORTS = new Set(["@/src/sdk", "@/src/ui"]);
 const FORBIDDEN_IMPORTS = [
   "wagmi",
   "@wagmi/core",
@@ -159,6 +160,7 @@ const FIX_HINTS = {
   "forbidden-api/cross-context-messaging": "Do not use cross-context messaging from a Vault component.",
   "forbidden-api/browser-permission": "Do not request browser permissions from a Vault component. The host/runtime owns permissioned browser capabilities.",
   "imports-and-dependencies/disallowed-relative-import": "Inline small helpers in Component.tsx or use @/src/sdk and @/src/ui. The only local relative import is ./VaultABI.",
+  "imports-and-dependencies/deep-shared-runtime-import": "Import shared runtime helpers from the @/src/sdk or @/src/ui barrel. Do not import @/src/sdk/* or @/src/ui/* deep paths.",
   "imports-and-dependencies/forbidden-import": "Use Flap SDK/UI primitives instead of host wallet, app, or heavy UI dependencies.",
   "imports-and-dependencies/external-sdk-package": "Do not introduce additional SDK packages. Use only the shared @/src/sdk and @/src/ui runtime surfaces.",
   "imports-and-dependencies/require-call": "Use static ESM imports only. CommonJS require() is not allowed in Vault source.",
@@ -184,6 +186,19 @@ function issue(severity, ruleId, message, extra = {}) {
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function sharedRuntimeImportRoot(spec) {
+  for (const allowed of SHARED_RUNTIME_IMPORTS) {
+    if (spec.startsWith(`${allowed}/`)) return allowed;
+  }
+  return null;
+}
+
+function isAllowedPackageImport(spec) {
+  if (SHARED_RUNTIME_IMPORTS.has(spec)) return true;
+  if (sharedRuntimeImportRoot(spec)) return false;
+  return ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(`${allowed}/`));
 }
 
 function walk(dir, files = []) {
@@ -1797,9 +1812,11 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         }
       } else if (FORBIDDEN_IMPORTS.some((blocked) => spec === blocked || spec.startsWith(`${blocked}/`))) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/forbidden-import", `Forbidden import ${spec}. Use Flap SDK/UI primitives instead.`, { file: rel }));
-      } else if (/sdk/i.test(spec) && !ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(`${allowed}/`))) {
+      } else if (sharedRuntimeImportRoot(spec)) {
+        issues.push(issue(BLOCKING, "imports-and-dependencies/deep-shared-runtime-import", `Deep import ${spec} is not allowed. Import from the shared ${sharedRuntimeImportRoot(spec)} barrel instead.`, { file: rel }));
+      } else if (/sdk/i.test(spec) && !isAllowedPackageImport(spec)) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/external-sdk-package", `External SDK-style import ${spec} is not allowed. Use the shared @/src/sdk and @/src/ui surfaces only.`, { file: rel }));
-      } else if (!ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(`${allowed}/`))) {
+      } else if (!isAllowedPackageImport(spec)) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/unreviewed-import", `Import ${spec} is not in the approved allowlist.`, { file: rel }));
       }
     }

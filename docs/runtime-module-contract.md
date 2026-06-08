@@ -71,7 +71,7 @@ Vault source may import:
 - `./VaultABI`
 - approved third-party packages already allowed by `vault:check`
 
-Within this repository, `@/src/sdk` is the component-safe default barrel. Host/runtime integration code should use explicit host/server subpaths or direct internal modules instead of expanding the public component barrel again.
+Within this repository, `@/src/sdk` is the component-safe default barrel and `@/src/ui` is the shared UI barrel. Vault source must import those modules exactly; deep imports such as `@/src/sdk/format` and `@/src/ui/Button` are not part of the source package contract and are blocked before Workbench build. Host/runtime integration code should use explicit host/server subpaths or direct internal modules instead of expanding the public component barrel again.
 
 Vault source must not import any additional SDK package or SDK-like runtime wrapper beyond the shared `@/src/sdk` / `@/src/ui` surfaces.
 

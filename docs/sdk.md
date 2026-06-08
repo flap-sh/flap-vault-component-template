@@ -255,6 +255,7 @@ import { Button } from "@/src/ui";
 ```
 
 Do not import host app files from `flap.sh`. The only local relative import allowed inside a Vault package is `./VaultABI`. Do not use `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports. Use public aliases such as `@/src/sdk` and `@/src/ui` for shared runtime surfaces.
+Import those shared aliases exactly. Deep imports such as `@/src/sdk/format` or `@/src/ui/Button` are not supported in source packages; import the needed helper or primitive from `@/src/sdk` or `@/src/ui` instead.
 
 ## Transaction Pattern
 

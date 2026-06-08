@@ -5,8 +5,7 @@ import { Info, RefreshCcw, ShieldCheck, Timer, Wallet, Zap } from "lucide-react"
 import type { ActionAvailabilityStage, Address, VaultComponentProps } from "@/src/sdk";
 import { erc20Abi, formatTokenAmount, handleTxError, isActionAvailableForPhase, parseTokenAmount, readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
 import { exampleVaultAbi } from "./VaultABI";
-import { AddressLink, Alert, Button, Card, CardContent, CardHeader, CardTitle, Countdown, DetailTile, Input, Metric, StatusBadge, TxButton } from "@/src/ui";
-import type { TxButtonState } from "@/src/ui/TxButton";
+import { AddressLink, Alert, Button, Card, CardContent, CardHeader, CardTitle, Countdown, DetailTile, Input, Metric, StatusBadge, TxButton, type TxButtonState } from "@/src/ui";
 
 interface VaultInfo {
   totalDeposited: bigint;

@@ -890,6 +890,23 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("external sdk packages are blocked", runVaultCheck(sdkImportSlug, { silent: true }), "imports-and-dependencies/external-sdk-package", "blocking");
 
+  const deepSharedImportSlug = `${FIXTURE_PREFIX}-deep-runtime-import`;
+  writeVault(deepSharedImportSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { formatTokenAmount } from "@/src/sdk/format";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void formatTokenAmount;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("shared runtime deep imports are blocked before Workbench build", runVaultCheck(deepSharedImportSlug, { silent: true }), "imports-and-dependencies/deep-shared-runtime-import", "blocking");
+
   const unreviewedImportSlug = `${FIXTURE_PREFIX}-unreviewed-import`;
   writeVault(unreviewedImportSlug, {
     component: `"use client";
