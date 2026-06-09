@@ -326,9 +326,26 @@ return (
 Use one `loadData` callback that reads global state first, then wallet-dependent state. Poll no faster than 5 seconds unless Flap approves the need.
 
 ```tsx
+type VaultInfoTuple = readonly [total: bigint, updatedAt: bigint];
+type MyInfoTuple = readonly [amount: bigint, claimable: bigint];
+
+function toVaultInfo(tuple: VaultInfoTuple): VaultInfo {
+  return {
+    total: tuple[0],
+    updatedAt: Number(tuple[1]),
+  };
+}
+
+function toMyInfo(tuple: MyInfoTuple): MyInfo {
+  return {
+    amount: tuple[0],
+    claimable: tuple[1],
+  };
+}
+
 const loadData = useCallback(async () => {
   const [nextVaultInfo, nextOracle] = await Promise.all([
-    sdk.readContract<VaultInfo>({
+    sdk.readContract<VaultInfoTuple>({
       contract: "vault",
       address: context.vaultAddress,
       abi: vaultAbi,
@@ -337,7 +354,7 @@ const loadData = useCallback(async () => {
     sdk.readOracle<OraclePayload>("generic-oracle-id").catch(() => null),
   ]);
 
-  setVaultInfo(nextVaultInfo);
+  setVaultInfo(toVaultInfo(nextVaultInfo));
   setOracle(nextOracle);
 
   if (!context.userAddress) {
@@ -348,7 +365,7 @@ const loadData = useCallback(async () => {
   }
 
   const [nextMyInfo, nextBalance, nextAllowance] = await Promise.all([
-    sdk.readContract<MyInfo>({
+    sdk.readContract<MyInfoTuple>({
       contract: "vault",
       address: context.vaultAddress,
       abi: vaultAbi,
@@ -371,11 +388,13 @@ const loadData = useCallback(async () => {
     }),
   ]);
 
-  setMyInfo(nextMyInfo);
+  setMyInfo(toMyInfo(nextMyInfo));
   setBalance(nextBalance);
   setAllowance(nextAllowance);
 }, [context.tokenAddress, context.userAddress, context.vaultAddress, sdk]);
 ```
+
+The tuple mapping is required when the ABI method uses multiple return values, such as `returns (uint256 total, uint256 updatedAt)`. Named outputs in a human-readable ABI still decode to a tuple array. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
 
 ## Approve Then Write Flow
 

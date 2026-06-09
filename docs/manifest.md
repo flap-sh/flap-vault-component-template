@@ -226,6 +226,8 @@ export const vaultAbi = parseAbi([
 
 Do not export raw signature string arrays such as `export const vaultAbi = ["function ..."] as const`; runtime contract calls expect parsed ABI objects.
 
+When an ABI method has multiple return values, read it as a tuple array. For example, `function poolInfo() view returns (uint256 currentPool, uint256 totalReceived)` should use a `readContract` result type like `readonly [currentPool: bigint, totalReceived: bigint]`, then map `tuple[0]` and `tuple[1]` into object-shaped UI state. Named outputs in a human-readable ABI do not make viem return an object for multi-output functions. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
+
 Standard ERC20 token ABI is already available from the public SDK:
 
 ```ts

@@ -18,6 +18,25 @@ interface PurchaseInfo {
   claimable: bigint;
 }
 
+type SaleInfoTuple = readonly [totalPurchased: bigint, remaining: bigint, minPurchase: bigint, maxPurchase: bigint];
+type PurchaseInfoTuple = readonly [purchased: bigint, claimable: bigint];
+
+function toSaleInfo(tuple: SaleInfoTuple): SaleInfo {
+  return {
+    totalPurchased: tuple[0],
+    remaining: tuple[1],
+    minPurchase: tuple[2],
+    maxPurchase: tuple[3],
+  };
+}
+
+function toPurchaseInfo(tuple: PurchaseInfoTuple): PurchaseInfo {
+  return {
+    purchased: tuple[0],
+    claimable: tuple[1],
+  };
+}
+
 export default function DexListedExampleVault(_props: VaultComponentProps) {
   const sdk = useFlapSdk();
   const { context, i18n } = sdk;
@@ -117,13 +136,13 @@ export default function DexListedExampleVault(_props: VaultComponentProps) {
       return;
     }
 
-    const nextSaleInfo = await sdk.readContract<SaleInfo>({
+    const nextSaleInfo = await sdk.readContract<SaleInfoTuple>({
       contract: "vault",
       address: context.vaultAddress,
       abi: dexListedExampleVaultAbi,
       functionName: "saleInfo",
     });
-    setSaleInfo(nextSaleInfo);
+    setSaleInfo(toSaleInfo(nextSaleInfo));
     setUsingPreviewData(false);
 
     if (!context.userAddress) {
@@ -134,7 +153,7 @@ export default function DexListedExampleVault(_props: VaultComponentProps) {
     }
 
     const [nextPurchaseInfo, nextBalance, nextAllowance] = await Promise.all([
-      sdk.readContract<PurchaseInfo>({
+      sdk.readContract<PurchaseInfoTuple>({
         contract: "vault",
         address: context.vaultAddress,
         abi: dexListedExampleVaultAbi,
@@ -156,7 +175,7 @@ export default function DexListedExampleVault(_props: VaultComponentProps) {
         args: [context.userAddress, context.vaultAddress],
       }),
     ]);
-    setPurchaseInfo(nextPurchaseInfo);
+    setPurchaseInfo(toPurchaseInfo(nextPurchaseInfo));
     setBalance(nextBalance);
     setAllowance(nextAllowance);
   }, [applyPreviewData, context.userAddress, context.vaultAddress, paymentTokenAddress, previewFixture, sdk]);

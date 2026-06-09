@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 13,
+  "version": 14,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -231,6 +231,10 @@
       "severity": "blocking",
       "fixAction": "Import parseAbi from viem and wrap human-readable ABI signature arrays with parseAbi([...]), or replace them with full object ABI fragments."
     },
+    "contract-abi/multiple-outputs-require-tuple-read": {
+      "severity": "blocking",
+      "fixAction": "For ABI methods with multiple return values, type sdk.readContract as a tuple/array result and map indexes into object-shaped UI state after the read. Do not type multi-output reads as an object."
+    },
     "manifest-binding/missing-binding-target": {
       "severity": "blocking",
       "fixAction": "Add either a non-zero factoryAddress or exactly one non-zero vaultAddresses entry to the binding."
@@ -436,7 +440,7 @@
       "vaultAbi": {
         "type": "array",
         "required": true,
-        "description": "Minimal Vault ABI fragments for the component. Exclude standard ERC20; use erc20Abi from @/src/sdk for balanceOf, allowance, approve, decimals, symbol, transfer, transferFrom."
+        "description": "Minimal Vault ABI fragments for the component. Exclude standard ERC20; use erc20Abi from @/src/sdk for balanceOf, allowance, approve, decimals, symbol, transfer, transferFrom. Methods with multiple return values must be read as tuple arrays in Component.tsx and mapped into object UI state after the read."
       },
       "actionAvailabilityStage": {
         "type": "string",

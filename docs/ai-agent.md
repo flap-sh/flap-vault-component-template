@@ -134,6 +134,7 @@ Use:
 - `@/src/ui` for shared UI primitives.
 - `ReviewedFrame` from `@/src/ui` only for the single reviewed display-only `manifest.externalFrames` entry.
 - `./VaultABI` as the only local relative import.
+- Tuple result types for ABI methods with multiple return values. `sdk.readContract` returns `returns (uint256 a, uint256 b)` as a tuple array, even when the outputs are named in a human-readable ABI. Read it as `readonly [a: bigint, b: bigint]`, then map tuple indexes into object-shaped UI state. Do not type multi-output reads as object interfaces. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
 - No additional SDK package, SDK-like wrapper, or shared-runtime deep import beyond exact `@/src/sdk` and `@/src/ui` barrel imports. Do not import `@/src/sdk/format`, `@/src/ui/Button`, or any other `@/src/sdk/*` / `@/src/ui/*` path from Vault source.
 - `docs/ui-pattern-snippets.md` to choose section order, metric grids, action panels, transaction states, and empty/error states.
 - The scaffold default surface as the preferred visual starting point. Built-in examples are behavior references; do not copy their visual layout as the default.
@@ -208,6 +209,7 @@ If `risk-status/missing-host-risk-state` appears, the component does not visibly
 If `risk-status/not-prominent-placement` appears, the component renders host risk status too low in the Vault business UI. Move the risk badge, metric, or row into the first or second row of the Vault-specific business UI before retrying.
 If `risk-status/manual-low-risk-label` appears, the component renders `Low risk` / `低风险` copy without deriving it from host `riskLevel === 1`. Remove the manual label or move it into the explicit host-risk mapping branch before retrying.
 If `contract-abi/human-readable-requires-parse-abi` appears, `VaultABI.ts` exports human-readable ABI signature strings without `parseAbi(...)`. Import `parseAbi` from `viem` and wrap the string array, or use full object ABI fragments.
+If `contract-abi/multiple-outputs-require-tuple-read` appears, `Component.tsx` typed an ABI method with multiple return values as an object. Change the `readContract` generic to a tuple type and map indexes into the object state after the read.
 
 When changing the check script or Agent contract itself, also run:
 
@@ -215,7 +217,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 

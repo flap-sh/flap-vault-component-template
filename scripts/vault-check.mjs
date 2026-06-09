@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import ts from "typescript";
 import { assertNpmPackageFresh } from "./check-template-fresh.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
@@ -177,6 +178,7 @@ const FIX_HINTS = {
   "performance/refetch-too-fast": "Use a refetch interval of at least 5000ms unless Flap approves a faster polling path.",
   "contract-abi/number-bigint": "Keep token amounts as bigint/Decimal and avoid Number(...) for transaction math.",
   "contract-abi/human-readable-requires-parse-abi": "Wrap human-readable ABI string arrays with parseAbi([...]) from viem, or use full object ABI fragments. Do not export raw function/event signature strings as the runtime ABI.",
+  "contract-abi/multiple-outputs-require-tuple-read": "Read ABI methods with multiple return values as tuple/array results, then map indexes into object-shaped UI state. Do not type sdk.readContract for multi-output methods as an object.",
   "contract-abi/standard-erc20-in-vault-abi": "Use erc20Abi or standardErc20Abi from @/src/sdk for standard ERC20 methods. Add token ABI fragments to VaultABI.ts only for custom token mechanics.",
 };
 
@@ -766,6 +768,272 @@ function parseStaticStringLiteral(expressionText) {
     value += char;
   }
   return null;
+}
+
+function createTsSourceFile(file, content) {
+  const scriptKind = file.endsWith(".tsx") || file.endsWith(".jsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  return ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
+}
+
+function unwrapTsExpression(node) {
+  if (!node) return node;
+  let current = node;
+  while (current) {
+    if (
+      ts.isAsExpression(current) ||
+      ts.isSatisfiesExpression(current) ||
+      ts.isParenthesizedExpression(current) ||
+      ts.isNonNullExpression(current) ||
+      ts.isTypeAssertionExpression(current)
+    ) {
+      current = current.expression;
+      continue;
+    }
+    return current;
+  }
+  return node;
+}
+
+function tsPropertyNameText(name) {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text;
+  return null;
+}
+
+function tsStaticStringValue(expression) {
+  if (!expression) return null;
+  const unwrapped = unwrapTsExpression(expression);
+  if (ts.isStringLiteral(unwrapped) || ts.isNoSubstitutionTemplateLiteral(unwrapped)) return unwrapped.text;
+  return null;
+}
+
+function tsObjectPropertyInitializer(objectLiteral, propertyName) {
+  for (const property of objectLiteral.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+    if (tsPropertyNameText(property.name) === propertyName) return property.initializer;
+  }
+  return null;
+}
+
+function tsArrayLiteralFromExpression(expression) {
+  if (!expression) return null;
+  const unwrapped = unwrapTsExpression(expression);
+  return ts.isArrayLiteralExpression(unwrapped) ? unwrapped : null;
+}
+
+function tsIdentifierText(expression) {
+  if (!expression) return null;
+  const unwrapped = unwrapTsExpression(expression);
+  return ts.isIdentifier(unwrapped) ? unwrapped.text : null;
+}
+
+function splitTopLevelCommaSeparated(value) {
+  const parts = [];
+  let start = 0;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  for (let cursor = 0; cursor < value.length; cursor += 1) {
+    const char = value[cursor];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(value, cursor) - 1;
+      continue;
+    }
+    if (char === "(") parenDepth += 1;
+    if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
+    if (char === "[") bracketDepth += 1;
+    if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    if (char === "," && parenDepth === 0 && bracketDepth === 0) {
+      const part = value.slice(start, cursor).trim();
+      if (part) parts.push(part);
+      start = cursor + 1;
+    }
+  }
+  const tail = value.slice(start).trim();
+  if (tail) parts.push(tail);
+  return parts;
+}
+
+function parseHumanReadableFunctionOutputs(signature) {
+  const nameMatch = /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/u.exec(signature);
+  if (!nameMatch) return null;
+  const returnsMatch = /\breturns\s*\(/u.exec(signature);
+  if (!returnsMatch) return { functionName: nameMatch[1], outputCount: 0 };
+  const openIndex = returnsMatch.index + returnsMatch[0].length - 1;
+  const closeIndex = findMatchingDelimiter(signature, openIndex, "(", ")");
+  if (closeIndex < 0) return null;
+  const outputText = signature.slice(openIndex + 1, closeIndex).trim();
+  return {
+    functionName: nameMatch[1],
+    outputCount: outputText ? splitTopLevelCommaSeparated(outputText).length : 0,
+  };
+}
+
+function objectAbiFunctionOutputCount(objectLiteral) {
+  const typeValue = tsStaticStringValue(tsObjectPropertyInitializer(objectLiteral, "type") ?? objectLiteral);
+  const functionName = tsStaticStringValue(tsObjectPropertyInitializer(objectLiteral, "name") ?? objectLiteral);
+  if (typeValue !== "function" || !functionName) return null;
+  const outputs = tsArrayLiteralFromExpression(tsObjectPropertyInitializer(objectLiteral, "outputs") ?? objectLiteral);
+  return { functionName, outputCount: outputs ? outputs.elements.length : 0 };
+}
+
+function collectAbiFunctionOutputCounts(vaultDir) {
+  const abiPath = path.join(vaultDir, "VaultABI.ts");
+  const byAbiVariable = new Map();
+  if (!fs.existsSync(abiPath)) return byAbiVariable;
+  const content = fs.readFileSync(abiPath, "utf8");
+  const source = createTsSourceFile("VaultABI.ts", content);
+
+  function record(abiName, functionName, outputCount) {
+    if (!abiName || !functionName || typeof outputCount !== "number") return;
+    const byFunction = byAbiVariable.get(abiName) ?? new Map();
+    byFunction.set(functionName, outputCount);
+    byAbiVariable.set(abiName, byFunction);
+  }
+
+  function abiArrayFromInitializer(initializer) {
+    const unwrapped = unwrapTsExpression(initializer);
+    if (ts.isArrayLiteralExpression(unwrapped)) return unwrapped;
+    if (ts.isCallExpression(unwrapped) && tsIdentifierText(unwrapped.expression) === "parseAbi") {
+      return tsArrayLiteralFromExpression(unwrapped.arguments[0]);
+    }
+    return null;
+  }
+
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      const abiArray = abiArrayFromInitializer(node.initializer);
+      if (abiArray) {
+        for (const element of abiArray.elements) {
+          const entry = unwrapTsExpression(element);
+          if (ts.isStringLiteral(entry) || ts.isNoSubstitutionTemplateLiteral(entry)) {
+            const parsed = parseHumanReadableFunctionOutputs(entry.text);
+            if (parsed) record(node.name.text, parsed.functionName, parsed.outputCount);
+          } else if (ts.isObjectLiteralExpression(entry)) {
+            const parsed = objectAbiFunctionOutputCount(entry);
+            if (parsed) record(node.name.text, parsed.functionName, parsed.outputCount);
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(source);
+  return byAbiVariable;
+}
+
+function typeReferenceNameText(typeNode) {
+  if (!ts.isTypeReferenceNode(typeNode)) return null;
+  const typeName = typeNode.typeName;
+  if (ts.isIdentifier(typeName)) return typeName.text;
+  return typeName.getText();
+}
+
+function unwrapTsTypeNode(typeNode) {
+  let current = typeNode;
+  while (current) {
+    if (ts.isParenthesizedTypeNode(current)) {
+      current = current.type;
+      continue;
+    }
+    return current;
+  }
+  return typeNode;
+}
+
+function isObjectResultTypeNode(typeNode, objectTypeNames) {
+  const current = unwrapTsTypeNode(typeNode);
+  if (!current) return false;
+  if (ts.isTypeLiteralNode(current)) return true;
+  if (ts.isTupleTypeNode(current) || ts.isArrayTypeNode(current)) return false;
+  if (ts.isTypeOperatorNode(current)) return isObjectResultTypeNode(current.type, objectTypeNames);
+  if (ts.isUnionTypeNode(current) || ts.isIntersectionTypeNode(current)) {
+    return current.types.some((item) => isObjectResultTypeNode(item, objectTypeNames));
+  }
+  if (ts.isTypeReferenceNode(current)) {
+    const name = typeReferenceNameText(current);
+    if (name && objectTypeNames.has(name)) return true;
+    if (name === "Record") return true;
+    if (["Readonly", "Partial", "Required"].includes(name || "")) {
+      return Boolean(current.typeArguments?.some((item) => isObjectResultTypeNode(item, objectTypeNames)));
+    }
+  }
+  return false;
+}
+
+function collectObjectResultTypeNames(source) {
+  const objectTypeNames = new Set();
+  const aliases = [];
+
+  function visit(node) {
+    if (ts.isInterfaceDeclaration(node)) {
+      objectTypeNames.add(node.name.text);
+    } else if (ts.isTypeAliasDeclaration(node)) {
+      aliases.push(node);
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(source);
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const alias of aliases) {
+      if (objectTypeNames.has(alias.name.text)) continue;
+      if (isObjectResultTypeNode(alias.type, objectTypeNames)) {
+        objectTypeNames.add(alias.name.text);
+        changed = true;
+      }
+    }
+  }
+
+  return objectTypeNames;
+}
+
+function callExpressionMethodName(expression) {
+  const unwrapped = unwrapTsExpression(expression);
+  if (ts.isPropertyAccessExpression(unwrapped)) return unwrapped.name.text;
+  if (ts.isIdentifier(unwrapped)) return unwrapped.text;
+  return null;
+}
+
+function collectMultipleOutputObjectReadIssues(content, file, abiFunctionOutputCounts) {
+  const issues = [];
+  if (!abiFunctionOutputCounts.size) return issues;
+  const source = createTsSourceFile(file, content);
+  const objectTypeNames = collectObjectResultTypeNames(source);
+
+  function visit(node) {
+    if (ts.isCallExpression(node) && callExpressionMethodName(node.expression) === "readContract" && node.typeArguments?.length) {
+      const resultType = node.typeArguments[0];
+      if (!isObjectResultTypeNode(resultType, objectTypeNames)) {
+        ts.forEachChild(node, visit);
+        return;
+      }
+      const request = unwrapTsExpression(node.arguments[0]);
+      if (!request || !ts.isObjectLiteralExpression(request)) {
+        ts.forEachChild(node, visit);
+        return;
+      }
+      const abiName = tsIdentifierText(tsObjectPropertyInitializer(request, "abi") ?? request);
+      const functionName = tsStaticStringValue(tsObjectPropertyInitializer(request, "functionName") ?? request);
+      const outputCount = abiName && functionName ? abiFunctionOutputCounts.get(abiName)?.get(functionName) : undefined;
+      if (typeof outputCount === "number" && outputCount > 1) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "contract-abi/multiple-outputs-require-tuple-read",
+            `sdk.readContract<${resultType.getText(source)}> reads ${functionName} from ${abiName}, but that ABI method returns ${outputCount} values. viem returns a tuple array for multiple outputs; map tuple indexes into object state after the read.`,
+            { file, line: lineForIndex(content, node.getStart(source)) },
+          ),
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(source);
+  return issues;
 }
 
 function hasBalancedOuterParens(value) {
@@ -1705,6 +1973,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const declaredUrls = collectDeclaredUrls(manifest);
   const declaredFrames = collectDeclaredFrames(manifest);
   const contractPolicy = collectManifestContractPolicy(manifest);
+  const abiFunctionOutputCounts = collectAbiFunctionOutputCounts(vaultDir);
   const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
@@ -1993,6 +2262,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       );
     }
     if (item.name === "Component.tsx") {
+      issues.push(...collectMultipleOutputObjectReadIssues(content, rel, abiFunctionOutputCounts));
       if (hasComponentRiskStatusIntegration && !hasProminentRiskStatusPlacement(scanContent)) {
         issues.push(
           issue(

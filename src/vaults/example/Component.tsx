@@ -17,6 +17,9 @@ interface MyInfo {
   claimable: bigint;
 }
 
+type VaultInfoTuple = readonly [totalDeposited: bigint, rewardEndsAt: bigint];
+type MyInfoTuple = readonly [deposited: bigint, claimable: bigint];
+
 interface OracleData {
   rewardMultiplierBps: number;
   timestamp: number;
@@ -25,6 +28,25 @@ interface OracleData {
 
 const sparklineHeights = [38, 52, 46, 64, 58, 78, 70, 88, 82, 100] as const;
 type QuickAmountPercent = 25 | 50 | 75 | 100;
+
+function toTimestampMs(value: bigint) {
+  const numeric = Number(value);
+  return numeric > 10_000_000_000 ? numeric : numeric * 1000;
+}
+
+function toVaultInfo(tuple: VaultInfoTuple): VaultInfo {
+  return {
+    totalDeposited: tuple[0],
+    rewardEndsAt: toTimestampMs(tuple[1]),
+  };
+}
+
+function toMyInfo(tuple: MyInfoTuple): MyInfo {
+  return {
+    deposited: tuple[0],
+    claimable: tuple[1],
+  };
+}
 
 export default function ExampleRewardVault(_props: VaultComponentProps) {
   const sdk = useFlapSdk();
@@ -140,7 +162,7 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
     }
 
     const [nextVaultInfo, nextOracle] = await Promise.all([
-      sdk.readContract<VaultInfo>({
+      sdk.readContract<VaultInfoTuple>({
         contract: "vault",
         address: context.vaultAddress,
         abi: exampleVaultAbi,
@@ -148,7 +170,7 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
       }),
       sdk.readOracle<OracleData>("example-reward-oracle").catch(() => null),
     ]);
-    setVaultInfo(nextVaultInfo);
+    setVaultInfo(toVaultInfo(nextVaultInfo));
     setOracle(nextOracle);
     setUsingPreviewData(false);
 
@@ -160,7 +182,7 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
     }
 
     const [nextMyInfo, nextBalance, nextAllowance] = await Promise.all([
-      sdk.readContract<MyInfo>({
+      sdk.readContract<MyInfoTuple>({
         contract: "vault",
         address: context.vaultAddress,
         abi: exampleVaultAbi,
@@ -182,7 +204,7 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
         args: [context.userAddress, context.vaultAddress],
       }),
     ]);
-    setMyInfo(nextMyInfo);
+    setMyInfo(toMyInfo(nextMyInfo));
     setBalance(nextBalance);
     setAllowance(nextAllowance);
   }, [applyPreviewData, context.tokenAddress, context.userAddress, context.vaultAddress, previewFixture, sdk]);

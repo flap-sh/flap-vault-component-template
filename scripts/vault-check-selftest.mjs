@@ -1172,6 +1172,130 @@ export const vaultAbi = parseAbi([
   assert.equal(parsedHumanReadableAbiCheck.issues.some((item) => item.ruleId === "contract-abi/human-readable-requires-parse-abi"), false);
   passed.push("parseAbi-wrapped human-readable ABI strings are allowed");
 
+  const multiOutputObjectReadSlug = `${FIXTURE_PREFIX}-multi-output-object-read`;
+  writeVault(multiOutputObjectReadSlug, {
+    abi: `import { parseAbi } from "viem";
+
+export const vaultAbi = parseAbi([
+  "function poolInfo() view returns (uint256 currentPool, uint256 totalReceived)",
+]);
+`,
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { vaultAbi } from "./VaultABI";
+
+interface PoolInfo {
+  currentPool: bigint;
+  totalReceived: bigint;
+}
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readContract<PoolInfo>({
+    contract: "vault",
+    address: sdk.context.vaultAddress,
+    abi: vaultAbi,
+    functionName: "poolInfo",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule(
+    "multi-output contract reads must not use object result types",
+    runVaultCheck(multiOutputObjectReadSlug, { silent: true }),
+    "contract-abi/multiple-outputs-require-tuple-read",
+    "blocking",
+  );
+
+  const multiOutputTupleReadSlug = `${FIXTURE_PREFIX}-multi-output-tuple-read`;
+  writeVault(multiOutputTupleReadSlug, {
+    abi: `import { parseAbi } from "viem";
+
+export const vaultAbi = parseAbi([
+  "function poolInfo() view returns (uint256 currentPool, uint256 totalReceived)",
+]);
+`,
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { vaultAbi } from "./VaultABI";
+
+type PoolInfoTuple = readonly [currentPool: bigint, totalReceived: bigint];
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readContract<PoolInfoTuple>({
+    contract: "vault",
+    address: sdk.context.vaultAddress,
+    abi: vaultAbi,
+    functionName: "poolInfo",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule(
+    "multi-output contract reads allow tuple result types",
+    runVaultCheck(multiOutputTupleReadSlug, { silent: true }),
+    "contract-abi/multiple-outputs-require-tuple-read",
+    "blocking",
+  );
+
+  const singleTupleObjectReadSlug = `${FIXTURE_PREFIX}-single-tuple-object-read`;
+  writeVault(singleTupleObjectReadSlug, {
+    abi: `export const vaultAbi = [
+  {
+    type: "function",
+    name: "poolInfo",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "currentPool", type: "uint256" },
+          { name: "totalReceived", type: "uint256" },
+        ],
+      },
+    ],
+  },
+] as const;
+`,
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { vaultAbi } from "./VaultABI";
+
+interface PoolInfo {
+  currentPool: bigint;
+  totalReceived: bigint;
+}
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readContract<PoolInfo>({
+    contract: "vault",
+    address: sdk.context.vaultAddress,
+    abi: vaultAbi,
+    functionName: "poolInfo",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule(
+    "single tuple object outputs may use object result types",
+    runVaultCheck(singleTupleObjectReadSlug, { silent: true }),
+    "contract-abi/multiple-outputs-require-tuple-read",
+    "blocking",
+  );
+
   const stageGatingSlug = `${FIXTURE_PREFIX}-stage-gating`;
   writeVault(stageGatingSlug, {
     component: `"use client";

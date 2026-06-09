@@ -23,6 +23,8 @@ sdk.openExplorerTx(hash)
 
 `sdk.readContract(...)` accepts an optional `account` field. Use it when a view function depends on `msg.sender`, for example `sdk.readContract({ contract: "vault", address: context.vaultAddress, abi: vaultAbi, functionName: "myInfo", account: context.userAddress })`.
 
+ABI methods with multiple return values are tuple arrays at runtime. Even if the ABI names the outputs, `returns (uint256 currentPool, uint256 totalReceived)` should be read as `readonly [currentPool: bigint, totalReceived: bigint]`, then mapped into object-shaped UI state if that is easier to render. Do not type a multi-output `sdk.readContract` call as an object interface. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
+
 `VaultRuntimeProvider` can now receive an `oracleReader` so the host/runtime owns oracle provisioning instead of the component owning raw endpoint URLs:
 
 ```ts

@@ -382,6 +382,7 @@ import { Button } from "@/src/ui";
 ```
 
 普通 ERC20 `balanceOf`、`allowance`、`approve`、`decimals`、`symbol`、`transfer` 和 `transferFrom` flow 使用 `@/src/sdk` 导出的 `erc20Abi` 或 `standardErc20Abi`。不要把标准 ERC20 ABI 复制进 Vault package。
+ABI 方法如果有多个返回值，`sdk.readContract` 要按 tuple array 类型读取，再把下标映射成 UI state 对象。例如 `returns (uint256 currentPool, uint256 totalReceived)` 应使用 `readonly [currentPool: bigint, totalReceived: bigint]`，不要写成 object interface。只有 ABI 把 Solidity `tuple` / struct 声明为一个带 `components` 的单独 output 时，才可以按对象读取。
 除 shared `@/src/sdk` 和 `@/src/ui` surface 外，不要引入任何额外 SDK package 或 SDK-like wrapper。
 
 Host 会在 custom Vault component 加载前解析 taxinfo / feeinfo preflight data。使用 `context.host` 或 SDK helper `readTaxVaultHostContext(context.host)` 获取 token info、parsed tax info、VaultPortal info、fee mode、render surface、market phase 和 registry-selected vault type。Custom Vault UI 在这个模板中面向 tax-token path，因此真正重要的 live runtime state 是 token lifecycle（`marketPhase` / `isListed`）和 token metadata。使用 public SDK / host，不要添加 ad hoc props。

@@ -30,6 +30,7 @@ Core rules:
 - The template package is a source package for the Flap Artifact Workbench. Runtime Blob/R2/S3 artifacts must be Flap-built readable ESM JS (`component.mjs`), not TSX source, not hand-uploaded JS, and not minified by default.
 - Keep ABI fragments minimal.
 - If `VaultABI.ts` uses human-readable ABI strings such as `"function foo() view returns (...)"`, wrap them with `parseAbi([...])` from `viem`; raw signature string arrays are not valid runtime ABI objects and `vault:check` blocks them.
+- `sdk.readContract` returns ABI methods with multiple return values as tuple arrays, even when the outputs are named in a human-readable ABI. Type those reads as tuples such as `readonly [currentPool: bigint, totalReceived: bigint]`, then map tuple indexes into object-shaped UI state. Do not type multi-output reads as object interfaces. A single returned Solidity `tuple` / struct output may still be read as an object when the ABI declares it as one output with `components`.
 - Keep all user-facing copy in `i18n.json`.
 - Do not use direct wallet APIs, raw iframe, eval, script injection including `document.write` / `document.writeln`, runtime remote imports, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/cross-context/permission APIs, direct browser network/media APIs, undeclared endpoints/resources/frames, or undeclared fixed contract targets.
 - Do not add third-party images; media is controlled by Flap runtime/Artifact Workbench policy.
