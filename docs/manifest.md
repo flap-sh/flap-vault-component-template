@@ -294,6 +294,8 @@ Do not declare oracle config in `manifest.json`.
 
 If the component calls `sdk.readOracle(...)`, `yarn vault:check <folder-name>` reports the oracle id for Flap review/provisioning. Oracle endpoints and signing policy are controlled by the Flap Artifact Workbench/runtime, not by the public source package.
 
+Simple reviewed oracle ids can be provisioned by the runtime registry. External oracle providers that need dynamic paths, response transformation, binary/EVM payload wrapping, request signing, allowlisted upstream ids, or publish-time window validation must be implemented in the shared `@flapsdk/vault-runtime/server` package, not as one-off Workbench or `flap.sh` host code. The manifest remains free of oracle config in both cases.
+
 Endpoint declarations are also review inputs, not approvals. When an endpoint is unavoidable, the handoff must include the URL, purpose, request/response shape, data sensitivity, fallback behavior, and why SDK/on-chain/oracle reads are insufficient. This public template does not define review SLA, approver, or ticket routing; keep endpoint approval in `openItems` until Flap records the decision outside the source package.
 
 ## External Endpoints

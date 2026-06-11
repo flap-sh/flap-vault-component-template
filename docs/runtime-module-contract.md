@@ -234,6 +234,8 @@ The host may implement different adapters behind the scenes:
 
 That shared surface should also own oracle provisioning. Components still call `sdk.readOracle(...)`, but the host/runtime should inject the actual reader through `VaultRuntimeProvider` rather than pushing raw oracle URLs into Vault source. In this template, local preview wires `oracleReader={createLocalOracleReader()}` and serves the request through `/api/runtime/oracle/{oracleId}` backed by server-side runtime defaults.
 
+Oracle provider logic belongs in the shared runtime package when it is more than static HTTPS forwarding. Pyth/Hermes-style providers that need path templates, fixed price ids, response transforms into EVM bytes, or publish-time window checks should be exported by `@flapsdk/vault-runtime/server`. Workbench and `flap.sh` should not carry their own copies of those adapters; their route handlers should validate local proxy limits and call the shared runtime helper. This keeps the component contract as `sdk.readOracle(...)` while preventing host-specific oracle behavior drift.
+
 That shared surface also owns the reviewed frame primitive. Components may render at most one `ReviewedFrame`, and only with a static URL declared in the single `manifest.externalFrames` entry; Workbench and production hosts can rely on source-package review plus the `ReviewedFrame` primitive first. CSP `frame-src` allowlisting is optional follow-up hardening, not a required host change for this template contract.
 
 But the component-facing module contract must remain the same.

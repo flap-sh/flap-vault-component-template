@@ -55,6 +55,12 @@ For the same-origin runtime proxy, reviewed oracle ids can be provisioned with `
 
 `fixedParams` are appended by the runtime after UI params, so a component cannot override server-fixed routing values such as `feed`. `allowedParams` limits which UI-provided params are forwarded. If authentication is required, put reviewed headers in the runtime env registry only; do not put tokens in Vault source, manifests, or client-visible config.
 
+### Runtime-Owned Oracle Providers
+
+`FLAP_RUNTIME_ORACLE_REGISTRY` is intentionally a narrow pass-through contract: static HTTPS endpoint, optional server-only headers, UI-param allowlisting, and server-fixed query params. If an oracle needs dynamic path construction, request signing, response transformation, EVM byte wrapping, price-id allowlisting, publish-time window validation, or any other provider-specific logic, implement that provider in `@flapsdk/vault-runtime/server` from this template repo and publish a new runtime package version.
+
+Do not implement those provider adapters separately inside Workbench or `flap.sh`. Those hosts should validate their route/query/env boundaries and then call the shared runtime server helper, so local preview, Workbench review, and production host behavior stay aligned. A host-local adapter is acceptable only as a temporary migration fallback and should be replaced by a runtime package provider before the oracle becomes a repeated pattern.
+
 `sdk.wallet` exposes the connected account and chain status. `address` and `isConnected` come from the real preview wallet connection. `balance` is the connected wallet's real native-token balance (formatted, `"0"` when no wallet is connected). `chainId`, `chainLabel`, `requiredChainId`, `requiredChainLabel`, and `isWrongNetwork` let a Vault UI detect when the wallet is on the wrong chain and prompt a switch before continuing. `connect()`, `disconnect()`, and `switchChain()` forward to the preview wallet runtime; in production, wallet connection remains host/shell-owned, so Vault components should mainly read `sdk.wallet.isWrongNetwork` and render a clear switch-network state instead of sending writes on the wrong chain. Local preview reads and writes should use the real public client, wallet client, and contract addresses.
 
 ```ts
