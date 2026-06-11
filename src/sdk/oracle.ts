@@ -22,6 +22,18 @@ function toOracleProvision(provision: string | OracleProvision): OracleProvision
   return typeof provision === "string" ? { endpoint: provision } : provision;
 }
 
+function buildProvisionedParams(provision: OracleProvision, params?: Record<string, string>) {
+  const filteredParams =
+    provision.allowedParams && provision.allowedParams.length
+      ? Object.fromEntries(Object.entries(params ?? {}).filter(([key]) => provision.allowedParams?.includes(key)))
+      : params;
+
+  return {
+    ...(filteredParams ?? {}),
+    ...(provision.fixedParams ?? {}),
+  };
+}
+
 export function buildLocalOracleUrl(oracleId: string, params?: Record<string, string>, endpointBase = DEFAULT_LOCAL_ORACLE_ENDPOINT_BASE) {
   const normalizedBase = endpointBase.replace(/\/+$/, "");
   const url = new URL(`${normalizedBase}/${encodeURIComponent(oracleId)}`, "http://localhost");
@@ -67,14 +79,10 @@ export async function fetchProvisionedOracle<T>({
   fetchImpl?: typeof fetch;
 }): Promise<T> {
   const normalizedProvision = toOracleProvision(provision);
-  const filteredParams =
-    normalizedProvision.allowedParams && normalizedProvision.allowedParams.length
-      ? Object.fromEntries(Object.entries(params ?? {}).filter(([key]) => normalizedProvision.allowedParams?.includes(key)))
-      : params;
 
   return fetchOracleJson<T>({
     endpoint: normalizedProvision.endpoint,
-    params: filteredParams,
+    params: buildProvisionedParams(normalizedProvision, params),
     fetchImpl,
     headers: normalizedProvision.headers,
   });

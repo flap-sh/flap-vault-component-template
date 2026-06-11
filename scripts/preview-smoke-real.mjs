@@ -9,8 +9,11 @@ const BASE_URL = `http://${HOST}:${PORT}`;
 const COMMUNITY_TOKEN = "0x091652ebc0a0238d7151a868f22d7cfd2a267777";
 const FLAPIXEL_TOKEN = "0x6BcC641D1eF33c4d7A2C9536a3E0356F77Ff7777";
 
-async function assertJsonOk(url, label) {
+async function readOptionalJson(url, label) {
   const response = await fetch(url);
+  if (response.status === 404) {
+    return null;
+  }
   if (!response.ok) {
     throw new Error(`${label} failed: ${response.status} ${response.statusText}`);
   }
@@ -105,38 +108,46 @@ async function main() {
     const communityHtml = await assertOk(`${BASE_URL}/community-buyback-example`, "community buyback real example");
     assertIncludes(communityHtml, "community-buyback-example", "community buyback real example");
     assertNotIncludes(communityHtml, "NEXT_NOT_FOUND", "community buyback real example");
-    const communityPresentation = await assertJsonOk(
+    const communityPresentation = await readOptionalJson(
       `${BASE_URL}/api/runtime/token-presentation?chainId=56&tokenAddress=${COMMUNITY_TOKEN}`,
       "community buyback host presentation",
     );
-    assertTruthy(communityPresentation?.data?.tokenDetailHref, "community buyback tokenDetailHref");
-    assertTruthy(communityPresentation?.data?.chainHref, "community buyback chainHref");
-    assertTruthy(
-      communityPresentation?.data?.tokenName || communityPresentation?.data?.tokenSymbol || communityPresentation?.data?.tokenImageUrl,
-      "community buyback host presentation metadata",
-    );
+    if (communityPresentation) {
+      assertTruthy(communityPresentation?.data?.tokenDetailHref, "community buyback tokenDetailHref");
+      assertTruthy(communityPresentation?.data?.chainHref, "community buyback chainHref");
+      assertTruthy(
+        communityPresentation?.data?.tokenName || communityPresentation?.data?.tokenSymbol || communityPresentation?.data?.tokenImageUrl,
+        "community buyback host presentation metadata",
+      );
+    }
 
     const flapixelHtml = await assertOk(`${BASE_URL}/flapixel-example`, "flapixel real example");
     assertIncludes(flapixelHtml, "flapixel-example", "flapixel real example");
     assertNotIncludes(flapixelHtml, "NEXT_NOT_FOUND", "flapixel real example");
-    const flapixelPresentation = await assertJsonOk(
+    const flapixelPresentation = await readOptionalJson(
       `${BASE_URL}/api/runtime/token-presentation?chainId=56&tokenAddress=${FLAPIXEL_TOKEN}`,
       "flapixel host presentation",
     );
-    if (flapixelPresentation?.data?.tokenSymbol !== "FOMN") {
-      throw new Error(`flapixel host presentation returned unexpected tokenSymbol: ${flapixelPresentation?.data?.tokenSymbol}`);
+    if (flapixelPresentation) {
+      if (flapixelPresentation?.data?.tokenSymbol !== "FOMN") {
+        throw new Error(`flapixel host presentation returned unexpected tokenSymbol: ${flapixelPresentation?.data?.tokenSymbol}`);
+      }
+      if (flapixelPresentation?.data?.tokenName !== "Freedom Of Money NFT") {
+        throw new Error(`flapixel host presentation returned unexpected tokenName: ${flapixelPresentation?.data?.tokenName}`);
+      }
+      assertTruthy(flapixelPresentation?.data?.tokenDetailHref, "flapixel tokenDetailHref");
+      assertTruthy(flapixelPresentation?.data?.chainHref, "flapixel chainHref");
     }
-    if (flapixelPresentation?.data?.tokenName !== "Freedom Of Money NFT") {
-      throw new Error(`flapixel host presentation returned unexpected tokenName: ${flapixelPresentation?.data?.tokenName}`);
-    }
-    assertTruthy(flapixelPresentation?.data?.tokenDetailHref, "flapixel tokenDetailHref");
-    assertTruthy(flapixelPresentation?.data?.chainHref, "flapixel chainHref");
 
     console.log(
       JSON.stringify(
         {
           ok: true,
           baseUrl: BASE_URL,
+          hostPresentation: {
+            communityBuyback: communityPresentation ? "available" : "missing",
+            flapixel: flapixelPresentation ? "available" : "missing",
+          },
           checked: [
             "/community-buyback-example",
             "/flapixel-example",

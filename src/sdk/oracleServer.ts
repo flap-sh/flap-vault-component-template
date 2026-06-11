@@ -30,6 +30,15 @@ function normalizeAllowedParams(value: unknown) {
   return params.length ? params : undefined;
 }
 
+function normalizeFixedParams(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const params = Object.entries(value)
+    .filter((entry): entry is [string, string] => typeof entry[0] === "string" && typeof entry[1] === "string")
+    .map(([key, item]) => [key.trim(), item.trim()] as const)
+    .filter(([key]) => key.length > 0);
+  return params.length ? Object.fromEntries(params) : undefined;
+}
+
 function normalizeProvision(value: unknown): OracleProvision | null {
   if (typeof value === "string") {
     return value.trim() ? { endpoint: value.trim() } : null;
@@ -43,6 +52,7 @@ function normalizeProvision(value: unknown): OracleProvision | null {
     endpoint: record.endpoint.trim(),
     headers: normalizeHeaders(record.headers),
     allowedParams: normalizeAllowedParams(record.allowedParams),
+    fixedParams: normalizeFixedParams(record.fixedParams),
   };
 }
 

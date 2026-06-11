@@ -242,6 +242,7 @@ export interface OracleProvision {
   endpoint: string;
   headers?: Record<string, string>;
   allowedParams?: string[];
+  fixedParams?: Record<string, string>;
 }
 
 export type RuntimeOracleRegistry = Record<string, OracleProvision | string>;

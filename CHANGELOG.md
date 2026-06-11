@@ -13,13 +13,22 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-06-11
+
 ### Added
 
 - Added optional `account` forwarding to `sdk.readContract(...)` so Vault components can read `msg.sender`-dependent view functions without falling back to transaction simulation.
+- Added `fixedParams` to runtime oracle provisioning so host/runtime integrations can bind server-controlled query params such as `feed` to reviewed oracle ids.
+- Documented `FLAP_RUNTIME_ORACLE_REGISTRY` support for reviewed oracle `endpoint`, server-only `headers`, `allowedParams`, and `fixedParams` provisioning.
 
 ### Changed
 
 - Relaxed no-factory manifest bindings so a package can target either one Vault address or one or more token addresses; package metadata now emits one binding key per no-factory token target.
+- Runtime oracle forwarding now filters UI params through `allowedParams` and reapplies `fixedParams` so component-provided params cannot override reviewed route/feed values.
+
+### Fixed
+
+- `preview:smoke:real` no longer fails when the live host presentation proxy has no metadata entry for an otherwise renderable example token; missing metadata still exercises the runtime fallback path while route and proxy errors remain blocking.
 
 ## [0.1.4] - 2026-06-02
 

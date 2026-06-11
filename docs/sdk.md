@@ -41,6 +41,20 @@ import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
 
 `createLocalOracleReader()` targets the same-origin runtime proxy at `/api/runtime/oracle/{oracleId}`. In this template, local preview now ships with built-in runtime defaults for `example-reward-oracle` and the display-only `bnb-usd-price` price oracle, so common preview flows work without user env setup. `bnb-usd-price` returns `{ price: number, symbol: string, timestamp: number, source: string }` for BNB-to-USD display conversion. If a host/runtime needs to override an oracle id with a reviewed upstream URL, it should register that in the host integration layer rather than exposing endpoint config to Vault authors. The older `context.extraConfig.oracleEndpoints` map remains a legacy preview fallback only.
 
+For the same-origin runtime proxy, reviewed oracle ids can be provisioned with `FLAP_RUNTIME_ORACLE_REGISTRY`. The value is a JSON object keyed by oracle id:
+
+```json
+{
+  "reviewed-feed-id": {
+    "endpoint": "https://oracle.example.com/feed",
+    "fixedParams": { "feed": "reviewed-feed" },
+    "allowedParams": ["matchId"]
+  }
+}
+```
+
+`fixedParams` are appended by the runtime after UI params, so a component cannot override server-fixed routing values such as `feed`. `allowedParams` limits which UI-provided params are forwarded. If authentication is required, put reviewed headers in the runtime env registry only; do not put tokens in Vault source, manifests, or client-visible config.
+
 `sdk.wallet` exposes the connected account and chain status. `address` and `isConnected` come from the real preview wallet connection. `balance` is the connected wallet's real native-token balance (formatted, `"0"` when no wallet is connected). `chainId`, `chainLabel`, `requiredChainId`, `requiredChainLabel`, and `isWrongNetwork` let a Vault UI detect when the wallet is on the wrong chain and prompt a switch before continuing. `connect()`, `disconnect()`, and `switchChain()` forward to the preview wallet runtime; in production, wallet connection remains host/shell-owned, so Vault components should mainly read `sdk.wallet.isWrongNetwork` and render a clear switch-network state instead of sending writes on the wrong chain. Local preview reads and writes should use the real public client, wallet client, and contract addresses.
 
 ```ts
