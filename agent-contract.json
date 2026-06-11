@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 14,
+  "version": 15,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -107,10 +107,11 @@
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
     "localeRule": "manifest.i18n entries must be locale strings with at least two characters. Only locales declared by manifest.i18n are required and compared.",
-    "oracleRule": "Do not declare oracle config in manifest.json. sdk.readOracle usage is reported by vault:check for Flap review.",
+    "oracleRule": "Do not declare oracle config in manifest.json. sdk.readOracle usage is blocked unless the oracle id is already provisioned by built-in runtime defaults or FLAP_RUNTIME_ORACLE_REGISTRY. vault:check prints oracle id, endpoint/provisioning details, allowed/fixed params, and source file location in review.oracles[] for Workbench human review.",
     "endpointRule": "Avoid endpoints. Non-oracle fetch targets must be static absolute HTTPS URLs without username/password credentials and declared in manifest.endpoints as a single URL string or an array of URL strings for review. Dynamic, relative, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked.",
     "externalFrameRule": "Avoid external frames. If a display-only market chart is unavoidable, declare at most one entry in manifest.externalFrames with id, provider, src, and title. Providers are limited to tradingview, dexscreener, and coingecko-terminal. src must be a complete static HTTPS provider URL with a fixed non-empty query string, no credentials, and no hash. Component code may render at most one ReviewedFrame from @/src/ui with static string literal frameId, provider, src, and title props that exactly match the manifest declaration. Do not build iframe URLs dynamically or use srcDoc.",
     "externalFrameReviewOutputRule": "vault:check must print the valid external frame src in the manual-review/external-frame warning and in review.externalFrames[] so Workbench can display the exact iframe src value for human review.",
+    "externalEndpointReviewOutputRule": "vault:check must print declared and used external endpoint URLs in review.externalEndpoints[] with URL, origin, path, query params, manifest field or source location, and severity so Workbench can display the exact data dependency for human review.",
     "navigationRule": "Component-owned navigation should stay on the active chain explorer only. Do not send users to arbitrary websites from a Vault package.",
     "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
   },
@@ -388,8 +389,8 @@
       "fixAction": "The declared endpoint requires Flap review before production publish. Ensure the endpoint is truly necessary. Declaration does not guarantee approval."
     },
     "manual-review/oracle-usage": {
-      "severity": "info",
-      "fixAction": "sdk.readOracle usage detected. The oracle id will be submitted to Flap Artifact Workbench for review and provisioning. No change to manifest.json is needed."
+      "severity": "blocking",
+      "fixAction": "Provision the oracle id through built-in runtime defaults or FLAP_RUNTIME_ORACLE_REGISTRY before packaging, or remove sdk.readOracle usage. Do not add oracle config to manifest.json. Workbench must display review.oracles[] with endpoint and params details for human review."
     }
   },
   "requiredInputs": {

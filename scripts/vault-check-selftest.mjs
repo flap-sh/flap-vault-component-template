@@ -431,13 +431,19 @@ import { useFlapSdk } from "@/src/sdk";
 
 export default function SelftestVault(_props: VaultComponentProps) {
   const { i18n } = useFlapSdk();
-  void fetch("https://api.example.com/proof/details");
+  void fetch("https://api.example.com/proof/details?symbol=QQQ&window=1d");
   return <div>{i18n.t("title")}</div>;
 }
 `,
   });
-  assert.equal(runVaultCheck(declaredFetchSlug, { silent: true }).issues.some((item) => item.ruleId === "endpoint-policy/direct-fetch"), false);
+  const declaredFetchCheck = runVaultCheck(declaredFetchSlug, { silent: true });
+  assert.equal(declaredFetchCheck.issues.some((item) => item.ruleId === "endpoint-policy/direct-fetch"), false);
+  assert.ok(
+    declaredFetchCheck.review?.externalEndpoints?.some((item) => item.source === "fetch" && item.url === "https://api.example.com/proof/details?symbol=QQQ&window=1d" && item.queryParams?.symbol === "QQQ"),
+    "declared fetch review output includes exact URL and query params",
+  );
   passed.push("declared static HTTPS fetch child paths are allowed for review");
+  passed.push("declared fetch review output includes exact URL and query params");
 
   const validFrameSlug = `${FIXTURE_PREFIX}-valid-frame`;
   writeVault(validFrameSlug, {
@@ -1295,6 +1301,81 @@ export default function SelftestVault(_props: VaultComponentProps) {
     "contract-abi/multiple-outputs-require-tuple-read",
     "blocking",
   );
+
+  const unprovisionedOracleSlug = `${FIXTURE_PREFIX}-oracle-block`;
+  writeVault(unprovisionedOracleSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readOracle("pyth-qqq-latest-update", { feed: "qqq" });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const unprovisionedOracleCheck = runVaultCheck(unprovisionedOracleSlug, { silent: true });
+  assertRule("unprovisioned oracle ids block packaging", unprovisionedOracleCheck, "manual-review/oracle-usage", "blocking");
+  assert.ok(
+    unprovisionedOracleCheck.review?.oracles?.some((item) => item.oracleId === "pyth-qqq-latest-update" && item.provisioned === false && item.params?.feed === "qqq"),
+    "unprovisioned oracle review output includes oracle id and params",
+  );
+  passed.push("unprovisioned oracle review output includes oracle id and params");
+
+  const builtinOracleSlug = `${FIXTURE_PREFIX}-oracle-builtin`;
+  writeVault(builtinOracleSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readOracle("example-reward-oracle");
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const builtinOracleCheck = runVaultCheck(builtinOracleSlug, { silent: true });
+  assertNoRule("built-in runtime oracle ids do not block packaging", builtinOracleCheck, "manual-review/oracle-usage", "blocking");
+  assertRule("built-in runtime oracle ids remain visible for manual review", builtinOracleCheck, "manual-review/oracle-usage", "warning");
+
+  const registryOracleSlug = `${FIXTURE_PREFIX}-oracle-registry`;
+  writeVault(registryOracleSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readOracle("reviewed-settlement-oracle", { symbol: "QQQ" });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const originalOracleRegistry = process.env.FLAP_RUNTIME_ORACLE_REGISTRY;
+  process.env.FLAP_RUNTIME_ORACLE_REGISTRY = JSON.stringify({
+    "reviewed-settlement-oracle": {
+      endpoint: "https://oracle.example.com/settlement",
+      allowedParams: ["symbol"],
+      fixedParams: { feed: "qqq" },
+    },
+  });
+  const registryOracleCheck = runVaultCheck(registryOracleSlug, { silent: true });
+  assertNoRule("runtime registry-provisioned oracle ids do not block packaging", registryOracleCheck, "manual-review/oracle-usage", "blocking");
+  assert.ok(
+    registryOracleCheck.review?.oracles?.some((item) => item.oracleId === "reviewed-settlement-oracle" && item.endpoints?.includes("https://oracle.example.com/settlement") && item.allowedParams?.includes("symbol") && item.fixedParams?.feed === "qqq"),
+    "registry oracle review output includes endpoint and param policy",
+  );
+  passed.push("registry oracle review output includes endpoint and param policy");
+  if (originalOracleRegistry === undefined) {
+    delete process.env.FLAP_RUNTIME_ORACLE_REGISTRY;
+  } else {
+    process.env.FLAP_RUNTIME_ORACLE_REGISTRY = originalOracleRegistry;
+  }
 
   const stageGatingSlug = `${FIXTURE_PREFIX}-stage-gating`;
   writeVault(stageGatingSlug, {

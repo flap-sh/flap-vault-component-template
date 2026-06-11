@@ -68,6 +68,33 @@ const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|oracle|aggregator|
 const CONTRACT_INTERACTION_METHODS = ["readContract", "simulateContract", "writeContract", "watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"];
 const CONTRACT_LABEL_REQUIRED_METHODS = new Set(["readContract", "simulateContract", "writeContract"]);
 const CONTRACT_INTERACTION_METHOD_RE = new RegExp(`^(?:${CONTRACT_INTERACTION_METHODS.join("|")})\\b`, "u");
+const RUNTIME_ORACLE_REGISTRY_ENV = "FLAP_RUNTIME_ORACLE_REGISTRY";
+const ORACLE_ID_RE = /^[a-zA-Z0-9._:-]{1,96}$/;
+const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
+  [
+    "example-reward-oracle",
+    {
+      source: "built-in",
+      endpoints: [],
+      allowedParams: [],
+      fixedParams: {},
+      headersPresent: false,
+    },
+  ],
+  [
+    "bnb-usd-price",
+    {
+      source: "built-in",
+      endpoints: [
+        "https://api.binance.com/api/v3/avgPrice?symbol=BNBUSDT",
+        "https://hermes.pyth.network/v2/updates/price/latest?ids%5B%5D=0x2f95862b045670cd22bee3114c39763a4a08beeb663b145d283c31d7d1101c4f&encoding=base64&parsed=true",
+      ],
+      allowedParams: [],
+      fixedParams: {},
+      headersPresent: false,
+    },
+  ],
+]);
 const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow)\b(?=[\s\S]{0,640}\b(?:riskLabel|riskLevel|riskTone)\b)/;
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 const ALLOWED_BROWSER_GLOBAL_MEMBERS = new Map([
@@ -141,7 +168,7 @@ const FIX_HINTS = {
   "frame-policy/undeclared-frame-src": "Declare the exact static ReviewedFrame src in manifest.externalFrames with the same provider and frameId.",
   "frame-policy/too-many-reviewed-frames": "Use at most one ReviewedFrame and one manifest.externalFrames entry per Vault UI.",
   "manual-review/external-frame": "External frames are review candidates only. Keep the frame display-only and wait for Flap review approval before publish.",
-  "manual-review/oracle-usage": "Do not add oracle config to manifest. Flap Artifact Workbench/runtime must provision the oracle id.",
+  "manual-review/oracle-usage": `Do not add oracle config to manifest. Unprovisioned oracle ids must be removed or provisioned through built-in runtime defaults or ${RUNTIME_ORACLE_REGISTRY_ENV} before packaging; provisioned oracle ids still require review.oracles[] endpoint and params review before publish.`,
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
   "risk-status/manual-low-risk-label": "Do not hardcode or unconditionally render Low risk / 低风险 labels. A low-risk label is allowed only when selected from the host-derived riskLevel === 1 branch.",
@@ -201,6 +228,70 @@ function isAllowedPackageImport(spec) {
   if (SHARED_RUNTIME_IMPORTS.has(spec)) return true;
   if (sharedRuntimeImportRoot(spec)) return false;
   return ALLOWED_IMPORTS.some((allowed) => spec === allowed || spec.startsWith(`${allowed}/`));
+}
+
+function isRuntimeOracleProvision(value) {
+  if (typeof value === "string") return value.trim().length > 0;
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) && typeof value.endpoint === "string" && value.endpoint.trim());
+}
+
+function normalizeStringArray(value) {
+  return Array.isArray(value) ? value.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim()) : [];
+}
+
+function normalizeStringRecord(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter((entry) => typeof entry[0] === "string" && typeof entry[1] === "string")
+      .map(([key, item]) => [key.trim(), item.trim()])
+      .filter(([key]) => key.length > 0),
+  );
+}
+
+function normalizeRuntimeOracleProvisionDetails(value) {
+  if (typeof value === "string") {
+    const endpoint = value.trim();
+    return endpoint
+      ? {
+          source: "runtime-registry",
+          endpoints: [endpoint],
+          allowedParams: [],
+          fixedParams: {},
+          headersPresent: false,
+        }
+      : null;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const endpoint = typeof value.endpoint === "string" ? value.endpoint.trim() : "";
+  if (!endpoint) return null;
+  return {
+    source: "runtime-registry",
+    endpoints: [endpoint],
+    allowedParams: normalizeStringArray(value.allowedParams),
+    fixedParams: normalizeStringRecord(value.fixedParams),
+    headersPresent: Boolean(value.headers && typeof value.headers === "object" && !Array.isArray(value.headers) && Object.keys(value.headers).length),
+  };
+}
+
+function readRuntimeOracleRegistryDetails(raw = process.env[RUNTIME_ORACLE_REGISTRY_ENV]) {
+  if (!raw?.trim()) return new Map();
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return new Map();
+    return new Map(
+      Object.entries(parsed)
+        .filter(([oracleId, provision]) => ORACLE_ID_RE.test(oracleId) && isRuntimeOracleProvision(provision))
+        .map(([oracleId, provision]) => [oracleId, normalizeRuntimeOracleProvisionDetails(provision)])
+        .filter((entry) => Boolean(entry[1])),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+function getRuntimeOracleProvisionDetails() {
+  return new Map([...BUILTIN_RUNTIME_ORACLE_PROVISIONS, ...readRuntimeOracleRegistryDetails()]);
 }
 
 function walk(dir, files = []) {
@@ -281,6 +372,12 @@ function parseUrl(value) {
   }
 }
 
+function queryParamsForUrl(url) {
+  const parsed = parseUrl(url);
+  if (!parsed) return {};
+  return Object.fromEntries(parsed.searchParams.entries());
+}
+
 function hrefWithoutHash(url) {
   const next = new URL(url.href);
   next.hash = "";
@@ -354,6 +451,83 @@ function staticStringLiteral(rawExpression) {
   }
 
   return null;
+}
+
+function splitTopLevelArgs(argsText) {
+  const args = [];
+  let start = 0;
+  let quote = null;
+  let escaped = false;
+  let depth = 0;
+  for (let index = 0; index < argsText.length; index += 1) {
+    const char = argsText[index];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "\"" || char === "'" || char === "`") {
+      quote = char;
+      continue;
+    }
+    if (char === "(" || char === "{" || char === "[") {
+      depth += 1;
+      continue;
+    }
+    if (char === ")" || char === "}" || char === "]") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (char === "," && depth === 0) {
+      args.push(argsText.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  const last = argsText.slice(start).trim();
+  if (last) args.push(last);
+  return args;
+}
+
+function staticObjectStringParams(expression) {
+  const trimmed = expression?.trim();
+  if (!trimmed?.startsWith("{") || !trimmed.endsWith("}")) return undefined;
+  const body = trimmed.slice(1, -1);
+  const params = {};
+  const propertyRegex = /(?:^|,)\s*(?:(["'`])([^"'`]+)\1|([A-Za-z_$][\w$]*))\s*:\s*(["'`])((?:\\.|(?!\4)[\s\S])*?)\4/g;
+  for (const match of body.matchAll(propertyRegex)) {
+    const key = match[2] || match[3];
+    if (!key) continue;
+    params[key] = match[5];
+  }
+  return Object.keys(params).length ? params : undefined;
+}
+
+function collectReadOracleUsages(content, file) {
+  const usages = [];
+  const oracleCallRegex = /\breadOracle(?:<[^>]+>)?\s*\(/g;
+  for (const match of content.matchAll(oracleCallRegex)) {
+    const openParenIndex = content.indexOf("(", match.index ?? 0);
+    if (openParenIndex < 0) continue;
+    const closeParenIndex = findMatchingDelimiter(content, openParenIndex, "(", ")");
+    if (closeParenIndex < 0) continue;
+    const args = splitTopLevelArgs(content.slice(openParenIndex + 1, closeParenIndex));
+    const oracleId = staticStringLiteral(stripExpressionDecorators(args[0] ?? ""));
+    if (!oracleId) continue;
+    const paramsExpression = args[1]?.trim();
+    usages.push({
+      oracleId,
+      file,
+      line: lineForIndex(content, match.index ?? -1),
+      params: staticObjectStringParams(paramsExpression),
+      paramsExpression,
+    });
+  }
+  return usages;
 }
 
 function hasUnparsedHumanReadableAbi(content) {
@@ -1933,7 +2107,16 @@ function checkManifest(manifest, folderName) {
       } else if (parsedEndpoint.username || parsedEndpoint.password) {
         issues.push(issue(BLOCKING, "endpoint-policy/no-credentials", `Endpoint ${endpoint} must not include username or password credentials.`, { field }));
       } else {
-        issues.push(issue(WARNING, "manual-review/external-endpoint", `Declared external endpoint ${endpoint}. External endpoints are discouraged and require Flap review approval before publish.`, { field }));
+        issues.push(
+          issue(WARNING, "manual-review/external-endpoint", `Declared external endpoint ${endpoint}. External endpoints are discouraged and require Flap review approval before publish.`, {
+            field,
+            source: "manifest",
+            url: endpoint,
+            origin: parsedEndpoint.origin,
+            pathname: parsedEndpoint.pathname,
+            queryParams: queryParamsForUrl(endpoint),
+          }),
+        );
       }
     }
   }
@@ -1974,6 +2157,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const declaredFrames = collectDeclaredFrames(manifest);
   const contractPolicy = collectManifestContractPolicy(manifest);
   const abiFunctionOutputCounts = collectAbiFunctionOutputCounts(vaultDir);
+  const oracleProvisionDetails = getRuntimeOracleProvisionDetails();
   const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
@@ -2107,18 +2291,24 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     for (const match of scanContent.matchAll(requireRegex)) {
       issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
     }
-    const oracleIds = new Set();
-    const oracleCallRegex = /\breadOracle(?:<[^>]+>)?\(\s*["'`]([^"'`]+)["'`]/g;
-    for (const match of scanContent.matchAll(oracleCallRegex)) {
-      oracleIds.add(match[1]);
-    }
-    for (const oracleId of oracleIds) {
+    for (const oracleUsage of collectReadOracleUsages(scanContent, rel)) {
+      const provision = oracleProvisionDetails.get(oracleUsage.oracleId);
       issues.push(
         issue(
-          INFO,
+          provision ? WARNING : BLOCKING,
           "manual-review/oracle-usage",
-          `Oracle ${oracleId} is used by code. Do not declare oracle config in manifest.json; Flap Artifact Workbench/runtime must review and provision it.`,
-          { file: rel },
+          provision
+            ? `Oracle ${oracleUsage.oracleId} is used by code and is provisioned through ${provision.source}. Flap Artifact Workbench/runtime must still review the oracle endpoint and params before production publish.`
+            : `Oracle ${oracleUsage.oracleId} is used by code but is not provisioned by the runtime oracle registry. Do not declare oracle config in manifest.json; Flap Artifact Workbench/runtime must review and provision it before packaging.`,
+          {
+            ...oracleUsage,
+            provisioned: Boolean(provision),
+            source: provision?.source ?? "missing",
+            endpoints: provision?.endpoints ?? [],
+            allowedParams: provision?.allowedParams ?? [],
+            fixedParams: provision?.fixedParams ?? {},
+            headersPresent: provision?.headersPresent ?? false,
+          },
         ),
       );
     }
@@ -2155,6 +2345,18 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
             "fetch() targets inside Vault source must be static absolute HTTPS URLs without credentials and declared in manifest.endpoints for Flap review.",
             { file: rel, line: lineForIndex(scanContent, match.index ?? -1) },
           ),
+        );
+      } else {
+        issues.push(
+          issue(WARNING, "manual-review/external-endpoint", `fetch() uses declared external endpoint ${staticTarget}. External endpoint usage requires Flap review approval before publish.`, {
+            source: "fetch",
+            url: staticTarget,
+            origin: parsedTarget.origin,
+            pathname: parsedTarget.pathname,
+            queryParams: queryParamsForUrl(staticTarget),
+            file: rel,
+            line: lineForIndex(scanContent, match.index ?? -1),
+          }),
         );
       }
     }
@@ -2305,6 +2507,8 @@ function buildAgentNextActions(issues) {
     frameId: item.frameId,
     provider: item.provider,
     src: item.src,
+    url: item.url,
+    oracleId: item.oracleId,
     locale: item.locale,
     key: item.key,
     fixHint: item.fixHint,
@@ -2312,6 +2516,39 @@ function buildAgentNextActions(issues) {
 }
 
 function collectManualReview(issues) {
+  const externalEndpoints = issues
+    .filter((item) => item.ruleId === "manual-review/external-endpoint" && item.url)
+    .map((item) => ({
+      source: item.source,
+      url: item.url,
+      origin: item.origin,
+      pathname: item.pathname,
+      queryParams: item.queryParams ?? {},
+      file: item.file,
+      line: item.line,
+      field: item.field,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  const oracles = issues
+    .filter((item) => item.ruleId === "manual-review/oracle-usage" && item.oracleId)
+    .map((item) => ({
+      oracleId: item.oracleId,
+      provisioned: Boolean(item.provisioned),
+      source: item.source,
+      endpoints: item.endpoints ?? [],
+      allowedParams: item.allowedParams ?? [],
+      fixedParams: item.fixedParams ?? {},
+      params: item.params,
+      paramsExpression: item.paramsExpression,
+      headersPresent: Boolean(item.headersPresent),
+      file: item.file,
+      line: item.line,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
   const externalFrames = issues
     .filter((item) => item.ruleId === "manual-review/external-frame" && item.src)
     .map((item) => ({
@@ -2324,7 +2561,7 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalFrames };
+  return { externalEndpoints, oracles, externalFrames };
 }
 
 function buildCheckReport(folderName, issues) {
