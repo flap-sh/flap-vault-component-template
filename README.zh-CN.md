@@ -400,7 +400,7 @@ yarn runtime:verify-package
 
 Vault source 仍应按 `@/src/sdk` 和 `@/src/ui` 编写；runtime package 用于让 Workbench 和 `flap.sh` 在底层收敛到同一个 shared runtime surface。
 
-Oracle provisioning 也属于 shared runtime surface：Vault source 只调用 `sdk.readOracle(...)`，reviewed oracle id 由 host/runtime 注入。模板本地同源 proxy 可通过 `FLAP_RUNTIME_ORACLE_REGISTRY` 配置，每个 id 可声明 `endpoint`、server-only `headers`、`allowedParams` 和 `fixedParams`；`fixedParams` 用于把 `feed` 这类服务端固定 query 绑定到 oracle id，UI 传参不能覆盖。
+Oracle provisioning 也属于 shared runtime surface：Vault source 只调用 `sdk.readOracle(...)`，reviewed oracle id 由 host/runtime 注入。模板本地同源 proxy 可通过 `FLAP_RUNTIME_ORACLE_REGISTRY` 配置，每个 id 只能声明无密钥 `endpoint`、`allowedParams` 和 `fixedParams`；`fixedParams` 用于把 `feed` 这类服务端固定 query 绑定到 oracle id，UI 传参不能覆盖。Flap runtime 不持有或转发上游 `Authorization` token；如果上游服务需要鉴权，项目方应先提供自己的无密钥 HTTPS 中转服务。
 
 ## 常用命令
 

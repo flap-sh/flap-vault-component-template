@@ -45,12 +45,10 @@ export async function fetchOracleJson<T>({
   endpoint,
   params,
   fetchImpl,
-  headers,
 }: {
   endpoint: string;
   params?: Record<string, string>;
   fetchImpl?: typeof fetch;
-  headers?: HeadersInit;
 }): Promise<T> {
   const fallbackOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
   const url = new URL(endpoint, fallbackOrigin);
@@ -58,7 +56,6 @@ export async function fetchOracleJson<T>({
 
   const response = await (fetchImpl ?? fetch)(url.toString(), {
     cache: "no-store",
-    headers,
     method: "GET",
   });
 
@@ -84,7 +81,6 @@ export async function fetchProvisionedOracle<T>({
     endpoint: normalizedProvision.endpoint,
     params: buildProvisionedParams(normalizedProvision, params),
     fetchImpl,
-    headers: normalizedProvision.headers,
   });
 }
 

@@ -16,6 +16,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 ### Changed
 
 - Clarified that external oracle providers requiring path templates, response transforms, signing, EVM byte wrapping, or publish-time validation belong in `@flapsdk/vault-runtime/server`, not in Workbench or `flap.sh` host-local adapters.
+- Removed runtime oracle header forwarding from `FLAP_RUNTIME_ORACLE_REGISTRY`; registry entries now support only `endpoint`, `allowedParams`, and `fixedParams`, and upstream authentication must be handled by the provider's own no-secret HTTPS relay.
 
 ## [0.1.8] - 2026-06-11
 
@@ -23,7 +24,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 - Added optional `account` forwarding to `sdk.readContract(...)` so Vault components can read `msg.sender`-dependent view functions without falling back to transaction simulation.
 - Added `fixedParams` to runtime oracle provisioning so host/runtime integrations can bind server-controlled query params such as `feed` to reviewed oracle ids.
-- Documented `FLAP_RUNTIME_ORACLE_REGISTRY` support for reviewed oracle `endpoint`, server-only `headers`, `allowedParams`, and `fixedParams` provisioning.
+- Documented `FLAP_RUNTIME_ORACLE_REGISTRY` support for reviewed oracle `endpoint`, `allowedParams`, and `fixedParams` provisioning.
 
 ### Changed
 

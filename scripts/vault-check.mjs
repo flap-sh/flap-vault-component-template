@@ -78,7 +78,6 @@ const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
       endpoints: [],
       allowedParams: [],
       fixedParams: {},
-      headersPresent: false,
     },
   ],
   [
@@ -91,7 +90,6 @@ const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
       ],
       allowedParams: [],
       fixedParams: {},
-      headersPresent: false,
     },
   ],
 ]);
@@ -168,7 +166,7 @@ const FIX_HINTS = {
   "frame-policy/undeclared-frame-src": "Declare the exact static ReviewedFrame src in manifest.externalFrames with the same provider and frameId.",
   "frame-policy/too-many-reviewed-frames": "Use at most one ReviewedFrame and one manifest.externalFrames entry per Vault UI.",
   "manual-review/external-frame": "External frames are review candidates only. Keep the frame display-only and wait for Flap review approval before publish.",
-  "manual-review/oracle-usage": `Do not add oracle config to manifest. Unprovisioned oracle ids must be removed or provisioned through built-in runtime defaults or ${RUNTIME_ORACLE_REGISTRY_ENV} before packaging; provisioned oracle ids still require review.oracles[] endpoint and params review before publish.`,
+  "manual-review/oracle-usage": `Do not add oracle config to manifest. Unprovisioned oracle ids must be removed or provisioned through built-in runtime defaults or ${RUNTIME_ORACLE_REGISTRY_ENV} before packaging; registry entries may include endpoint, allowedParams, and fixedParams only, not headers or Flap-held tokens. Provisioned oracle ids still require review.oracles[] endpoint and params review before publish.`,
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
   "risk-status/manual-low-risk-label": "Do not hardcode or unconditionally render Low risk / 低风险 labels. A low-risk label is allowed only when selected from the host-derived riskLevel === 1 branch.",
@@ -232,7 +230,14 @@ function isAllowedPackageImport(spec) {
 
 function isRuntimeOracleProvision(value) {
   if (typeof value === "string") return value.trim().length > 0;
-  return Boolean(value && typeof value === "object" && !Array.isArray(value) && typeof value.endpoint === "string" && value.endpoint.trim());
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      !Object.prototype.hasOwnProperty.call(value, "headers") &&
+      typeof value.endpoint === "string" &&
+      value.endpoint.trim(),
+  );
 }
 
 function normalizeStringArray(value) {
@@ -258,7 +263,6 @@ function normalizeRuntimeOracleProvisionDetails(value) {
           endpoints: [endpoint],
           allowedParams: [],
           fixedParams: {},
-          headersPresent: false,
         }
       : null;
   }
@@ -270,7 +274,6 @@ function normalizeRuntimeOracleProvisionDetails(value) {
     endpoints: [endpoint],
     allowedParams: normalizeStringArray(value.allowedParams),
     fixedParams: normalizeStringRecord(value.fixedParams),
-    headersPresent: Boolean(value.headers && typeof value.headers === "object" && !Array.isArray(value.headers) && Object.keys(value.headers).length),
   };
 }
 
@@ -2307,7 +2310,6 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
             endpoints: provision?.endpoints ?? [],
             allowedParams: provision?.allowedParams ?? [],
             fixedParams: provision?.fixedParams ?? {},
-            headersPresent: provision?.headersPresent ?? false,
           },
         ),
       );
@@ -2542,7 +2544,6 @@ function collectManualReview(issues) {
       fixedParams: item.fixedParams ?? {},
       params: item.params,
       paramsExpression: item.paramsExpression,
-      headersPresent: Boolean(item.headersPresent),
       file: item.file,
       line: item.line,
       severity: item.severity,

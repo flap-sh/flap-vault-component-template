@@ -240,7 +240,6 @@ export interface VaultRuntimeContextOverrides extends Partial<Omit<VaultRuntimeC
 
 export interface OracleProvision {
   endpoint: string;
-  headers?: Record<string, string>;
   allowedParams?: string[];
   fixedParams?: Record<string, string>;
 }

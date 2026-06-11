@@ -15,15 +15,6 @@ interface RuntimePriceOracleData {
   source: "binance" | "pyth";
 }
 
-function normalizeHeaders(headers: unknown) {
-  if (!headers || typeof headers !== "object" || Array.isArray(headers)) return undefined;
-  const entries = Object.entries(headers)
-    .filter(([, value]) => typeof value === "string")
-    .map(([key, value]) => [key, value.trim()] as const)
-    .filter(([, value]) => value);
-  return entries.length ? Object.fromEntries(entries) : undefined;
-}
-
 function normalizeAllowedParams(value: unknown) {
   if (!Array.isArray(value)) return undefined;
   const params = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
@@ -47,10 +38,14 @@ function normalizeProvision(value: unknown): OracleProvision | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
   if (typeof record.endpoint !== "string" || !record.endpoint.trim()) return null;
+  if (Object.prototype.hasOwnProperty.call(record, "headers")) {
+    throw new Error(
+      `${FLAP_RUNTIME_ORACLE_REGISTRY_ENV} entries must not include headers. Flap runtime does not hold or forward upstream tokens; expose a reviewed no-secret HTTPS endpoint instead.`,
+    );
+  }
 
   return {
     endpoint: record.endpoint.trim(),
-    headers: normalizeHeaders(record.headers),
     allowedParams: normalizeAllowedParams(record.allowedParams),
     fixedParams: normalizeFixedParams(record.fixedParams),
   };

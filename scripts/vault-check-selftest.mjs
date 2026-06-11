@@ -1371,6 +1371,20 @@ export default function SelftestVault(_props: VaultComponentProps) {
     "registry oracle review output includes endpoint and param policy",
   );
   passed.push("registry oracle review output includes endpoint and param policy");
+  process.env.FLAP_RUNTIME_ORACLE_REGISTRY = JSON.stringify({
+    "reviewed-settlement-oracle": {
+      endpoint: "https://oracle.example.com/settlement",
+      headers: { Authorization: "Bearer example" },
+      allowedParams: ["symbol"],
+      fixedParams: { feed: "qqq" },
+    },
+  });
+  const headerRegistryOracleCheck = runVaultCheck(registryOracleSlug, { silent: true });
+  assertRule("runtime registry entries with headers do not provision oracle ids", headerRegistryOracleCheck, "manual-review/oracle-usage", "blocking");
+  assert.ok(
+    headerRegistryOracleCheck.review?.oracles?.some((item) => item.oracleId === "reviewed-settlement-oracle" && item.provisioned === false),
+    "header-bearing registry oracle remains unprovisioned in review output",
+  );
   if (originalOracleRegistry === undefined) {
     delete process.env.FLAP_RUNTIME_ORACLE_REGISTRY;
   } else {
