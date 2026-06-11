@@ -13,6 +13,8 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-06-12
+
 ### Changed
 
 - Clarified that external oracle providers requiring path templates, response transforms, signing, EVM byte wrapping, or publish-time validation belong in `@flapsdk/vault-runtime/server`, not in Workbench or `flap.sh` host-local adapters.
