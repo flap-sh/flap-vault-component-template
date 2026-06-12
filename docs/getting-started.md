@@ -86,7 +86,7 @@ These shell elements are preview-only and are not part of the packaged Vault sou
 Recommended for AI agents and repeatable local setup:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales en,zh
 ```
 
 This creates the strict four-file package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`.
@@ -149,10 +149,10 @@ Avoid fixed extra contract targets. If a component must call a fixed contract ad
 ```json
 {
   "chainId": 56,
-  "factoryAddress": "0x1000000000000000000000000000000000000001",
+  "factoryAddress": "0xFactoryAddressRequired",
   "externalContracts": [
     {
-      "address": "0x4000000000000000000000000000000000000004",
+      "address": "0xExternalContractIfNeeded",
       "label": "Reward distributor"
     }
   ]

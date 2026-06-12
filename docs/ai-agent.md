@@ -81,20 +81,22 @@ For a step-by-step beginner path that starts from raw Vault requirements and end
 Use the scaffold command to avoid folder and manifest mistakes:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales en,zh
 ```
 
 For a single-Vault UI that has no factory, omit `--factory` and provide one Vault address. Token is optional:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressIfNeeded --locales en,zh
 ```
 
 For a single-language UI:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales zh
 ```
+
+Replace these placeholder strings with real `0x` + 40 hex deployment addresses before running scaffold. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses, including the legacy `0x1000000000000000000000000000000000000001` factory fixture.
 
 If a factory-scoped UI needs a reference token CA allowlist, still scaffold the shared UI artifact first. Then add `tokenAddresses` manually under the relevant `match.bindings` entry in `manifest.json`; do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`, and do not pass CA flags to factory-mode `vault:scaffold`.
 
@@ -217,7 +219,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 

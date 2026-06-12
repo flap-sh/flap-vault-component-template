@@ -8,6 +8,9 @@ import { assertNpmPackageFresh } from "./check-template-fresh.mjs";
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
+  ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
+]);
 const FOLDER_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FOLDER_NAME_MIN_LENGTH = 3;
 const FOLDER_NAME_MAX_LENGTH = 64;
@@ -131,6 +134,7 @@ const FIX_HINTS = {
   "manifest-binding/disallowed-binding-field": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, and optional externalContracts.",
   "manifest-binding/invalid-chain-id": "chainId must be a positive integer, for example 56 for BNB Chain or 97 for BNB Testnet.",
   "manifest-binding/invalid-address": "Use a full 20-byte EVM address matching 0x plus 40 hex characters.",
+  "manifest-binding/placeholder-address": "Replace the template placeholder with a real deployment address. If the factory or Vault is not deployed yet, leave the package unpublished and do not use a placeholder binding.",
   "manifest-binding/zero-factory-address": "Omit factoryAddress for no-factory mode, or use the real deployed non-zero factory contract address for factory mode.",
   "manifest-binding/mixed-binding-target": "Use factoryAddress for a factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
@@ -1706,6 +1710,21 @@ function isZeroAddress(value) {
   return normalizeAddress(value) === ZERO_ADDRESS;
 }
 
+function placeholderAddressLabel(value) {
+  const normalized = normalizeAddress(value);
+  return normalized ? RESERVED_PLACEHOLDER_ADDRESSES.get(normalized) : undefined;
+}
+
+function placeholderAddressIssue(field, value) {
+  const label = placeholderAddressLabel(value) || "template placeholder";
+  return issue(
+    BLOCKING,
+    "manifest-binding/placeholder-address",
+    `${field} uses reserved ${label} ${value}. Replace it with the real reviewed deployment address before packaging or Workbench publish.`,
+    { field, address: value },
+  );
+}
+
 function isNonZeroAddress(value) {
   return ADDRESS_RE.test(value || "") && !isZeroAddress(value);
 }
@@ -1781,7 +1800,9 @@ function checkExternalContracts(value, field, builtInAddresses = new Set()) {
     } else {
       const normalized = contractEntry.address.toLowerCase();
       const firstField = seen.get(normalized);
-      if (firstField) {
+      if (placeholderAddressLabel(contractEntry.address)) {
+        issues.push(placeholderAddressIssue(`${entryField}.address`, contractEntry.address));
+      } else if (firstField) {
         issues.push(issue(BLOCKING, "manifest-binding/duplicate-address", `${entryField}.address duplicates ${firstField}.address.`, { field: `${entryField}.address` }));
       } else if (builtInAddresses.has(normalized)) {
         issues.push(issue(BLOCKING, "manifest-binding/duplicate-address", `${entryField}.address is already covered by this binding's factoryAddress, tokenAddresses, or vaultAddresses.`, { field: `${entryField}.address` }));
@@ -2019,6 +2040,8 @@ function checkManifest(manifest, folderName) {
               { field: `${field}.factoryAddress` },
             ),
           );
+        } else if (hasFactoryField && placeholderAddressLabel(bindingEntry.factoryAddress)) {
+          issues.push(placeholderAddressIssue(`${field}.factoryAddress`, bindingEntry.factoryAddress));
         }
         if (hasFactoryField && bindingEntry.vaultAddresses !== undefined) {
           issues.push(
@@ -2034,9 +2057,11 @@ function checkManifest(manifest, folderName) {
           if (!Array.isArray(bindingEntry.vaultAddresses) || bindingEntry.vaultAddresses.length === 0) {
             issues.push(issue(BLOCKING, "manifest-binding/invalid-vault-address-list", `${field}.vaultAddresses must be a non-empty array when provided.`, { field: `${field}.vaultAddresses` }));
           } else {
-            for (const addr of bindingEntry.vaultAddresses) {
+            for (const [addressIndex, addr] of bindingEntry.vaultAddresses.entries()) {
               if (!ADDRESS_RE.test(addr) || isZeroAddress(addr)) {
-                issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.vaultAddresses contains invalid or zero address: ${addr}.`, { field: `${field}.vaultAddresses` }));
+                issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.vaultAddresses contains invalid or zero address: ${addr}.`, { field: `${field}.vaultAddresses[${addressIndex}]` }));
+              } else if (placeholderAddressLabel(addr)) {
+                issues.push(placeholderAddressIssue(`${field}.vaultAddresses[${addressIndex}]`, addr));
               }
             }
             if (!hasFactoryField && bindingEntry.vaultAddresses.length !== 1) {
@@ -2051,9 +2076,11 @@ function checkManifest(manifest, folderName) {
           if (!Array.isArray(bindingEntry.tokenAddresses) || bindingEntry.tokenAddresses.length === 0) {
             issues.push(issue(BLOCKING, "manifest-binding/invalid-token-address-list", `${field}.tokenAddresses must be a non-empty array when provided.`, { field: `${field}.tokenAddresses` }));
           } else {
-            for (const addr of bindingEntry.tokenAddresses) {
+            for (const [addressIndex, addr] of bindingEntry.tokenAddresses.entries()) {
               if (!ADDRESS_RE.test(addr) || isZeroAddress(addr)) {
-                issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.tokenAddresses contains invalid or zero address: ${addr}.`, { field: `${field}.tokenAddresses` }));
+                issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.tokenAddresses contains invalid or zero address: ${addr}.`, { field: `${field}.tokenAddresses[${addressIndex}]` }));
+              } else if (placeholderAddressLabel(addr)) {
+                issues.push(placeholderAddressIssue(`${field}.tokenAddresses[${addressIndex}]`, addr));
               }
             }
             issues.push(...checkAddressListDuplicates(bindingEntry.tokenAddresses, `${field}.tokenAddresses`));

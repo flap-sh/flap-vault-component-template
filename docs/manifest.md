@@ -37,7 +37,7 @@ chainId + vaultAddress (+ optional tokenAddress)
 chainId + tokenAddress
 ```
 
-For factory-scoped UI, `factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` is invalid. For UI without a factory, omit `factoryAddress` and provide either exactly one real non-zero Vault address in `match.bindings[].vaultAddresses` or one or more real non-zero token addresses in `match.bindings[].tokenAddresses`.
+For factory-scoped UI, `factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` and reserved template placeholder addresses such as `0x1000000000000000000000000000000000000001` are invalid. For UI without a factory, omit `factoryAddress` and provide either exactly one real non-zero Vault address in `match.bindings[].vaultAddresses` or one or more real non-zero token addresses in `match.bindings[].tokenAddresses`.
 
 If a deployment needs a token CA list, declare it only inside the relevant binding entry as `tokenAddresses`. In factory mode this remains a binding-scoped list. In no-factory mode it can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
 
@@ -55,7 +55,7 @@ Preview/runtime resolution should respect those explicit bindings. Prefer an exa
   "name": "My Vault UI",
   "match": {
     "bindings": [
-      { "chainId": 56, "factoryAddress": "0x..." }
+      { "chainId": 56, "factoryAddress": "0xFactoryAddressRequired" }
     ]
   },
   "i18n": ["en", "zh"]
@@ -70,8 +70,8 @@ For a UI that supports both mainnet and testnet with different factory addresses
   "name": "My Vault UI",
   "match": {
     "bindings": [
-      { "chainId": 56, "factoryAddress": "0xMainnetFactory..." },
-      { "chainId": 97, "factoryAddress": "0xTestnetFactory..." }
+      { "chainId": 56, "factoryAddress": "0xMainnetFactoryRequired" },
+      { "chainId": 97, "factoryAddress": "0xTestnetFactoryRequired" }
     ]
   },
   "i18n": ["en", "zh"]
@@ -88,10 +88,10 @@ For a UI that has no factory and is bound to one Vault, use one Vault address an
     "bindings": [
       {
         "chainId": 56,
-        "vaultAddresses": ["0x3000000000000000000000000000000000000003"],
+        "vaultAddresses": ["0xVaultAddressRequired"],
         "tokenAddresses": [
-          "0x2000000000000000000000000000000000000002",
-          "0x2000000000000000000000000000000000000005"
+          "0xTokenAddressOneIfNeeded",
+          "0xTokenAddressTwoIfNeeded"
         ]
       }
     ]
@@ -111,8 +111,8 @@ For a UI that has no factory and is bound by token CA only, omit `vaultAddresses
       {
         "chainId": 56,
         "tokenAddresses": [
-          "0x2000000000000000000000000000000000000002",
-          "0x2000000000000000000000000000000000000005"
+          "0xTokenAddressOneRequired",
+          "0xTokenAddressTwoRequired"
         ]
       }
     ]
@@ -143,10 +143,10 @@ Example:
 ```json
 {
   "chainId": 56,
-  "factoryAddress": "0x1000000000000000000000000000000000000001",
+  "factoryAddress": "0xFactoryAddressRequired",
   "externalContracts": [
     {
-      "address": "0x4000000000000000000000000000000000000004",
+      "address": "0xExternalContractIfNeeded",
       "label": "Reward distributor"
     }
   ]

@@ -45,7 +45,7 @@ Factory-scoped UI:
 ```bash
 yarn vault:scaffold my-vault \
   --name "My Vault UI" \
-  --chain 56 --factory 0x1000000000000000000000000000000000000001 \
+  --chain 56 --factory 0xFactoryAddressRequired \
   --locales en,zh
 ```
 
@@ -54,10 +54,12 @@ Single-Vault UI without a factory:
 ```bash
 yarn vault:scaffold my-vault \
   --name "My Vault UI" \
-  --chain 56 --vault 0x3000000000000000000000000000000000000003 \
-  --token 0x2000000000000000000000000000000000000002 \
+  --chain 56 --vault 0xVaultAddressRequired \
+  --token 0xTokenAddressIfNeeded \
   --locales en,zh
 ```
+
+Replace placeholder addresses with real deployment addresses before running scaffold.
 
 `vault:scaffold` creates the four-file package and registers the preview route. Do not add helper files, assets, nested folders, or extra local imports.
 

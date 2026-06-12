@@ -44,14 +44,16 @@ yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
 3. Scaffold the Vault package. Factory-scoped example:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales en,zh
 ```
 
 Single-Vault example without a factory:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressIfNeeded --locales en,zh
 ```
+
+Replace placeholder addresses with real deployment addresses before running these commands.
 
 4. Edit only the four package files under `src/vaults/my-vault`: `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
    Keep the scaffolded default business card structure unless the Vault needs a different pattern. The built-in example routes are behavior references, not the default visual style.
@@ -221,14 +223,16 @@ The full input schema is also machine-readable in `agent-contract.json` under `r
 For a new Vault UI, prefer the scaffold command:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales en,zh
 ```
 
 For a UI without a factory, scaffold from one Vault address and optionally one token address:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressIfNeeded --locales en,zh
 ```
+
+Replace placeholder addresses with real deployment addresses before running the command. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses so a source package with a fake factory or Vault cannot enter Workbench publish by accident.
 
 This creates the strict four-file Vault package, generates a stable `artifactId`, and registers the folder name in `src/vaults/index.ts`. If Flap review supplies extra no-factory token restrictions, keep them as `tokenAddresses` inside `match.bindings[]`; Flap review/runtime owns the final publish routing. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
 
@@ -263,7 +267,7 @@ For full code-base validation, run `yarn ci`. CI runs lint, typecheck, checker s
 Recommended (single chain):
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired
 ```
 
 For mainnet + testnet (repeat `--chain` / `--factory` per target):
@@ -426,7 +430,7 @@ yarn dev
 yarn build
 yarn lint
 yarn typecheck
-yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --dry-run
+yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0xFactoryAddressRequired --dry-run
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest

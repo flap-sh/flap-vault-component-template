@@ -232,6 +232,7 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Minimal manifest | Done | Schema and check script allow only developer-facing fields. |
 | CA policy boundary | Done | `vault:check` blocks global `restrictTokenAddresses`, global `tokenAddresses`, and `caPolicy`, while allowing optional per-binding `match.bindings[].tokenAddresses` as a reference-only list. |
 | No-factory binding variants | Done | Schema, `vault:check`, preview resolution, and packaging allow no-factory `chainId + vaultAddress`, `chainId + tokenAddress`, and `chainId + vaultAddress + tokenAddress` targets; no-factory token lists may contain multiple token addresses. |
+| Binding address safety | Done | `vault:check`, `vault:scaffold`, and the manifest schema block malformed, zero, and reserved template placeholder binding addresses so fake factory/Vault targets cannot pass into Workbench publish. |
 | Runtime binding uniqueness | Done | `vault:check` blocks duplicate factory, Vault, token-only, and Vault+token runtime binding keys while allowing distinct token restrictions for the same no-factory Vault. |
 | External contract declaration boundary | Done | `vault:check` blocks fixed SDK contract targets outside runtime token/Vault/factory addresses, binding-scoped token/Vault references, or `match.bindings[].externalContracts`. |
 | Type-field binding ban | Done | Recursive manifest scan blocks `vaultType` / `vaultTypes` binding fields. |

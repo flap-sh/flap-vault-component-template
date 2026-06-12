@@ -9,6 +9,9 @@ import { isValidFolderName, registerVault } from "./vault-registration.mjs";
 const ROOT = process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
+  ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
+]);
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const ARTIFACT_ID_RE = /^vaultui_([a-z0-9]+(?:-[a-z0-9]+)*)_([0-9A-HJKMNPQRSTVWXYZ]{26})$/;
 
@@ -103,6 +106,10 @@ function createUlid() {
 
 function createArtifactId(folderName) {
   return `vaultui_${folderName}_${createUlid()}`;
+}
+
+function placeholderAddressLabel(value) {
+  return typeof value === "string" ? RESERVED_PLACEHOLDER_ADDRESSES.get(value.toLowerCase()) : undefined;
 }
 
 function validateArtifactId(artifactId, folderName) {
@@ -401,7 +408,7 @@ function main() {
       {
         code: "cli/missing-folder-name",
         fixHint:
-          "Provide a lowercase kebab-case folder name and at least one binding target, for example: yarn vault:scaffold my-vault --chain 56 --factory 0x1000000000000000000000000000000000000001 or yarn vault:scaffold my-vault --chain 56 --vault 0x3000000000000000000000000000000000000003",
+          "Provide a lowercase kebab-case folder name and at least one real binding target, for example: yarn vault:scaffold my-vault --chain 56 --factory 0xFactoryAddressRequired or yarn vault:scaffold my-vault --chain 56 --vault 0xVaultAddressRequired",
       },
     );
   }
@@ -489,6 +496,17 @@ function main() {
         code: "manifest-binding/invalid-address",
         fixHint: "Use a full 20-byte EVM address matching 0x plus 40 hex characters.",
         address,
+      });
+    }
+  }
+  for (const address of allAddresses) {
+    const label = placeholderAddressLabel(address);
+    if (label) {
+      fail(`Invalid placeholder address: ${address}`, {
+        code: "manifest-binding/placeholder-address",
+        fixHint: "Replace the template placeholder with a real deployment address. If the factory or Vault is not deployed yet, do not scaffold a publishable binding yet.",
+        address,
+        placeholder: label,
       });
     }
   }

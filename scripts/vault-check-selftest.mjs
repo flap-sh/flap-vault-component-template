@@ -8,7 +8,8 @@ import { runVaultCheck } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
-const FACTORY = "0x1000000000000000000000000000000000000001";
+const FACTORY = "0xc3e4ee8f3c616d16297fafcb9daab122d31efa9e";
+const PLACEHOLDER_FACTORY = "0x1000000000000000000000000000000000000001";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TOKEN = "0x2000000000000000000000000000000000000002";
 const SECOND_TOKEN = "0x2000000000000000000000000000000000000005";
@@ -148,6 +149,16 @@ try {
     }),
   });
   assertRule("zero factory bindings are blocked", runVaultCheck(zeroFactorySlug, { silent: true }), "manifest-binding/zero-factory-address", "blocking");
+
+  const placeholderFactorySlug = `${FIXTURE_PREFIX}-placeholder-factory`;
+  writeVault(placeholderFactorySlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: PLACEHOLDER_FACTORY }],
+      },
+    }),
+  });
+  assertRule("template placeholder factory bindings are blocked", runVaultCheck(placeholderFactorySlug, { silent: true }), "manifest-binding/placeholder-address", "blocking");
 
   const missingTargetSlug = `${FIXTURE_PREFIX}-missing-target`;
   writeVault(missingTargetSlug, {
@@ -1593,6 +1604,14 @@ ${lateRiskStatusFiller}
     }),
   );
   passed.push("scaffold rejects zero factory input");
+
+  assert.throws(() =>
+    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-placeholder-scaffold`, "--chain", "56", "--factory", PLACEHOLDER_FACTORY, "--locales", "en"], {
+      cwd: ROOT,
+      stdio: "pipe",
+    }),
+  );
+  passed.push("scaffold rejects template placeholder factory input");
 
   createdFolderNames.push(scaffoldFlowSlug);
   createdPackagePaths.push(path.join(ROOT, "dist", `${scaffoldFlowSlug}.zip`));
