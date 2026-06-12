@@ -205,7 +205,7 @@ The output is JSON and includes:
 - `issues`
 
 If `summary.blocking` is greater than zero, fix those issues before doing anything else.
-If `manual-review/action-stage-gating` appears, the component has a write path but does not reference `marketPhase` or `isActionAvailableForPhase`. Add explicit stage gating and visible unavailable-state copy before packaging.
+If `manual-review/action-stage-gating` appears, the component has a write path but does not reference `marketPhase` or `isActionAvailableForPhase`. This is blocking; add explicit stage gating and visible unavailable-state copy before packaging.
 If `manifest-binding/mixed-binding-target` appears, one binding contains both `factoryAddress` and `vaultAddresses`. Choose one scope: factory-scoped UI uses `factoryAddress`; single-Vault UI omits `factoryAddress` and uses exactly one `vaultAddresses` entry.
 If `risk-status/missing-host-risk-state` appears, the component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying.
 If `risk-status/not-prominent-placement` appears, the component renders host risk status too low in the Vault business UI. Move the risk badge, metric, or row into the first or second row of the Vault-specific business UI before retrying.

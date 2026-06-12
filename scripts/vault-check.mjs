@@ -1651,7 +1651,7 @@ function checkStructure(vaultDir) {
       issues.push(issue(BLOCKING, "forbidden-files/disallowed-entry", `Forbidden entry ${item.name} found.`, { file: rel }));
     }
     if (!item.isDirectory && item.name.match(/\.(png|jpe?g|gif|webp|svg)$/i)) {
-      issues.push(issue(WARNING, "media/local-asset", `Local media asset ${item.name} is not part of the Vault package. Keep media controlled by Flap Artifact Workbench/runtime policy.`, { file: rel }));
+      issues.push(issue(BLOCKING, "media/local-asset", `Local media asset ${item.name} is not part of the Vault package. Keep media controlled by Flap Artifact Workbench/runtime policy.`, { file: rel }));
     }
   }
   return issues;
@@ -2444,7 +2444,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     if (/refetchInterval\s*:\s*([0-4]?\d{1,3})(?!\d)/.test(scanContent)) {
-      issues.push(issue(WARNING, "performance/refetch-too-fast", "refetchInterval below 5000ms needs review.", { file: rel }));
+      issues.push(issue(BLOCKING, "performance/refetch-too-fast", "refetchInterval below 5000ms is not allowed in Vault source.", { file: rel }));
     }
     const standardErc20NameRegex = new RegExp(
       String.raw`(?:\bname\s*:\s*["'](?:${STANDARD_ERC20_METHODS.join("|")})["']|\b(?:${STANDARD_ERC20_METHODS.join("|")})\s*\()`,
@@ -2462,7 +2462,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     if (item.name === "VaultABI.ts" && standardErc20NameRegex.test(scanContent)) {
       issues.push(
         issue(
-          WARNING,
+          BLOCKING,
           "contract-abi/standard-erc20-in-vault-abi",
           "Standard ERC20 ABI is already provided by @/src/sdk. Keep VaultABI.ts for Vault methods and custom non-standard token mechanics only.",
           { file: rel },
@@ -2474,7 +2474,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     if (item.name === "Component.tsx" && hasUserWritePath && !hasMarketPhaseHandling) {
       issues.push(
         issue(
-          WARNING,
+          BLOCKING,
           "manual-review/action-stage-gating",
           "Component has a user write path but does not reference marketPhase or isActionAvailableForPhase. Stage-gated actions must state whether they run in internal-market, DEX-listed, both, or read-only mode.",
           { file: rel },

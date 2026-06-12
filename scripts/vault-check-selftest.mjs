@@ -973,7 +973,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 }
 `,
   });
-  assertNoRule("refetchInterval 5000ms is not treated as too fast", runVaultCheck(refetchMinimumSlug, { silent: true }), "performance/refetch-too-fast", "warning");
+  assertNoRule("refetchInterval 5000ms is not treated as too fast", runVaultCheck(refetchMinimumSlug, { silent: true }), "performance/refetch-too-fast", "blocking");
 
   const refetchFastSlug = `${FIXTURE_PREFIX}-refetch-fast`;
   writeVault(refetchFastSlug, {
@@ -990,7 +990,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 }
 `,
   });
-  assertRule("refetchInterval below 5000ms is still reported", runVaultCheck(refetchFastSlug, { silent: true }), "performance/refetch-too-fast", "warning");
+  assertRule("refetchInterval below 5000ms is blocked", runVaultCheck(refetchFastSlug, { silent: true }), "performance/refetch-too-fast", "blocking");
 
   const navigationSlug = `${FIXTURE_PREFIX}-navigation`;
   writeVault(navigationSlug, {
@@ -1165,7 +1165,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 ] as const;
 `,
   });
-  assertRule("standard ERC20 ABI names are flagged in VaultABI.ts", runVaultCheck(abiSlug, { silent: true }), "contract-abi/standard-erc20-in-vault-abi", "warning");
+  assertRule("standard ERC20 ABI names are blocked in VaultABI.ts", runVaultCheck(abiSlug, { silent: true }), "contract-abi/standard-erc20-in-vault-abi", "blocking");
 
   const humanReadableAbiSlug = `${FIXTURE_PREFIX}-human-readable-abi`;
   writeVault(humanReadableAbiSlug, {
@@ -1425,7 +1425,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 }
 `,
   });
-  assertRule("write paths warn when market phase gating is missing", runVaultCheck(stageGatingSlug, { silent: true }), "manual-review/action-stage-gating", "warning");
+  assertRule("write paths are blocked when market phase gating is missing", runVaultCheck(stageGatingSlug, { silent: true }), "manual-review/action-stage-gating", "blocking");
 
   const riskStatusSlug = `${FIXTURE_PREFIX}-risk-status`;
   writeVault(riskStatusSlug);

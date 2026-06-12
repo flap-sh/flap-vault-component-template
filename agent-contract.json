@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 16,
+  "version": 17,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -381,11 +381,11 @@
       "fixAction": "Add the missing i18n key to the locale in i18n.json. All keys must be present in every locale declared by manifest.i18n."
     },
     "abi/erc20-in-vault-abi": {
-      "severity": "warning",
+      "severity": "blocking",
       "fixAction": "Remove standard ERC20 ABI fragments from VaultABI.ts and replace with erc20Abi or standardErc20Abi imported from @/src/sdk."
     },
     "manual-review/action-stage-gating": {
-      "severity": "warning",
+      "severity": "blocking",
       "fixAction": "Add explicit marketPhase and isActionAvailableForPhase usage. Gate write actions by internal-market or dex-listed stage. Show unavailable buttons with clear copy instead of hiding them."
     },
     "manual-review/declared-endpoint": {
