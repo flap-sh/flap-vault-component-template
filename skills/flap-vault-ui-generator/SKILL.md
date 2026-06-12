@@ -46,6 +46,7 @@ chainId + tokenAddress
    - action availability stage: internal-market, dex-listed, both, or read-only
    - market phase handling through `context.host?.marketPhase`
    - token media handling through `context.tokenImageUrl`, not private token metadata API calls
+   - visual assets through CSS/HTML shapes or approved icon packages first; inline SVG JSX only for static pure graphic nodes
    - i18n requirements
 8. Pick the closest pattern.
 9. Select the closest public-safe snippet from `docs/ui-pattern-snippets.md` for section order, transaction state, and empty/error states.
@@ -71,6 +72,8 @@ Fix blocking issues before finishing.
 
 - Use `@/src/sdk` for chain, wallet, contract, oracle, notify, i18n, formatting, tx errors.
 - Use `@/src/ui` primitives before custom UI.
+- Prefer CSS/HTML card shapes and `lucide-react` icons before ad hoc SVG. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`). Use FontAwesome only in host repositories or runtimes that explicitly include and allow it; this template's Vault package allowlist does not include FontAwesome by default.
+- Handwritten inline SVG JSX is allowed only for static pure graphic nodes such as `svg`, `g`, `defs`, `path`, `circle`, `rect`, `line`, `polyline`, `polygon`, `ellipse`, `linearGradient`, `radialGradient`, `stop`, `clipPath`, `mask`, `title`, and `desc`. Keep references local, for example `fill="url(#gradient)"`.
 - Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.
 - Use `agent-contract.json` as the machine-readable source of allowed files, imports, manifest fields, commands, preview route, and done criteria.
 - Keep the Vault folder strict. It may contain only `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
@@ -101,7 +104,7 @@ Fix blocking issues before finishing.
 - Decide and state whether actions are available in internal-market, DEX-listed, both, or read-only stage. Do not silently hide supported actions; show disabled/unavailable states with clear copy.
 - Use `context.host?.marketPhase` as the runtime source for internal-market vs DEX-listed checks. The current template preview panel provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
 - Use `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` for stage-gated buttons.
-- Every onboarded Vault UI must read and visibly render the current contract risk status from host context. Use `readTaxVaultHostContext(context.host)` and derive `riskLevel` from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`; place the risk status in the first or second row of the Vault-specific business UI so it is visible in the first viewport. If it is unavailable, show a prominent warning/danger message that risk-status integration is required. Do not hardcode or unconditionally render `Low risk` / `低风险` labels, badges, summaries, or reassuring copy; those labels may appear only when selected from the host-derived `riskLevel === 1` branch. `vault:check` blocks packages that omit this, place it too low, or add manual low-risk labels.
+- Every onboarded Vault UI must read and visibly render the current contract risk status from host context. Use `readTaxVaultHostContext(context.host)` and derive `riskLevel` from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`; place the risk status within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block. If it is unavailable, show a prominent warning/danger message that risk-status integration is required. Do not hardcode or unconditionally render `Low risk` / `低风险` labels, badges, summaries, or reassuring copy; those labels may appear only when selected from the host-derived `riskLevel === 1` branch. `vault:check` blocks packages that omit this, place it too low, place it after large visuals, or add manual low-risk labels.
 - Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media/header data. The template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only. Do not call private token metadata APIs from `Component.tsx`.
 - Local preview uses real wallet/runtime data. If data is needed, use real addresses supplied by the user or preview URL params.
 - Preview both phase states with `marketPhase=internal-market` and `marketPhase=dex-listed` before packaging an action-heavy Vault UI.
@@ -115,12 +118,13 @@ Fix blocking issues before finishing.
 - `window.ethereum.request`
 - `eval` / the `Function` constructor
 - raw iframe, iframe `srcDoc`, or script injection, including `document.write` / `document.writeln`; `ReviewedFrame` is the only reviewed frame path
+- unsafe inline SVG JSX, including scripts, event attributes, `foreignObject`, `image`, `use`, external URLs, non-local `url(...)`, `style` `url(...)` / `@import`, `href` / `src` except static local fragments, spread attributes, or unsupported nodes
 - runtime remote import
 - undeclared URL, endpoint, or external resource
 - undeclared fixed extra contract target
 - hidden transaction target
 - missing current contract risk-status integration
-- current contract risk status placed below the first two business UI rows
+- current contract risk status placed after the first three business UI rows or after preview/hero/media/chart visuals
 - manual `Low risk` / `低风险` labels not derived from host `riskLevel === 1`
 - unapproved dependency
 - custom third-party image or external resource not controlled by Flap runtime/Artifact Workbench

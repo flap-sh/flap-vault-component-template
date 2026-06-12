@@ -20,6 +20,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Worker and cross-context APIs such as `Worker`, `SharedWorker`, `navigator.serviceWorker`, `BroadcastChannel`, `postMessage`, or message event listeners.
 - Browser permission APIs such as `navigator.clipboard`, `navigator.geolocation`, `navigator.permissions`, or `Notification`.
 - Raw iframe, iframe `srcDoc`, direct HTML replacement, or script injection, including `document.write`, `document.writeln`, `document.open`, `document.close`, `innerHTML`, `outerHTML`, and `insertAdjacentHTML`.
+- Unsafe inline SVG JSX, including script-capable or mixed-content nodes, event attributes, `foreignObject`, `image`, `use`, external URLs, non-local `url(...)`, `style` `url(...)` / `@import`, `href` / `src` except static local fragments, and spread attributes.
 - `eval`, string-based timer callbacks, the `Function` constructor, or constructor-based scope escapes.
 - Unapproved dependencies.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
@@ -40,6 +41,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Local React state.
 - Small pure functions inside `Component.tsx`.
 - Local small components inside `Component.tsx`.
+- CSS/HTML card shapes and `lucide-react` icons before ad hoc SVG; search the official Lucide icon library first at `https://lucide.dev/icons/`. Handwritten inline SVG JSX is allowed only for static pure graphic nodes such as `svg`, `path`, `circle`, `rect`, and gradients with local fragment references.
 - Flap SDK contract reads/writes.
 - Reading Flap-provided `context.host` values for token info, parsed tax info, VaultPortal info, fee mode, render surface, and registry-selected Vault type.
 - `sdk.readOracle(...)` only when the Flap Artifact Workbench/runtime can review and provision the oracle id.

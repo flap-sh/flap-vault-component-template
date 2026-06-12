@@ -86,7 +86,7 @@ Build a controlled Flap Vault UI for:
 - empty/error states:
 - preview URL addresses:
 
-Use only the four files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Do not rebuild the host token header, do not call private token metadata APIs, do not add external navigation, and do not add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`.
+Use only the four files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, do not call private token metadata APIs, do not add external navigation, and do not add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`.
 
 After editing, run yarn vault:check {folder-name}, yarn vault:package {folder-name}, and yarn vault:verify-package dist/{folder-name}.zip. Do not call the work done until those pass.
 ```
@@ -107,7 +107,7 @@ For the first version, keep the scaffolded default surface and replace placehold
 - Show two or three Vault-specific metrics, not every possible contract field.
 - Keep one primary action area visible. Include input, quote/proof state, warnings, and the approve/write button there.
 - Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for phase gating.
-- Read current risk status from `readTaxVaultHostContext(context.host)`, place it in the first or second row of the Vault-specific business UI, and render a prominent warning if it is missing.
+- Read current risk status from `readTaxVaultHostContext(context.host)`, place it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a prominent warning if it is missing.
 - Do not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`.
 - Use the host token name, symbol, and image from `context.tokenName`, `context.tokenSymbol`, and `context.tokenImageUrl`.
 - Use `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` before writes.
@@ -133,7 +133,7 @@ Check these before packaging:
 
 - The page renders under the host-owned `Vault Information` frame.
 - The component does not duplicate the token breadcrumb, token header, close control, or shell summary.
-- Risk status is visible in the first or second business UI row.
+- Risk status is visible within the first three business UI rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block.
 - Missing risk status shows a warning.
 - English and Chinese copy both render if both locales are declared.
 - Wrong-network state blocks writes.
@@ -179,5 +179,5 @@ The package is not ready if:
 - The UI was not opened locally.
 - The oracle, proof, read, or write path was never tested.
 - The UI hides unavailable actions instead of explaining why they are disabled.
-- The component does not render host risk status in the first or second business UI row.
+- The component does not render host risk status within the first three business UI rows/blocks or places it after a preview, hero, banner, showcase, media, chart, or large visual block.
 - The Vault folder contains anything beyond `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.

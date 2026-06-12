@@ -40,7 +40,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - i18n key missing from any locale declared by `manifest.i18n`
 - missing current contract risk-status integration from host `riskLevel`, including the prominent unavailable-risk warning state
-- current contract risk status placed below the first two rows of the Vault-specific business UI
+- current contract risk status placed after the first three Vault-specific business rows or after preview/hero/media/chart visuals
 - manual `Low risk` / `低风险` labels, badges, summaries, or reassuring copy that are not selected from the host-derived `riskLevel === 1` branch
 - object result types on `sdk.readContract` calls for ABI methods with multiple return values; read those methods as tuple arrays and map indexes into UI state
 - remote media inside Vault source

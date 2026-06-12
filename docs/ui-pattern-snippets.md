@@ -22,6 +22,7 @@ Vault components should feel like compact business panels inside the Flap previe
 - Use `TxButton` for approve/write flows with transaction state labels.
 - Keep transaction feedback layered: show concise actionable errors inside the current panel, and use transient toast-style notifications for confirmations or lightweight status pings.
 - Keep action sections compact and repeatable: input, derived quote, warning/error, primary action, secondary action.
+- Prefer CSS/HTML drawing and `lucide-react` icons for visual details. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`). Use handwritten inline SVG JSX only for small static pure graphic marks with no scripts, events, external URLs, media nodes, `use`, or CSS imports/URL resources.
 - Let the preview shell own token header, breadcrumb, close control, `Vault Information` frame, wallet header, language selector, invalid-token page state, page width, and any host-provided shared summary/header block.
 
 Avoid:
@@ -30,6 +31,7 @@ Avoid:
 - Duplicating host-owned intro banners, token summaries, or top hero cards inside `Component.tsx`.
 - Treating `example` or `action-gallery-example` as the visual default. They are behavior references; the scaffold default and this document define the preferred default visual direction.
 - Third-party images or external media.
+- Ad hoc SVG when CSS/HTML or a `lucide-react` icon can express the same mark. If inline SVG is necessary, keep it to safe static pure shape nodes and local fragment refs only.
 - Hardcoded addresses or private endpoints.
 - Raw iframe, `srcDoc`, or dynamic chart URLs. If a display-only market chart is approved, use `ReviewedFrame` with a static `manifest.externalFrames` URL only.
 - Copying old Flap component names, constants, exact private flows, or legacy row-heavy layouts.
@@ -136,7 +138,7 @@ Suggested i18n keys:
 
 ## Risk And Verification Banner
 
-Use for current contract risk status, unverified, high-risk, fallback, AI-generated, or schema-generated Vaults. Every onboarded Vault UI must read `riskLevel` from host context and visibly render it in the first or second row of the Vault-specific business UI; this is a strict package check. Low-risk copy must only be selected from the host-derived `riskLevel === 1` branch; do not add separate manual `Low risk` / `低风险` badges or reassuring copy.
+Use for current contract risk status, unverified, high-risk, fallback, AI-generated, or schema-generated Vaults. Every onboarded Vault UI must read `riskLevel` from host context and visibly render it within the first three visible Vault-specific business rows/blocks, before any preview, hero, banner, showcase, media, chart, or large visual block; this is a strict package check. Low-risk copy must only be selected from the host-derived `riskLevel === 1` branch; do not add separate manual `Low risk` / `低风险` badges or reassuring copy.
 
 ```tsx
 const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;

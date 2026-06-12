@@ -53,7 +53,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
 ```
 
-4. 只编辑 `src/vaults/my-vault` 下的四个包文件：`Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json`。除非 Vault 需要不同组织方式，否则保留 scaffold 默认业务卡片结构。内置 example route 是行为参考，不是默认视觉风格。
+4. 只编辑 `src/vaults/my-vault` 下的四个包文件：`Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json`。除非 Vault 需要不同组织方式，否则保留 scaffold 默认业务卡片结构。内置 example route 是行为参考，不是默认视觉风格。需要图标时优先使用 `lucide-react`，先从 Lucide 官方图标库选择：`https://lucide.dev/icons/`。
 5. 预览路由并测试真实 workflow：
 
 ```plain text
@@ -379,8 +379,10 @@ Vault source 应通过公开 alias 导入 shared runtime surface：
 ```ts
 import { erc20Abi, useFlapSdk } from "@/src/sdk";
 import { Button } from "@/src/ui";
+import { ShieldCheck } from "lucide-react";
 ```
 
+图标优先使用 `lucide-react`。添加 ad hoc inline SVG 前，先查 Lucide 官方图标库：`https://lucide.dev/icons/`；Lucide 官网是 `https://lucide.dev/`。
 普通 ERC20 `balanceOf`、`allowance`、`approve`、`decimals`、`symbol`、`transfer` 和 `transferFrom` flow 使用 `@/src/sdk` 导出的 `erc20Abi` 或 `standardErc20Abi`。不要把标准 ERC20 ABI 复制进 Vault package。
 ABI 方法如果有多个返回值，`sdk.readContract` 要按 tuple array 类型读取，再把下标映射成 UI state 对象。例如 `returns (uint256 currentPool, uint256 totalReceived)` 应使用 `readonly [currentPool: bigint, totalReceived: bigint]`，不要写成 object interface。只有 ABI 把 Solidity `tuple` / struct 声明为一个带 `components` 的单独 output 时，才可以按对象读取。
 除 shared `@/src/sdk` 和 `@/src/ui` surface 外，不要引入任何额外 SDK package 或 SDK-like wrapper。

@@ -180,7 +180,7 @@ const host = readTaxVaultHostContext(context.host);
 
 `host.isSupportedCustomVaultToken` remains available when the host wants to assert that it resolved an existing tax token. For component gating and AI-agent guidance, the main fields are `host.marketPhase`, `host.isListed`, and current contract risk status from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`.
 
-Every onboarded Vault UI must visibly render the current contract risk status in the first or second row of the Vault-specific business UI. If `riskLevel` is unavailable, the component must show a prominent warning/danger notice that risk-status integration is required before delivery. Do not hardcode or unconditionally render `Low risk` / `低风险` labels, badges, summaries, or reassuring copy; those labels may appear only when selected from the host-derived `riskLevel === 1` branch.
+Every onboarded Vault UI must visibly render the current contract risk status within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block. If `riskLevel` is unavailable, the component must show a prominent warning/danger notice that risk-status integration is required before delivery. Do not hardcode or unconditionally render `Low risk` / `低风险` labels, badges, summaries, or reassuring copy; those labels may appear only when selected from the host-derived `riskLevel === 1` branch.
 
 `marketPhase` is the normalized token lifecycle stage exposed to custom Vault UI. In this template, the local preview host computes and injects it from the real Portal token status when the route provides a supported `chainId + tokenAddress`; explicit preview params can still override it for UI QA:
 

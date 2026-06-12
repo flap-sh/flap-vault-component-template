@@ -96,8 +96,11 @@ const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
     },
   ],
 ]);
-const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow)\b(?=[\s\S]{0,640}\b(?:riskLabel|riskLevel|riskTone)\b)/;
+const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow)\b(?=[^>]*\b(?:riskLabel|riskLevel|riskTone)\b)|<StatusBadge\b[^>]*>\s*{?\s*(?:riskLabel|riskLevel|riskTone)\b/;
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
+const RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE = 2;
+const RISK_STATUS_PRECEDING_BUSINESS_ROW_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow|TxButton)\b/g;
+const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<ReviewedFrame\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
 const ALLOWED_BROWSER_GLOBAL_MEMBERS = new Map([
   ["window", new Set(["setTimeout", "clearTimeout", "setInterval", "clearInterval", "open"])],
 ]);
@@ -107,6 +110,26 @@ const WARNING = "warning";
 const INFO = "info";
 const TYPE_BINDING_KEYS = new Set(["vault" + "Type", "vault" + "Types"]);
 const UNSAFE_RESOURCE_SCHEMES = ["ipfs://", "ar://", "data:", "javascript:"];
+const ALLOWED_INLINE_SVG_TAGS = new Set([
+  "svg",
+  "g",
+  "defs",
+  "path",
+  "circle",
+  "rect",
+  "line",
+  "polyline",
+  "polygon",
+  "ellipse",
+  "linearGradient",
+  "radialGradient",
+  "stop",
+  "clipPath",
+  "mask",
+  "title",
+  "desc",
+]);
+const INLINE_SVG_LOCAL_REF_RE = /^#[A-Za-z0-9_.:-]+$/;
 
 const FIX_HINTS = {
   "cli/missing-folder-name": "Run yarn vault:check <folder-name> with a registered Vault folder name.",
@@ -174,7 +197,7 @@ const FIX_HINTS = {
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
   "risk-status/manual-low-risk-label": "Do not hardcode or unconditionally render Low risk / 低风险 labels. A low-risk label is allowed only when selected from the host-derived riskLevel === 1 branch.",
-  "risk-status/not-prominent-placement": "Place the contract risk status in the first or second row of the Vault business UI so it is visible in the first viewport.",
+  "risk-status/not-prominent-placement": "Place the contract risk status within the first three Vault business rows, before any preview, hero, banner, showcase, media, chart, or large visual block.",
   "forbidden-api/direct-window-ethereum": "Use sdk.wallet and SDK contract methods instead of direct wallet/provider APIs. Do not call injected provider request, send, signing, or transaction methods.",
   "forbidden-api/eval": "Remove eval and implement the logic as normal TypeScript.",
   "forbidden-api/function-constructor": "Remove Function constructor usage and implement the logic as normal TypeScript.",
@@ -189,6 +212,7 @@ const FIX_HINTS = {
   "forbidden-api/browser-worker": "Do not spawn workers or service workers from a Vault component.",
   "forbidden-api/cross-context-messaging": "Do not use cross-context messaging from a Vault component.",
   "forbidden-api/browser-permission": "Do not request browser permissions from a Vault component. The host/runtime owns permissioned browser capabilities.",
+  "svg-policy/unsafe-inline-svg": "Prefer CSS/HTML card shapes or lucide-react icons. If inline SVG JSX is necessary, keep it to static pure graphic nodes, local fragment refs such as url(#gradient), and no script/event/image/use/foreignObject/external URL/style url()/@import.",
   "imports-and-dependencies/disallowed-relative-import": "Inline small helpers in Component.tsx or use @/src/sdk and @/src/ui. The only local relative import is ./VaultABI.",
   "imports-and-dependencies/deep-shared-runtime-import": "Import shared runtime helpers from the @/src/sdk or @/src/ui barrel. Do not import @/src/sdk/* or @/src/ui/* deep paths.",
   "imports-and-dependencies/forbidden-import": "Use Flap SDK/UI primitives instead of host wallet, app, or heavy UI dependencies.",
@@ -569,7 +593,13 @@ function hasProminentRiskStatusPlacement(content) {
   for (const match of content.matchAll(displayRegex)) {
     const index = match.index ?? 0;
     const returnIndex = lastReturnIndexBefore(content, index);
-    if (returnIndex >= 0 && index - returnIndex <= RISK_STATUS_TOP_OFFSET_LIMIT) return true;
+    if (returnIndex < 0 || index - returnIndex > RISK_STATUS_TOP_OFFSET_LIMIT) continue;
+
+    const leadingSegment = content.slice(returnIndex, index);
+    if (RISK_STATUS_PRECEDING_LARGE_VISUAL_RE.test(leadingSegment)) continue;
+
+    const precedingBusinessRows = [...leadingSegment.matchAll(RISK_STATUS_PRECEDING_BUSINESS_ROW_RE)].length;
+    if (precedingBusinessRows <= RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE) return true;
   }
   return false;
 }
@@ -740,6 +770,194 @@ function collectWindowOpenIssues(content, file) {
       ),
     );
   }
+  return issues;
+}
+
+function jsxTagNameText(tagName) {
+  if (ts.isIdentifier(tagName)) return tagName.text;
+  if (ts.isJsxNamespacedName(tagName)) return `${tagName.namespace.text}:${tagName.name.text}`;
+  return null;
+}
+
+function jsxAttributeNameText(attributeName) {
+  if (ts.isIdentifier(attributeName)) return attributeName.text;
+  if (ts.isJsxNamespacedName(attributeName)) return `${attributeName.namespace.text}:${attributeName.name.text}`;
+  return null;
+}
+
+function jsxAttributeStaticStringValue(attribute) {
+  const initializer = attribute.initializer;
+  if (!initializer) return "";
+  if (ts.isStringLiteral(initializer)) return initializer.text;
+  if (!ts.isJsxExpression(initializer) || !initializer.expression) return null;
+  return tsStaticStringValue(initializer.expression);
+}
+
+function isLocalSvgRef(value) {
+  return INLINE_SVG_LOCAL_REF_RE.test(value.trim());
+}
+
+function hasUnsafeSvgUrlFunction(value) {
+  if (!/\burl\s*\(/i.test(value)) return false;
+  const urlRegex = /\burl\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi;
+  let found = false;
+  for (const match of value.matchAll(urlRegex)) {
+    found = true;
+    const target = (match[1] ?? match[2] ?? match[3] ?? "").trim();
+    if (!isLocalSvgRef(target)) return true;
+  }
+  return !found;
+}
+
+function hasUnsafeSvgLiteral(value, { allowLocalUrlRefs = true, blockAnyCssUrl = false } = {}) {
+  if (!value) return false;
+  if (/@import/i.test(value)) return true;
+  if (/(?:https?:|wss?:|ipfs:|ar:|data:|javascript:|vbscript:)/i.test(value)) return true;
+  if (/(?:^|[\s"'(])\/\//.test(value)) return true;
+  if (/\burl\s*\(/i.test(value)) {
+    if (blockAnyCssUrl) return true;
+    return !allowLocalUrlRefs || hasUnsafeSvgUrlFunction(value);
+  }
+  return false;
+}
+
+function collectInlineSvgAttributeIssues(attributes, tagName, content, sourceFile, file) {
+  const issues = [];
+  for (const property of attributes.properties) {
+    if (ts.isJsxSpreadAttribute(property)) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "svg-policy/unsafe-inline-svg",
+          "Inline SVG JSX cannot use spread attributes because they can smuggle event handlers, hrefs, or external resources.",
+          { file, line: lineForIndex(content, property.getStart(sourceFile)) },
+        ),
+      );
+      continue;
+    }
+
+    const attributeName = jsxAttributeNameText(property.name);
+    if (!attributeName) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "svg-policy/unsafe-inline-svg",
+          "Inline SVG JSX uses an unsupported attribute name. Keep inline SVG attributes explicit and static.",
+          { file, line: lineForIndex(content, property.getStart(sourceFile)) },
+        ),
+      );
+      continue;
+    }
+
+    const normalizedName = attributeName.toLowerCase();
+    if (normalizedName.startsWith("on")) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "svg-policy/unsafe-inline-svg",
+          `Inline SVG event attribute ${attributeName} is not allowed.`,
+          { file, line: lineForIndex(content, property.getStart(sourceFile)), tag: tagName, attribute: attributeName },
+        ),
+      );
+    }
+
+    if (normalizedName === "dangerouslysetinnerhtml") {
+      issues.push(
+        issue(
+          BLOCKING,
+          "svg-policy/unsafe-inline-svg",
+          "Inline SVG cannot use dangerouslySetInnerHTML.",
+          { file, line: lineForIndex(content, property.getStart(sourceFile)), tag: tagName, attribute: attributeName },
+        ),
+      );
+    }
+
+    if (normalizedName === "style") {
+      const styleText = property.initializer?.getText(sourceFile) ?? "";
+      if (hasUnsafeSvgLiteral(styleText, { blockAnyCssUrl: true })) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "svg-policy/unsafe-inline-svg",
+            "Inline SVG style attributes cannot contain url(...) or @import.",
+            { file, line: lineForIndex(content, property.getStart(sourceFile)), tag: tagName, attribute: attributeName },
+          ),
+        );
+      }
+    }
+
+    if (normalizedName === "href" || normalizedName === "xlinkhref" || normalizedName === "xlink:href" || normalizedName === "src") {
+      const staticValue = jsxAttributeStaticStringValue(property);
+      if (!staticValue || !isLocalSvgRef(staticValue)) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "svg-policy/unsafe-inline-svg",
+            `Inline SVG attribute ${attributeName} may only reference a local fragment such as #gradient.`,
+            { file, line: lineForIndex(content, property.getStart(sourceFile)), tag: tagName, attribute: attributeName },
+          ),
+        );
+      }
+    }
+
+    const attributeText = property.initializer?.getText(sourceFile) ?? "";
+    if (hasUnsafeSvgLiteral(attributeText, { allowLocalUrlRefs: true })) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "svg-policy/unsafe-inline-svg",
+          `Inline SVG attribute ${attributeName} contains an external URL, unsafe scheme, @import, or non-local url(...).`,
+          { file, line: lineForIndex(content, property.getStart(sourceFile)), tag: tagName, attribute: attributeName },
+        ),
+      );
+    }
+  }
+  return issues;
+}
+
+function collectInlineSvgIssues(content, file) {
+  const issues = [];
+  const sourceFile = createTsSourceFile(file, content);
+
+  function checkSvgElement(tagName, attributes, node) {
+    if (!tagName || !ALLOWED_INLINE_SVG_TAGS.has(tagName)) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "svg-policy/unsafe-inline-svg",
+          `Inline SVG JSX may contain only static pure graphic nodes. Tag ${tagName ?? node.getText(sourceFile)} is not allowed.`,
+          { file, line: lineForIndex(content, node.getStart(sourceFile)), tag: tagName },
+        ),
+      );
+      return;
+    }
+    issues.push(...collectInlineSvgAttributeIssues(attributes, tagName, content, sourceFile, file));
+  }
+
+  function visit(node, insideSvg = false) {
+    if (ts.isJsxElement(node)) {
+      const tagName = jsxTagNameText(node.openingElement.tagName);
+      const nextInsideSvg = insideSvg || tagName === "svg";
+      if (nextInsideSvg) {
+        checkSvgElement(tagName, node.openingElement.attributes, node.openingElement);
+      }
+      for (const child of node.children) visit(child, nextInsideSvg);
+      return;
+    }
+
+    if (ts.isJsxSelfClosingElement(node)) {
+      const tagName = jsxTagNameText(node.tagName);
+      const nextInsideSvg = insideSvg || tagName === "svg";
+      if (nextInsideSvg) {
+        checkSvgElement(tagName, node.attributes, node);
+      }
+      return;
+    }
+
+    ts.forEachChild(node, (child) => visit(child, insideSvg));
+  }
+
+  visit(sourceFile);
   return issues;
 }
 
@@ -2286,6 +2504,9 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
+    if (item.name === "Component.tsx") {
+      issues.push(...collectInlineSvgIssues(content, rel));
+    }
     const importRegex = /from\s+["'`]([^"'`]+)["'`]|import\s+["'`]([^"'`]+)["'`]/g;
     for (const match of scanContent.matchAll(importRegex)) {
       const spec = match[1] || match[2];
@@ -2499,7 +2720,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "risk-status/not-prominent-placement",
-            "The current contract risk status must be placed in the first or second row of the Vault business UI, not below other sections or outside the first viewport.",
+            "The current contract risk status must be placed within the first three Vault business rows, before any preview, hero, banner, showcase, media, chart, or large visual block.",
             { file: rel },
           ),
         );

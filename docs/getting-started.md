@@ -132,6 +132,7 @@ Use:
 - `@/src/sdk` for runtime capability.
 - `erc20Abi` or `standardErc20Abi` from `@/src/sdk` for normal ERC20 balance, allowance, approval, decimals, symbol, transfer, and transferFrom flows.
 - `@/src/ui` for Flap UI primitives.
+- `lucide-react` for icons before ad hoc SVG. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`).
 - `./VaultABI` as the only allowed local relative import.
 - `manifest.json` for required `artifactId`, match fields, i18n, optional per-binding `tokenAddresses`, optional per-binding `externalContracts`, optional non-oracle endpoints, and optional reviewed `externalFrames`. Each binding needs `chainId` plus either non-zero `factoryAddress` or exactly one non-zero `vaultAddresses` entry when there is no factory.
 

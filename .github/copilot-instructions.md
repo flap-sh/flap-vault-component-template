@@ -21,6 +21,8 @@ This repository is a public template for controlled Flap Vault UI packages. Read
 - Use `@/src/sdk` for runtime context, contract reads/writes, oracle, i18n, formatting, and tx errors.
 - Use `@/src/ui` for shared UI primitives.
 - The only allowed local relative import is `./VaultABI`.
+- Prefer CSS/HTML card shapes and `lucide-react` icons before ad hoc SVG; search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`). FontAwesome is allowed only when the host/runtime explicitly includes and allows it.
+- Handwritten inline SVG JSX must stay static and graphic-only: no scripts, event attributes, `foreignObject`, `image`, `use`, external URLs, non-local `url(...)`, `style` `url(...)` / `@import`, `href` / `src` except static local fragments, spread attributes, or unsupported nodes.
 - Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for internal-market vs DEX-listed action gating.
 - In preview, a supported `chainId + tokenAddress` triggers the public SDK chain-read path for token metadata and real Portal/helper/VaultPortal host state. Use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` only when you intentionally need to override action-stage behavior.
 - Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token media. The template preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()`; `/logo.png` is reserved for the neutral preview fixture only. Do not call private token metadata APIs from Vault source.
@@ -44,6 +46,7 @@ For code-base changes: `yarn ci`.
 ## Forbidden
 
 - `window.ethereum`, `eval`, the `Function` constructor, raw iframe, iframe `srcDoc`, script injection including `document.write` / `document.writeln`, dynamic import, CommonJS `require(...)`, or symlinks. The single reviewed display-only chart frame must use `manifest.externalFrames` plus one `ReviewedFrame`.
+- Unsafe inline SVG JSX
 - Undeclared, host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global `fetch(...)`
 - Browser storage/navigation/worker/cross-context/permission APIs and direct browser network/media APIs
 - Undeclared hardcoded EVM addresses in Vault source

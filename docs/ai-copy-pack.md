@@ -76,7 +76,7 @@ Before writing code:
 4. Use the scaffold default surface / docs/ui-pattern-snippets.md as the visual default; use examples for behavior, not for visual styling.
 5. Confirm actionAvailabilityStage as one of internal-market, dex-listed, both, or read-only.
 6. After inputs are complete, generate only the allowed four Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json.
-7. Keep all user-facing copy in i18n.json, include every locale declared in manifest.i18n, and do not add helper files, assets, external navigation, undeclared endpoints/frames, direct wallet APIs, or private Flap code. Raw iframe is blocked; the only reviewed frame path is one `manifest.externalFrames` entry plus one `ReviewedFrame` for a static display-only TradingView, DexScreener, or CoinGecko Terminal chart URL.
+7. Keep all user-facing copy in i18n.json, include every locale declared in manifest.i18n, use `lucide-react` icons from `https://lucide.dev/icons/` before ad hoc SVG, and do not add helper files, assets, external navigation, undeclared endpoints/frames, direct wallet APIs, or private Flap code. Raw iframe is blocked; the only reviewed frame path is one `manifest.externalFrames` entry plus one `ReviewedFrame` for a static display-only TradingView, DexScreener, or CoinGecko Terminal chart URL.
 8. Do not call the package ready until yarn vault:check, yarn vault:package, and yarn vault:verify-package pass for the target folder.
 
 If anything is missing or unsafe, stop and ask questions instead of guessing. Answer in the language I use.

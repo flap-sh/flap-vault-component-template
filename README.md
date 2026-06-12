@@ -57,6 +57,7 @@ Replace placeholder addresses with real deployment addresses before running thes
 
 4. Edit only the four package files under `src/vaults/my-vault`: `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
    Keep the scaffolded default business card structure unless the Vault needs a different pattern. The built-in example routes are behavior references, not the default visual style.
+   For icons, use `lucide-react` first and choose icons from the official Lucide icon library: `https://lucide.dev/icons/`.
 5. Preview the route and test the actual workflow:
 
 ```plain text
@@ -255,6 +256,7 @@ Folder naming is strict lowercase kebab-case: 3-64 characters, letters/numbers s
 `yarn vault:check <folder-name>` prints JSON with `ok`, `summary`, `agent.verdict`, `agent.nextActions`, and `issues`. Treat any blocking issue as unfinished work.
 All Vault CLI failures are also JSON. Read `code`, `fixHint`, and `agent.nextActions`; fix those items before rerunning the command.
 For UI style consistency, use `docs/ui-pattern-snippets.md` as the public-safe reference for layout, action panels, read/write flows, and empty/error states. It contains sanitized patterns only, not private Flap source code.
+For icons, use `lucide-react` first and search the official Lucide icon library before hand-writing SVG: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`).
 Every custom Vault UI with actions must also decide whether actions are available in internal-market, DEX-listed, both, or read-only stage. Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for runtime gating, then show unavailable actions with clear disabled states instead of silently hiding them. The current template preview panel provides this phase API for local self-test: `Real` restores the live host phase while `Internal` and `Listing` override it locally. Production Flap host injects equivalent context.
 Wrong-network gating is a separate concern from market-phase gating. Use `sdk.wallet.isWrongNetwork` to detect it, keep the action visible, and either prompt `sdk.wallet.switchChain()` or show a clear switch-network state before any write.
 Token media follows the same host-context rule: use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol`. In local preview, the host first calls the same-origin runtime proxy for token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()` if host presentation is unavailable. The mocked `/logo.png` image is reserved for the neutral preview fixture only. `tokenAddress` by itself does not imply a listed token or a non-unknown market phase; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when lifecycle state matters. Vault components should not call private token metadata APIs directly.
@@ -382,8 +384,10 @@ Vault source should import shared runtime surfaces through public aliases:
 ```ts
 import { erc20Abi, useFlapSdk } from "@/src/sdk";
 import { Button } from "@/src/ui";
+import { ShieldCheck } from "lucide-react";
 ```
 
+Use `lucide-react` as the first choice for icons. Search `https://lucide.dev/icons/` before adding ad hoc inline SVG; the Lucide main site is `https://lucide.dev/`.
 Use `erc20Abi` or `standardErc20Abi` from `@/src/sdk` for normal ERC20 `balanceOf`, `allowance`, `approve`, `decimals`, `symbol`, `transfer`, and `transferFrom` flows. Do not copy standard ERC20 ABI into a Vault package.
 For ABI methods with multiple return values, type `sdk.readContract` as a tuple array and then map indexes into object-shaped UI state. For example, `returns (uint256 currentPool, uint256 totalReceived)` should use `readonly [currentPool: bigint, totalReceived: bigint]`, not an object interface. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
 Do not introduce any additional SDK package or SDK-like wrapper beyond the shared `@/src/sdk` and `@/src/ui` surfaces.

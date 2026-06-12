@@ -707,6 +707,86 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("raw iframe remains blocked", runVaultCheck(rawIframeSlug, { silent: true }), "forbidden-api/iframe", "blocking");
 
+  const safeInlineSvgSlug = `${FIXTURE_PREFIX}-safe-inline-svg`;
+  writeVault(safeInlineSvgSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div aria-label={i18n.t("title")}>
+      <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+        <defs>
+          <linearGradient id="card-gradient" x1="0" y1="0" x2="24" y2="24">
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="100%" stopColor="#22c55e" />
+          </linearGradient>
+        </defs>
+        <rect x="3" y="4" width="18" height="16" rx="3" fill="url(#card-gradient)" />
+        <circle cx="8" cy="12" r="2" fill="#ffffff" />
+        <path d="M12 9h6M12 13h4" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+`,
+  });
+  assertNoRule("safe pure inline SVG JSX is allowed", runVaultCheck(safeInlineSvgSlug, { silent: true }), "svg-policy/unsafe-inline-svg", "blocking");
+
+  const unsafeSvgEventSlug = `${FIXTURE_PREFIX}-svg-event`;
+  writeVault(unsafeSvgEventSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <svg viewBox="0 0 24 24" aria-label={i18n.t("title")} onLoad={() => undefined}><path d="M4 12h16" /></svg>;
+}
+`,
+  });
+  assertRule("inline SVG event attributes are blocked", runVaultCheck(unsafeSvgEventSlug, { silent: true }), "svg-policy/unsafe-inline-svg", "blocking");
+
+  const unsafeSvgResourceSlug = `${FIXTURE_PREFIX}-svg-resource`;
+  writeVault(unsafeSvgResourceSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <svg viewBox="0 0 24 24" aria-label={i18n.t("title")}>
+      <foreignObject width="24" height="24"><div>unsafe</div></foreignObject>
+      <image href="https://evil.example/icon.png" width="24" height="24" />
+      <use href="https://evil.example/sprite.svg#claim" />
+    </svg>
+  );
+}
+`,
+  });
+  assertRule("inline SVG foreignObject/image/use resource paths are blocked", runVaultCheck(unsafeSvgResourceSlug, { silent: true }), "svg-policy/unsafe-inline-svg", "blocking");
+
+  const unsafeSvgStyleUrlSlug = `${FIXTURE_PREFIX}-svg-style-url`;
+  writeVault(unsafeSvgStyleUrlSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <svg viewBox="0 0 24 24" aria-label={i18n.t("title")}><path d="M4 12h16" style={{ fill: "url(https://evil.example/icon.svg#x)" }} /></svg>;
+}
+`,
+  });
+  assertRule("inline SVG style url() is blocked", runVaultCheck(unsafeSvgStyleUrlSlug, { silent: true }), "svg-policy/unsafe-inline-svg", "blocking");
+
   const requireSlug = `${FIXTURE_PREFIX}-require`;
   writeVault(requireSlug, {
     component: `"use client";
@@ -1594,7 +1674,101 @@ ${lateRiskStatusFiller}
 `,
     i18n: { en: { "risk.missing": "Risk status missing" } },
   });
-  assertRule("risk status must stay in the first or second business UI row", runVaultCheck(lateRiskStatusSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+  assertRule("risk status must stay within the first three business UI rows", runVaultCheck(lateRiskStatusSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+
+  const riskAfterPreviewSlug = `${FIXTURE_PREFIX}-risk-after-preview`;
+  writeVault(riskAfterPreviewSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+function ButterflyCardPreview() {
+  return <div>{null}</div>;
+}
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  return (
+    <div>
+      <ButterflyCardPreview />
+      <StatusBadge tone={riskLevel === null ? "danger" : "success"}>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );
+}
+`,
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertRule("risk status cannot be preceded by a preview or hero block", runVaultCheck(riskAfterPreviewSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+
+  const riskAfterThreeRowsSlug = `${FIXTURE_PREFIX}-risk-after-three-rows`;
+  writeVault(riskAfterThreeRowsSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, DetailTile, Metric, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  return (
+    <div>
+      <StatusBadge>{i18n.t("state.ready")}</StatusBadge>
+      <DetailTile label={i18n.t("labels.balance")} value="0" />
+      <Metric label={i18n.t("labels.claimable")} value="0" />
+      <StatusBadge tone={riskLevel === null ? "danger" : "success"}>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );
+}
+`,
+    i18n: { en: { "labels.balance": "Balance", "labels.claimable": "Claimable", "risk.missing": "Risk status missing", "state.ready": "Ready" } },
+  });
+  assertRule("risk status cannot appear after the first three business UI rows", runVaultCheck(riskAfterThreeRowsSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+
+  const riskThirdRowSlug = `${FIXTURE_PREFIX}-risk-third-row`;
+  writeVault(riskThirdRowSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, DetailTile, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  return (
+    <div>
+      <StatusBadge>{i18n.t("state.ready")}</StatusBadge>
+      <DetailTile label={i18n.t("labels.balance")} value="0" />
+      <StatusBadge tone={riskLevel === null ? "danger" : "success"}>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );
+}
+`,
+    i18n: { en: { "labels.balance": "Balance", "risk.missing": "Risk status missing", "state.ready": "Ready" } },
+  });
+  assertNoRule("risk status in the third business UI row is accepted", runVaultCheck(riskThirdRowSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
 
   const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
   assert.throws(() =>
