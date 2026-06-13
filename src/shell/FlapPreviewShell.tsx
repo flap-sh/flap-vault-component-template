@@ -114,7 +114,17 @@ function hasPreviewHostOverride(searchParams: SearchParamsLike) {
       readNumberParam(searchParams, "marketBps") !== undefined ||
       readStringParam(searchParams, "feeMode") !== undefined ||
       readStringParam(searchParams, "vaultType") !== undefined ||
-      readRenderSurfaceParam(searchParams) !== undefined,
+      readRenderSurfaceParam(searchParams) !== undefined ||
+      readBooleanParam(searchParams, "vaultNotFound") !== undefined ||
+      readStringParam(searchParams, "vaultDescription") !== undefined ||
+      readBooleanParam(searchParams, "vaultOfficial") !== undefined ||
+      readNumberParam(searchParams, "riskLevel", "vaultRiskLevel") !== undefined ||
+      readAddressParam(searchParams, "feeVaultAddress", "feeRecipient") !== undefined ||
+      readAddressParam(searchParams, "feeVaultFactory", "giftVaultFactory") !== undefined ||
+      readNumberParam(searchParams, "feeVaultRiskLevel") !== undefined ||
+      readBooleanParam(searchParams, "feeVaultOfficial") !== undefined ||
+      readBooleanParam(searchParams, "feeVaultIsVault") !== undefined ||
+      readBooleanParam(searchParams, "feeVaultAI") !== undefined,
   );
 }
 
@@ -260,8 +270,8 @@ function buildPreviewHostContext(
               vault: baseVaultInfo?.vault ?? runtimeAddresses.vaultAddress,
               vaultFactory: baseVaultInfo?.vaultFactory ?? runtimeAddresses.factoryAddress ?? ZERO_ADDRESS,
               description: vaultDescription ?? baseVaultInfo?.description ?? "",
-              isOfficial: vaultOfficial ?? baseVaultInfo?.isOfficial ?? true,
-              riskLevel: vaultRiskLevel ?? baseVaultInfo?.riskLevel ?? 1,
+              isOfficial: vaultOfficial ?? baseVaultInfo?.isOfficial ?? false,
+              riskLevel: vaultRiskLevel ?? baseVaultInfo?.riskLevel ?? 0,
             },
           })
         : undefined

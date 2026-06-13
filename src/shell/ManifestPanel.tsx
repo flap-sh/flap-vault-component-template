@@ -275,9 +275,11 @@ export function ManifestPanel({
             {line(lang.preview.hostReadFieldFeeMode, host?.feeMode ?? "-")}
             {line(lang.preview.hostReadFieldMarketBps, taxInfo ? String(taxInfo.marketBps) : "-")}
             {line(lang.preview.hostReadFieldDividendBps, taxInfo ? String(taxInfo.dividendBps) : "-")}
+            {line(lang.preview.hostReadFieldFeeVaultRiskLevel, taxInfo?.vaultInfo ? String(taxInfo.vaultInfo.riskLevel ?? "-") : "-")}
             {line(lang.preview.hostReadFieldVaultFound, vaultPortalInfo ? boolLabel(vaultPortalInfo.found) : "-")}
             {line(lang.preview.hostReadFieldVaultPortalVault, vaultPortalInfo?.found ? shortAddress(vaultPortalInfo.vault) : "-")}
             {line(lang.preview.hostReadFieldVaultPortalFactory, vaultPortalInfo?.found ? shortAddress(vaultPortalInfo.vaultFactory) : "-")}
+            {line(lang.preview.hostReadFieldVaultPortalRiskLevel, vaultPortalInfo?.found ? String(vaultPortalInfo.riskLevel ?? "-") : "-")}
           </div>
           <p className="mt-3 text-xs leading-5 text-white/42">{lang.preview.hostReadPanelHint}</p>
         </div>
