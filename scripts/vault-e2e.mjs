@@ -20,6 +20,7 @@ import { failAgent } from "./agent-error.mjs";
 
 const ROOT = process.cwd();
 const HOST = "127.0.0.1";
+const YARN_COMMAND = process.platform === "win32" ? "yarn.cmd" : "yarn";
 const DEFAULT_WALLET_ADDRESS = "0x0000000000000000000000000000000000000EaE";
 const DEFAULT_WRONG_CHAIN_ID = 1;
 const folderName = process.argv[2];
@@ -117,6 +118,51 @@ async function waitForReady(url, timeoutMs = 60_000) {
   throw lastError || new Error("Preview server did not become ready.");
 }
 
+function waitForPreviewProcessReady(child, url) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      child.off("error", onError);
+      child.off("exit", onExit);
+      fn(value);
+    };
+    const onError = (error) => finish(reject, error);
+    const onExit = (code, signal) => {
+      finish(reject, new Error(`Preview server exited before it was ready (${signal || `code ${code ?? "unknown"}`}).`));
+    };
+    child.once("error", onError);
+    child.once("exit", onExit);
+    waitForReady(url).then((value) => finish(resolve, value), (error) => finish(reject, error));
+  });
+}
+
+function isMissingPlaywrightBrowser(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Executable doesn't exist|Looks like Playwright was just installed or updated|Please run.*playwright install|playwright install chromium/i.test(message);
+}
+
+async function launchChromium() {
+  try {
+    return await chromium.launch({ headless: args.headed !== "1" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (isMissingPlaywrightBrowser(error)) {
+      failE2E(
+        "vault-e2e/playwright-browser-missing",
+        `Playwright Chromium is not installed: ${message}`,
+        "Run yarn playwright install chromium, then rerun yarn vault:e2e <folder-name>. In Linux CI, install with npx playwright install --with-deps chromium.",
+      );
+    }
+    failE2E(
+      "vault-e2e/browser-launch-failed",
+      `Could not launch Playwright Chromium: ${message}`,
+      "Fix the local Playwright/Chromium installation, then rerun yarn vault:e2e <folder-name>.",
+    );
+  }
+}
+
 async function startPreviewServer() {
   if (args["base-url"] || process.env.VAULT_E2E_BASE_URL) {
     const baseUrl = String(args["base-url"] || process.env.VAULT_E2E_BASE_URL).replace(/\/$/, "");
@@ -126,7 +172,7 @@ async function startPreviewServer() {
 
   const port = args.port ? Number(args.port) : await findAvailablePort(3230);
   const baseUrl = `http://${HOST}:${port}`;
-  const child = spawn("yarn", ["dev", "-p", String(port), "-H", HOST], {
+  const child = spawn(YARN_COMMAND, ["dev", "-p", String(port), "-H", HOST], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(port) },
     stdio: ["ignore", "pipe", "pipe"],
@@ -135,7 +181,7 @@ async function startPreviewServer() {
   child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
   child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
   try {
-    await waitForReady(`${baseUrl}/${folderName}`);
+    await waitForPreviewProcessReady(child, `${baseUrl}/${folderName}`);
     return {
       baseUrl,
       stop: async () => {
@@ -147,11 +193,19 @@ async function startPreviewServer() {
     };
   } catch (error) {
     child.kill("SIGTERM");
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      failE2E(
+        "vault-e2e/dev-server-command-missing",
+        `Could not start the preview server because ${YARN_COMMAND} was not found.`,
+        "Install Yarn and ensure it is on PATH, then rerun yarn vault:e2e <folder-name>.",
+        { command: YARN_COMMAND },
+      );
+    }
     failE2E(
       "vault-e2e/server-not-ready",
       `Preview server did not become ready: ${error instanceof Error ? error.message : String(error)}`,
       "Fix preview startup, then rerun yarn vault:e2e <folder-name>.",
-      { logs: logs.join("").split("\n").slice(-60) },
+      { command: YARN_COMMAND, logs: logs.join("").split("\n").slice(-60) },
     );
   }
 }
@@ -413,11 +467,12 @@ fs.mkdirSync(path.join(outDir, "traces"), { recursive: true });
 
 const sourceFileSha256 = collectSourceHashes(ROOT, folderName);
 const sourceSha256 = sourceSha256FromFileHashes(sourceFileSha256);
-const server = await startPreviewServer();
 let browser;
+let server;
 const checks = [];
 try {
-  browser = await chromium.launch({ headless: args.headed !== "1" });
+  browser = await launchChromium();
+  server = await startPreviewServer();
   for (const viewport of VIEWPORTS) {
     for (const phase of REQUIRED_PHASES) {
       checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase }));
@@ -426,7 +481,7 @@ try {
   }
 } finally {
   if (browser) await browser.close();
-  await server.stop();
+  if (server) await server.stop();
 }
 
 const allIssues = checks.flatMap((check) => check.issues.map((issue) => ({ ...issue, checkId: check.id, viewport: check.viewport, phase: check.phase })));

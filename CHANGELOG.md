@@ -20,9 +20,14 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Changed
 
+- Bumped `agent-contract.json` to version `20` for the V1 E2E platform notes: deterministic Playwright checks, first-time Chromium install recovery, and write-UI local-origin proof limits.
 - Source package format is now `4`. `yarn vault:package <folder-name>` requires a passing, source-hash-bound E2E report and includes `qa/e2e-report.json` plus an `e2e` summary in `flap-vault-package.json` and `package-metadata.json`.
 - `yarn ci` now runs the full three-viewport E2E gate for every built-in example before package/verify, and GitHub Actions uploads `dist/e2e/**`.
 - E2E token selection is testnet-first: use a chainId `97` token when one is available; only packages without a testnet token may use a chainId `56` mainnet fallback token.
+
+### Fixed
+
+- `vault:e2e` now starts the local preview with `yarn.cmd` on Windows and reports missing Playwright Chromium as machine-readable JSON with the `yarn playwright install chromium` fix hint.
 
 ## [0.1.9] - 2026-06-12
 

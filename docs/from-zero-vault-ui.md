@@ -152,6 +152,12 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
+`vault:e2e` is a deterministic Playwright check for rendered layout and preview states. It does not require AI to inspect screenshots. If a first-time local or Windows machine reports `vault-e2e/playwright-browser-missing`, run:
+
+```bash
+yarn playwright install chromium
+```
+
 If a command fails, read the JSON fields:
 
 - `code`

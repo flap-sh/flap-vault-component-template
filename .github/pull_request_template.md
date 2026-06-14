@@ -33,6 +33,7 @@ Describe the Vault UI, target project, and user workflow.
 - [ ] `yarn vault:e2e <folder-name>`
 - [ ] `yarn vault:package <folder-name>`
 - [ ] `yarn vault:verify-package dist/<folder-name>.zip`
+- [ ] If `vault:e2e` reports `vault-e2e/playwright-browser-missing`, install Chromium with `yarn playwright install chromium` and rerun it
 - [ ] `yarn ci` for repo-level changes when live BNB smoke access is available
 - [ ] If `yarn ci` was skipped or failed only because live BNB/RPC access was unavailable: document that and run the equivalent local validation minus `yarn preview:smoke:real`
 - [ ] local preview checked

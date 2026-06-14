@@ -184,7 +184,14 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-The E2E command runs PC / iPad / H5 Playwright checks for default, internal-market, DEX-listed, and wrong-network states, then writes `dist/e2e/my-vault/qa-report.json`. It must use a test token: prefer a chainId `97` BNB Testnet token; use a chainId `56` mainnet fallback token only when no testnet token exists. Factory-scoped packages without manifest `tokenAddresses` must pass `--token 0x...`.
+The E2E command runs deterministic PC / iPad / H5 Playwright checks for default, internal-market, DEX-listed, and wrong-network states, then writes `dist/e2e/my-vault/qa-report.json`. It checks DOM/layout/state rules directly and does not require AI image judgment. It must use a test token: prefer a chainId `97` BNB Testnet token; use a chainId `56` mainnet fallback token only when no testnet token exists. Factory-scoped packages without manifest `tokenAddresses` must pass `--token 0x...`.
+On a first local run, especially on Windows, install Chromium once if Playwright reports a missing browser:
+
+```bash
+yarn playwright install chromium
+```
+
+The missing-browser failure is reported as machine-readable JSON code `vault-e2e/playwright-browser-missing`. CI installs Chromium with `npx playwright install --with-deps chromium`.
 The package command runs `vault:check` first and rejects missing, failed, or stale E2E reports. Send the zip under `dist/` to the Flap Artifact Workbench after it passes.
 The command output prints the generated zip location in `sourcePackagePath` and `sourcePackageAbsolutePath`.
 Do not hand-zip files. `yarn vault:package` writes format `4` `flap-vault-package.json`, `runtimePackageGitHead`, `qa/e2e-report.json`, E2E summary, and hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, proof, provenance, or matching hashes.
@@ -202,3 +209,4 @@ The generated package includes the runtime-side oracle provisioning contract as 
 In the current template, `dist/vault-runtime` is a local contract proof and is not automatically consumed by Workbench or `flap.sh` unless that integration is explicitly adopted.
 
 `yarn ci` now includes full built-in example E2E/package/verify plus `yarn preview:smoke` and `yarn preview:smoke:real`, so changes to the runtime, reviewed live defaults, host-presentation path, and responsive Vault layouts are covered by the default validation loop.
+V1 E2E proof is a source-hash-bound layout/state proof. It is not a cryptographic proof that a future wallet write was initiated by the developer's local UI; strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner.

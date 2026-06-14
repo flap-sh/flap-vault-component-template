@@ -42,6 +42,8 @@ yarn vault:package <folder-name>   # only after zero blocking issues and passing
 yarn vault:verify-package dist/<folder-name>.zip
 ```
 
+`vault:e2e` is deterministic Playwright DOM/layout/state checking, not AI image judgment. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the command returns `vault-e2e/playwright-browser-missing`.
+
 For code-base changes: `yarn ci`, which includes full PC / iPad / H5 E2E for built-in examples.
 
 ## Forbidden

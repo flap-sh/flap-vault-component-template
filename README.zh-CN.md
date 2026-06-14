@@ -69,7 +69,15 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` 会在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它必须绑定测试 token：优先使用 BNB Testnet `chainId=97` 的 token/vault/factory；如果包没有测试网 token，才允许使用 BNB mainnet `chainId=56` fallback token。factory-scoped 包如果 `match.bindings[].tokenAddresses` 为空，必须通过 `--token 0x...` 提供测试 token。
+`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定测试 token：优先使用 BNB Testnet `chainId=97` 的 token/vault/factory；如果包没有测试网 token，才允许使用 BNB mainnet `chainId=56` fallback token。factory-scoped 包如果 `match.bindings[].tokenAddresses` 为空，必须通过 `--token 0x...` 提供测试 token。
+
+首次运行的本地机器，尤其是 Windows 机器，可能需要先安装一次 Playwright 浏览器：
+
+```bash
+yarn playwright install chromium
+```
+
+如果 Chromium 缺失，`vault:e2e` 会输出机器可读的 `vault-e2e/playwright-browser-missing` JSON 错误，并带上这个修复提示。GitHub Actions 使用 `npx playwright install --with-deps chromium` 安装。
 
 最终交付物是 `yarn vault:package <folder-name>` 生成的 zip，以及命令输出中的 `sourcePackagePath`、`sha256` 等字段。只有 prompt、手工 zip 或没有通过 E2E 证明的 AI 输出都不能进入 Flap Artifact Workbench。
 
@@ -433,7 +441,7 @@ yarn preview:smoke:real
 yarn ci
 ```
 
-`yarn vault:e2e <folder-name>` 会写入 `dist/e2e/<folder-name>/qa-report.json` 以及 screenshots/traces。`yarn vault:package <folder-name>` 会输出生成的 source zip 路径 `sourcePackagePath` / `sourcePackageAbsolutePath`、package marker `packageMarkerFile` 和 npm runtime provenance `runtimePackageGitHead`。
+`yarn vault:e2e <folder-name>` 会写入 `dist/e2e/<folder-name>/qa-report.json` 以及 screenshots/traces。它证明当前 source hash 的 V1 渲染布局/状态门禁通过；它不证明未来某笔钱包写交易一定由开发者本地 UI 发起。本地 tx hash 或钱包 trace 只能证明交易存在并打到预期 token/Vault；强 write-UI 发起保证需要由平台控制的 Playwright + 钱包 runner 复跑。`yarn vault:package <folder-name>` 会输出生成的 source zip 路径 `sourcePackagePath` / `sourcePackageAbsolutePath`、package marker `packageMarkerFile` 和 npm runtime provenance `runtimePackageGitHead`。
 
 ## 许可证
 

@@ -30,7 +30,7 @@ Follow these rules:
 - Do not add helper files, nested components, assets, local docs, local JSON data, or dynamic imports inside `src/vaults/{folder-name}`.
 - Treat every Vault CLI failure as JSON. Read `code`, `fixHint`, and `agent.nextActions`, then fix before retrying.
 - Run `yarn vault:check <folder-name>` and resolve all blocking issues before packaging.
-- Run `yarn vault:e2e <folder-name>` before packaging; it must produce a passing `dist/e2e/<folder-name>/qa-report.json` bound to a test token and current source hashes.
+- Run `yarn vault:e2e <folder-name>` before packaging; it must produce a passing `dist/e2e/<folder-name>/qa-report.json` bound to a test token and current source hashes. This is deterministic Playwright DOM/layout/state checking, not AI image judgment. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the command returns `vault-e2e/playwright-browser-missing`.
 - Run `yarn vault:package <folder-name>` only after checks and E2E pass.
 - Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging.
 - For code-base changes, run `yarn ci` when feasible; it includes full PC / iPad / H5 E2E for built-in examples.

@@ -97,10 +97,12 @@ Validation requirements:
 - `folderName` must be valid lowercase kebab-case and must match every `src/vaults/<folder-name>/...` source entry.
 - `check.passed` must be true and `check.summary.blocking` must be `0`; warning and info counts may be non-zero and remain review evidence.
 - The zip must contain exactly the marker, `package-metadata.json`, `schemas/manifest.schema.json`, `qa/e2e-report.json`, and the four required Vault source files.
-- `qa/e2e-report.json` must have `passed: true`, zero blocking issues, current hashes for the four Vault files and manifest schema, required PC / iPad / H5 viewports, required `default` / `internal-market` / `dex-listed` phase checks, and a valid BNB test token. Use chainId `97` first; chainId `56` is allowed only as mainnet fallback when no testnet token exists.
+- `qa/e2e-report.json` must have `passed: true`, zero blocking issues, current hashes for the four Vault files and manifest schema, required PC / iPad / H5 viewports, required `default` / `internal-market` / `dex-listed` phase checks, and a valid BNB test token. Use chainId `97` first; chainId `56` is allowed only as mainnet fallback when no testnet token exists. The V1 report is deterministic Playwright DOM/layout/state proof, not AI image judgment.
 - Duplicate zip entry names, path traversal entries, unsupported compression, mismatched central/local header names, unexpected files, or mismatched hashes are rejection reasons.
 - `manifest.json` inside the zip must have the same `artifactId` as the marker.
 - `package-metadata.json` must agree with marker kind, format version, folder name, artifact id, runtime provenance, and `e2e` summary.
+
+For future write-UI checks, a tx hash or wallet trace in a developer-local report can prove only that a transaction exists and targets the expected token/Vault. It cannot strongly prove local UI origin. Strong write-UI origin assurance belongs in a platform-controlled Playwright + wallet runner, not in the V1 source package proof.
 
 ## Flow
 

@@ -62,11 +62,12 @@ chainId + tokenAddress
 
 ```bash
 yarn vault:check {folder-name}
+yarn vault:e2e {folder-name}
 yarn vault:package {folder-name}
 yarn vault:verify-package dist/{folder-name}.zip
 ```
 
-Fix blocking issues before finishing.
+Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DOM/layout/state checking, not AI image judgment. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the command returns `vault-e2e/playwright-browser-missing`.
 
 ## Implementation Rules
 
@@ -83,9 +84,10 @@ Fix blocking issues before finishing.
 - Manifest match requires explicit runtime targets in `match.bindings`. Use `{chainId, factoryAddress}` for factory mode or `{chainId, vaultAddresses: [vaultAddress]}` for the core no-factory path. The checker also accepts no-factory `tokenAddresses` and `vaultAddresses + tokenAddresses` mappings when Flap review/runtime supplies them. Do not use zero factory addresses; omit `factoryAddress` for no-factory mode. Optional `externalContracts` belongs inside the specific binding only.
 - Manifest is intentionally minimal: `artifactId`, `name`, `match`, `i18n`, optional non-oracle `endpoints`, and optional reviewed `externalFrames` only. Do not add `chainIds`, `id`, `owner`, `version`, `sdkVersion`, `actions`, `oracles`, `media`, `fallback`, `contracts`, `restrictTokenAddresses`, global `tokenAddresses`, or `caPolicy`. Chain IDs, factory or Vault targets, optional `tokenAddresses`, and optional `externalContracts` live inside `match.bindings` entries.
 - The only allowed local relative import is `./VaultABI`. Do not use `./helpers`, `../VaultABI`, nested component imports, local asset imports, or dynamic imports. Use public aliases such as `@/src/sdk` and `@/src/ui` for shared runtime surfaces.
-- Treat `yarn vault:package {folder-name}` as the only local packaging path. It runs `vault:check` before producing the source zip for the Flap Artifact Workbench.
-- Submit only the zip produced by `yarn vault:package {folder-name}`. The script writes `flap-vault-package.json` and source file hashes; hand-made zips without the marker or with mismatched hashes should be rejected by the Flap Artifact Workbench.
-- Run `yarn vault:verify-package dist/{folder-name}.zip` after packaging to validate the marker, exact file list, metadata, and hashes from the Workbench side.
+- Treat `yarn vault:package {folder-name}` as the only local packaging path. It runs `vault:check`, requires a current passing `dist/e2e/{folder-name}/qa-report.json`, and produces the source zip for the Flap Artifact Workbench.
+- Submit only the zip produced by `yarn vault:package {folder-name}`. The script writes format-version `4` `flap-vault-package.json`, `qa/e2e-report.json`, source file hashes, and E2E summary fields; hand-made zips without the marker, proof, or matching hashes should be rejected by the Flap Artifact Workbench.
+- Run `yarn vault:verify-package dist/{folder-name}.zip` after packaging to validate the marker, exact file list, metadata, E2E proof, and hashes from the Workbench side.
+- Do not treat a developer-local tx hash or wallet trace as strong proof that a future write transaction originated from the local UI. Strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner.
 - Runtime artifacts are built by the Flap Artifact Workbench into readable ESM JS (`component.mjs`). Do not hand-write, minify, or directly upload runtime JS from the template.
 - Use minimal ABI fragments only.
 - Use `erc20Abi` or `standardErc20Abi` from `@/src/sdk` for standard ERC20 `balanceOf`, `allowance`, `approve`, `decimals`, `symbol`, `transfer`, and `transferFrom`. Do not copy standard ERC20 ABI into `VaultABI.ts`.

@@ -73,7 +73,15 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` runs the V1 Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It must bind to a test token: prefer a BNB Testnet `chainId=97` token/vault/factory; if the package has no testnet token, use a BNB mainnet `chainId=56` fallback token. Factory-scoped packages without `match.bindings[].tokenAddresses` must pass `--token 0x...`.
+`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a test token: prefer a BNB Testnet `chainId=97` token/vault/factory; if the package has no testnet token, use a BNB mainnet `chainId=56` fallback token. Factory-scoped packages without `match.bindings[].tokenAddresses` must pass `--token 0x...`.
+
+First-time local machines, especially Windows machines, may need to install the Playwright browser once:
+
+```bash
+yarn playwright install chromium
+```
+
+If Chromium is missing, `vault:e2e` emits a machine-readable `vault-e2e/playwright-browser-missing` JSON failure with this fix hint. GitHub Actions installs Chromium with `npx playwright install --with-deps chromium`.
 
 The deliverable is the zip produced by `yarn vault:package <folder-name>`, plus the package output fields such as `sourcePackagePath` and `sha256`. A prompt-only result, a hand-made zip, or an output without a passing E2E proof is not ready for Flap Artifact Workbench intake.
 
@@ -456,7 +464,7 @@ yarn preview:smoke:real
 yarn ci
 ```
 
-`yarn vault:e2e <folder-name>` writes `dist/e2e/<folder-name>/qa-report.json` plus screenshots/traces. `yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, the package marker in `packageMarkerFile`, and the npm runtime provenance in `runtimePackageGitHead`.
+`yarn vault:e2e <folder-name>` writes `dist/e2e/<folder-name>/qa-report.json` plus screenshots/traces. It proves the V1 rendered layout/state gate passed for the source hash; it does not prove that a future wallet write transaction was initiated by a developer's local UI. A local tx hash or wallet trace can prove the transaction exists and targets the expected token/Vault, but strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner. `yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, the package marker in `packageMarkerFile`, and the npm runtime provenance in `runtimePackageGitHead`.
 
 ## License
 

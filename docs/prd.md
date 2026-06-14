@@ -260,7 +260,8 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Source package output path | Done | `vault:package` prints relative and absolute zip paths. |
 | Binding key metadata | Done | `vault:package` writes binding keys for factory, no-factory Vault, no-factory Vault+token, and no-factory token-only targets so Workbench/manual mapping can inspect the intended runtime bindings. |
 | Script-generated package marker | Done | `vault:package` writes format `4` `flap-vault-package.json`, npm `gitHead` provenance, file hashes, E2E report hash, and E2E summary for Workbench rejection of manual zips. |
-| Three-viewport E2E gate | Done | `yarn vault:e2e <folder-name>` covers PC / iPad / H5, `default` / `internal-market` / `dex-listed`, wrong-network state, layout overflow/overlap/covered controls, risk placement, and test-token binding before packaging. |
+| Three-viewport E2E gate | Done | `yarn vault:e2e <folder-name>` covers PC / iPad / H5, `default` / `internal-market` / `dex-listed`, wrong-network state, layout overflow/overlap/covered controls, risk placement, and test-token binding before packaging through deterministic Playwright DOM/layout/state checks, without AI judgment. |
+| Playwright local install recovery | Done | `vault:e2e` starts the preview server with `yarn.cmd` on Windows and emits machine-readable `vault-e2e/playwright-browser-missing` when Chromium must be installed with `yarn playwright install chromium`. |
 | Workbench-side package verifier | Done | `yarn vault:verify-package <zip>` checks marker, package kind/version, runtime npm provenance, exact file list, metadata, E2E proof, and hashes. |
 | Template freshness gate | Done | `yarn vault:check`, `yarn build`, `yarn runtime:package`, and `yarn vault:package` verify local version and git history against npm latest `@flapsdk/vault-runtime`, blocking stale or version-only edits. |
 | Runtime artifact boundary | Done | Docs state that the Flap Artifact Workbench builds runtime JS. |
@@ -283,6 +284,7 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 - Drag-and-drop UI builder.
 - Direct developer upload of runtime `component.mjs`.
 - Free-form website pages inside Vault package folders.
+- Treating a developer-local tx hash or wallet trace as strong proof that a future write transaction originated from the local UI. That stronger assurance requires a platform-controlled Playwright + wallet runner.
 - Agent-generated helper modules, assets, docs, or local data files inside Vault package folders.
 - Agent-generated preview shell/header chrome or duplicate host summary banners inside Vault package source.
 - Developer-declared action registry in `manifest.json`.
