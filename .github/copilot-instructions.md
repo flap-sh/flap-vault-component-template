@@ -37,11 +37,12 @@ Run in order:
 
 ```bash
 yarn vault:check <folder-name>     # fix all blocking issues first
-yarn vault:package <folder-name>   # only after zero blocking issues
+yarn vault:e2e <folder-name>       # produces dist/e2e/<folder-name>/qa-report.json
+yarn vault:package <folder-name>   # only after zero blocking issues and passing E2E
 yarn vault:verify-package dist/<folder-name>.zip
 ```
 
-For code-base changes: `yarn ci`.
+For code-base changes: `yarn ci`, which includes full PC / iPad / H5 E2E for built-in examples.
 
 ## Forbidden
 

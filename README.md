@@ -68,11 +68,14 @@ http://localhost:3000/my-vault?chainId=56&factoryAddress=0x...&tokenAddress=0x..
 
 ```bash
 yarn vault:check my-vault
+yarn vault:e2e my-vault
 yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-The deliverable is the zip produced by `yarn vault:package <folder-name>`, plus the package output fields such as `sourcePackagePath` and `sha256`. A prompt-only result, a hand-made zip, or an untested AI output is not ready for Flap Artifact Workbench intake.
+`vault:e2e` runs the V1 Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It must bind to a test token: prefer a BNB Testnet `chainId=97` token/vault/factory; if the package has no testnet token, use a BNB mainnet `chainId=56` fallback token. Factory-scoped packages without `match.bindings[].tokenAddresses` must pass `--token 0x...`.
+
+The deliverable is the zip produced by `yarn vault:package <folder-name>`, plus the package output fields such as `sourcePackagePath` and `sha256`. A prompt-only result, a hand-made zip, or an output without a passing E2E proof is not ready for Flap Artifact Workbench intake.
 
 For a slower step-by-step walkthrough, use [docs/from-zero-vault-ui.md](./docs/from-zero-vault-ui.md).
 
@@ -155,21 +158,26 @@ yarn vault:check flapixel-example
 Package:
 
 ```bash
+yarn vault:e2e example
 yarn vault:package example
 yarn vault:verify-package dist/example.zip
+yarn vault:e2e dex-listed-example
 yarn vault:package dex-listed-example
 yarn vault:verify-package dist/dex-listed-example.zip
+yarn vault:e2e action-gallery-example
 yarn vault:package action-gallery-example
 yarn vault:verify-package dist/action-gallery-example.zip
+yarn vault:e2e community-buyback-example
 yarn vault:package community-buyback-example
 yarn vault:verify-package dist/community-buyback-example.zip
+yarn vault:e2e flapixel-example
 yarn vault:package flapixel-example
 yarn vault:verify-package dist/flapixel-example.zip
 ```
 
-The package command runs `vault:check` first and also enforces the official git freshness check before writing a zip. The zip is created under `dist/` only after blocking issues pass.
+The package command runs `vault:check`, verifies the current `dist/e2e/<folder-name>/qa-report.json`, and also enforces the official git freshness check before writing a zip. The zip is created under `dist/` only after blocking issues pass and E2E proof is current.
 The command output includes `sourcePackagePath` and `sourcePackageAbsolutePath` so the generated zip location is explicit.
-Submit only the zip produced by `yarn vault:package <folder-name>`. The package script writes a format-version `3` `flap-vault-package.json` marker, npm latest `@flapsdk/vault-runtime` `gitHead` provenance, and file hashes into the zip; Flap Artifact Workbench should reject manually assembled zips without this marker or with mismatched hashes.
+Submit only the zip produced by `yarn vault:package <folder-name>`. The package script writes a format-version `4` `flap-vault-package.json` marker, npm latest `@flapsdk/vault-runtime` `gitHead` provenance, source/schema/E2E file hashes, `qa/e2e-report.json`, and an `e2e` summary into the zip; Flap Artifact Workbench should reject manually assembled zips without this marker, proof, or matching hashes.
 `dist/` is ignored by git. Generate source zips locally or in CI; do not commit generated packages to the template repo.
 `yarn vault:verify-package <zip>` validates the package from the Workbench side by checking the marker, file list, metadata, and SHA-256 hashes.
 CI-generated zips are uploaded as short-lived GitHub Actions artifacts for validation evidence only. They are not submitted to Artifact Workbench unless a human or release workflow explicitly hands off a verified zip and records its `sha256`.
@@ -262,7 +270,7 @@ Wrong-network gating is a separate concern from market-phase gating. Use `sdk.wa
 Token media follows the same host-context rule: use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol`. In local preview, the host first calls the same-origin runtime proxy for token presentation data, then falls back to on-chain ERC20 `symbol()` / `name()` if host presentation is unavailable. The mocked `/logo.png` image is reserved for the neutral preview fixture only. `tokenAddress` by itself does not imply a listed token or a non-unknown market phase; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when lifecycle state matters. Vault components should not call private token metadata APIs directly.
 The same shell boundary applies to layout: token breadcrumb/header, close control, page frame, and any standard shared summary/header belong to the host surface, not the packaged Vault component.
 If you change the checker or Agent contract, run `yarn vault:check:selftest` as a regression guard for the most important blocking rules.
-For full code-base validation, run `yarn ci`. CI runs lint, typecheck, checker selftest, built-in example check/package/verify, Next build, shared runtime pack/verify, the neutral preview smoke test, and the live real-example smoke test.
+For full code-base validation, run `yarn ci`. CI runs lint, typecheck, checker selftest, built-in example check/E2E/package/verify, Next build, shared runtime pack/verify, the neutral preview smoke test, and the live real-example smoke test. GitHub Actions uploads `dist/e2e/**` as the screenshot/trace/report evidence.
 
 ## Add a Vault UI
 
@@ -372,7 +380,7 @@ The registry decides usability. A file existing in Blob/R2/S3 does not mean the 
 
 The package zip is a source package for the Flap Artifact Workbench. The runtime artifact uploaded to Blob/R2/S3 is a Flap-built, browser-executable `component.mjs`. Keep the MVP runtime artifact readable by default; do not minify it unless Flap enables a release optimization step with source maps and source backup.
 
-The source zip must be generated by `yarn vault:package <folder-name>`. This script runs `vault:check`, writes `flap-vault-package.json`, and records package kind, format version, source file hashes, schema hash, and check summary. Workbench validation should require that marker and reject hand-made zips.
+The source zip must be generated by `yarn vault:package <folder-name>`. This script runs `vault:check`, requires a current `dist/e2e/<folder-name>/qa-report.json`, writes `flap-vault-package.json`, and records package kind, format version, source file hashes, schema hash, E2E report hash, check summary, and E2E summary. Workbench validation should require that marker and `qa/e2e-report.json`, then reject hand-made zips, stale proofs, or mismatched hashes.
 Use `yarn vault:verify-package <zip>` to exercise the same package acceptance shape locally before handing the zip to the Flap Artifact Workbench.
 
 The Flap Artifact Workbench uses `artifactId` as the stable source-package artifact identity. The folder name remains the local source folder and preview route. Runtime build versions and storage paths are Workbench concerns; developers still do not declare runtime version in `manifest.json`.
@@ -438,6 +446,7 @@ yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest
+yarn vault:e2e example
 yarn vault:package example
 yarn vault:verify-package dist/example.zip
 yarn runtime:package
@@ -447,7 +456,7 @@ yarn preview:smoke:real
 yarn ci
 ```
 
-`yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, the package marker in `packageMarkerFile`, and the npm runtime provenance in `runtimePackageGitHead`.
+`yarn vault:e2e <folder-name>` writes `dist/e2e/<folder-name>/qa-report.json` plus screenshots/traces. `yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, the package marker in `packageMarkerFile`, and the npm runtime provenance in `runtimePackageGitHead`.
 
 ## License
 

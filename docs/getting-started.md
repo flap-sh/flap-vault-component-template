@@ -179,13 +179,15 @@ The check script returns JSON with `ok`, `summary`, `agent.verdict`, `agent.next
 ## 6. Package
 
 ```bash
+yarn vault:e2e my-vault
 yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-The package command runs `vault:check` first. Send the zip under `dist/` to the Flap Artifact Workbench after it passes.
+The E2E command runs PC / iPad / H5 Playwright checks for default, internal-market, DEX-listed, and wrong-network states, then writes `dist/e2e/my-vault/qa-report.json`. It must use a test token: prefer a chainId `97` BNB Testnet token; use a chainId `56` mainnet fallback token only when no testnet token exists. Factory-scoped packages without manifest `tokenAddresses` must pass `--token 0x...`.
+The package command runs `vault:check` first and rejects missing, failed, or stale E2E reports. Send the zip under `dist/` to the Flap Artifact Workbench after it passes.
 The command output prints the generated zip location in `sourcePackagePath` and `sourcePackageAbsolutePath`.
-Do not hand-zip files. `yarn vault:package` writes `flap-vault-package.json`, `runtimePackageGitHead`, and hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, provenance, or matching hashes.
+Do not hand-zip files. `yarn vault:package` writes format `4` `flap-vault-package.json`, `runtimePackageGitHead`, `qa/e2e-report.json`, E2E summary, and hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, proof, provenance, or matching hashes.
 Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, runtime npm provenance, expected file list, metadata, and hashes from the Workbench acceptance side.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also verify the shared runtime package:
@@ -199,4 +201,4 @@ This writes a packable package to `dist/vault-runtime` with `sdk`, `ui`, `host`,
 The generated package includes the runtime-side oracle provisioning contract as well: `VaultRuntimeProvider` can take an `oracleReader`, `createLocalOracleReader()` targets `/api/runtime/oracle/{oracleId}`, and the server export carries the registry helpers for the same-origin proxy route. The template preview now includes built-in defaults for the example oracle flow, so local preview does not require user env setup just to exercise `sdk.readOracle(...)`.
 In the current template, `dist/vault-runtime` is a local contract proof and is not automatically consumed by Workbench or `flap.sh` unless that integration is explicitly adopted.
 
-`yarn ci` now includes both `yarn preview:smoke` and `yarn preview:smoke:real`, so changes to the runtime, reviewed live defaults, or host-presentation path are covered by the default validation loop.
+`yarn ci` now includes full built-in example E2E/package/verify plus `yarn preview:smoke` and `yarn preview:smoke:real`, so changes to the runtime, reviewed live defaults, host-presentation path, and responsive Vault layouts are covered by the default validation loop.

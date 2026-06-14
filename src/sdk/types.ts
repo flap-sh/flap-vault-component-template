@@ -236,6 +236,12 @@ export interface VaultRuntimeContext {
 
 export interface VaultRuntimeContextOverrides extends Partial<Omit<VaultRuntimeContext, "manifest" | "extraConfig">> {
   extraConfig?: VaultRuntimeExtraConfig;
+  previewWallet?: {
+    address?: Address;
+    chainId?: number;
+    isConnected?: boolean;
+    canSwitchChain?: boolean;
+  };
 }
 
 export interface OracleProvision {

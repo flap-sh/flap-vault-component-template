@@ -24,8 +24,9 @@ Core operating rules:
 - Declare fixed non-token/non-Vault/non-factory contract targets only under `match.bindings[].externalContracts` with `address` and `label`; undeclared fixed targets fail `vault:check`.
 - Treat every Vault CLI failure as JSON. Read `code`, `fixHint`, and `agent.nextActions`, fix those items, then rerun the command.
 - Run `yarn vault:check <folder-name>` before packaging and fix all blocking issues.
-- Run `yarn vault:package <folder-name>` only after checks pass.
+- Run `yarn vault:e2e <folder-name>` before packaging; it must produce a passing `dist/e2e/<folder-name>/qa-report.json` bound to a test token and current source hashes.
+- Run `yarn vault:package <folder-name>` only after checks and E2E pass.
 - Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging.
-- For code-base changes, run `yarn ci` when feasible.
+- For code-base changes, run `yarn ci` when feasible; it includes full PC / iPad / H5 E2E for built-in examples.
 
 If this file conflicts with `agent-contract.json`, `AGENTS.md`, or `docs/ai-agent.md`, follow those source-of-truth files and update this compatibility entry point.

@@ -4,6 +4,17 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import {
+  collectSourceHashes,
+  E2E_DIST_DIR,
+  E2E_REPORT_KIND,
+  E2E_REPORT_TOOL,
+  E2E_REPORT_VERSION,
+  MANIFEST_SCHEMA_PATH,
+  REQUIRED_PHASES,
+  REQUIRED_VIEWPORTS,
+  sourceSha256FromFileHashes,
+} from "./e2e-report-utils.mjs";
 import { runVaultCheck } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
@@ -65,6 +76,72 @@ export default function SelftestVault(_props: VaultComponentProps) {
   fs.writeFileSync(path.join(vaultDir, "manifest.json"), `${JSON.stringify(nextManifest, null, 2)}\n`);
   fs.writeFileSync(path.join(vaultDir, "VaultABI.ts"), abi);
   fs.writeFileSync(path.join(vaultDir, "i18n.json"), `${JSON.stringify(i18n || { en: { title: "Selftest" } }, null, 2)}\n`);
+}
+
+function writePassingE2EReport(folderName, { chainId = 56, tokenAddress = TOKEN, factoryAddress = FACTORY, vaultAddress } = {}) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "vaults", folderName, "manifest.json"), "utf8"));
+  const fileSha256 = collectSourceHashes(ROOT, folderName);
+  const sourceSha256 = sourceSha256FromFileHashes(fileSha256);
+  const checks = REQUIRED_VIEWPORTS.flatMap((viewport) => [
+    ...REQUIRED_PHASES.map((phase) => ({
+      id: `${viewport}-${phase}`,
+      viewport,
+      phase,
+      wrongNetwork: false,
+      passed: true,
+      issues: [],
+    })),
+    {
+      id: `${viewport}-wrong-network`,
+      viewport,
+      phase: "internal-market",
+      wrongNetwork: true,
+      passed: true,
+      issues: [],
+    },
+  ]);
+  const report = {
+    kind: E2E_REPORT_KIND,
+    schemaVersion: E2E_REPORT_VERSION,
+    generatedBy: E2E_REPORT_TOOL,
+    generatedAt: new Date().toISOString(),
+    folderName,
+    artifactId: manifest.artifactId,
+    sourcePackage: `src/vaults/${folderName}`,
+    sourceSha256,
+    fileSha256,
+    manifestSha256: fileSha256[`src/vaults/${folderName}/manifest.json`],
+    schemaSha256: fileSha256[MANIFEST_SCHEMA_PATH],
+    binding: {
+      chainId,
+      tokenAddress,
+      ...(vaultAddress ? { vaultAddress } : {}),
+      ...(factoryAddress ? { factoryAddress } : {}),
+      tokenPolicy: chainId === 97 ? "testnet" : "mainnet-fallback",
+    },
+    viewports: [
+      { id: "pc", width: 1440, height: 900 },
+      { id: "ipad", width: 834, height: 1194 },
+      { id: "h5", width: 390, height: 844 },
+    ],
+    phases: REQUIRED_PHASES,
+    passed: true,
+    summary: { blocking: 0, warning: 0, info: checks.length },
+    layoutCheckSummary: {
+      horizontalOverflow: 0,
+      scopeOutOfViewport: 0,
+      textOverflow: 0,
+      controlCovered: 0,
+      controlOverlap: 0,
+      riskStatus: 0,
+      wrongNetworkState: 0,
+      renderErrors: 0,
+    },
+    checks,
+  };
+  const reportDir = path.join(ROOT, E2E_DIST_DIR, folderName);
+  fs.mkdirSync(reportDir, { recursive: true });
+  fs.writeFileSync(path.join(reportDir, "qa-report.json"), `${JSON.stringify(report, null, 2)}\n`);
 }
 
 function assertRule(label, result, ruleId, severity) {
@@ -1800,6 +1877,9 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assert.equal(scaffoldCheck.summary.blocking, 0);
   passed.push("scaffolded package passes vault:check");
 
+  writePassingE2EReport(scaffoldFlowSlug);
+  passed.push("scaffolded package has a current E2E proof before packaging");
+
   const packageOutput = execFileSync(process.execPath, ["scripts/vault-package.mjs", scaffoldFlowSlug], {
     cwd: ROOT,
     encoding: "utf8",
@@ -1841,6 +1921,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   for (const folderName of createdFolderNames) {
     try {
       fs.rmSync(path.join(ROOT, "src", "vaults", folderName), { recursive: true, force: true });
+      fs.rmSync(path.join(ROOT, E2E_DIST_DIR, folderName), { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors in restricted environments.
     }

@@ -12,7 +12,7 @@ const toneClass: Record<StatusTone, string> = {
 
 export function StatusBadge({ children, tone = "neutral" }: { children: ReactNode; tone?: StatusTone }) {
   return (
-    <span className={cn("inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold leading-none", toneClass[tone])}>
+    <span data-flap-ui="status-badge" className={cn("inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold leading-none", toneClass[tone])}>
       {children}
     </span>
   );

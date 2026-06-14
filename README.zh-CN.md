@@ -64,11 +64,14 @@ http://localhost:3000/my-vault?chainId=56&factoryAddress=0x...&tokenAddress=0x..
 
 ```bash
 yarn vault:check my-vault
+yarn vault:e2e my-vault
 yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-最终交付物是 `yarn vault:package <folder-name>` 生成的 zip，以及命令输出中的 `sourcePackagePath`、`sha256` 等字段。只有 prompt、手工 zip 或未经测试的 AI 输出都不能进入 Flap Artifact Workbench。
+`vault:e2e` 会在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它必须绑定测试 token：优先使用 BNB Testnet `chainId=97` 的 token/vault/factory；如果包没有测试网 token，才允许使用 BNB mainnet `chainId=56` fallback token。factory-scoped 包如果 `match.bindings[].tokenAddresses` 为空，必须通过 `--token 0x...` 提供测试 token。
+
+最终交付物是 `yarn vault:package <folder-name>` 生成的 zip，以及命令输出中的 `sourcePackagePath`、`sha256` 等字段。只有 prompt、手工 zip 或没有通过 E2E 证明的 AI 输出都不能进入 Flap Artifact Workbench。
 
 更慢但更完整的分步指南见 [docs/from-zero-vault-ui.md](./docs/from-zero-vault-ui.md)。
 
@@ -146,21 +149,26 @@ yarn vault:check flapixel-example
 打包：
 
 ```bash
+yarn vault:e2e example
 yarn vault:package example
 yarn vault:verify-package dist/example.zip
+yarn vault:e2e dex-listed-example
 yarn vault:package dex-listed-example
 yarn vault:verify-package dist/dex-listed-example.zip
+yarn vault:e2e action-gallery-example
 yarn vault:package action-gallery-example
 yarn vault:verify-package dist/action-gallery-example.zip
+yarn vault:e2e community-buyback-example
 yarn vault:package community-buyback-example
 yarn vault:verify-package dist/community-buyback-example.zip
+yarn vault:e2e flapixel-example
 yarn vault:package flapixel-example
 yarn vault:verify-package dist/flapixel-example.zip
 ```
 
-`vault:package` 会先运行 `vault:check`，并在写 zip 前执行官方 git freshness 检查。只有 blocking issue 全部通过后，zip 才会写入 `dist/`。
+`vault:package` 会先运行 `vault:check`，校验当前 `dist/e2e/<folder-name>/qa-report.json`，并在写 zip 前执行官方 git freshness 检查。只有 blocking issue 全部通过且 E2E 证明未过期后，zip 才会写入 `dist/`。
 命令输出会包含 `sourcePackagePath` 和 `sourcePackageAbsolutePath`，用于明确生成 zip 的位置。
-只提交 `yarn vault:package <folder-name>` 生成的 zip。该脚本会写入 format-version `3` 的 `flap-vault-package.json` marker、npm latest `@flapsdk/vault-runtime` 的 `gitHead` provenance 和文件 hash；Flap Artifact Workbench 应拒绝没有 marker 或 hash 不匹配的手工 zip。
+只提交 `yarn vault:package <folder-name>` 生成的 zip。该脚本会写入 format-version `4` 的 `flap-vault-package.json` marker、npm latest `@flapsdk/vault-runtime` 的 `gitHead` provenance、source/schema/E2E 文件 hash、`qa/e2e-report.json` 和 `e2e` 摘要；Flap Artifact Workbench 应拒绝没有 marker、没有证明或 hash 不匹配的手工 zip。
 `dist/` 被 git 忽略。请在本地或 CI 生成 source zip，不要把生成包提交到模板仓库。
 `yarn vault:verify-package <zip>` 从 Workbench 侧验证 marker、文件列表、metadata 和 SHA-256 hash。
 
@@ -246,7 +254,7 @@ Token media 使用 host context：`context.tokenImageUrl`、`context.tokenName` 
 同样的 shell boundary 也适用于布局：token breadcrumb / header、close control、page frame 和标准 shared summary / header 属于 host surface，不属于打包的 Vault component。
 
 如果修改 checker 或 Agent contract，请运行 `yarn vault:check:selftest` 作为重要 blocking rule 的回归保护。
-完整 code-base 验证使用 `yarn ci`。CI 包含 lint、typecheck、checker selftest、内置示例 check/package/verify、Next build、shared runtime pack/verify、neutral preview smoke test 和 live real-example smoke test。
+完整 code-base 验证使用 `yarn ci`。CI 包含 lint、typecheck、checker selftest、内置示例 check/E2E/package/verify、Next build、shared runtime pack/verify、neutral preview smoke test 和 live real-example smoke test。GitHub Actions 会上传 `dist/e2e/**` 作为 screenshot/trace/report 证据。
 
 ## 添加一个 Vault UI
 
@@ -367,7 +375,7 @@ Registry 决定可用性。文件存在于 Blob / R2 / S3 并不代表 UI 可以
 
 Package zip 是给 Flap Artifact Workbench 的 source package。上传到 Blob / R2 / S3 的 runtime artifact 是 Flap 构建出来、浏览器可执行的 `component.mjs`。MVP runtime artifact 默认应保持可读；除非 Flap 启用带 source map 和 source backup 的 release optimization，否则不要默认 minify。
 
-Source zip 必须由 `yarn vault:package <folder-name>` 生成。该脚本运行 `vault:check`，写入 `flap-vault-package.json`，并记录 package kind、format version、source file hash、schema hash 和 check summary。Workbench validation 应要求这个 marker，并拒绝无 marker 或 hash 不匹配的手工 zip。
+Source zip 必须由 `yarn vault:package <folder-name>` 生成。该脚本运行 `vault:check`，要求当前 `dist/e2e/<folder-name>/qa-report.json` 存在且通过，写入 `flap-vault-package.json`，并记录 package kind、format version、source file hash、schema hash、E2E report hash、check summary 和 E2E summary。Workbench validation 应要求这个 marker 和 `qa/e2e-report.json`，并拒绝手工 zip、过期证明或 hash 不匹配的包。
 使用 `yarn vault:verify-package <zip>` 在本地执行同一套 package acceptance shape，再交给 Flap Artifact Workbench。
 
 Flap Artifact Workbench 使用 `artifactId` 作为稳定 source-package artifact identity。Folder name 仍然只是本地 source folder 和 preview route。Runtime build version 和 storage path 属于 Workbench 关心的范围；开发者仍然不在 `manifest.json` 中声明 runtime version。
@@ -415,6 +423,7 @@ yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest
+yarn vault:e2e example
 yarn vault:package example
 yarn vault:verify-package dist/example.zip
 yarn runtime:package
@@ -424,7 +433,7 @@ yarn preview:smoke:real
 yarn ci
 ```
 
-`yarn vault:package <folder-name>` 会输出生成的 source zip 路径 `sourcePackagePath` / `sourcePackageAbsolutePath`、package marker `packageMarkerFile` 和 npm runtime provenance `runtimePackageGitHead`。
+`yarn vault:e2e <folder-name>` 会写入 `dist/e2e/<folder-name>/qa-report.json` 以及 screenshots/traces。`yarn vault:package <folder-name>` 会输出生成的 source zip 路径 `sourcePackagePath` / `sourcePackageAbsolutePath`、package marker `packageMarkerFile` 和 npm runtime provenance `runtimePackageGitHead`。
 
 ## 许可证
 

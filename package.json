@@ -15,7 +15,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "check": "yarn lint && yarn typecheck",
-    "ci": "yarn lint && yarn typecheck && yarn vault:check:selftest && yarn vault:check example && yarn vault:package example && yarn vault:verify-package dist/example.zip && yarn vault:check dex-listed-example && yarn vault:package dex-listed-example && yarn vault:verify-package dist/dex-listed-example.zip && yarn vault:check action-gallery-example && yarn vault:package action-gallery-example && yarn vault:verify-package dist/action-gallery-example.zip && yarn vault:check community-buyback-example && yarn vault:package community-buyback-example && yarn vault:verify-package dist/community-buyback-example.zip && yarn vault:check flapixel-example && yarn vault:package flapixel-example && yarn vault:verify-package dist/flapixel-example.zip && yarn build && yarn runtime:package && yarn runtime:verify-package && yarn preview:smoke && yarn preview:smoke:real",
+    "ci": "yarn lint && yarn typecheck && yarn vault:check:selftest && yarn vault:check example && yarn vault:e2e example && yarn vault:package example && yarn vault:verify-package dist/example.zip && yarn vault:check dex-listed-example && yarn vault:e2e dex-listed-example && yarn vault:package dex-listed-example && yarn vault:verify-package dist/dex-listed-example.zip && yarn vault:check action-gallery-example && yarn vault:e2e action-gallery-example && yarn vault:package action-gallery-example && yarn vault:verify-package dist/action-gallery-example.zip && yarn vault:check community-buyback-example && yarn vault:e2e community-buyback-example && yarn vault:package community-buyback-example && yarn vault:verify-package dist/community-buyback-example.zip && yarn vault:check flapixel-example && yarn vault:e2e flapixel-example && yarn vault:package flapixel-example && yarn vault:verify-package dist/flapixel-example.zip && yarn build && yarn runtime:package && yarn runtime:verify-package && yarn preview:smoke && yarn preview:smoke:real",
     "preview:smoke": "node scripts/preview-smoke.mjs",
     "preview:smoke:real": "node scripts/preview-smoke-real.mjs",
     "runtime:package": "node scripts/build-runtime-package.mjs",
@@ -25,6 +25,7 @@
     "vault:ai-context": "node scripts/vault-ai-context.mjs",
     "vault:check": "node scripts/vault-check.mjs",
     "vault:check:selftest": "node scripts/vault-check-selftest.mjs",
+    "vault:e2e": "node scripts/vault-e2e.mjs",
     "vault:package": "node scripts/vault-package.mjs",
     "vault:verify-package": "node scripts/vault-verify-package.mjs"
   },
@@ -49,6 +50,7 @@
     "qr": "0.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^20.19.25",
     "@types/react": "^18.3.27",
     "@types/react-dom": "^18.3.7",

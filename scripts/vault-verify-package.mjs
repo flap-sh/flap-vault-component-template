@@ -5,9 +5,14 @@ import path from "node:path";
 import process from "node:process";
 import zlib from "node:zlib";
 import { failAgent } from "./agent-error.mjs";
+import {
+  E2E_REPORT_PACKAGE_PATH,
+  summarizeE2EReportForMarker,
+  validateE2EReportObject,
+} from "./e2e-report-utils.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 3;
+const PACKAGE_FORMAT_VERSION = 4;
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const PACKAGE_METADATA_FILE = "package-metadata.json";
 const SCHEMA_FILE = "schemas/manifest.schema.json";
@@ -251,7 +256,7 @@ function verifyPackage(zipPath) {
 
   if (!issues.length) {
     const sourceFiles = expectedSourceFiles(folderName);
-    const expectedFiles = new Set([PACKAGE_MARKER_FILE, PACKAGE_METADATA_FILE, SCHEMA_FILE, ...sourceFiles]);
+    const expectedFiles = new Set([PACKAGE_MARKER_FILE, PACKAGE_METADATA_FILE, SCHEMA_FILE, E2E_REPORT_PACKAGE_PATH, ...sourceFiles]);
     if (marker.sourcePackage !== `src/vaults/${folderName}`) {
       issues.push(jsonIssue("package-verify/source-package-mismatch", "Package marker sourcePackage does not match folderName.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
     }
@@ -281,7 +286,7 @@ function verifyPackage(zipPath) {
       );
     }
 
-    const filesToHash = [...sourceFiles, SCHEMA_FILE];
+    const filesToHash = [...sourceFiles, SCHEMA_FILE, E2E_REPORT_PACKAGE_PATH];
     for (const file of filesToHash) {
       if (!entries.has(file)) continue;
       const expectedHash = marker.fileSha256?.[file];
@@ -291,10 +296,37 @@ function verifyPackage(zipPath) {
       }
     }
 
+    let manifest;
     if (entries.has(`src/vaults/${folderName}/manifest.json`)) {
-      const manifest = readJsonEntry(entries, `src/vaults/${folderName}/manifest.json`);
+      manifest = readJsonEntry(entries, `src/vaults/${folderName}/manifest.json`);
       if (manifest.artifactId !== marker.artifactId) {
         issues.push(jsonIssue("package-verify/artifact-id-mismatch", "Package marker artifactId does not match manifest.json.", "Regenerate with yarn vault:package <folder-name> from the current source.", { file: "manifest.json" }));
+      }
+    }
+
+    let e2eReport;
+    if (entries.has(E2E_REPORT_PACKAGE_PATH)) {
+      e2eReport = readJsonEntry(entries, E2E_REPORT_PACKAGE_PATH);
+      const expectedE2EFileHashes = Object.fromEntries(
+        [...sourceFiles, SCHEMA_FILE].filter((file) => entries.has(file)).map((file) => [file, sha256(entries.get(file))]),
+      );
+      validateE2EReportObject(e2eReport, {
+        folderName,
+        manifest,
+        expectedFileSha256: expectedE2EFileHashes,
+        issues,
+        file: E2E_REPORT_PACKAGE_PATH,
+      });
+      const expectedE2ESummary = summarizeE2EReportForMarker(e2eReport);
+      if (JSON.stringify(marker.e2e) !== JSON.stringify(expectedE2ESummary)) {
+        issues.push(
+          jsonIssue(
+            "package-verify/e2e-marker-mismatch",
+            "Package marker e2e summary does not match qa/e2e-report.json.",
+            "Regenerate with yarn vault:e2e <folder-name> and yarn vault:package <folder-name>; metadata must not be hand-edited.",
+            { file: PACKAGE_MARKER_FILE },
+          ),
+        );
       }
     }
 
@@ -310,7 +342,8 @@ function verifyPackage(zipPath) {
         metadata.runtimePackageName !== marker.runtimePackageName ||
         metadata.runtimePackageVersion !== marker.runtimePackageVersion ||
         metadata.runtimePackageGitHead !== marker.runtimePackageGitHead ||
-        metadata.runtimeContractVersion !== marker.runtimeContractVersion
+        metadata.runtimeContractVersion !== marker.runtimeContractVersion ||
+        JSON.stringify(metadata.e2e) !== JSON.stringify(marker.e2e)
       ) {
         issues.push(
           jsonIssue(

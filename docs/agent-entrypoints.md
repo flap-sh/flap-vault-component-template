@@ -43,9 +43,10 @@ Then act:
 9. Use `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...` for new Vault packages.
 10. Use `yarn vault:register <folder-name>` when the four Vault files already exist.
 11. Run `yarn vault:check <folder-name>` and fix all blocking issues from `agent.nextActions`.
-12. Run `yarn vault:package <folder-name>` only after blocking issues are zero.
-13. Run `yarn vault:verify-package dist/<folder-name>.zip` before handoff.
-14. Produce a done report using the fields in `agent-contract.json` `doneReport`.
+12. Run `yarn vault:e2e <folder-name>` and require a passing `dist/e2e/<folder-name>/qa-report.json` bound to current source hashes and a test token.
+13. Run `yarn vault:package <folder-name>` only after blocking issues are zero and E2E passes.
+14. Run `yarn vault:verify-package dist/<folder-name>.zip` before handoff.
+15. Produce a done report using the fields in `agent-contract.json` `doneReport`.
 
 ## Reference Docs (Deep Dives)
 

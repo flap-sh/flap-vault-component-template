@@ -45,8 +45,11 @@ Examples:
 - Package kind changes.
 - Workbench needs a new required metadata field.
 - Runtime package provenance fields such as `runtimePackageGitHead` become required.
+- E2E proof files or marker/metadata `e2e` summary fields become required.
 
 The Flap Artifact Workbench should reject unsupported future versions and should explicitly decide whether to keep accepting older versions. Do not silently accept unknown package kinds or unknown format versions.
+
+Current source packages use format version `4`, which requires `qa/e2e-report.json`, marker/metadata `e2e` summary fields, and source-hash-bound E2E proof before Workbench upload.
 
 ## Runtime Contract Version
 
@@ -75,6 +78,7 @@ At minimum, run:
 ```bash
 yarn vault:check:selftest
 yarn vault:check example
+yarn vault:e2e example
 yarn vault:package example
 yarn vault:verify-package dist/example.zip
 yarn runtime:package

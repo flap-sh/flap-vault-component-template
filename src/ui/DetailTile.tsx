@@ -23,7 +23,7 @@ interface DetailTileProps {
 
 export function DetailTile({ label, value, detail, icon, tone = "default", className, valueClassName }: DetailTileProps) {
   return (
-    <div className={cn("min-w-0 rounded-md border p-3", toneClass[tone], className)}>
+    <div data-flap-ui="detail-tile" className={cn("min-w-0 rounded-md border p-3", toneClass[tone], className)}>
       <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-[#a9b6c8]">
         {icon ? <span className="shrink-0 text-[#8fb7ff]">{icon}</span> : null}
         <span className="min-w-0 truncate">{label}</span>

@@ -13,6 +13,17 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+### Added
+
+- Added `yarn vault:e2e <folder-name>` for V1 PC / iPad / H5 Playwright coverage across `default`, `internal-market`, `dex-listed`, and wrong-network preview states.
+- E2E reports are written to `dist/e2e/<folder-name>/qa-report.json`, with screenshots and traces kept as CI artifacts under `dist/e2e/**`.
+
+### Changed
+
+- Source package format is now `4`. `yarn vault:package <folder-name>` requires a passing, source-hash-bound E2E report and includes `qa/e2e-report.json` plus an `e2e` summary in `flap-vault-package.json` and `package-metadata.json`.
+- `yarn ci` now runs the full three-viewport E2E gate for every built-in example before package/verify, and GitHub Actions uploads `dist/e2e/**`.
+- E2E token selection is testnet-first: use a chainId `97` token when one is available; only packages without a testnet token may use a chainId `56` mainnet fallback token.
+
 ## [0.1.9] - 2026-06-12
 
 ### Changed

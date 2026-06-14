@@ -29,7 +29,7 @@ interface MetricProps {
 
 export function Metric({ label, value, hint, tone = "default", className }: MetricProps) {
   return (
-    <div className={cn("rounded-md border p-3", toneClass[tone], className)}>
+    <div data-flap-ui="metric" className={cn("rounded-md border p-3", toneClass[tone], className)}>
       <div className="text-xs font-medium text-[#a9b6c8]">{label}</div>
       <div className={cn("mt-2 break-words text-xl font-semibold tracking-normal", valueToneClass[tone])}>{value}</div>
       {hint ? <div className="mt-1 text-xs text-[#d8e2ef]">{hint}</div> : null}

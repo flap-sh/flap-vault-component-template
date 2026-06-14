@@ -21,7 +21,7 @@ const iconMap = {
 export function Alert({ children, tone = "info", className }: { children: ReactNode; tone?: AlertTone; className?: string }) {
   const Icon = iconMap[tone];
   return (
-    <div className={cn("flex gap-3 rounded-md border p-3 text-sm font-medium leading-6", toneClass[tone], className)}>
+    <div data-flap-ui="alert" className={cn("flex gap-3 rounded-md border p-3 text-sm font-medium leading-6", toneClass[tone], className)}>
       <Icon className="mt-0.5 h-4 w-4 shrink-0 opacity-90" />
       <div className="min-w-0 break-words">{children}</div>
     </div>

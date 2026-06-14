@@ -134,33 +134,42 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
   );
 
   const wallet = useMemo<FlapWallet>(
-    () => ({
-      address: accountAddress,
-      chainId: isConnected ? connectedChainId : undefined,
-      chainLabel: isConnected ? chainLabelForChain(connectedChainId) : undefined,
-      requiredChainId: runtimeContext.chainId,
-      requiredChainLabel: chainLabelForChain(runtimeContext.chainId),
-      isConnected,
-      isWrongNetwork: Boolean(isConnected && connectedChainId !== runtimeContext.chainId),
-      canSwitchChain: Boolean(switchChainAsync),
-      isSwitchingChain,
-      // Real native-token balance from the connected wallet. "0" until a wallet is connected.
-      balance: nativeBalance ? formatUnits(nativeBalance.value, nativeBalance.decimals) : "0",
-      // Wallet connection is host/shell-owned. In this preview the SDK forwards to the
-      // injected wagmi connector so the surface is functional rather than a no-op stub.
-      connect: () => {
-        const connector = connectors[0];
-        if (connector) connect({ connector });
-      },
-      disconnect: () => disconnect(),
-      switchChain: async () => {
-        if (!switchChainAsync) {
-          throw new Error(`Switch wallet to ${chainLabelForChain(runtimeContext.chainId)} before continuing.`);
-        }
-        await switchChainAsync({ chainId: runtimeContext.chainId });
-      },
-    }),
-    [accountAddress, connect, connectedChainId, connectors, disconnect, isConnected, isSwitchingChain, nativeBalance, runtimeContext.chainId, switchChainAsync],
+    () => {
+      const previewWallet = runtimeOverrides?.previewWallet;
+      const walletAddress = previewWallet?.address ?? accountAddress;
+      const walletConnected = previewWallet?.isConnected ?? isConnected;
+      const walletChainId = previewWallet?.chainId ?? connectedChainId;
+      return {
+        address: walletAddress,
+        chainId: walletConnected ? walletChainId : undefined,
+        chainLabel: walletConnected && walletChainId ? chainLabelForChain(walletChainId) : undefined,
+        requiredChainId: runtimeContext.chainId,
+        requiredChainLabel: chainLabelForChain(runtimeContext.chainId),
+        isConnected: walletConnected,
+        isWrongNetwork: Boolean(walletConnected && walletChainId && walletChainId !== runtimeContext.chainId),
+        canSwitchChain: previewWallet?.canSwitchChain ?? Boolean(switchChainAsync),
+        isSwitchingChain,
+        // Real native-token balance from the connected wallet. "0" until a wallet is connected.
+        balance: previewWallet ? "0" : nativeBalance ? formatUnits(nativeBalance.value, nativeBalance.decimals) : "0",
+        // Wallet connection is host/shell-owned. In this preview the SDK forwards to the
+        // injected wagmi connector so the surface is functional rather than a no-op stub.
+        connect: () => {
+          const connector = connectors[0];
+          if (connector) connect({ connector });
+        },
+        disconnect: () => disconnect(),
+        switchChain: async () => {
+          if (previewWallet) {
+            throw new Error(`Switch wallet to ${chainLabelForChain(runtimeContext.chainId)} before continuing.`);
+          }
+          if (!switchChainAsync) {
+            throw new Error(`Switch wallet to ${chainLabelForChain(runtimeContext.chainId)} before continuing.`);
+          }
+          await switchChainAsync({ chainId: runtimeContext.chainId });
+        },
+      };
+    },
+    [accountAddress, connect, connectedChainId, connectors, disconnect, isConnected, isSwitchingChain, nativeBalance, runtimeContext.chainId, runtimeOverrides?.previewWallet, switchChainAsync],
   );
 
   const assertWalletWriteReady = useCallback(

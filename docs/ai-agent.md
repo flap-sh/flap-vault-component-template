@@ -75,7 +75,7 @@ There are two supported creation paths:
 | Scaffold-first | The Agent is creating a new package from inputs such as folder name, chain, factory or Vault, and locales. | `yarn vault:scaffold {folder-name} ...` |
 | Manifest-first | The Agent already has or generated the four Vault files from a provided manifest. | `yarn vault:register {folder-name}` |
 
-Both paths must end with `yarn vault:check {folder-name}` and `yarn vault:package {folder-name}`. Do not hand-edit `src/vaults/index.ts` unless `vault:register` reports that the index shape cannot be parsed.
+Both paths must end with `yarn vault:check {folder-name}`, `yarn vault:e2e {folder-name}`, and `yarn vault:package {folder-name}`. Do not hand-edit `src/vaults/index.ts` unless `vault:register` reports that the index shape cannot be parsed.
 For a step-by-step beginner path that starts from raw Vault requirements and ends with a verified zip, follow `docs/from-zero-vault-ui.md`.
 
 Use the scaffold command to avoid folder and manifest mistakes:
@@ -227,6 +227,7 @@ That selftest creates temporary Vault fixtures and verifies the checker still bl
 When it passes:
 
 ```bash
+yarn vault:e2e {folder-name}
 yarn vault:package {folder-name}
 yarn vault:verify-package dist/{folder-name}.zip
 ```
@@ -241,9 +242,10 @@ The package command prints:
 - `sha256`
 - `bytes`
 
-Submit only the zip produced by this command. The zip contains format-version `3` `flap-vault-package.json`, which identifies the package as a script-generated Flap Vault UI source package and records required file hashes plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker or with mismatched hashes.
-The package command also enforces the official git freshness gate, so a checkout that is behind or diverged from the configured upstream cannot produce a source zip.
-The verify command checks the same source package from the Workbench side: marker, kind/version, exact file list, metadata, and SHA-256 hashes. If it fails, read the JSON `code`, `fixHint`, and `agent.nextActions`, then regenerate the package instead of editing the zip by hand.
+`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. The E2E proof must use a test token: prefer chainId `97`; only use chainId `56` mainnet fallback when the package has no testnet token. If a factory-scoped package does not declare `tokenAddresses`, pass `--token 0x...`.
+Submit only the zip produced by this command. The zip contains format-version `4` `flap-vault-package.json`, `qa/e2e-report.json`, and matching `e2e` summary fields, which identify the package as a script-generated Flap Vault UI source package and record required file hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker, proof, or matching hashes.
+The package command also enforces the official git freshness gate and rejects missing, failed, or stale E2E proof, so a checkout that is behind, diverged, or not E2E-proven cannot produce a source zip.
+The verify command checks the same source package from the Workbench side: marker, kind/version, exact file list, metadata, E2E proof, and SHA-256 hashes. If it fails, read the JSON `code`, `fixHint`, and `agent.nextActions`, then regenerate the package instead of editing the zip by hand.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also run:
 
@@ -320,9 +322,10 @@ A generated Vault UI is done only when:
 - `yarn vault:check {folder-name}` reports zero blocking issues.
 - The local template package version is at least npm latest `@flapsdk/vault-runtime`.
 - `manifest.artifactId` exists, matches `vaultui_<folder-name>_<ULID>`, and is unique in this repo.
+- `yarn vault:e2e {folder-name}` succeeds and writes a current `dist/e2e/{folder-name}/qa-report.json`.
 - `yarn vault:package {folder-name}` succeeds and prints the package path.
 - `yarn vault:verify-package dist/{folder-name}.zip` succeeds.
-- The zip contains the script-generated `flap-vault-package.json` marker.
+- The zip contains the script-generated `flap-vault-package.json` marker, `qa/e2e-report.json`, and matching `e2e` summary metadata.
 - The folder name is registered and previewable at `/{folder-name}`.
 - All user-facing copy used by `Component.tsx` exists in every locale declared by `manifest.i18n`.
 - The component uses runtime context addresses for reads and writes.
@@ -338,6 +341,7 @@ After `vault:verify-package` succeeds, produce a structured handoff summary for 
 
 - `folderName` and `artifactId`
 - `sourcePackagePath` and `sha256` from `vault:package` output
+- `e2eReportPath`, `chainId`, `tokenAddress`, viewport count, phase list, and layout blocking count from `vault:e2e`
 - `checkSummary` blocking and warning counts
 - `previewUrl` (`http://localhost:3000/{folder-name}`)
 - `actionAvailabilityStage` and `selectedPatterns`

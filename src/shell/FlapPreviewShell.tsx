@@ -105,6 +105,17 @@ function tokenStatusFromMarketPhase(marketPhase?: TokenMarketPhase) {
   return undefined;
 }
 
+function readPreviewWalletParam(searchParams: SearchParamsLike): VaultRuntimeContextOverrides["previewWallet"] | undefined {
+  const mode = readStringParam(searchParams, "previewWallet", "walletState");
+  if (mode !== "wrong-network" && mode !== "connected") return undefined;
+  return {
+    address: readAddressParam(searchParams, "previewWalletAddress", "walletAddress"),
+    chainId: readNumberParam(searchParams, "previewWalletChainId", "walletChainId") ?? (mode === "wrong-network" ? 1 : undefined),
+    isConnected: true,
+    canSwitchChain: mode !== "wrong-network",
+  };
+}
+
 function hasPreviewHostOverride(searchParams: SearchParamsLike) {
   return Boolean(
     readMarketPhaseParam(searchParams) !== undefined ||
@@ -400,6 +411,7 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
     const paymentTokenAddress = readAddressParam(searchParams, "paymentTokenAddress", "paymentToken");
     const paymentTokenSymbol = readStringParam(searchParams, "paymentTokenSymbol", "paymentSymbol");
     const paymentTokenDecimals = readNumberParam(searchParams, "paymentTokenDecimals", "paymentDecimals");
+    const previewWallet = readPreviewWalletParam(searchParams);
     const paymentToken: PaymentToken | undefined = paymentTokenAddress
       ? {
           address: paymentTokenAddress,
@@ -413,11 +425,13 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
       factoryAddress,
       tokenAddress,
       vaultAddress,
+      userAddress: previewWallet?.address,
       tokenSymbol: hostRuntime?.tokenSymbol ?? "TOKEN",
       tokenName,
       tokenImageUrl,
       explorerBaseUrl: readStringParam(searchParams, "explorerBaseUrl", "explorer"),
       paymentToken,
+      previewWallet,
       host: buildPreviewHostContext(searchParams, { factoryAddress, tokenAddress, vaultAddress }, runtimeSnapshot),
       extraConfig: {
         previewFixture,
@@ -471,7 +485,9 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
       <div className="min-h-screen bg-background">
         <FlapNavbar manifest={manifest} />
         <div className="xl:pr-[408px]">
-          <PreviewTaxInfoFrame>{children}</PreviewTaxInfoFrame>
+          <div data-vault-e2e-scope="vault-preview">
+            <PreviewTaxInfoFrame>{children}</PreviewTaxInfoFrame>
+          </div>
         </div>
         <ManifestPanel
           manifest={manifest}
@@ -613,7 +629,7 @@ function PreviewTaxInfoFrame({ children }: { children: ReactNode }) {
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-white">{lang.preview.vaultInformation}</h3>
             {isTokenUnavailable ? (
-              <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
+              <div data-vault-token-unavailable="true" className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-300" />
                   <div className="min-w-0 space-y-1">

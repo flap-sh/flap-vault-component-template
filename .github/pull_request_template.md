@@ -30,6 +30,7 @@ Describe the Vault UI, target project, and user workflow.
 ## Validation
 
 - [ ] `yarn vault:check <folder-name>`
+- [ ] `yarn vault:e2e <folder-name>`
 - [ ] `yarn vault:package <folder-name>`
 - [ ] `yarn vault:verify-package dist/<folder-name>.zip`
 - [ ] `yarn ci` for repo-level changes when live BNB smoke access is available
