@@ -329,7 +329,7 @@ A generated Vault UI is done only when:
 - `yarn vault:verify-package dist/{folder-name}.zip` succeeds.
 - The zip contains the script-generated `flap-vault-package.json` marker, `qa/e2e-report.json`, and matching `e2e` summary metadata.
 - The folder name is registered and previewable at `/{folder-name}`.
-- All user-facing copy used by `Component.tsx` exists in every locale declared by `manifest.i18n`.
+- All user-facing copy used by `Component.tsx` exists in every locale declared by `manifest.i18n`; `Component.tsx` itself does not hardcode locale text, countdown units, preview fallback names, labels, notices, or button text.
 - The component uses runtime context addresses for reads and writes.
 - Stage-gated actions were previewed with both `marketPhase=internal-market` and `marketPhase=dex-listed`, and unavailable buttons remain visible with clear copy.
 - Current contract risk status is visible from host `riskLevel`, and the missing-risk state shows a prominent warning/danger message.

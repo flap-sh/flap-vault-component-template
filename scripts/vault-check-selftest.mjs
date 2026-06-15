@@ -1588,6 +1588,55 @@ export default function SelftestVault(_props: VaultComponentProps) {
   writeVault(riskStatusSlug);
   assertRule("components must render host risk status", runVaultCheck(riskStatusSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
 
+  const hardcodedVisibleCopySlug = `${FIXTURE_PREFIX}-hardcoded-copy`;
+  writeVault(hardcodedVisibleCopySlug, {
+    component: `"use client";
+
+import type { Address, VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+interface Snapshot {
+  collectionName: string;
+}
+
+function formatReleaseTime(value?: bigint) {
+  if (!value || value <= 0n) return "-";
+  const diff = Math.max(0, Number(value) * 1000 - Date.now());
+  if (diff <= 0) return "现在";
+  const totalSeconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return \`\${seconds}秒\`;
+  return \`\${minutes}分\${seconds.toString().padStart(2, "0")}秒\`;
+}
+
+function makePreviewSnapshot(_contextTokenAddress: Address): Snapshot {
+  return { collectionName: "凭证升级分红" };
+}
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  void formatReleaseTime;
+  void makePreviewSnapshot;
+  return (
+    <div>
+      <StatusBadge tone={riskLevel === null ? "danger" : "success"}>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );
+}
+`,
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertRule("Component.tsx hardcoded CJK visible copy is blocked", runVaultCheck(hardcodedVisibleCopySlug, { silent: true }), "i18n-policy/hardcoded-visible-copy", "blocking");
+
   const riskStatusSpoofSlug = `${FIXTURE_PREFIX}-risk-status-spoof`;
   writeVault(riskStatusSpoofSlug, {
     component: `"use client";

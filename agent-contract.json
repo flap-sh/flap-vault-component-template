@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 20,
+  "version": 21,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -409,6 +409,10 @@
       "severity": "blocking",
       "fixAction": "Add the missing i18n key to the locale in i18n.json. All keys must be present in every locale declared by manifest.i18n."
     },
+    "i18n/hardcoded-visible-copy": {
+      "severity": "blocking",
+      "fixAction": "Remove hardcoded user-facing copy from Component.tsx. Put locale text, countdown units, preview fallback names, labels, notices, and button text in i18n.json and render them with t(...) or i18n.t(...)."
+    },
     "abi/erc20-in-vault-abi": {
       "severity": "blocking",
       "fixAction": "Remove standard ERC20 ABI fragments from VaultABI.ts and replace with erc20Abi or standardErc20Abi imported from @/src/sdk."
@@ -660,7 +664,7 @@
     "Vault folder contains only the four allowed files",
     "Component.tsx follows a public-safe pattern from docs/ui-pattern-snippets.md",
     "action availability stage is decided and reflected in visible enabled/disabled states",
-    "all Component.tsx user-facing copy is in i18n.json",
+    "all Component.tsx user-facing copy is in i18n.json, with no hardcoded locale text, countdown units, preview fallback names, labels, notices, or button text in Component.tsx",
     "contract reads and writes use runtime context addresses"
   ]
 }

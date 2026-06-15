@@ -116,7 +116,7 @@ If the manifest declares `["en", "zh"]`, both locales must exist in `i18n.json`,
 
 If the manifest declares only `["zh"]`, only `zh` is checked. The template must not force English when the manifest does not declare it.
 
-All user-facing Vault component copy belongs in `i18n.json`.
+All user-facing Vault component copy belongs in `i18n.json`. `Component.tsx` must not hardcode locale text, including countdown units, preview fallback names, labels, notices, placeholders, or button text.
 
 ### Preview Experience
 

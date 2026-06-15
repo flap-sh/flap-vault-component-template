@@ -193,6 +193,7 @@ If the manifest declares both English and Chinese:
 ```
 
 then `i18n.json` must include both `en` and `zh`, and every key used by `Component.tsx` must exist in both locales.
+`Component.tsx` must not hardcode locale text. Countdown units, preview fallback collection names, labels, notices, placeholders, and button text also belong in `i18n.json`.
 
 If the manifest declares only one locale:
 

@@ -104,6 +104,7 @@ const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<Reviewed
 const ALLOWED_BROWSER_GLOBAL_MEMBERS = new Map([
   ["window", new Set(["setTimeout", "clearTimeout", "setInterval", "clearInterval", "open"])],
 ]);
+const CJK_VISIBLE_COPY_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/u;
 
 const BLOCKING = "blocking";
 const WARNING = "warning";
@@ -173,6 +174,7 @@ const FIX_HINTS = {
   "i18n-policy/missing-locale": "Add the locale object to i18n.json or remove that locale from manifest.i18n.",
   "i18n-policy/missing-locale-key": "Add the missing key to each locale declared by manifest.i18n.",
   "i18n-policy/used-key-missing-locale": "Every key used by t(...) or i18n.t(...) must exist in each declared locale.",
+  "i18n-policy/hardcoded-visible-copy": "Move user-facing copy out of Component.tsx and into i18n.json, then render it with t(...) or i18n.t(...).",
   "endpoint-policy/invalid-endpoints": "Set manifest.endpoints to a single HTTPS URL string, a non-empty array of HTTPS URL strings, or remove it when no endpoint is needed.",
   "endpoint-policy/invalid-endpoint-declaration": "Endpoint declarations must be valid absolute HTTPS URL strings only.",
   "endpoint-policy/https-required": "Use an HTTPS endpoint URL string, or remove the endpoint.",
@@ -958,6 +960,31 @@ function collectInlineSvgIssues(content, file) {
   }
 
   visit(sourceFile);
+  return issues;
+}
+
+function hardcodedCopyExcerpt(value) {
+  const compact = value.replace(/\s+/g, " ").trim();
+  if (compact.length <= 80) return compact;
+  return `${compact.slice(0, 77)}...`;
+}
+
+function collectHardcodedVisibleCopyIssues(content, file) {
+  const issues = [];
+  const scanContent = stripCommentsForScanning(content);
+  const stringLiteralRegex = /(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+  for (const match of scanContent.matchAll(stringLiteralRegex)) {
+    const value = match[2] ?? "";
+    if (!CJK_VISIBLE_COPY_RE.test(value)) continue;
+    issues.push(
+      issue(
+        BLOCKING,
+        "i18n-policy/hardcoded-visible-copy",
+        `Component.tsx contains hardcoded visible copy "${hardcodedCopyExcerpt(value)}". Keep all user-facing Vault component copy in i18n.json and render it through i18n.t(...).`,
+        { file, line: lineForIndex(scanContent, match.index ?? -1), text: hardcodedCopyExcerpt(value) },
+      ),
+    );
+  }
   return issues;
 }
 
@@ -2505,6 +2532,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
     if (item.name === "Component.tsx") {
+      issues.push(...collectHardcodedVisibleCopyIssues(content, rel));
       issues.push(...collectInlineSvgIssues(content, rel));
     }
     const importRegex = /from\s+["'`]([^"'`]+)["'`]|import\s+["'`]([^"'`]+)["'`]/g;
