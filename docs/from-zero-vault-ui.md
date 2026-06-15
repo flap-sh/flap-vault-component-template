@@ -46,6 +46,7 @@ Factory-scoped UI:
 yarn vault:scaffold my-vault \
   --name "My Vault UI" \
   --chain 56 --factory 0xFactoryAddressRequired \
+  --token 0xTokenAddressRequired \
   --locales en,zh
 ```
 
@@ -55,11 +56,11 @@ Single-Vault UI without a factory:
 yarn vault:scaffold my-vault \
   --name "My Vault UI" \
   --chain 56 --vault 0xVaultAddressRequired \
-  --token 0xTokenAddressIfNeeded \
+  --token 0xTokenAddressRequired \
   --locales en,zh
 ```
 
-Replace placeholder addresses with real deployment addresses before running scaffold.
+Replace placeholder addresses with real deployment addresses before running scaffold. The token address is required because `vault:check` and Workbench use manifest `match.bindings[].tokenAddresses` as the package's E2E test token source.
 
 `vault:scaffold` creates the four-file package and registers the preview route. Do not add helper files, assets, nested folders, or extra local imports.
 

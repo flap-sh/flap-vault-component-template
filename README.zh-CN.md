@@ -34,7 +34,7 @@
 
 这是开发者在借助 AI 的同时仍然自己掌握 Vault 事实和本地测试的最短安全路径。
 
-1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、可选 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。
+1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。
 2. 将这些输入和本仓库上下文一起交给 AI Agent。如果 AI 不能直接读取仓库，可先生成可粘贴上下文包：
 
 ```bash
@@ -44,7 +44,7 @@ yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
 3. Scaffold Vault 包。Factory-scoped 示例：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
 ```
 
 单 Vault、无 factory 示例：
@@ -69,7 +69,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定测试 token：优先使用 BNB Testnet `chainId=97` 的 token/vault/factory；如果包没有测试网 token，才允许使用 BNB mainnet `chainId=56` fallback token。factory-scoped 包如果 `match.bindings[].tokenAddresses` 为空，必须通过 `--token 0x...` 提供测试 token。
+`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的测试 token；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
 
 首次运行的本地机器，尤其是 Windows 机器，可能需要先安装一次 Playwright 浏览器：
 
@@ -230,16 +230,16 @@ docs/agent-intake-template.md
 对于新 Vault UI，优先使用 scaffold 命令：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
 ```
 
-无 factory 的 UI 可从一个 Vault 地址和可选 token 地址 scaffold：
+无 factory 的 UI 可从一个 Vault 地址和一个 manifest 测试 token 地址 scaffold：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
 ```
 
-这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，并在 `src/vaults/index.ts` 注册 folder name。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
+这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把 manifest 测试 token 写入 `match.bindings[].tokenAddresses`。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
 
 ```bash
 yarn vault:register my-vault
@@ -269,18 +269,18 @@ Token media 使用 host context：`context.tokenImageUrl`、`context.tokenName` 
 推荐方式（单链）：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0x1000000000000000000000000000000000000001
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired
 ```
 
 Mainnet + testnet 可为每个目标重复 `--chain` / `--factory`：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
-  --chain 56 --factory 0xMainnetFactory \
+  --chain 56 --factory 0xMainnetFactory --token 0xMainnetTokenForTesting \
   --chain 97 --factory 0xTestnetFactory
 ```
 
-No-factory 模式可为每个目标重复 `--chain` / `--vault`。`--token` 可选，但提供时必须一一配对：
+No-factory 模式可为每个目标重复 `--chain` / `--vault`。至少需要一个 `--token` 作为 manifest 测试 token；可以只给第一个测试 binding，也可以按链一一配对：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
@@ -327,7 +327,7 @@ Agent contract、manifest schema 和 source package format 的版本规则记录
 Vault folder 是严格 source package 边界，只能包含：
 
 - `Component.tsx`：受控 React Vault UI component。
-- `manifest.json`：必需 `artifactId`；必需 `match.bindings`，即显式 factory-scoped `{chainId, factoryAddress}` 或 no-factory `{chainId, vaultAddresses: [vaultAddress]}` target；可选 per-binding `tokenAddresses`；可选非 oracle `endpoints`；可选 reviewed `externalFrames`；以及 `i18n`。
+- `manifest.json`：必需 `artifactId`；必需 `match.bindings`，即显式 factory-scoped `{chainId, factoryAddress}` 或 no-factory `{chainId, vaultAddresses: [vaultAddress]}` target；至少一个 binding-scoped `tokenAddresses` 作为 Workbench/E2E 测试 token；可选非 oracle `endpoints`；可选 reviewed `externalFrames`；以及 `i18n`。
 - `VaultABI.ts`：只包含最小 Vault ABI fragment。标准 ERC20 ABI 由 `@/src/sdk` 导出；只有自定义非标准 token 方法才放到这里。
 - `i18n.json`：manifest `i18n` 声明的 locale dictionary；manifest locale string 至少两个字符。
 
@@ -388,7 +388,7 @@ Source zip 必须由 `yarn vault:package <folder-name>` 生成。该脚本运行
 
 Flap Artifact Workbench 使用 `artifactId` 作为稳定 source-package artifact identity。Folder name 仍然只是本地 source folder 和 preview route。Runtime build version 和 storage path 属于 Workbench 关心的范围；开发者仍然不在 `manifest.json` 中声明 runtime version。
 
-一个 shared artifact 可以声明一个或多个 factory-scoped `chainId + factoryAddress` binding，一个或多个 no-factory `chainId + vaultAddress` binding，或一个或多个 no-factory `chainId + tokenAddress` binding。No-factory 模式下，一个 binding 可以是 Vault-scoped（恰好一个 Vault 地址）、token-scoped（一个或多个 token 地址），或 Vault + token scoped（一个 Vault 地址加多个 token 地址）。Token CA list 只能声明为 `match.bindings[].tokenAddresses`。
+一个 shared artifact 可以声明一个或多个 factory-scoped `chainId + factoryAddress` binding，一个或多个 no-factory `chainId + vaultAddress` binding，或一个或多个 no-factory `chainId + tokenAddress` binding。No-factory 模式下，一个 binding 可以是 Vault-scoped（恰好一个 Vault 地址）、token-scoped（一个或多个 token 地址），或 Vault + token scoped（一个 Vault 地址加多个 token 地址）。每个 manifest 必须至少包含一个 binding-scoped `tokenAddresses` 作为 Workbench/E2E 测试 token 来源。Token CA list 只能声明为 `match.bindings[].tokenAddresses`。
 
 Vault source 应通过公开 alias 导入 shared runtime surface：
 
@@ -427,7 +427,7 @@ yarn dev
 yarn build
 yarn lint
 yarn typecheck
-yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0x1000000000000000000000000000000000000001 --dry-run
+yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --dry-run
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest

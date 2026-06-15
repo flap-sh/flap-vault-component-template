@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 21,
+  "version": 22,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -103,8 +103,8 @@
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
-    "bindingsRule": "match.bindings is a non-empty array of unique runtime targets. Each entry must declare chainId plus either a non-zero, non-placeholder factoryAddress for factory-scoped UI, exactly one non-zero, non-placeholder vaultAddresses entry for Vault-scoped UI without a factory, or one or more non-zero, non-placeholder tokenAddresses entries for token-scoped UI without a factory. A zero factoryAddress or reserved template placeholder address is invalid; omit factoryAddress for no-factory mode. Preview/runtime should prefer exact chainId + factoryAddress, chainId + vaultAddress (+ optional tokenAddress), or chainId + tokenAddress matches, treat partial hints as valid only when unambiguous, and use the first binding as a preview default only when the route provides no runtime hints.",
-    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. If a token CA list is needed, declare it only as match.bindings[].tokenAddresses. In no-factory mode tokenAddresses may be the binding target and may contain multiple token addresses.",
+    "bindingsRule": "match.bindings is a non-empty array of unique runtime targets. Each entry must declare chainId plus either a non-zero, non-placeholder factoryAddress for factory-scoped UI, exactly one non-zero, non-placeholder vaultAddresses entry for Vault-scoped UI without a factory, or one or more non-zero, non-placeholder tokenAddresses entries for token-scoped UI without a factory. A zero factoryAddress or reserved template placeholder address is invalid; omit factoryAddress for no-factory mode. At least one binding must include a valid tokenAddresses entry as the manifest-declared Workbench/vault:e2e test token source. Preview/runtime should prefer exact chainId + factoryAddress, chainId + vaultAddress (+ optional tokenAddress), or chainId + tokenAddress matches, treat partial hints as valid only when unambiguous, and use the first binding as a preview default only when the route provides no runtime hints.",
+    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. Declare at least one test token as match.bindings[].tokenAddresses so vault:check and Workbench can verify the package without relying on local-only vault:e2e --token overrides. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
@@ -127,8 +127,8 @@
   "commands": {
     "install": "yarn",
     "freshness": "node scripts/check-template-fresh.mjs --npm-only",
-    "scaffold": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 56 --factory 0xFactoryAddressRequired --locales en,zh",
-    "scaffoldSingleVault": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressIfNeeded --locales en,zh",
+    "scaffold": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh",
+    "scaffoldSingleVault": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressRequired --locales en,zh",
     "aiContext": "yarn vault:ai-context [example-folder] --out vault-ai-context.md",
     "installPlaywrightChromium": "yarn playwright install chromium",
     "register": "yarn vault:register {folder-name}",
@@ -244,6 +244,10 @@
     "manifest-binding/mixed-binding-target": {
       "severity": "blocking",
       "fixAction": "Use factoryAddress for factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI. Do not include factoryAddress and vaultAddresses in one binding."
+    },
+    "manifest-binding/missing-test-token": {
+      "severity": "blocking",
+      "fixAction": "Add at least one valid token address under match.bindings[].tokenAddresses. This manifest token is required for Workbench/vault:e2e test coverage; local --token overrides do not satisfy vault:check."
     },
     "risk-status/missing-host-risk-state": {
       "severity": "blocking",
@@ -457,10 +461,10 @@
             "chainId": { "type": "integer", "description": "EVM chain ID. Example: 56 for BNB Chain mainnet, 97 for testnet." },
             "factoryAddress": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$", "description": "Non-zero, non-placeholder factory contract address on this chain for factory-scoped UI." },
             "vaultAddresses": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }, "description": "Vault address list for this binding. If provided without factoryAddress, it must contain exactly one non-zero, non-placeholder address." },
-            "tokenAddresses": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }, "description": "Optional token CA list for this binding. In no-factory mode this may be the binding target and may contain multiple non-zero, non-placeholder token addresses." }
+            "tokenAddresses": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }, "description": "Binding-scoped token CA list. At least one binding must include a token address for Workbench/vault:e2e testing. In no-factory mode this may be the binding target and may contain multiple non-zero, non-placeholder token addresses." }
           }
         },
-        "description": "Explicit binding targets. Use chainId + factoryAddress for factory-scoped UI, chainId + exactly one vaultAddresses entry for Vault-scoped no-factory UI, or chainId + tokenAddresses for token-scoped no-factory UI."
+        "description": "Explicit binding targets. Use chainId + factoryAddress for factory-scoped UI, chainId + exactly one vaultAddresses entry for Vault-scoped no-factory UI, or chainId + tokenAddresses for token-scoped no-factory UI. At least one binding must include tokenAddresses for Workbench/vault:e2e testing."
       },
       "vaultAddresses": {
         "type": "array",

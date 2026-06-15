@@ -40,7 +40,7 @@ function baseManifest(overrides = {}) {
   return {
     name: "Selftest Vault UI",
     match: {
-      bindings: [{ chainId: 56, factoryAddress: FACTORY }],
+      bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [TOKEN] }],
     },
     i18n: ["en"],
     ...overrides,
@@ -194,7 +194,18 @@ try {
   const tokenPolicyCheck = runVaultCheck(tokenPolicySlug, { silent: true });
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/ca-policy-not-in-manifest"), false);
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-token-address-list"), false);
+  assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/missing-test-token"), false);
   passed.push("binding-level tokenAddresses reference lists are allowed");
+
+  const missingTestTokenSlug = `${FIXTURE_PREFIX}-missing-test-token`;
+  writeVault(missingTestTokenSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY }],
+      },
+    }),
+  });
+  assertRule("factory bindings must declare a manifest test token", runVaultCheck(missingTestTokenSlug, { silent: true }), "manifest-binding/missing-test-token", "blocking");
 
   const shortLocaleSlug = `${FIXTURE_PREFIX}-short-locale`;
   writeVault(shortLocaleSlug, {
@@ -1898,7 +1909,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 
   const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
   assert.throws(() =>
-    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-zero-scaffold`, "--chain", "56", "--factory", ZERO_ADDRESS, "--locales", "en"], {
+    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-zero-scaffold`, "--chain", "56", "--factory", ZERO_ADDRESS, "--token", TOKEN, "--locales", "en"], {
       cwd: ROOT,
       stdio: "pipe",
     }),
@@ -1906,7 +1917,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   passed.push("scaffold rejects zero factory input");
 
   assert.throws(() =>
-    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-placeholder-scaffold`, "--chain", "56", "--factory", PLACEHOLDER_FACTORY, "--locales", "en"], {
+    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-placeholder-scaffold`, "--chain", "56", "--factory", PLACEHOLDER_FACTORY, "--token", TOKEN, "--locales", "en"], {
       cwd: ROOT,
       stdio: "pipe",
     }),
@@ -1915,7 +1926,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 
   createdFolderNames.push(scaffoldFlowSlug);
   createdPackagePaths.push(path.join(ROOT, "dist", `${scaffoldFlowSlug}.zip`));
-  execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", scaffoldFlowSlug, "--chain", "56", "--factory", FACTORY, "--locales", "en,zh"], {
+  execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", scaffoldFlowSlug, "--chain", "56", "--factory", FACTORY, "--token", TOKEN, "--locales", "en,zh"], {
     cwd: ROOT,
     stdio: "pipe",
   });

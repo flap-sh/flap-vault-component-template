@@ -134,7 +134,7 @@ Use:
 - `@/src/ui` for Flap UI primitives.
 - `lucide-react` for icons before ad hoc SVG. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`).
 - `./VaultABI` as the only allowed local relative import.
-- `manifest.json` for required `artifactId`, match fields, i18n, optional per-binding `tokenAddresses`, optional per-binding `externalContracts`, optional non-oracle endpoints, and optional reviewed `externalFrames`. Each binding needs `chainId` plus either non-zero `factoryAddress` or exactly one non-zero `vaultAddresses` entry when there is no factory.
+- `manifest.json` for required `artifactId`, match fields, i18n, at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing, optional per-binding `externalContracts`, optional non-oracle endpoints, and optional reviewed `externalFrames`. Each binding needs `chainId` plus either non-zero `factoryAddress` or exactly one non-zero `vaultAddresses` entry when there is no factory.
 
 Do not copy standard ERC20 ABI into `VaultABI.ts`. Add token ABI fragments there only when a token has custom non-standard methods or a special mechanism.
 
@@ -184,7 +184,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-The E2E command runs deterministic PC / iPad / H5 Playwright checks for default, internal-market, DEX-listed, and wrong-network states, then writes `dist/e2e/my-vault/qa-report.json`. It checks DOM/layout/state rules directly and does not require AI image judgment. It must use a test token: prefer a chainId `97` BNB Testnet token; use a chainId `56` mainnet fallback token only when no testnet token exists. Factory-scoped packages without manifest `tokenAddresses` must pass `--token 0x...`.
+The E2E command runs deterministic PC / iPad / H5 Playwright checks for default, internal-market, DEX-listed, and wrong-network states, then writes `dist/e2e/my-vault/qa-report.json`. It checks DOM/layout/state rules directly and does not require AI image judgment. It must use a test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 On a first local run, especially on Windows, install Chromium once if Playwright reports a missing browser:
 
 ```bash

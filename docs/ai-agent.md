@@ -57,7 +57,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `name` | Yes | Human-readable manifest name shown in the Artifact Workbench. |
 | `bindings` | Yes | Core generation uses `chainId` plus non-zero `factoryAddress` for factory-scoped UI, or exactly one non-zero `vaultAddresses` entry for no-factory UI. |
 | `vaultAddresses` | Required for core no-factory binding | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]` for the normal scaffold path. |
-| `tokenAddresses` | Optional | Use only inside each `match.bindings` entry. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. |
+| `tokenAddresses` | Yes, at least one manifest token | Use only inside `match.bindings` entries. At least one binding must include a valid token address so `vault:check`, Workbench, and `vault:e2e` have a manifest-declared test token. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `externalFrames` | Optional | Use only when a display-only chart embed is unavoidable. At most one entry is allowed. Providers are limited to `tradingview`, `dexscreener`, and `coingecko-terminal`; `src` must be one complete static HTTPS provider URL with fixed query params. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Each locale string must be at least two characters. Check validates only declared locales. |
@@ -81,24 +81,24 @@ For a step-by-step beginner path that starts from raw Vault requirements and end
 Use the scaffold command to avoid folder and manifest mistakes:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
 ```
 
-For a single-Vault UI that has no factory, omit `--factory` and provide one Vault address. Token is optional:
+For a single-Vault UI that has no factory, omit `--factory` and provide one Vault address plus a manifest test token:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressIfNeeded --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressRequired --locales en,zh
 ```
 
 For a single-language UI:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales zh
 ```
 
 Replace these placeholder strings with real `0x` + 40 hex deployment addresses before running scaffold. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses, including the legacy `0x1000000000000000000000000000000000000001` factory fixture.
 
-If a factory-scoped UI needs a reference token CA allowlist, still scaffold the shared UI artifact first. Then add `tokenAddresses` manually under the relevant `match.bindings` entry in `manifest.json`; do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`, and do not pass CA flags to factory-mode `vault:scaffold`.
+Every manifest must include at least one binding-scoped `tokenAddresses` entry as the test token source for `vault:check`, Workbench, and `vault:e2e`. In factory mode, pass `--token` during scaffold or add `tokenAddresses` manually under the relevant `match.bindings` entry. Do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`. Local-only `vault:e2e --token` overrides do not satisfy `vault:check`.
 
 If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
 
@@ -210,6 +210,7 @@ The output is JSON and includes:
 If `summary.blocking` is greater than zero, fix those issues before doing anything else.
 If `manual-review/action-stage-gating` appears, the component has a write path but does not reference `marketPhase` or `isActionAvailableForPhase`. This is blocking; add explicit stage gating and visible unavailable-state copy before packaging.
 If `manifest-binding/mixed-binding-target` appears, one binding contains both `factoryAddress` and `vaultAddresses`. Choose one scope: factory-scoped UI uses `factoryAddress`; single-Vault UI omits `factoryAddress` and uses exactly one `vaultAddresses` entry.
+If `manifest-binding/missing-test-token` appears, add at least one valid token address under `match.bindings[].tokenAddresses`. This is required for Workbench and E2E test coverage, even for factory-scoped UI.
 If `risk-status/missing-host-risk-state` appears, the component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying.
 If `risk-status/not-prominent-placement` appears, the component renders host risk status too low or after a large visual block. Move the risk badge, metric, or row within the first three visible Vault-specific business rows/blocks, before any preview, hero, banner, showcase, media, chart, or large visual block, before retrying.
 If `risk-status/manual-low-risk-label` appears, the component renders `Low risk` / `低风险` copy without deriving it from host `riskLevel === 1`. Remove the manual label or move it into the explicit host-risk mapping branch before retrying.
@@ -222,7 +223,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 
@@ -242,7 +243,7 @@ The package command prints:
 - `sha256`
 - `bytes`
 
-`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. The E2E proof must use a test token: prefer chainId `97`; only use chainId `56` mainnet fallback when the package has no testnet token. If a factory-scoped package does not declare `tokenAddresses`, pass `--token 0x...`.
+`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. The E2E proof must use a test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 First-time local machines, especially Windows machines, may need `yarn playwright install chromium` before Chromium can launch. If the browser is missing, `vault:e2e` must emit the JSON code `vault-e2e/playwright-browser-missing` with that fix hint. GitHub Actions uses `npx playwright install --with-deps chromium`.
 Submit only the zip produced by this command. The zip contains format-version `4` `flap-vault-package.json`, `qa/e2e-report.json`, and matching `e2e` summary fields, which identify the package as a script-generated Flap Vault UI source package and record required file hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker, proof, or matching hashes.
 The package command also enforces the official git freshness gate and rejects missing, failed, or stale E2E proof, so a checkout that is behind, diverged, or not E2E-proven cannot produce a source zip.
@@ -324,6 +325,7 @@ A generated Vault UI is done only when:
 - `yarn vault:check {folder-name}` reports zero blocking issues.
 - The local template package version is at least npm latest `@flapsdk/vault-runtime`.
 - `manifest.artifactId` exists, matches `vaultui_<folder-name>_<ULID>`, and is unique in this repo.
+- `manifest.match.bindings` includes at least one valid `tokenAddresses` entry for Workbench/E2E test coverage.
 - `yarn vault:e2e {folder-name}` succeeds and writes a current `dist/e2e/{folder-name}/qa-report.json`.
 - `yarn vault:package {folder-name}` succeeds and prints the package path.
 - `yarn vault:verify-package dist/{folder-name}.zip` succeeds.

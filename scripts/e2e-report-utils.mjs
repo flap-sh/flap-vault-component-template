@@ -72,10 +72,9 @@ function bindingFactory(binding, overrides = {}) {
   return normalizeAddress(overrides.factoryAddress) ?? normalizeAddress(binding?.factoryAddress);
 }
 
-function manifestTokenAddressesForChain(manifest, chainId) {
+function manifestTokenAddresses(manifest) {
   const bindings = Array.isArray(manifest?.match?.bindings) ? manifest.match.bindings : [];
   return bindings
-    .filter((binding) => binding?.chainId === chainId)
     .flatMap((binding) => (Array.isArray(binding?.tokenAddresses) ? binding.tokenAddresses : []))
     .map(normalizeAddress)
     .filter(Boolean)
@@ -85,9 +84,6 @@ function manifestTokenAddressesForChain(manifest, chainId) {
 export function selectE2EBinding(manifest, overrides = {}) {
   const bindings = Array.isArray(manifest?.match?.bindings) ? manifest.match.bindings : [];
   const requestedChainId = Number.isInteger(overrides.chainId) ? overrides.chainId : undefined;
-  if (requestedChainId === 56 && manifestTokenAddressesForChain(manifest, 97).length > 0) {
-    throw new Error("vault:e2e must use the chainId 97 test token because manifest.match.bindings declares one; mainnet fallback is allowed only when no testnet token exists.");
-  }
   const candidates = bindings
     .filter((binding) => !requestedChainId || binding.chainId === requestedChainId)
     .map((binding) => ({
@@ -99,15 +95,17 @@ export function selectE2EBinding(manifest, overrides = {}) {
     }))
     .filter((item) => item.chainId === 97 || item.chainId === 56);
 
-  const testnet = candidates.find((item) => item.chainId === 97 && item.tokenAddress);
-  if (testnet) return { ...testnet, tokenPolicy: "testnet" };
-
-  const mainnet = candidates.find((item) => item.chainId === 56 && item.tokenAddress);
-  if (mainnet) return { ...mainnet, tokenPolicy: "mainnet-fallback" };
+  const selected = candidates.find((item) => item.tokenAddress);
+  if (selected) {
+    return {
+      ...selected,
+      tokenPolicy: selected.chainId === 97 ? "testnet" : "mainnet-fallback",
+    };
+  }
 
   const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet or BNB mainnet";
   throw new Error(
-    `vault:e2e requires a test token for ${chainLabel}. Prefer a chainId 97 token; if none exists, provide a chainId 56 token via match.bindings[].tokenAddresses or --token.`,
+    `vault:e2e requires a test token for ${chainLabel}. Declare it in match.bindings[].tokenAddresses, or pass --token only for local self-test.`,
   );
 }
 
@@ -184,7 +182,7 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
 
   const binding = report.binding ?? {};
   if ((binding.chainId !== 97 && binding.chainId !== 56) || !normalizeAddress(binding.tokenAddress)) {
-    addIssue("e2e-report/missing-test-token", "E2E report must bind to a BNB testnet token or a BNB mainnet fallback token.");
+    addIssue("e2e-report/missing-test-token", "E2E report must bind to a BNB chain token used for package testing.");
   }
   if (binding.chainId === 97 && binding.tokenPolicy !== "testnet") {
     addIssue("e2e-report/token-policy-mismatch", "chainId 97 E2E reports must use tokenPolicy=testnet.");
@@ -192,16 +190,16 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   if (binding.chainId === 56 && binding.tokenPolicy !== "mainnet-fallback") {
     addIssue("e2e-report/token-policy-mismatch", "chainId 56 E2E reports must use tokenPolicy=mainnet-fallback.");
   }
-  const explicitTestnetTokens = manifestTokenAddressesForChain(manifest, 97);
-  if (explicitTestnetTokens.length > 0 && binding.chainId !== 97) {
-    addIssue("e2e-report/testnet-first-violation", "Manifest declares a chainId 97 token, so the E2E proof must use the testnet token instead of mainnet fallback.");
-  }
-  if (binding.chainId === 97 || binding.chainId === 56) {
-    const explicitTokensForChain = manifestTokenAddressesForChain(manifest, binding.chainId);
-    const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();
-    if (explicitTokensForChain.length > 0 && tokenAddress && !explicitTokensForChain.includes(tokenAddress)) {
-      addIssue("e2e-report/token-address-mismatch", "E2E report tokenAddress must match a manifest tokenAddress when that chain declares tokenAddresses.");
-    }
+  const manifestTokens = manifestTokenAddresses(manifest);
+  const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();
+  if (manifestTokens.length === 0) {
+    addIssue("e2e-report/missing-manifest-test-token", "Manifest must declare at least one tokenAddresses entry for Workbench/E2E test coverage.", {
+      fixHint: `Add a valid token address under manifest match.bindings[].tokenAddresses, run ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+    });
+  } else if (tokenAddress && !manifestTokens.includes(tokenAddress)) {
+    addIssue("e2e-report/token-address-mismatch", "E2E report tokenAddress must match a manifest tokenAddresses entry.", {
+      fixHint: `Run ${E2E_REPORT_TOOL} ${folderName} with a manifest-declared token address, then regenerate the source package.`,
+    });
   }
 
   const viewports = new Set(Array.isArray(report.viewports) ? report.viewports.map((item) => item.id) : []);

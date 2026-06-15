@@ -45,9 +45,10 @@ Ask these in order. Each answer gates the next.
 
 - For factory mode, provide one real non-zero factory address per chain.
 - For no-factory Vault-scoped mode, omit `factoryAddress` and provide exactly one real non-zero Vault address per chain.
-- Example factory binding: chain 56 -> factory `0xAbcMainnet...`.
-- Example no-factory binding: chain 56 -> Vault `0xVault...`, optional token `0xToken...`.
+- Example factory binding: chain 56 -> factory `0xAbcMainnet...`, test token `0xToken...`.
+- Example no-factory binding: chain 56 -> Vault `0xVault...`, test token `0xToken...`.
 - Do not invent fake factory addresses. A zero factory address is invalid; use no-factory mode instead.
+- Every manifest must include at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing.
 
 ### Q5: Vault addresses
 

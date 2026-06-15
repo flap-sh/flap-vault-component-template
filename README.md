@@ -34,7 +34,7 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 
 This is the shortest safe path for a developer who wants AI help but still owns the Vault facts and local testing.
 
-1. Prepare real inputs: folder name, display name, `chainId`, factory address or single Vault address, optional token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses.
+1. Prepare real inputs: folder name, display name, `chainId`, factory address or single Vault address, manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses.
 2. Give those inputs to an AI Agent with this repository context. If the AI cannot read the repo directly, generate a pasteable context pack:
 
 ```bash
@@ -44,13 +44,13 @@ yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
 3. Scaffold the Vault package. Factory-scoped example:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
 ```
 
 Single-Vault example without a factory:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressIfNeeded --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressRequired --locales en,zh
 ```
 
 Replace placeholder addresses with real deployment addresses before running these commands.
@@ -73,7 +73,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a test token: prefer a BNB Testnet `chainId=97` token/vault/factory; if the package has no testnet token, use a BNB mainnet `chainId=56` fallback token. Factory-scoped packages without `match.bindings[].tokenAddresses` must pass `--token 0x...`.
+`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 
 First-time local machines, especially Windows machines, may need to install the Playwright browser once:
 
@@ -240,18 +240,18 @@ The full input schema is also machine-readable in `agent-contract.json` under `r
 For a new Vault UI, prefer the scaffold command:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
 ```
 
-For a UI without a factory, scaffold from one Vault address and optionally one token address:
+For a UI without a factory, scaffold from one Vault address and one manifest test token:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressIfNeeded --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressRequired --locales en,zh
 ```
 
 Replace placeholder addresses with real deployment addresses before running the command. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses so a source package with a fake factory or Vault cannot enter Workbench publish by accident.
 
-This creates the strict four-file Vault package, generates a stable `artifactId`, and registers the folder name in `src/vaults/index.ts`. If Flap review supplies extra no-factory token restrictions, keep them as `tokenAddresses` inside `match.bindings[]`; Flap review/runtime owns the final publish routing. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
+This creates the strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes the manifest-declared test token under `match.bindings[].tokenAddresses`. If Flap review supplies extra token restrictions, keep them as binding-scoped `tokenAddresses`; Flap review/runtime owns the final publish routing. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
 
 If the four Vault files already exist because they were generated from a manifest first, register only the local preview mapping:
 
@@ -285,18 +285,18 @@ For full code-base validation, run `yarn ci`. CI runs lint, typecheck, checker s
 Recommended (single chain):
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired
 ```
 
 For mainnet + testnet (repeat `--chain` / `--factory` per target):
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
-  --chain 56 --factory 0xMainnetFactory \
+  --chain 56 --factory 0xMainnetFactory --token 0xMainnetTokenForTesting \
   --chain 97 --factory 0xTestnetFactory
 ```
 
-For no-factory mode, repeat `--chain` / `--vault` per target. `--token` is optional, but when provided it must also be paired one-for-one:
+For no-factory mode, repeat `--chain` / `--vault` per target. At least one `--token` is required for the manifest test token; provide one token for the first test binding or one token per chain:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
@@ -332,7 +332,7 @@ Versioning rules for the Agent contract, manifest schema, and source package for
 The Vault folder is a strict source package boundary. It may contain only:
 
 - `Component.tsx`: the controlled React Vault UI component.
-- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}` or no-factory `{chainId, vaultAddresses: [vaultAddress]}` targets; optional per-binding `tokenAddresses`; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`.
+- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}` or no-factory `{chainId, vaultAddresses: [vaultAddress]}` targets; at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`.
 - `VaultABI.ts`: minimal Vault ABI fragments only. Standard ERC20 ABI is exported from `@/src/sdk`; add token ABI fragments here only for custom non-standard token methods.
 - `i18n.json`: locale dictionaries declared by `manifest.i18n`; manifest locale strings must be at least two characters.
 
@@ -393,7 +393,7 @@ Use `yarn vault:verify-package <zip>` to exercise the same package acceptance sh
 
 The Flap Artifact Workbench uses `artifactId` as the stable source-package artifact identity. The folder name remains the local source folder and preview route. Runtime build versions and storage paths are Workbench concerns; developers still do not declare runtime version in `manifest.json`.
 
-One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Declare token CA lists only as `match.bindings[].tokenAddresses`.
+One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Every manifest must include at least one binding-scoped `tokenAddresses` entry as the Workbench/E2E test token source. Declare token CA lists only as `match.bindings[].tokenAddresses`.
 
 Vault source should import shared runtime surfaces through public aliases:
 
@@ -450,7 +450,7 @@ yarn dev
 yarn build
 yarn lint
 yarn typecheck
-yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0xFactoryAddressRequired --dry-run
+yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --dry-run
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest

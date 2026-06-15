@@ -16,13 +16,21 @@
       "type": "object",
       "required": ["bindings"],
       "additionalProperties": false,
-      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more tokenAddresses entries.",
+      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more tokenAddresses entries. At least one binding must include tokenAddresses as the manifest-declared test token source for vault:check/e2e.",
       "properties": {
         "bindings": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "description": "Explicit factory-scoped, single-Vault, or token-scoped binding targets. One UI artifact can share logic across multiple deployment targets. Duplicate runtime binding keys are also blocked by vault:check.",
+          "description": "Explicit factory-scoped, single-Vault, or token-scoped binding targets. One UI artifact can share logic across multiple deployment targets. At least one binding must include tokenAddresses for Workbench/e2e test coverage. Duplicate runtime binding keys are also blocked by vault:check.",
+          "contains": {
+            "type": "object",
+            "required": ["tokenAddresses"],
+            "properties": {
+              "tokenAddresses": { "$ref": "#/$defs/addressArray" }
+            }
+          },
+          "minContains": 1,
           "items": {
             "type": "object",
             "required": ["chainId"],
@@ -63,7 +71,7 @@
               },
               "tokenAddresses": {
                 "$ref": "#/$defs/addressArray",
-                "description": "Optional binding-scoped token CA list. In no-factory mode this may be used as the binding target itself and may contain multiple token addresses."
+                "description": "Binding-scoped token CA list. At least one manifest binding must include a valid token address for Workbench/e2e test coverage. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",

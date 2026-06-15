@@ -404,11 +404,11 @@ function main() {
 
   if (!folderName) {
     fail(
-      "Usage: yarn vault:scaffold <folder-name> --chain 56 --factory 0x... or --chain 56 --vault 0x... [--token 0x...] [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
+      "Usage: yarn vault:scaffold <folder-name> --chain 56 --factory 0x... --token 0x... or --chain 56 --vault 0x... --token 0x... [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
       {
         code: "cli/missing-folder-name",
         fixHint:
-          "Provide a lowercase kebab-case folder name and at least one real binding target, for example: yarn vault:scaffold my-vault --chain 56 --factory 0xFactoryAddressRequired or yarn vault:scaffold my-vault --chain 56 --vault 0xVaultAddressRequired",
+          "Provide a lowercase kebab-case folder name, a real binding target, and a manifest test token, for example: yarn vault:scaffold my-vault --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired.",
       },
     );
   }
@@ -447,7 +447,7 @@ function main() {
   if (!usingFactoryMode && !usingVaultMode) {
     fail("Each binding needs either --factory or --vault.", {
       code: "manifest-binding/missing-binding-target",
-      fixHint: "Pass --chain 56 --factory 0x... for factory-scoped UI, or --chain 56 --vault 0x... [--token 0x...] for single-Vault UI.",
+      fixHint: "Pass --chain 56 --factory 0x... --token 0x... for factory-scoped UI, or --chain 56 --vault 0x... --token 0x... for single-Vault UI.",
     });
   }
   if (usingFactoryMode && chainValues.length !== factoryValues.length) {
@@ -466,17 +466,24 @@ function main() {
       vaultCount: vaultValues.length,
     });
   }
-  if (parsed["restrict-token"] !== undefined || (usingFactoryMode && tokenValues.length)) {
-    fail("Token CA reference lists are not accepted as factory-mode scaffold flags.", {
+  if (parsed["restrict-token"] !== undefined) {
+    fail("Global token restriction flags are not accepted in the public manifest.", {
       code: "manifest-binding/ca-policy-not-in-manifest",
-      fixHint: "Remove --restrict-token and --token flags for factory mode. If a reference token CA list is needed, scaffold first and then add tokenAddresses under the relevant match.bindings entry in manifest.json.",
+      fixHint: "Remove --restrict-token. Use match.bindings[].tokenAddresses only for the required manifest test token or reviewed binding-scoped token references.",
       tokenCount: tokenValues.length,
     });
   }
-  if (usingVaultMode && tokenValues.length && tokenValues.length !== chainValues.length) {
-    fail(`--token count must match --chain count in single-Vault mode: got ${chainValues.length} chain(s) and ${tokenValues.length} token address(es).`, {
+  if (tokenValues.length === 0) {
+    fail("At least one --token address is required so manifest.json carries a Workbench/vault:e2e test token.", {
+      code: "manifest-binding/missing-test-token",
+      fixHint: "Pass --token 0xTokenAddressRequired. For multiple chains, pass one token for the first test binding or one --token per --chain.",
+      chainCount: chainValues.length,
+    });
+  }
+  if (tokenValues.length !== 1 && tokenValues.length !== chainValues.length) {
+    fail(`--token count must be one token or match --chain count: got ${chainValues.length} chain(s) and ${tokenValues.length} token address(es).`, {
       code: "manifest-binding/chain-token-count-mismatch",
-      fixHint: "Provide exactly one --token per --chain in the same order, or omit --token when token matching is not needed.",
+      fixHint: "Provide exactly one --token for the first test binding, or one --token per --chain in the same order.",
       chainCount: chainValues.length,
       tokenCount: tokenValues.length,
     });
@@ -523,7 +530,7 @@ function main() {
     if (address.toLowerCase() === ZERO_ADDRESS) {
       fail(`Invalid zero address: ${address}`, {
         code: "manifest-binding/invalid-address",
-        fixHint: "Use a real deployed Vault or token address, or omit the optional token address.",
+        fixHint: "Use a real deployed Vault or token address. At least one valid token address is required in manifest tokenAddresses.",
         address,
       });
     }
@@ -536,12 +543,15 @@ function main() {
     });
   }
 
-  const bindings = chainValues.map((chainId, index) => ({
-    chainId,
-    factoryAddress: factoryValues[index],
-    vaultAddresses: vaultValues[index] ? [vaultValues[index]] : [],
-    tokenAddresses: usingVaultMode && tokenValues[index] ? [tokenValues[index]] : [],
-  }));
+  const bindings = chainValues.map((chainId, index) => {
+    const tokenAddress = tokenValues.length === chainValues.length ? tokenValues[index] : index === 0 ? tokenValues[0] : undefined;
+    return {
+      chainId,
+      factoryAddress: factoryValues[index],
+      vaultAddresses: vaultValues[index] ? [vaultValues[index]] : [],
+      tokenAddresses: tokenAddress ? [tokenAddress] : [],
+    };
+  });
 
   const vaultDir = path.join(ROOT, "src", "vaults", folderName);
   if (fs.existsSync(vaultDir) && !force) {

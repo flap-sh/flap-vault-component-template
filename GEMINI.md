@@ -15,7 +15,7 @@ Core operating rules:
 
 - Use `yarn`.
 - Edit one Vault UI package at a time.
-- Prefer `yarn vault:scaffold <folder-name> --chain 56 --factory 0x...` for factory-scoped packages, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... [--token 0x...]` for single-Vault packages without a factory. Repeat `--chain` with the matching `--factory` or `--vault` target for each deployment.
+- Prefer `yarn vault:scaffold <folder-name> --chain 56 --factory 0x... --token 0x...` for factory-scoped packages, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x...` for single-Vault packages without a factory. Repeat `--chain` with the matching `--factory` or `--vault` target for each deployment; at least one manifest binding must include `tokenAddresses` for Workbench/E2E testing.
 - If the four Vault files already exist, run `yarn vault:register <folder-name>`.
 - Keep `src/vaults/{folder-name}` limited to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
 - Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.
@@ -24,7 +24,7 @@ Core operating rules:
 - Declare fixed non-token/non-Vault/non-factory contract targets only under `match.bindings[].externalContracts` with `address` and `label`; undeclared fixed targets fail `vault:check`.
 - Treat every Vault CLI failure as JSON. Read `code`, `fixHint`, and `agent.nextActions`, fix those items, then rerun the command.
 - Run `yarn vault:check <folder-name>` before packaging and fix all blocking issues.
-- Run `yarn vault:e2e <folder-name>` before packaging; it must produce a passing `dist/e2e/<folder-name>/qa-report.json` bound to a test token and current source hashes. This is deterministic Playwright DOM/layout/state checking, not AI image judgment. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the command returns `vault-e2e/playwright-browser-missing`.
+- Run `yarn vault:e2e <folder-name>` before packaging; it must produce a passing `dist/e2e/<folder-name>/qa-report.json` bound to a manifest-declared test token and current source hashes. This is deterministic Playwright DOM/layout/state checking, not AI image judgment. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the command returns `vault-e2e/playwright-browser-missing`.
 - Run `yarn vault:package <folder-name>` only after checks and E2E pass.
 - Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging.
 - For code-base changes, run `yarn ci` when feasible; it includes full PC / iPad / H5 E2E for built-in examples.

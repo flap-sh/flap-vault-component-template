@@ -457,7 +457,7 @@ try {
     factoryAddress: asAddress(args.factory || process.env.VAULT_E2E_FACTORY_ADDRESS),
   });
 } catch (error) {
-  failE2E("vault-e2e/missing-test-token", error instanceof Error ? error.message : String(error), "Add a chainId 97 token binding or pass a chainId 56 fallback token with --token.");
+  failE2E("vault-e2e/missing-test-token", error instanceof Error ? error.message : String(error), "Add a valid token address under manifest match.bindings[].tokenAddresses, or pass --token only for local self-test.");
 }
 
 const outDir = path.join(ROOT, E2E_DIST_DIR, folderName);
