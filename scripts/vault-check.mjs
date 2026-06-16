@@ -4,12 +4,15 @@ import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
+import { collectManifestErc20TokenIssues } from "./erc20-token-validation.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
+  ["0x2000000000000000000000000000000000000002", "template token placeholder"],
+  ["0x2000000000000000000000000000000000000005", "template token placeholder"],
 ]);
 const FOLDER_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FOLDER_NAME_MIN_LENGTH = 3;
@@ -164,6 +167,7 @@ const FIX_HINTS = {
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only when a reference token CA list is needed.",
   "manifest-binding/missing-test-token": "Declare at least one valid test token in every match.bindings[] entry under tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof.",
+  "manifest-binding/invalid-erc20-token": "Use a real deployed ERC20 token contract on the declared chain. The checker must read bytecode plus standard ERC20 metadata before packaging.",
   "manifest-binding/invalid-vault-address-list": "Use a non-empty array of valid non-zero EVM addresses. No-factory Vault bindings may contain exactly one Vault address.",
   "manifest-binding/invalid-token-address-list": "Use a non-empty array of valid non-zero EVM addresses, or omit it when no token CA list is needed.",
   "manifest-binding/invalid-external-contract-list": "Use a non-empty externalContracts array only when this binding needs fixed non-token/non-Vault/non-factory contract targets.",
@@ -2930,10 +2934,35 @@ export function runVaultCheck(folderName, options = {}) {
   return finish(folderName, issues, options);
 }
 
+export async function runVaultCheckWithTokenContracts(folderName, options = {}) {
+  const staticReport = runVaultCheck(folderName, { ...options, silent: true });
+  if (staticReport.summary.blocking > 0) {
+    if (!options.silent) console.log(JSON.stringify(staticReport, null, 2));
+    return staticReport;
+  }
+
+  let manifest = {};
+  try {
+    manifest = readJson(path.join(ROOT, "src", "vaults", folderName, "manifest.json"));
+  } catch {
+    if (!options.silent) console.log(JSON.stringify(staticReport, null, 2));
+    return staticReport;
+  }
+
+  const tokenIssues = await collectManifestErc20TokenIssues(manifest, {
+    file: `src/vaults/${folderName}/manifest.json`,
+  });
+  const report = buildCheckReport(folderName, [...staticReport.issues, ...tokenIssues]);
+  if (!options.silent) {
+    console.log(JSON.stringify(report, null, 2));
+  }
+  return report;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const folderName = process.argv[2];
   await assertTemplateFresh({ folderName });
-  const result = runVaultCheck(folderName);
+  const result = await runVaultCheckWithTokenContracts(folderName);
   const hasBlocking = result.issues.some((item) => item.severity === BLOCKING);
   process.exit(hasBlocking ? 1 : 0);
 }

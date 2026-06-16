@@ -13,6 +13,11 @@ export const REQUIRED_VIEWPORTS = ["pc", "ipad", "h5"];
 export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
+  ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
+  ["0x2000000000000000000000000000000000000002", "template token placeholder"],
+  ["0x2000000000000000000000000000000000000005", "template token placeholder"],
+]);
 
 export function sha256Buffer(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
@@ -24,6 +29,16 @@ export function sha256File(filePath) {
 
 export function normalizeAddress(value) {
   return typeof value === "string" && ADDRESS_RE.test(value) ? value : undefined;
+}
+
+export function placeholderAddressLabel(value) {
+  const normalized = normalizeAddress(value)?.toLowerCase();
+  return normalized ? RESERVED_PLACEHOLDER_ADDRESSES.get(normalized) : undefined;
+}
+
+function validTestToken(value) {
+  const address = normalizeAddress(value);
+  return address && !placeholderAddressLabel(address) ? address : undefined;
 }
 
 export function requiredSourcePaths(folderName) {
@@ -60,8 +75,17 @@ function firstAddress(values) {
   return undefined;
 }
 
+function firstValidTestToken(values) {
+  if (!Array.isArray(values)) return undefined;
+  for (const value of values) {
+    const address = validTestToken(value);
+    if (address) return address;
+  }
+  return undefined;
+}
+
 function bindingToken(binding, overrides = {}) {
-  return normalizeAddress(overrides.tokenAddress) ?? firstAddress(binding?.tokenAddresses);
+  return validTestToken(overrides.tokenAddress) ?? firstValidTestToken(binding?.tokenAddresses);
 }
 
 function bindingVault(binding, overrides = {}) {
@@ -76,9 +100,20 @@ function manifestTokenAddresses(manifest) {
   const bindings = Array.isArray(manifest?.match?.bindings) ? manifest.match.bindings : [];
   return bindings
     .flatMap((binding) => (Array.isArray(binding?.tokenAddresses) ? binding.tokenAddresses : []))
-    .map(normalizeAddress)
+    .map(validTestToken)
     .filter(Boolean)
     .map((address) => address.toLowerCase());
+}
+
+function manifestBindingsMissingTokenAddresses(manifest) {
+  const bindings = Array.isArray(manifest?.match?.bindings) ? manifest.match.bindings : [];
+  return bindings
+    .map((binding, index) => ({
+      index,
+      hasToken: Array.isArray(binding?.tokenAddresses) && binding.tokenAddresses.map(validTestToken).filter(Boolean).length > 0,
+    }))
+    .filter((item) => !item.hasToken)
+    .map((item) => item.index);
 }
 
 export function selectE2EBinding(manifest, overrides = {}) {
@@ -105,7 +140,7 @@ export function selectE2EBinding(manifest, overrides = {}) {
 
   const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet or BNB mainnet";
   throw new Error(
-    `vault:e2e requires a test token for ${chainLabel}. Declare it in match.bindings[].tokenAddresses, or pass --token only for local self-test.`,
+    `vault:e2e requires a real non-placeholder test token for ${chainLabel}. Declare it in match.bindings[].tokenAddresses, or pass --token only for local self-test.`,
   );
 }
 
@@ -183,6 +218,12 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   const binding = report.binding ?? {};
   if ((binding.chainId !== 97 && binding.chainId !== 56) || !normalizeAddress(binding.tokenAddress)) {
     addIssue("e2e-report/missing-test-token", "E2E report must bind to a BNB chain token used for package testing.");
+  } else if (placeholderAddressLabel(binding.tokenAddress)) {
+    addIssue("e2e-report/placeholder-test-token", "E2E report tokenAddress uses a reserved template placeholder instead of a real deployed token contract.", {
+      field: "binding.tokenAddress",
+      tokenAddress: binding.tokenAddress,
+      fixHint: `Use a real deployed BNB Chain token address, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+    });
   }
   if (binding.chainId === 97 && binding.tokenPolicy !== "testnet") {
     addIssue("e2e-report/token-policy-mismatch", "chainId 97 E2E reports must use tokenPolicy=testnet.");
@@ -191,10 +232,12 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
     addIssue("e2e-report/token-policy-mismatch", "chainId 56 E2E reports must use tokenPolicy=mainnet-fallback.");
   }
   const manifestTokens = manifestTokenAddresses(manifest);
+  const bindingsMissingTokenAddresses = manifestBindingsMissingTokenAddresses(manifest);
   const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();
-  if (manifestTokens.length === 0) {
-    addIssue("e2e-report/missing-manifest-test-token", "Manifest must declare at least one tokenAddresses entry for Workbench/E2E test coverage.", {
-      fixHint: `Add a valid token address under manifest match.bindings[].tokenAddresses, run ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+  if (bindingsMissingTokenAddresses.length > 0) {
+    addIssue("e2e-report/missing-manifest-test-token", "Every manifest binding must declare at least one real non-placeholder tokenAddresses entry for Workbench/E2E test coverage.", {
+      field: bindingsMissingTokenAddresses.map((index) => `match.bindings[${index}].tokenAddresses`),
+      fixHint: `Add a real deployed token address under every manifest match.bindings[].tokenAddresses entry, run ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
   } else if (tokenAddress && !manifestTokens.includes(tokenAddress)) {
     addIssue("e2e-report/token-address-mismatch", "E2E report tokenAddress must match a manifest tokenAddresses entry.", {

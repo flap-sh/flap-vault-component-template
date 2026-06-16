@@ -6,12 +6,12 @@
       {
         "chainId": 56,
         "vaultAddresses": ["0x3000000000000000000000000000000000000003"],
-        "tokenAddresses": ["0x2000000000000000000000000000000000000002"]
+        "tokenAddresses": ["0x55d398326f99059fF775485246999027B3197955"]
       },
       {
         "chainId": 97,
         "vaultAddresses": ["0x3000000000000000000000000000000000000003"],
-        "tokenAddresses": ["0x2000000000000000000000000000000000000002"]
+        "tokenAddresses": ["0xae13d989dac2f0debff460ac112a837c89baa7cd"]
       }
     ]
   },

@@ -4,6 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { failAgent } from "./agent-error.mjs";
+import { validateErc20TokenContract } from "./erc20-token-validation.mjs";
 import { isValidFolderName, registerVault } from "./vault-registration.mjs";
 
 const ROOT = process.cwd();
@@ -11,6 +12,8 @@ const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
+  ["0x2000000000000000000000000000000000000002", "template token placeholder"],
+  ["0x2000000000000000000000000000000000000005", "template token placeholder"],
 ]);
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const ARTIFACT_ID_RE = /^vaultui_([a-z0-9]+(?:-[a-z0-9]+)*)_([0-9A-HJKMNPQRSTVWXYZ]{26})$/;
@@ -396,7 +399,7 @@ function manifestSource({ artifactId, name, bindings, locales }) {
   return `${JSON.stringify({ artifactId, name, match, i18n: locales }, null, 2)}\n`;
 }
 
-function main() {
+async function main() {
   const parsed = parseArgs(process.argv.slice(2));
   const folderName = parsed._[0];
   const dryRun = collectBoolean(parsed, "dry-run", false);
@@ -543,6 +546,20 @@ function main() {
     });
   }
 
+  for (const [index, tokenAddress] of tokenValues.entries()) {
+    const chainId = chainValues[index];
+    const result = await validateErc20TokenContract(chainId, tokenAddress);
+    if (!result.ok) {
+      fail(`Invalid ERC20 token address for chain ${chainId}: ${tokenAddress}`, {
+        code: "manifest-binding/invalid-erc20-token",
+        fixHint: "Use a real deployed ERC20 token contract on the declared chain, then rerun vault:scaffold.",
+        chainId,
+        tokenAddress,
+        tokenContract: result,
+      });
+    }
+  }
+
   const bindings = chainValues.map((chainId, index) => {
     const tokenAddress = tokenValues[index];
     return {
@@ -616,4 +633,4 @@ function main() {
   );
 }
 
-main();
+await main();

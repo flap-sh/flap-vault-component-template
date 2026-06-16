@@ -63,7 +63,7 @@
               },
               "tokenAddresses": {
                 "$ref": "#/$defs/addressArray",
-                "description": "Binding-scoped token CA list. Every manifest binding must include at least one valid token address for Workbench/e2e test coverage. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
+                "description": "Binding-scoped token CA list. Every manifest binding must include at least one real deployed ERC20 token address for Workbench/e2e test coverage. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",
@@ -106,7 +106,9 @@
       "allOf": [
         { "$ref": "#/$defs/address" },
         { "not": { "const": "0x0000000000000000000000000000000000000000" } },
-        { "not": { "const": "0x1000000000000000000000000000000000000001" } }
+        { "not": { "const": "0x1000000000000000000000000000000000000001" } },
+        { "not": { "const": "0x2000000000000000000000000000000000000002" } },
+        { "not": { "const": "0x2000000000000000000000000000000000000005" } }
       ]
     },
     "httpsUrl": { "type": "string", "format": "uri", "pattern": "^https://" },

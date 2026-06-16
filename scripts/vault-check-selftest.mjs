@@ -13,17 +13,20 @@ import {
   MANIFEST_SCHEMA_PATH,
   REQUIRED_PHASES,
   REQUIRED_VIEWPORTS,
+  selectE2EBinding,
   sourceSha256FromFileHashes,
 } from "./e2e-report-utils.mjs";
-import { runVaultCheck } from "./vault-check.mjs";
+import { runVaultCheck, runVaultCheckWithTokenContracts } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
 const FACTORY = "0xc3e4ee8f3c616d16297fafcb9daab122d31efa9e";
 const PLACEHOLDER_FACTORY = "0x1000000000000000000000000000000000000001";
+const PLACEHOLDER_TOKEN = "0x2000000000000000000000000000000000000002";
+const NON_ERC20_TOKEN = "0x2000000000000000000000000000000000000003";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const TOKEN = "0x2000000000000000000000000000000000000002";
-const SECOND_TOKEN = "0x2000000000000000000000000000000000000005";
+const TOKEN = "0x55d398326f99059fF775485246999027B3197955";
+const SECOND_TOKEN = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 const VAULT = "0x3000000000000000000000000000000000000003";
 const EXTERNAL_CONTRACT = "0x4000000000000000000000000000000000000004";
 const FIXTURE_ULID = "01K9V9Z0P0AAAAAAAAAAAAAAAA";
@@ -219,6 +222,42 @@ try {
     }),
   });
   assertRule("each binding must declare its own manifest test token", runVaultCheck(partialTestTokenSlug, { silent: true }), "manifest-binding/missing-test-token", "blocking");
+
+  const placeholderTokenSlug = `${FIXTURE_PREFIX}-placeholder-token`;
+  writeVault(placeholderTokenSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [PLACEHOLDER_TOKEN] }],
+      },
+    }),
+  });
+  assertRule("template placeholder token bindings are blocked", runVaultCheck(placeholderTokenSlug, { silent: true }), "manifest-binding/placeholder-address", "blocking");
+
+  assert.throws(() =>
+    selectE2EBinding({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [PLACEHOLDER_TOKEN] }],
+      },
+    }),
+  );
+  passed.push("vault:e2e selection rejects placeholder test tokens");
+
+  const invalidErc20TokenSlug = `${FIXTURE_PREFIX}-invalid-erc20-token`;
+  createdFolderNames.push(invalidErc20TokenSlug);
+  execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", invalidErc20TokenSlug, "--chain", "56", "--factory", FACTORY, "--token", TOKEN, "--locales", "en"], {
+    cwd: ROOT,
+    stdio: "pipe",
+  });
+  const invalidErc20ManifestPath = path.join(ROOT, "src", "vaults", invalidErc20TokenSlug, "manifest.json");
+  const invalidErc20Manifest = JSON.parse(fs.readFileSync(invalidErc20ManifestPath, "utf8"));
+  invalidErc20Manifest.match.bindings[0].tokenAddresses = [NON_ERC20_TOKEN];
+  fs.writeFileSync(invalidErc20ManifestPath, `${JSON.stringify(invalidErc20Manifest, null, 2)}\n`);
+  assertRule(
+    "vault:check blocks syntactically valid but undeployed ERC20 token addresses",
+    await runVaultCheckWithTokenContracts(invalidErc20TokenSlug, { silent: true }),
+    "manifest-binding/invalid-erc20-token",
+    "blocking",
+  );
 
   const shortLocaleSlug = `${FIXTURE_PREFIX}-short-locale`;
   writeVault(shortLocaleSlug, {
@@ -1197,7 +1236,7 @@ import { useFlapSdk } from "@/src/sdk";
 
 export default function SelftestVault(_props: VaultComponentProps) {
   const { i18n } = useFlapSdk();
-  return <a href="https://bscscan.com/address/0x2000000000000000000000000000000000000002">{i18n.t("title")}</a>;
+  return <a href="https://bscscan.com/address/0x55d398326f99059fF775485246999027B3197955">{i18n.t("title")}</a>;
 }
 `,
   });
@@ -1936,6 +1975,22 @@ export default function SelftestVault(_props: VaultComponentProps) {
     }),
   );
   passed.push("scaffold rejects template placeholder factory input");
+
+  assert.throws(() =>
+    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-placeholder-token-scaffold`, "--chain", "56", "--factory", FACTORY, "--token", PLACEHOLDER_TOKEN, "--locales", "en"], {
+      cwd: ROOT,
+      stdio: "pipe",
+    }),
+  );
+  passed.push("scaffold rejects template placeholder token input");
+
+  assert.throws(() =>
+    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-invalid-erc20-token-scaffold`, "--chain", "56", "--factory", FACTORY, "--token", NON_ERC20_TOKEN, "--locales", "en"], {
+      cwd: ROOT,
+      stdio: "pipe",
+    }),
+  );
+  passed.push("scaffold rejects undeployed ERC20 token input");
 
   assert.throws(() =>
     execFileSync(

@@ -50,7 +50,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactory
 单 Vault、无 factory 示例：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x55d398326f99059fF775485246999027B3197955 --locales en,zh
 ```
 
 4. 只编辑 `src/vaults/my-vault` 下的四个包文件：`Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json`。除非 Vault 需要不同组织方式，否则保留 scaffold 默认业务卡片结构。内置 example route 是行为参考，不是默认视觉风格。需要图标时优先使用 `lucide-react`，先从 Lucide 官方图标库选择：`https://lucide.dev/icons/`。
@@ -236,7 +236,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactory
 无 factory 的 UI 可从一个 Vault 地址和一个 manifest 测试 token 地址 scaffold：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x2000000000000000000000000000000000000002 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x55d398326f99059fF775485246999027B3197955 --locales en,zh
 ```
 
 这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把 manifest 测试 token 写入 `match.bindings[].tokenAddresses`。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：

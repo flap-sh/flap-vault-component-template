@@ -10,6 +10,7 @@ import {
   summarizeE2EReportForMarker,
   validateE2EReportObject,
 } from "./e2e-report-utils.mjs";
+import { collectE2EReportErc20TokenIssues, collectManifestErc20TokenIssues } from "./erc20-token-validation.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
 const PACKAGE_FORMAT_VERSION = 4;
@@ -176,7 +177,7 @@ function expectedSourceFiles(folderName) {
   return REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`);
 }
 
-function verifyPackage(zipPath) {
+async function verifyPackage(zipPath) {
   const absolutePath = path.resolve(zipPath);
   if (!fs.existsSync(absolutePath)) {
     failVerify({
@@ -302,6 +303,11 @@ function verifyPackage(zipPath) {
       if (manifest.artifactId !== marker.artifactId) {
         issues.push(jsonIssue("package-verify/artifact-id-mismatch", "Package marker artifactId does not match manifest.json.", "Regenerate with yarn vault:package <folder-name> from the current source.", { file: "manifest.json" }));
       }
+      issues.push(
+        ...(await collectManifestErc20TokenIssues(manifest, {
+          file: `src/vaults/${folderName}/manifest.json`,
+        })),
+      );
     }
 
     let e2eReport;
@@ -317,6 +323,7 @@ function verifyPackage(zipPath) {
         issues,
         file: E2E_REPORT_PACKAGE_PATH,
       });
+      issues.push(...(await collectE2EReportErc20TokenIssues(e2eReport, { file: E2E_REPORT_PACKAGE_PATH, folderName })));
       const expectedE2ESummary = summarizeE2EReportForMarker(e2eReport);
       if (JSON.stringify(marker.e2e) !== JSON.stringify(expectedE2ESummary)) {
         issues.push(
@@ -397,7 +404,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       fixHint: "Run yarn vault:package <folder-name>, then pass the generated sourcePackagePath.",
     });
   }
-  console.log(JSON.stringify(verifyPackage(packagePath), null, 2));
+  console.log(JSON.stringify(await verifyPackage(packagePath), null, 2));
 }
 
 export { verifyPackage };

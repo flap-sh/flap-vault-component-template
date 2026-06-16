@@ -12,7 +12,7 @@ import {
   summarizeE2EReportForMarker,
   validateE2EReportObject,
 } from "./e2e-report-utils.mjs";
-import { runVaultCheck } from "./vault-check.mjs";
+import { runVaultCheckWithTokenContracts } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const PACKAGE_KIND = "flap-vault-ui-source-package";
@@ -41,7 +41,7 @@ if (!runtimePackageGitHead) {
     },
   });
 }
-const result = runVaultCheck(folderName, { silent: true });
+const result = await runVaultCheckWithTokenContracts(folderName, { silent: true });
 const hasBlocking = result.issues.some((item) => item.severity === "blocking");
 if (hasBlocking) {
   failAgent({
