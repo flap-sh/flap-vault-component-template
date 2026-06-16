@@ -221,7 +221,7 @@ try {
       },
     }),
   });
-  assertRule("each binding must declare its own manifest test token", runVaultCheck(partialTestTokenSlug, { silent: true }), "manifest-binding/missing-test-token", "blocking");
+  assertNoRule("one manifest test token can cover a multi-binding manifest", runVaultCheck(partialTestTokenSlug, { silent: true }), "manifest-binding/missing-test-token", "blocking");
 
   const placeholderTokenSlug = `${FIXTURE_PREFIX}-placeholder-token`;
   writeVault(placeholderTokenSlug, {
@@ -1992,32 +1992,32 @@ export default function SelftestVault(_props: VaultComponentProps) {
   );
   passed.push("scaffold rejects undeployed ERC20 token input");
 
-  assert.throws(() =>
-    execFileSync(
-      process.execPath,
-      [
-        "scripts/vault-scaffold.mjs",
-        `${FIXTURE_PREFIX}-partial-token-scaffold`,
-        "--chain",
-        "56",
-        "--factory",
-        FACTORY,
-        "--token",
-        TOKEN,
-        "--chain",
-        "97",
-        "--factory",
-        FACTORY,
-        "--locales",
-        "en",
-      ],
-      {
-        cwd: ROOT,
-        stdio: "pipe",
-      },
-    ),
+  const partialTokenScaffoldSlug = `${FIXTURE_PREFIX}-partial-token-scaffold`;
+  createdFolderNames.push(partialTokenScaffoldSlug);
+  execFileSync(
+    process.execPath,
+    [
+      "scripts/vault-scaffold.mjs",
+      partialTokenScaffoldSlug,
+      "--chain",
+      "56",
+      "--factory",
+      FACTORY,
+      "--token",
+      TOKEN,
+      "--chain",
+      "97",
+      "--factory",
+      FACTORY,
+      "--locales",
+      "en",
+    ],
+    {
+      cwd: ROOT,
+      stdio: "pipe",
+    },
   );
-  passed.push("scaffold requires one token per binding");
+  passed.push("scaffold accepts one manifest test token for multiple bindings");
 
   createdFolderNames.push(scaffoldFlowSlug);
   createdPackagePaths.push(path.join(ROOT, "dist", `${scaffoldFlowSlug}.zip`));

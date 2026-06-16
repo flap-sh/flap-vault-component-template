@@ -105,17 +105,6 @@ function manifestTokenAddresses(manifest) {
     .map((address) => address.toLowerCase());
 }
 
-function manifestBindingsMissingTokenAddresses(manifest) {
-  const bindings = Array.isArray(manifest?.match?.bindings) ? manifest.match.bindings : [];
-  return bindings
-    .map((binding, index) => ({
-      index,
-      hasToken: Array.isArray(binding?.tokenAddresses) && binding.tokenAddresses.map(validTestToken).filter(Boolean).length > 0,
-    }))
-    .filter((item) => !item.hasToken)
-    .map((item) => item.index);
-}
-
 export function selectE2EBinding(manifest, overrides = {}) {
   const bindings = Array.isArray(manifest?.match?.bindings) ? manifest.match.bindings : [];
   const requestedChainId = Number.isInteger(overrides.chainId) ? overrides.chainId : undefined;
@@ -232,12 +221,11 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
     addIssue("e2e-report/token-policy-mismatch", "chainId 56 E2E reports must use tokenPolicy=mainnet-fallback.");
   }
   const manifestTokens = manifestTokenAddresses(manifest);
-  const bindingsMissingTokenAddresses = manifestBindingsMissingTokenAddresses(manifest);
   const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();
-  if (bindingsMissingTokenAddresses.length > 0) {
-    addIssue("e2e-report/missing-manifest-test-token", "Every manifest binding must declare at least one real non-placeholder tokenAddresses entry for Workbench/E2E test coverage.", {
-      field: bindingsMissingTokenAddresses.map((index) => `match.bindings[${index}].tokenAddresses`),
-      fixHint: `Add a real deployed token address under every manifest match.bindings[].tokenAddresses entry, run ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+  if (manifestTokens.length === 0) {
+    addIssue("e2e-report/missing-manifest-test-token", "Manifest must declare at least one real non-placeholder tokenAddresses entry for Workbench/E2E test coverage.", {
+      field: "match.bindings[].tokenAddresses",
+      fixHint: `Add a real deployed token address under at least one manifest match.bindings[].tokenAddresses entry, run ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
   } else if (tokenAddress && !manifestTokens.includes(tokenAddress)) {
     addIssue("e2e-report/token-address-mismatch", "E2E report tokenAddress must match a manifest tokenAddresses entry.", {

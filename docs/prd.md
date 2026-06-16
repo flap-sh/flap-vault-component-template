@@ -230,7 +230,7 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Folder route boundary | Done | `vault:check` requires 3-64 character lowercase kebab-case folder names for source folders and preview routes. |
 | Artifact identity | Done | `artifactId` is required, follows `vaultui_<folder-name>_<ULID>`, matches the Vault folder name, and is unique across Vault manifests. |
 | Minimal manifest | Done | Schema and check script allow only developer-facing fields. |
-| CA policy boundary | Done | `vault:check` blocks global `restrictTokenAddresses`, global `tokenAddresses`, and `caPolicy`, while requiring every binding to include a binding-scoped `match.bindings[].tokenAddresses` entry as its Workbench/E2E test token source. |
+| CA policy boundary | Done | `vault:check` blocks global `restrictTokenAddresses`, global `tokenAddresses`, and `caPolicy`, while requiring every manifest to include at least one binding-scoped `match.bindings[].tokenAddresses` entry as its Workbench/E2E test token source. |
 | No-factory binding variants | Done | Schema, `vault:check`, preview resolution, and packaging allow no-factory `chainId + vaultAddress`, `chainId + tokenAddress`, and `chainId + vaultAddress + tokenAddress` targets; no-factory token lists may contain multiple token addresses. |
 | Binding address safety | Done | `vault:check`, `vault:scaffold`, and the manifest schema block malformed, zero, and reserved template placeholder binding addresses so fake factory/Vault targets cannot pass into Workbench publish. |
 | Runtime binding uniqueness | Done | `vault:check` blocks duplicate factory, Vault, token-only, and Vault+token runtime binding keys while allowing distinct token restrictions for the same no-factory Vault. |

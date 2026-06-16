@@ -39,7 +39,7 @@ chainId + tokenAddress
 
 For factory-scoped UI, `factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` and reserved template placeholder addresses such as `0x1000000000000000000000000000000000000001` are invalid. For UI without a factory, omit `factoryAddress` and provide either exactly one real non-zero Vault address in `match.bindings[].vaultAddresses` or one or more real non-zero token addresses in `match.bindings[].tokenAddresses`.
 
-Every binding must include at least one binding-scoped `tokenAddresses` entry. That address is the binding's manifest-declared test token source used by `vault:check`, Flap Artifact Workbench, and `vault:e2e`; local-only `vault:e2e --token` overrides do not satisfy package intake. If a deployment also needs a token CA list, declare it only inside the relevant binding entry as `tokenAddresses`. In factory mode this remains a binding-scoped test/reference list. In no-factory mode it can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
+Every manifest must include at least one binding-scoped `tokenAddresses` entry. That address is the manifest-declared test token source used by `vault:check`, Flap Artifact Workbench, and `vault:e2e`; local-only `vault:e2e --token` overrides do not satisfy package intake. It can live on any binding, such as a testnet binding for package testing while another mainnet binding has no token CA list yet. If a deployment also needs a token CA list, declare it only inside the relevant binding entry as `tokenAddresses`. In factory mode this remains a binding-scoped test/reference list. In no-factory mode it can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
 
 Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the Vault-scoped binding target and `tokenAddresses` can be the token-scoped binding target.
 
@@ -143,7 +143,7 @@ These fields are declared inside each `match.bindings` entry, not at the `match`
 | Field | Required | Description |
 | --- | --- | --- |
 | `vaultAddresses` | Required for Vault-scoped no-factory binding | Optional for factory-scoped and token-scoped bindings. If provided without `factoryAddress`, it must contain exactly one non-zero Vault address. Do not include it in the same binding as `factoryAddress`. |
-| `tokenAddresses` | Required for every binding | Binding-scoped token CA list and manifest-declared test token source. In no-factory mode it may contain multiple token addresses and participates in matching when token data is available. |
+| `tokenAddresses` | Required in at least one binding | Binding-scoped token CA list and manifest-declared test token source. In no-factory mode it may contain multiple token addresses and participates in matching when token data is available. |
 | `externalContracts` | No | Optional review list for fixed contract targets that are not the runtime token, Vault, factory, or binding-scoped token/Vault references. Each entry must contain only `address` and `label`. The template validates it but does not use it for preview/runtime matching. |
 
 Example:

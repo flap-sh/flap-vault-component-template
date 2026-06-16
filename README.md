@@ -332,7 +332,7 @@ Versioning rules for the Agent contract, manifest schema, and source package for
 The Vault folder is a strict source package boundary. It may contain only:
 
 - `Component.tsx`: the controlled React Vault UI component.
-- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress, tokenAddresses}` or no-factory `{chainId, vaultAddresses: [vaultAddress], tokenAddresses}` / `{chainId, tokenAddresses}` targets; every binding needs a binding-scoped `tokenAddresses` entry for Workbench/E2E testing; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`.
+- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}`, no-factory `{chainId, vaultAddresses: [vaultAddress]}`, or no-factory `{chainId, tokenAddresses}` targets; at least one binding needs a binding-scoped `tokenAddresses` entry for Workbench/E2E testing; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`.
 - `VaultABI.ts`: minimal Vault ABI fragments only. Standard ERC20 ABI is exported from `@/src/sdk`; add token ABI fragments here only for custom non-standard token methods.
 - `i18n.json`: locale dictionaries declared by `manifest.i18n`; manifest locale strings must be at least two characters.
 
@@ -393,7 +393,7 @@ Use `yarn vault:verify-package <zip>` to exercise the same package acceptance sh
 
 The Flap Artifact Workbench uses `artifactId` as the stable source-package artifact identity. The folder name remains the local source folder and preview route. Runtime build versions and storage paths are Workbench concerns; developers still do not declare runtime version in `manifest.json`.
 
-One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Every binding must include at least one binding-scoped `tokenAddresses` entry as its Workbench/E2E test token source. Declare token CA lists only as `match.bindings[].tokenAddresses`.
+One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Every manifest must include at least one binding-scoped `tokenAddresses` entry as its Workbench/E2E test token source. Declare token CA lists only as `match.bindings[].tokenAddresses`.
 
 Vault source should import shared runtime surfaces through public aliases:
 

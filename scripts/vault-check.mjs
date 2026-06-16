@@ -166,7 +166,7 @@ const FIX_HINTS = {
   "manifest-binding/mixed-binding-target": "Use factoryAddress for a factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only when a reference token CA list is needed.",
-  "manifest-binding/missing-test-token": "Declare at least one valid test token in every match.bindings[] entry under tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof.",
+  "manifest-binding/missing-test-token": "Declare at least one valid test token in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof.",
   "manifest-binding/invalid-erc20-token": "Use a real deployed ERC20 token contract on the declared chain. The checker must read bytecode plus standard ERC20 metadata before packaging.",
   "manifest-binding/invalid-vault-address-list": "Use a non-empty array of valid non-zero EVM addresses. No-factory Vault bindings may contain exactly one Vault address.",
   "manifest-binding/invalid-token-address-list": "Use a non-empty array of valid non-zero EVM addresses, or omit it when no token CA list is needed.",
@@ -2263,6 +2263,7 @@ function checkManifest(manifest, folderName) {
       );
     } else {
       const seenBindingKeys = new Map();
+      const manifestTestTokenFields = [];
       for (const [index, bindingEntry] of manifest.match.bindings.entries()) {
         const field = `match.bindings[${index}]`;
         if (!bindingEntry || typeof bindingEntry !== "object" || Array.isArray(bindingEntry)) {
@@ -2331,19 +2332,12 @@ function checkManifest(manifest, folderName) {
                 issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.tokenAddresses contains invalid or zero address: ${addr}.`, { field: `${field}.tokenAddresses[${addressIndex}]` }));
               } else if (placeholderAddressLabel(addr)) {
                 issues.push(placeholderAddressIssue(`${field}.tokenAddresses[${addressIndex}]`, addr));
+              } else {
+                manifestTestTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
               }
             }
             issues.push(...checkAddressListDuplicates(bindingEntry.tokenAddresses, `${field}.tokenAddresses`));
           }
-        } else {
-          issues.push(
-            issue(
-              BLOCKING,
-              "manifest-binding/missing-test-token",
-              `${field} must declare at least one valid tokenAddresses entry for Workbench/vault:e2e test coverage. Local vault:e2e --token overrides do not satisfy vault:check.`,
-              { field: `${field}.tokenAddresses`, required: "tokenAddresses" },
-            ),
-          );
         }
         const bindingKeys = bindingIdentityKeys(bindingEntry);
         for (const bindingKey of bindingKeys || []) {
@@ -2364,6 +2358,16 @@ function checkManifest(manifest, folderName) {
           );
           issues.push(...checkExternalContracts(bindingEntry.externalContracts, `${field}.externalContracts`, builtInAddresses));
         }
+      }
+      if (manifestTestTokenFields.length === 0) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "manifest-binding/missing-test-token",
+            "manifest.match.bindings must declare at least one valid tokenAddresses entry for Workbench/vault:e2e test coverage. Local vault:e2e --token overrides do not satisfy vault:check.",
+            { field: "match.bindings[].tokenAddresses", required: "at least one tokenAddresses entry" },
+          ),
+        );
       }
     }
   }
