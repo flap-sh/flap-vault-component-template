@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       flapHostOrigin: flapHostOriginFromEnv(),
     });
 
-    return NextResponse.json({ data }, { status: data ? 200 : 404 });
+    return NextResponse.json({ data });
   } catch (error) {
     console.error("runtime token presentation proxy failed:", error);
     return NextResponse.json(

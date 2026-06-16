@@ -17,7 +17,8 @@ async function readOptionalJson(url, label) {
   if (!response.ok) {
     throw new Error(`${label} failed: ${response.status} ${response.statusText}`);
   }
-  return response.json();
+  const payload = await response.json();
+  return payload?.data ? payload : null;
 }
 
 function sleep(ms) {
