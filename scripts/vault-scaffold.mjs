@@ -474,16 +474,16 @@ function main() {
     });
   }
   if (tokenValues.length === 0) {
-    fail("At least one --token address is required so manifest.json carries a Workbench/vault:e2e test token.", {
+    fail("Every binding needs a --token address so manifest.json carries Workbench/vault:e2e test tokens.", {
       code: "manifest-binding/missing-test-token",
-      fixHint: "Pass --token 0xTokenAddressRequired. For multiple chains, pass one token for the first test binding or one --token per --chain.",
+      fixHint: "Pass one --token 0xTokenAddressRequired for each --chain, in the same order.",
       chainCount: chainValues.length,
     });
   }
-  if (tokenValues.length !== 1 && tokenValues.length !== chainValues.length) {
-    fail(`--token count must be one token or match --chain count: got ${chainValues.length} chain(s) and ${tokenValues.length} token address(es).`, {
+  if (tokenValues.length !== chainValues.length) {
+    fail(`--token count must match --chain count: got ${chainValues.length} chain(s) and ${tokenValues.length} token address(es).`, {
       code: "manifest-binding/chain-token-count-mismatch",
-      fixHint: "Provide exactly one --token for the first test binding, or one --token per --chain in the same order.",
+      fixHint: "Provide exactly one --token per --chain in the same order.",
       chainCount: chainValues.length,
       tokenCount: tokenValues.length,
     });
@@ -544,12 +544,12 @@ function main() {
   }
 
   const bindings = chainValues.map((chainId, index) => {
-    const tokenAddress = tokenValues.length === chainValues.length ? tokenValues[index] : index === 0 ? tokenValues[0] : undefined;
+    const tokenAddress = tokenValues[index];
     return {
       chainId,
       factoryAddress: factoryValues[index],
       vaultAddresses: vaultValues[index] ? [vaultValues[index]] : [],
-      tokenAddresses: tokenAddress ? [tokenAddress] : [],
+      tokenAddresses: [tokenAddress],
     };
   });
 

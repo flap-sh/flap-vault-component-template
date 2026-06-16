@@ -294,7 +294,7 @@ yarn runtime:package
 yarn runtime:verify-package
 ```
 
-They build a packable runtime package under `dist/vault-runtime`, emit a `package.json` with subpath exports, and write a machine-readable `runtime-contract.json`. Before building, the script checks npm latest `@flapsdk/vault-runtime` against the local root version and published `gitHead` so a stale checkout cannot produce an outdated runtime package. This does not change Vault source authoring; it proves that the shared runtime surface can be extracted and npm-packed without forcing `Component.tsx` authors to abandon `@/src/sdk` / `@/src/ui`.
+They build a packable runtime package under `dist/vault-runtime`, emit a `package.json` with subpath exports, and write a machine-readable `runtime-contract.json`. Before building, the script requires local `HEAD` to exactly match latest `origin/main`, then checks npm latest `@flapsdk/vault-runtime` against the local root version and published `gitHead` so a behind, ahead, diverged, or stale checkout cannot produce an outdated runtime package. This does not change Vault source authoring; it proves that the shared runtime surface can be extracted and npm-packed without forcing `Component.tsx` authors to abandon `@/src/sdk` / `@/src/ui`.
 
 The current runtime package also carries the public oracle provisioning surface:
 

@@ -161,7 +161,7 @@ yarn vault:check community-buyback-example
 yarn vault:check flapixel-example
 ```
 
-`vault:check` first compares the local `package.json` version with npm latest `@flapsdk/vault-runtime`, then verifies that the local git history contains the npm latest package's published `gitHead`. If the checkout is older, for example local `0.1.0` while npm latest is `0.1.1`, the command fails with `template-freshness/npm-outdated`. If someone only edits the local version string without updating the source, it fails with `template-freshness/npm-git-head-mismatch`.
+`vault:check` first fetches the official template ref and requires local `HEAD` to exactly match the latest `origin/main`; behind, ahead, or diverged branches fail with `template-freshness/behind`, `template-freshness/ahead`, or `template-freshness/diverged`. It then compares the local `package.json` version with npm latest `@flapsdk/vault-runtime` and verifies that local git history contains the npm latest package's published `gitHead`. If the checkout is older, for example local `0.1.0` while npm latest is `0.1.1`, the command fails with `template-freshness/npm-outdated`. If someone only edits the local version string without updating the source, it fails with `template-freshness/npm-git-head-mismatch`.
 
 Package:
 
@@ -183,7 +183,7 @@ yarn vault:package flapixel-example
 yarn vault:verify-package dist/flapixel-example.zip
 ```
 
-The package command runs `vault:check`, verifies the current `dist/e2e/<folder-name>/qa-report.json`, and also enforces the official git freshness check before writing a zip. The zip is created under `dist/` only after blocking issues pass and E2E proof is current.
+The package command runs `vault:check`, verifies the current `dist/e2e/<folder-name>/qa-report.json`, and enforces the same official git freshness check before writing a zip. The zip is created under `dist/` only after blocking issues pass and E2E proof is current.
 The command output includes `sourcePackagePath` and `sourcePackageAbsolutePath` so the generated zip location is explicit.
 Submit only the zip produced by `yarn vault:package <folder-name>`. The package script writes a format-version `4` `flap-vault-package.json` marker, npm latest `@flapsdk/vault-runtime` `gitHead` provenance, source/schema/E2E file hashes, `qa/e2e-report.json`, and an `e2e` summary into the zip; Flap Artifact Workbench should reject manually assembled zips without this marker, proof, or matching hashes.
 `dist/` is ignored by git. Generate source zips locally or in CI; do not commit generated packages to the template repo.
@@ -251,7 +251,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddr
 
 Replace placeholder addresses with real deployment addresses before running the command. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses so a source package with a fake factory or Vault cannot enter Workbench publish by accident.
 
-This creates the strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes the manifest-declared test token under `match.bindings[].tokenAddresses`. If Flap review supplies extra token restrictions, keep them as binding-scoped `tokenAddresses`; Flap review/runtime owns the final publish routing. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
+This creates the strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes one manifest-declared test token under each `match.bindings[].tokenAddresses` entry. If Flap review supplies extra token restrictions, keep them as binding-scoped `tokenAddresses`; Flap review/runtime owns the final publish routing. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
 
 If the four Vault files already exist because they were generated from a manifest first, register only the local preview mapping:
 
@@ -293,10 +293,10 @@ For mainnet + testnet (repeat `--chain` / `--factory` per target):
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
   --chain 56 --factory 0xMainnetFactory --token 0xMainnetTokenForTesting \
-  --chain 97 --factory 0xTestnetFactory
+  --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting
 ```
 
-For no-factory mode, repeat `--chain` / `--vault` per target. At least one `--token` is required for the manifest test token; provide one token for the first test binding or one token per chain:
+For no-factory mode, repeat `--chain` / `--vault` per target and provide one `--token` per chain:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
@@ -332,7 +332,7 @@ Versioning rules for the Agent contract, manifest schema, and source package for
 The Vault folder is a strict source package boundary. It may contain only:
 
 - `Component.tsx`: the controlled React Vault UI component.
-- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}` or no-factory `{chainId, vaultAddresses: [vaultAddress]}` targets; at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`.
+- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress, tokenAddresses}` or no-factory `{chainId, vaultAddresses: [vaultAddress], tokenAddresses}` / `{chainId, tokenAddresses}` targets; every binding needs a binding-scoped `tokenAddresses` entry for Workbench/E2E testing; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`.
 - `VaultABI.ts`: minimal Vault ABI fragments only. Standard ERC20 ABI is exported from `@/src/sdk`; add token ABI fragments here only for custom non-standard token methods.
 - `i18n.json`: locale dictionaries declared by `manifest.i18n`; manifest locale strings must be at least two characters.
 
@@ -393,7 +393,7 @@ Use `yarn vault:verify-package <zip>` to exercise the same package acceptance sh
 
 The Flap Artifact Workbench uses `artifactId` as the stable source-package artifact identity. The folder name remains the local source folder and preview route. Runtime build versions and storage paths are Workbench concerns; developers still do not declare runtime version in `manifest.json`.
 
-One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Every manifest must include at least one binding-scoped `tokenAddresses` entry as the Workbench/E2E test token source. Declare token CA lists only as `match.bindings[].tokenAddresses`.
+One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Every binding must include at least one binding-scoped `tokenAddresses` entry as its Workbench/E2E test token source. Declare token CA lists only as `match.bindings[].tokenAddresses`.
 
 Vault source should import shared runtime surfaces through public aliases:
 
@@ -422,7 +422,7 @@ yarn runtime:package
 yarn runtime:verify-package
 ```
 
-`yarn build` and `yarn runtime:package` use the same npm latest version gate, so a stale local template cannot produce a local build or shared runtime package that appears current.
+`yarn build` and `yarn runtime:package` use the same official git freshness and npm latest version gates, so a checkout whose `HEAD` does not exactly match latest `origin/main` cannot produce a local build or shared runtime package that appears current.
 
 That generated package currently exposes:
 

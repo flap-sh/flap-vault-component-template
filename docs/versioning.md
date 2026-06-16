@@ -7,7 +7,7 @@ This template has four compatibility surfaces:
 3. `flap-vault-package.json` package format for Flap Artifact Workbench intake.
 4. `dist/vault-runtime/runtime-contract.json` for the shared runtime package extraction contract.
 
-The root `package.json` version is also the local template/runtime package version. Local validation checks it against npm latest `@flapsdk/vault-runtime` and verifies that the local git history contains the npm latest package's published `gitHead`. A checkout with a lower version, or a manually edited version string without the matching source commit, is blocked before `vault:check`, `build`, `runtime:package`, or `vault:package` can succeed.
+The root `package.json` version is also the local template/runtime package version. Local validation first requires local `HEAD` to exactly match latest `origin/main`, then checks the version against npm latest `@flapsdk/vault-runtime` and verifies that the local git history contains the npm latest package's published `gitHead`. A behind, ahead, or diverged checkout, a checkout with a lower version, or a manually edited version string without the matching source commit is blocked before `vault:check`, `build`, `runtime:package`, or `vault:package` can succeed.
 
 ## Agent Contract Version
 

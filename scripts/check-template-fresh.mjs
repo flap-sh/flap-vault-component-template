@@ -281,24 +281,32 @@ export function assertTemplateGitFresh({ folderName } = {}) {
     });
   }
 
-  if (head === official) return { ok: true, officialRef: OFFICIAL_REF, status: "up-to-date" };
+  if (head === official) return { ok: true, officialRef: OFFICIAL_REF, status: "up-to-date", head, official };
 
-  if (gitSucceeds(["merge-base", "--is-ancestor", official, head])) {
-    return { ok: true, officialRef: OFFICIAL_REF, status: "ahead-of-official" };
-  }
-
+  const isAhead = gitSucceeds(["merge-base", "--is-ancestor", official, head]);
   const isBehind = gitSucceeds(["merge-base", "--is-ancestor", head, official]);
-  failFreshness({
-    code: isBehind ? "template-freshness/behind" : "template-freshness/diverged",
-    message: isBehind
+  const status = isBehind ? "behind" : isAhead ? "ahead" : "diverged";
+  const code = `template-freshness/${status}`;
+  const message =
+    status === "behind"
       ? `This flap-vault-ui-template checkout is behind ${OFFICIAL_REF}.`
-      : `This flap-vault-ui-template checkout does not contain the latest ${OFFICIAL_REF} commits.`,
-    fixHint: "Run git pull --ff-only, then rerun yarn vault:package <folder-name>.",
+      : status === "ahead"
+        ? `This flap-vault-ui-template checkout is ahead of ${OFFICIAL_REF}; validation and packaging must run from the official template head.`
+        : `This flap-vault-ui-template checkout does not contain the latest ${OFFICIAL_REF} commits.`;
+  const fixHint =
+    status === "ahead"
+      ? "Push and merge the template changes to origin/main, or reset/switch this checkout to latest origin/main before running validation, build, or package commands."
+      : "Run git pull --ff-only, then rerun validation, build, or package commands.";
+
+  failFreshness({
+    code,
+    message,
+    fixHint,
     folderName,
     extra: {
       head,
       official,
-      status: isBehind ? "behind" : "diverged",
+      status,
     },
   });
 }

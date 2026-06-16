@@ -57,7 +57,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `name` | Yes | Human-readable manifest name shown in the Artifact Workbench. |
 | `bindings` | Yes | Core generation uses `chainId` plus non-zero `factoryAddress` for factory-scoped UI, or exactly one non-zero `vaultAddresses` entry for no-factory UI. |
 | `vaultAddresses` | Required for core no-factory binding | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]` for the normal scaffold path. |
-| `tokenAddresses` | Yes, at least one manifest token | Use only inside `match.bindings` entries. At least one binding must include a valid token address so `vault:check`, Workbench, and `vault:e2e` have a manifest-declared test token. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. |
+| `tokenAddresses` | Yes, for every binding | Use only inside `match.bindings` entries. Every binding must include at least one valid token address so `vault:check`, Workbench, and `vault:e2e` have a manifest-declared test token for that binding. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `externalFrames` | Optional | Use only when a display-only chart embed is unavoidable. At most one entry is allowed. Providers are limited to `tradingview`, `dexscreener`, and `coingecko-terminal`; `src` must be one complete static HTTPS provider URL with fixed query params. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Each locale string must be at least two characters. Check validates only declared locales. |
@@ -98,7 +98,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactory
 
 Replace these placeholder strings with real `0x` + 40 hex deployment addresses before running scaffold. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses, including the legacy `0x1000000000000000000000000000000000000001` factory fixture.
 
-Every manifest must include at least one binding-scoped `tokenAddresses` entry as the test token source for `vault:check`, Workbench, and `vault:e2e`. In factory mode, pass `--token` during scaffold or add `tokenAddresses` manually under the relevant `match.bindings` entry. Do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`. Local-only `vault:e2e --token` overrides do not satisfy `vault:check`.
+Every binding must include at least one binding-scoped `tokenAddresses` entry as its test token source for `vault:check`, Workbench, and `vault:e2e`. In factory mode, pass one `--token` per `--chain` during scaffold or add `tokenAddresses` manually under every relevant `match.bindings` entry. Do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`. Local-only `vault:e2e --token` overrides do not satisfy `vault:check`.
 
 If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
 
@@ -197,7 +197,7 @@ Run:
 yarn vault:check {folder-name}
 ```
 
-This command first checks npm latest `@flapsdk/vault-runtime` against the local `package.json` version, then verifies that the local git history contains the npm latest package's published `gitHead`. A stale checkout, for example local `0.1.0` when npm latest is `0.1.1`, fails with `template-freshness/npm-outdated`. A checkout with only the version string edited but not the source update fails with `template-freshness/npm-git-head-mismatch`.
+This command first fetches the official template ref and requires local `HEAD` to exactly match the latest `origin/main`; behind, ahead, or diverged branches fail with `template-freshness/behind`, `template-freshness/ahead`, or `template-freshness/diverged`. It then checks npm latest `@flapsdk/vault-runtime` against the local `package.json` version and verifies that the local git history contains the npm latest package's published `gitHead`. A stale checkout, for example local `0.1.0` when npm latest is `0.1.1`, fails with `template-freshness/npm-outdated`. A checkout with only the version string edited but not the source update fails with `template-freshness/npm-git-head-mismatch`.
 
 The output is JSON and includes:
 
@@ -210,7 +210,7 @@ The output is JSON and includes:
 If `summary.blocking` is greater than zero, fix those issues before doing anything else.
 If `manual-review/action-stage-gating` appears, the component has a write path but does not reference `marketPhase` or `isActionAvailableForPhase`. This is blocking; add explicit stage gating and visible unavailable-state copy before packaging.
 If `manifest-binding/mixed-binding-target` appears, one binding contains both `factoryAddress` and `vaultAddresses`. Choose one scope: factory-scoped UI uses `factoryAddress`; single-Vault UI omits `factoryAddress` and uses exactly one `vaultAddresses` entry.
-If `manifest-binding/missing-test-token` appears, add at least one valid token address under `match.bindings[].tokenAddresses`. This is required for Workbench and E2E test coverage, even for factory-scoped UI.
+If `manifest-binding/missing-test-token` appears, add at least one valid token address under every `match.bindings[].tokenAddresses` entry. This is required for Workbench and E2E test coverage, even for factory-scoped UI.
 If `risk-status/missing-host-risk-state` appears, the component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying.
 If `risk-status/not-prominent-placement` appears, the component renders host risk status too low or after a large visual block. Move the risk badge, metric, or row within the first three visible Vault-specific business rows/blocks, before any preview, hero, banner, showcase, media, chart, or large visual block, before retrying.
 If `risk-status/manual-low-risk-label` appears, the component renders `Low risk` / `低风险` copy without deriving it from host `riskLevel === 1`. Remove the manual label or move it into the explicit host-risk mapping branch before retrying.
@@ -246,7 +246,7 @@ The package command prints:
 `vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. The E2E proof must use a test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 First-time local machines, especially Windows machines, may need `yarn playwright install chromium` before Chromium can launch. If the browser is missing, `vault:e2e` must emit the JSON code `vault-e2e/playwright-browser-missing` with that fix hint. GitHub Actions uses `npx playwright install --with-deps chromium`.
 Submit only the zip produced by this command. The zip contains format-version `4` `flap-vault-package.json`, `qa/e2e-report.json`, and matching `e2e` summary fields, which identify the package as a script-generated Flap Vault UI source package and record required file hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker, proof, or matching hashes.
-The package command also enforces the official git freshness gate and rejects missing, failed, or stale E2E proof, so a checkout that is behind, diverged, or not E2E-proven cannot produce a source zip.
+The package command uses the same official git freshness gate as `vault:check` and rejects missing, failed, or stale E2E proof, so a checkout that is behind, ahead, diverged, or not E2E-proven cannot produce a source zip.
 The verify command checks the same source package from the Workbench side: marker, kind/version, exact file list, metadata, E2E proof, and SHA-256 hashes. If it fails, read the JSON `code`, `fixHint`, and `agent.nextActions`, then regenerate the package instead of editing the zip by hand.
 Do not describe a future write-UI tx hash as a strong local-origin proof. A local wallet trace or tx hash can prove a real transaction and target, but only a platform-controlled Playwright + wallet runner can strongly prove the UI path by replaying it in a trusted environment.
 
@@ -258,7 +258,7 @@ yarn runtime:verify-package
 ```
 
 That proves the shared runtime surface is still packable for Workbench / host reuse and that the generated `runtime-contract.json` stays in sync.
-`yarn build` and `yarn runtime:package` also run the npm latest version gate before producing local build outputs.
+`yarn build` and `yarn runtime:package` also run the same exact-`origin/main` git freshness gate and npm latest version gate before producing local build outputs.
 
 ## Preview Loop
 
@@ -325,7 +325,7 @@ A generated Vault UI is done only when:
 - `yarn vault:check {folder-name}` reports zero blocking issues.
 - The local template package version is at least npm latest `@flapsdk/vault-runtime`.
 - `manifest.artifactId` exists, matches `vaultui_<folder-name>_<ULID>`, and is unique in this repo.
-- `manifest.match.bindings` includes at least one valid `tokenAddresses` entry for Workbench/E2E test coverage.
+- Every `manifest.match.bindings[]` entry includes at least one valid `tokenAddresses` entry for Workbench/E2E test coverage.
 - `yarn vault:e2e {folder-name}` succeeds and writes a current `dist/e2e/{folder-name}/qa-report.json`.
 - `yarn vault:package {folder-name}` succeeds and prints the package path.
 - `yarn vault:verify-package dist/{folder-name}.zip` succeeds.

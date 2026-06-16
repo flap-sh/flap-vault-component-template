@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
-import { assertNpmPackageFresh } from "./check-template-fresh.mjs";
+import { assertTemplateFresh } from "./check-template-fresh.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
@@ -163,7 +163,7 @@ const FIX_HINTS = {
   "manifest-binding/mixed-binding-target": "Use factoryAddress for a factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only when a reference token CA list is needed.",
-  "manifest-binding/missing-test-token": "Declare at least one valid test token in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof.",
+  "manifest-binding/missing-test-token": "Declare at least one valid test token in every match.bindings[] entry under tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof.",
   "manifest-binding/invalid-vault-address-list": "Use a non-empty array of valid non-zero EVM addresses. No-factory Vault bindings may contain exactly one Vault address.",
   "manifest-binding/invalid-token-address-list": "Use a non-empty array of valid non-zero EVM addresses, or omit it when no token CA list is needed.",
   "manifest-binding/invalid-external-contract-list": "Use a non-empty externalContracts array only when this binding needs fixed non-token/non-Vault/non-factory contract targets.",
@@ -2259,7 +2259,6 @@ function checkManifest(manifest, folderName) {
       );
     } else {
       const seenBindingKeys = new Map();
-      const testTokenAddresses = [];
       for (const [index, bindingEntry] of manifest.match.bindings.entries()) {
         const field = `match.bindings[${index}]`;
         if (!bindingEntry || typeof bindingEntry !== "object" || Array.isArray(bindingEntry)) {
@@ -2328,12 +2327,19 @@ function checkManifest(manifest, folderName) {
                 issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.tokenAddresses contains invalid or zero address: ${addr}.`, { field: `${field}.tokenAddresses[${addressIndex}]` }));
               } else if (placeholderAddressLabel(addr)) {
                 issues.push(placeholderAddressIssue(`${field}.tokenAddresses[${addressIndex}]`, addr));
-              } else {
-                testTokenAddresses.push(addr);
               }
             }
             issues.push(...checkAddressListDuplicates(bindingEntry.tokenAddresses, `${field}.tokenAddresses`));
           }
+        } else {
+          issues.push(
+            issue(
+              BLOCKING,
+              "manifest-binding/missing-test-token",
+              `${field} must declare at least one valid tokenAddresses entry for Workbench/vault:e2e test coverage. Local vault:e2e --token overrides do not satisfy vault:check.`,
+              { field: `${field}.tokenAddresses`, required: "tokenAddresses" },
+            ),
+          );
         }
         const bindingKeys = bindingIdentityKeys(bindingEntry);
         for (const bindingKey of bindingKeys || []) {
@@ -2354,16 +2360,6 @@ function checkManifest(manifest, folderName) {
           );
           issues.push(...checkExternalContracts(bindingEntry.externalContracts, `${field}.externalContracts`, builtInAddresses));
         }
-      }
-      if (testTokenAddresses.length === 0) {
-        issues.push(
-          issue(
-            BLOCKING,
-            "manifest-binding/missing-test-token",
-            "manifest.match.bindings must declare at least one valid tokenAddresses entry for Workbench/vault:e2e test coverage. Local vault:e2e --token overrides do not satisfy vault:check.",
-            { field: "match.bindings", required: "tokenAddresses" },
-          ),
-        );
       }
     }
   }
@@ -2936,7 +2932,7 @@ export function runVaultCheck(folderName, options = {}) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const folderName = process.argv[2];
-  if (folderName) await assertNpmPackageFresh({ folderName });
+  await assertTemplateFresh({ folderName });
   const result = runVaultCheck(folderName);
   const hasBlocking = result.issues.some((item) => item.severity === BLOCKING);
   process.exit(hasBlocking ? 1 : 0);

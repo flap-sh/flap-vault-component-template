@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assertNpmPackageFresh } from "./check-template-fresh.mjs";
+import { assertTemplateFresh } from "./check-template-fresh.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -28,7 +28,7 @@ async function ensureUseClient(entryFile) {
 }
 
 async function main() {
-  await assertNpmPackageFresh();
+  await assertTemplateFresh();
 
   execFileSync(yarnCommand(), ["tsup", "--config", "tsup.runtime.config.ts"], {
     cwd: ROOT,

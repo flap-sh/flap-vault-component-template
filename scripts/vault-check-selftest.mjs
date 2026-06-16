@@ -207,6 +207,19 @@ try {
   });
   assertRule("factory bindings must declare a manifest test token", runVaultCheck(missingTestTokenSlug, { silent: true }), "manifest-binding/missing-test-token", "blocking");
 
+  const partialTestTokenSlug = `${FIXTURE_PREFIX}-partial-test-token`;
+  writeVault(partialTestTokenSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [
+          { chainId: 56, factoryAddress: FACTORY, tokenAddresses: [TOKEN] },
+          { chainId: 97, factoryAddress: FACTORY },
+        ],
+      },
+    }),
+  });
+  assertRule("each binding must declare its own manifest test token", runVaultCheck(partialTestTokenSlug, { silent: true }), "manifest-binding/missing-test-token", "blocking");
+
   const shortLocaleSlug = `${FIXTURE_PREFIX}-short-locale`;
   writeVault(shortLocaleSlug, {
     manifest: baseManifest({ i18n: ["e", "en"] }),
@@ -1923,6 +1936,33 @@ export default function SelftestVault(_props: VaultComponentProps) {
     }),
   );
   passed.push("scaffold rejects template placeholder factory input");
+
+  assert.throws(() =>
+    execFileSync(
+      process.execPath,
+      [
+        "scripts/vault-scaffold.mjs",
+        `${FIXTURE_PREFIX}-partial-token-scaffold`,
+        "--chain",
+        "56",
+        "--factory",
+        FACTORY,
+        "--token",
+        TOKEN,
+        "--chain",
+        "97",
+        "--factory",
+        FACTORY,
+        "--locales",
+        "en",
+      ],
+      {
+        cwd: ROOT,
+        stdio: "pipe",
+      },
+    ),
+  );
+  passed.push("scaffold requires one token per binding");
 
   createdFolderNames.push(scaffoldFlowSlug);
   createdPackagePaths.push(path.join(ROOT, "dist", `${scaffoldFlowSlug}.zip`));
