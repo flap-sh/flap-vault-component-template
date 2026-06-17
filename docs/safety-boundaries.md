@@ -14,6 +14,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Dynamic import expression.
 - Direct browser network/media APIs such as `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`, including aliasing, destructuring, string-indexed, or variable-indexed computed browser-global access to those APIs.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` target.
+- Canvas implementations that depend on browser-global DOM queries, workerized rendering, direct browser network/media APIs, or external assets not already allowed by the template.
 - Browser storage or host-state escape APIs such as `localStorage`, `sessionStorage`, `indexedDB`, Cache Storage, or `document.cookie`.
 - Browser-global member access except safe timer APIs and reviewed explorer-only `window.open`.
 - Browser navigation APIs such as arbitrary `window.open`, bare `open(...)`, `location`, or `history` mutation. `window.open` is allowed only for current-chain explorer address/transaction URLs with `noopener` or `noreferrer`.
@@ -41,6 +42,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Local React state.
 - Small pure functions inside `Component.tsx`.
 - Local small components inside `Component.tsx`.
+- Component-scoped `<canvas>` surfaces that draw from local React state and Flap SDK/host data through a React ref. Keep required risk status ahead of large canvas visuals and keep canvas inside the Vault business panel rather than turning the package into a whiteboard/editor.
 - CSS/HTML card shapes and `lucide-react` icons before ad hoc SVG; search the official Lucide icon library first at `https://lucide.dev/icons/`. Handwritten inline SVG JSX is allowed only for static pure graphic nodes such as `svg`, `path`, `circle`, `rect`, and gradients with local fragment references.
 - Flap SDK contract reads/writes.
 - Reading Flap-provided `context.host` values for token info, parsed tax info, VaultPortal info, fee mode, render surface, and registry-selected Vault type.

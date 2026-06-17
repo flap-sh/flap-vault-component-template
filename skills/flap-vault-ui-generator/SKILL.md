@@ -75,6 +75,7 @@ Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DO
 - Use `@/src/ui` primitives before custom UI.
 - Prefer CSS/HTML card shapes and `lucide-react` icons before ad hoc SVG. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`). Use FontAwesome only in host repositories or runtimes that explicitly include and allow it; this template's Vault package allowlist does not include FontAwesome by default.
 - Handwritten inline SVG JSX is allowed only for static pure graphic nodes such as `svg`, `g`, `defs`, `path`, `circle`, `rect`, `line`, `polyline`, `polygon`, `ellipse`, `linearGradient`, `radialGradient`, `stop`, `clipPath`, `mask`, `title`, and `desc`. Keep references local, for example `fill="url(#gradient)"`.
+- `canvas` only for component-scoped business visualization inside the Vault body. Use a React ref plus local state or SDK/host-derived data, keep required host risk status ahead of any large canvas block, and do not treat canvas as a whiteboard/editor shell or rely on browser-global DOM queries, workers, direct browser network/media APIs, or external assets.
 - Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.
 - Use `agent-contract.json` as the machine-readable source of allowed files, imports, manifest fields, commands, preview route, and done criteria.
 - Keep the Vault folder strict. It may contain only `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
@@ -121,6 +122,7 @@ Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DO
 - `eval` / the `Function` constructor
 - raw iframe, iframe `srcDoc`, or script injection, including `document.write` / `document.writeln`; `ReviewedFrame` is the only reviewed frame path
 - unsafe inline SVG JSX, including scripts, event attributes, `foreignObject`, `image`, `use`, external URLs, non-local `url(...)`, `style` `url(...)` / `@import`, `href` / `src` except static local fragments, spread attributes, or unsupported nodes
+- canvas flows that depend on browser-global DOM queries, workers, direct browser network/media APIs, `new Image()`, external assets, or full-screen/infinite-canvas editor behavior
 - runtime remote import
 - undeclared URL, endpoint, or external resource
 - undeclared fixed extra contract target

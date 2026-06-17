@@ -15,6 +15,7 @@ Vault components should feel like compact business panels inside the Flap previe
 - Use `VaultBanner` only when the target host surface does not already provide a standard shared summary/header block. Do not treat a component-owned top banner as the default.
 - Use the current Flap Vault visual system: dark neutral business surfaces, white low-opacity borders, compact status pills, dense metric strips, and one clear primary action panel.
 - Default new UIs should feel closer to a polished embedded tool than to a sample dashboard: one mechanism summary, a small metric grid, one primary action area, and runtime details pushed lower or kept compact.
+- If a Vault needs custom visualization, treat `<canvas>` as a compact chart or diagram area inside a card, not as a page-level whiteboard or shell replacement.
 - Use `Card`, `CardHeader`, `CardTitle`, and `CardContent` for major sections, but override density when useful with `rounded-[14px]`, `rounded-[18px]`, `border-white/10`, `bg-black/25`, `bg-white/[0.03]`, and restrained accent borders.
 - Use `Metric` for top-level stats and `DetailTile` for compact action/runtime facts; reserve `DataRow` only for rare audit-style logs where row separation is the main value.
 - Use `Alert` for notices, warnings, errors, and empty states.
@@ -32,6 +33,7 @@ Avoid:
 - Treating `example` or `action-gallery-example` as the visual default. They are behavior references; the scaffold default and this document define the preferred default visual direction.
 - Third-party images or external media.
 - Ad hoc SVG when CSS/HTML or a `lucide-react` icon can express the same mark. If inline SVG is necessary, keep it to safe static pure shape nodes and local fragment refs only.
+- Turning `<canvas>` into a full-screen whiteboard, background scene, or shell replacement.
 - Hardcoded addresses or private endpoints.
 - Raw iframe, `srcDoc`, or dynamic chart URLs. If a display-only market chart is approved, use `ReviewedFrame` with a static `manifest.externalFrames` URL only.
 - Copying old Flap component names, constants, exact private flows, or legacy row-heavy layouts.
@@ -71,6 +73,55 @@ Before writing `Component.tsx`, decide and document these in implementation note
 - `riskStatusHandling`: read current contract risk status from host Vault/TaxInfo context and show a prominent missing-risk warning if unavailable.
 
 Do not hide actions only because the token is not DEX-listed. If the Vault is intended to work before listing, show the controls and disable them only when the contract state or missing inputs make the action unavailable.
+
+## Canvas Surface
+
+Use `<canvas>` only when the Vault needs a custom local visualization that CSS/HTML, shared UI primitives, or safe inline SVG cannot express cleanly.
+
+- Keep canvas inside a standard Vault card or panel below the shell-owned `Vault Information` frame.
+- Render host risk status before the canvas block. `vault:check` treats `<canvas>` as a large visual surface.
+- Use `useRef<HTMLCanvasElement | null>(null)` plus `canvasRef.current?.getContext("2d")`; do not query the DOM with `document.*`.
+- Drive drawing from React state, `@/src/sdk` reads, and `context.host` data only.
+- Set explicit `width` and `height` attributes, then use CSS classes for responsive layout.
+- Keep visible text, legends, warnings, and action labels in DOM/i18n when practical instead of painting all copy into pixels.
+- Avoid workerized canvas, `new Image()`, direct browser network/media APIs, external assets, and whiteboard-style multi-tool editing flows.
+
+Pattern:
+
+```tsx
+const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+useEffect(() => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+
+  const context2d = canvas.getContext("2d");
+  if (!context2d) return;
+
+  context2d.clearRect(0, 0, canvas.width, canvas.height);
+  // Draw only from local state and SDK/host-derived values.
+}, [derivedData]);
+
+return (
+  <Card>
+    <CardHeader>
+      <div className="flex flex-wrap items-center gap-2">
+        <CardTitle>{t("sections.visualization")}</CardTitle>
+        <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+      </div>
+    </CardHeader>
+    <CardContent className="space-y-3">
+      {riskLevel === null ? <Alert tone="danger">{t("risk.missing.description")}</Alert> : null}
+      <canvas
+        ref={canvasRef}
+        width={640}
+        height={320}
+        className="w-full rounded-[14px] border border-white/10 bg-black/25"
+      />
+    </CardContent>
+  </Card>
+);
+```
 
 ## Action Availability Stage
 

@@ -136,6 +136,7 @@ Use:
 - `@/src/ui` for shared UI primitives.
 - CSS/HTML card shapes and `lucide-react` icons before ad hoc SVG. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`). FontAwesome is acceptable only in host repositories or runtimes that explicitly include and allow it; this template's Vault package allowlist does not include FontAwesome by default.
 - Handwritten inline SVG JSX only when it is static pure graphic markup: `svg`, `g`, `defs`, `path`, `circle`, `rect`, `line`, `polyline`, `polygon`, `ellipse`, `linearGradient`, `radialGradient`, `stop`, `clipPath`, `mask`, `title`, and `desc`, with local fragment refs such as `fill="url(#gradient)"`.
+- `canvas` only for component-scoped business visualization inside the Vault body. Use a React ref rather than `document` queries, draw only from local state or SDK/host-derived data, keep the required host risk status above any large canvas block, and do not treat canvas as a free-form app shell or full-screen editor.
 - `ReviewedFrame` from `@/src/ui` only for the single reviewed display-only `manifest.externalFrames` entry.
 - `./VaultABI` as the only local relative import.
 - Tuple result types for ABI methods with multiple return values. `sdk.readContract` returns `returns (uint256 a, uint256 b)` as a tuple array, even when the outputs are named in a human-readable ABI. Read it as `readonly [a: bigint, b: bigint]`, then map tuple indexes into object-shaped UI state. Do not type multi-output reads as object interfaces. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
@@ -162,6 +163,7 @@ Do not use:
 - Arbitrary `window.open` or bare `open(...)`. `window.open` may be used only for current-chain explorer `/address/` or `/tx/` URLs derived from `context.explorerBaseUrl`, and must include `noopener` or `noreferrer`.
 - `eval`, string-based timer callbacks, the `Function` constructor, constructor-based scope escapes, raw iframe, `srcDoc`, script injection including `document.write` / `document.writeln` / `document.open` / `document.close`, direct HTML replacement such as `innerHTML` / `outerHTML` / `insertAdjacentHTML`, or `dangerouslySetInnerHTML`.
 - Unsafe inline SVG JSX, including `script`, event attributes, `foreignObject`, `image`, `use`, external URLs, non-local `url(...)`, `style` `url(...)` / `@import`, `href` / `src` except static local fragments, spread attributes, or unsupported SVG/HTML nodes inside an `<svg>` subtree.
+- Canvas flows that depend on browser-global DOM queries, workers, direct browser network/media APIs, `new Image()`, external assets, or full-screen whiteboard/editor behavior.
 - CommonJS `require(...)`; use static ESM imports only.
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
