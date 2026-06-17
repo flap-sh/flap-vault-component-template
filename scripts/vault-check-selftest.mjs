@@ -1898,6 +1898,64 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("risk status cannot be preceded by a preview or hero block", runVaultCheck(riskAfterPreviewSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
 
+  const riskAfterCanvasSlug = `${FIXTURE_PREFIX}-risk-after-canvas`;
+  writeVault(riskAfterCanvasSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  return (
+    <div>
+      <canvas width={320} height={160} />
+      <StatusBadge tone={riskLevel === null ? "danger" : "success"}>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );
+}
+`,
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertRule("risk status cannot be preceded by a canvas visual", runVaultCheck(riskAfterCanvasSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+
+  const riskBeforeCanvasSlug = `${FIXTURE_PREFIX}-risk-before-canvas`;
+  writeVault(riskBeforeCanvasSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  return (
+    <div>
+      <StatusBadge tone={riskLevel === null ? "danger" : "success"}>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+      <canvas width={320} height={160} />
+    </div>
+  );
+}
+`,
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertNoRule("risk status before a canvas visual is accepted", runVaultCheck(riskBeforeCanvasSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+
   const riskAfterThreeRowsSlug = `${FIXTURE_PREFIX}-risk-after-three-rows`;
   writeVault(riskAfterThreeRowsSlug, {
     component: `"use client";
