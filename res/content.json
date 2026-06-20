@@ -242,7 +242,7 @@
         "Do not use direct wallet APIs, eval, the Function constructor, iframe, script injection, dangerouslySetInnerHTML, or runtime remote imports.",
         "Do not use direct browser network, media, storage, navigation, Worker, cross-context messaging, permission APIs, or browser-global aliasing/destructuring/computed access.",
         "Direct fetch() targets must be static absolute HTTPS URLs without credentials and covered by manifest.endpoints. Host-relative, dynamic, HTTP, credentialed, or undeclared fetch targets are blocked.",
-        "Do not add third-party images, remote media, data URLs, IPFS, Arweave, WebSocket, or non-HTTPS resources. Token media must come from Flap-controlled runtime context such as context.tokenImageUrl.",
+        "Do not add third-party images, remote media URLs, data URLs, Arweave, WebSocket, or non-HTTPS resources. Token media must come from Flap-controlled runtime context such as context.tokenImageUrl; immutable Vault-specific images must use IpfsImage with a static image CID.",
         "Component-owned links must stay on the active chain explorer through context.explorerBaseUrl or shared explorer helpers; arbitrary external navigation is blocked.",
         "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay inside the Vault/token/NFT/factory/declaration boundary and use runtime context, Vault-derived addresses, or declared externalContracts. Routers, bridges, aggregators, or unrelated app contracts are blocked.",
         "Do not hardcode EVM addresses in Vault source. Use context.vaultAddress, context.tokenAddress, or approved runtime context values.",

@@ -8,7 +8,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Hidden transaction target.
 - Hardcoded EVM addresses in Vault source unless the address is a binding-scoped factory/token/Vault reference or an explicitly declared `match.bindings[].externalContracts` target.
 - SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`.
-- Undeclared endpoint, image URL, IPFS gateway, or other external resource.
+- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` from `@/src/ui` with a static image CID that resolves to `image/*` through an allowed Flap IPFS gateway.
 - Host-relative endpoint calls such as `fetch("/api/...")`.
 - Runtime remote import.
 - Dynamic import expression.
@@ -26,7 +26,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Unapproved dependencies.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - Missing i18n.
-- Remote image inside Vault source.
+- Remote image URLs inside Vault source. Immutable Vault-specific images must use `IpfsImage cid` and pass `vault:check`.
 - Arbitrary external navigation or hardcoded off-site jumps that are not the current chain explorer.
 - Contract reads/writes, event watches, log/filter calls, or gas estimates to unrelated contracts such as routers, bridges, aggregators, or other app contracts outside the Vault/token/NFT/factory/declaration boundary.
 - Binding by unreliable type fields.
@@ -35,7 +35,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Symlinks inside the Vault package.
 - Local relative imports other than `./VaultABI`.
 - CommonJS `require(...)`.
-- Unsafe preview/runtime URLs such as `javascript:`, `data:`, protocol-relative URLs, HTTP production origins, WebSocket URLs, IPFS/Arweave links, or non-HTTPS oracle endpoints.
+- Unsafe preview/runtime URLs such as `javascript:`, `data:`, protocol-relative URLs, HTTP production origins, WebSocket URLs, `ipfs://` / Arweave links, or non-HTTPS oracle endpoints.
 
 ## Allowed
 
@@ -49,7 +49,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - `sdk.readOracle(...)` only when the Flap Artifact Workbench/runtime can review and provision the oracle id.
 - SDK contract writes using runtime context addresses such as `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress`, plus token/NFT addresses derived from runtime context or Vault reads and fixed targets declared in `match.bindings[].externalContracts`.
 - Explorer links through `context.explorerBaseUrl`, `AddressLink`, `sdk.openExplorerTx(...)`, or reviewed `window.open` calls that target `context.explorerBaseUrl` address/transaction URLs with `noopener` or `noreferrer`.
-- Token logo and NFT media only through Flap-controlled host/runtime media policy.
+- Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images may use only `IpfsImage` with a static image CID verified through the allowed Flap IPFS gateways.
 - One display-only `ReviewedFrame` chart from `@/src/ui` only when the exact static provider URL is declared in `manifest.externalFrames` and approved by Flap review.
 
 Declared non-oracle endpoints are review candidates, not automatic approvals. Avoid them by default. If a special non-oracle endpoint is unavoidable, it must be declared in the manifest and reviewed by Flap before publish. Endpoint URLs must not include username/password credentials. A declaration covers only the exact URL path or child paths on the same origin, never sibling paths or lookalike hosts. Direct `fetch(...)` calls must use static absolute HTTPS targets covered by that declaration. Oracle usage is detected by `vault:check` and provisioned outside the manifest. Anything not declared or provisioned is rejected.
@@ -70,4 +70,4 @@ Allowed only through Flap-controlled runtime/media policy:
 - token logo from Flap metadata
 - NFT metadata image through approved media handling
 - Flap official static asset
-- reviewed IPFS/gateway resource
+- `IpfsImage` from `@/src/ui` with a static image CID verified by `vault:check`

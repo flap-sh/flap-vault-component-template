@@ -242,7 +242,7 @@
         "不要使用 direct wallet API、eval、Function constructor、iframe、script injection、dangerouslySetInnerHTML 或 runtime remote import。",
         "不要使用直接浏览器 network、media、storage、navigation、Worker、cross-context messaging、permission API，也不要通过 alias、destructuring 或 computed access 绕过 browser global 检查。",
         "直接 fetch() 目标必须是静态、无凭证的 absolute HTTPS URL，并被 manifest.endpoints 覆盖。host-relative、动态、HTTP、带凭证或未声明的 fetch 目标都会被阻断。",
-        "不要添加第三方图片、remote media、data URL、IPFS、Arweave、WebSocket 或非 HTTPS 资源。Token 媒体只能来自 Flap 控制的 runtime context，例如 context.tokenImageUrl。",
+        "不要添加第三方图片、remote media URL、data URL、Arweave、WebSocket 或非 HTTPS 资源。Token 媒体只能来自 Flap 控制的 runtime context，例如 context.tokenImageUrl；不可避免的 Vault 专属不可变图片必须使用 IpfsImage 和静态图片 CID。",
         "组件自己拥有的链接只能通过 context.explorerBaseUrl 或共享 explorer helper 留在当前链浏览器；任意外部跳转会被阻断。",
         "合约 reads、writes、event watches、log/filter calls 和 gas estimates 必须留在 Vault/token/NFT/factory/已声明目标边界内，并使用 runtime context、Vault 读取派生地址或已声明 externalContracts。routers、bridges、aggregators 或无关 app contracts 都会被阻断。",
         "不要在 Vault source 里硬编码 EVM 地址。请使用 context.vaultAddress、context.tokenAddress 或批准的 runtime context 值。",

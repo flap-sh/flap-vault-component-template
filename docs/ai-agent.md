@@ -150,6 +150,7 @@ Use:
 - `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` to keep stage-gated buttons consistent.
 - `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` when a write flow depends on the active wallet being on `context.chainId`. Keep the write section visible and render a clear switch-network state instead of attempting the write on the wrong chain.
 - `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token header/media data. The template preview shell first asks the same-origin runtime proxy for host presentation data, then falls back to ERC20 `symbol()` / `name()` from the preview `tokenAddress`; mocked image fallback is reserved for the neutral preview fixture only. `tokenAddress` alone is metadata-only in preview; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when token lifecycle state matters.
+- `IpfsImage` from `@/src/ui` when a Vault-specific immutable image is unavoidable. Pass only a static image CID via `cid`; do not pass full gateway URLs, metadata CIDs, `ipfs://` values, paths, or dynamic expressions. `vault:check` verifies each CID resolves through at least one allowed Flap IPFS gateway to `image/*` before packaging.
 - Contract targets limited to `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, runtime payment/quote/dividend token addresses, token/NFT addresses derived from Vault reads, and declared `match.bindings[].externalContracts`. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.
 - Fixed extra contract targets declared under `match.bindings[].externalContracts` only when the target is truly required and cannot be represented by runtime token/Vault/factory context.
 - The preview shell / production host for the target surface to own token breadcrumb/header, close control, `Vault Information` frame, wallet header, language selector, invalid token fallback, width constraint, and any standard shared summary block already present on the host surface.
@@ -168,7 +169,7 @@ Do not use:
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
 - Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, clipboard, geolocation, permission, or notification APIs.
-- External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials.
+- External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials. Full gateway image URLs are not allowed; immutable Vault-specific images must use `IpfsImage cid`.
 - More than one `ReviewedFrame`, or external frames unless declared in `manifest.externalFrames` and rendered through `ReviewedFrame` with static string literal props that exactly match the declaration.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` targets. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`.
 - Fixed contract targets outside `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, binding-scoped `tokenAddresses`/`vaultAddresses`, or `match.bindings[].externalContracts`.
@@ -179,7 +180,7 @@ Do not use:
 - Standard ERC20 ABI fragments in `VaultABI.ts`; use the SDK export unless the token has custom non-standard methods.
 - Silent action removal when an action is unavailable. Show the panel with a clear disabled or unavailable state instead.
 - Reimplementing token phase detection inside `Component.tsx`; use the host-provided `marketPhase`.
-- Fetching private token metadata or token image APIs inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host.
+- Uploading media, fetching private token metadata or token image APIs inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host, or `IpfsImage` with a static image CID when the image is Vault-specific and immutable.
 
 ## Validation Loop
 
@@ -225,7 +226,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style resources, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style non-image resources, full gateway image URLs, invalid `IpfsImage` CIDs, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 

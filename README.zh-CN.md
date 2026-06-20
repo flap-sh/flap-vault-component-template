@@ -353,13 +353,13 @@ Vault folder 是严格 source package 边界，只能包含：
 - shared runtime surface 之外的额外 SDK package 或 SDK-like wrapper
 - manifest 声明但缺失的 locale
 - 任一 manifest locale 缺失 i18n key
-- Vault source 中的远端图片
+- Vault source 中的远端图片 URL；不可避免的 Vault 专属不可变图片必须用 `@/src/ui` 的 `IpfsImage` 并只传静态图片 CID
 - 合约 read / write、event watch、log / filter call 或 gas estimate 指向 Vault / token / NFT / factory / declaration 边界之外的 router、bridge、aggregator 或无关合约
 - 用 type field 绑定，而不是 registry 控制的 chain / factory 或 chain / Vault target
 - Vault package 内的额外文件、目录或 symlink
 - 除 `./VaultABI` 之外的相对 import
 
-如果可通过 Flap SDK 或链上读取实现，就应避免外部 endpoint、oracle usage、第三方图片、额外固定合约 target 和其他外部资源。非 oracle endpoint 声明在 `manifest.json`；固定的非 token / 非 Vault / 非 factory 合约 target 声明在 `match.bindings[].externalContracts`；oracle config、media policy、actions、fallback、artifact id 和 version 属于 Flap Artifact Workbench / runtime。
+如果可通过 Flap SDK 或链上读取实现，就应避免外部 endpoint、oracle usage、第三方图片、额外固定合约 target 和其他外部资源。非 oracle endpoint 声明在 `manifest.json`；固定的非 token / 非 Vault / 非 factory 合约 target 声明在 `match.bindings[].externalContracts`；不可避免的 Vault 专属不可变图片使用 `IpfsImage cid` 并由 `vault:check` 校验；oracle config、media policy、actions、fallback、artifact id 和 version 属于 Flap Artifact Workbench / runtime。
 
 Component-owned navigation 应只停留在当前链 explorer。如果必须直接 fetch NFT metadata base URL 或另一个 reviewed non-oracle host，请在 `manifest.endpoints` 中声明该 base URL；不要把 endpoint declaration 当作站外用户导航的后门。Internal Oracle endpoint 通常应留在 `sdk.readOracle(...)` 和 host / runtime provisioning 后面，而不是把 raw URL literal 放入 Vault source。
 

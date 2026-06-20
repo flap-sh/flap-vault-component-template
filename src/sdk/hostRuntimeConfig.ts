@@ -18,7 +18,7 @@ const taxVaultHostChains: Record<number, TaxVaultHostChainConfig> = {
     wrappedNativeTokenAddress: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
     giftVaultFactory: "0x025549F52B03cF36f9e1a337c02d3AA7Af66ab32",
     hostChainSlug: "bnb",
-    ipfsGateway: "https://gateway.pinata.cloud",
+    ipfsGateway: "https://flap.mypinata.cloud",
   },
   97: {
     portal: "0x5bEacaF7ABCbB3aB280e80D007FD31fcE26510e9",
@@ -27,7 +27,7 @@ const taxVaultHostChains: Record<number, TaxVaultHostChainConfig> = {
     wrappedNativeTokenAddress: "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
     giftVaultFactory: "0xa02DA44D67DB6D692efa7f751b5952bd670d5326",
     hostChainSlug: "bnb-testnet",
-    ipfsGateway: "https://gateway.pinata.cloud",
+    ipfsGateway: "https://magenta-naval-penguin-822.mypinata.cloud",
   },
 };
 

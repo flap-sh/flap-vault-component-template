@@ -3,6 +3,7 @@
 export * from "./contract";
 export * from "./erc20";
 export * from "./format";
+export * from "./ipfsImage";
 export * from "./oracle";
 export { VaultRuntimeProvider, useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtime";
 export { ZERO_ADDRESS, isActionAvailableForPhase, isCustomVaultTaxToken, isValidAddress, readTaxVaultHostContext, resolveTokenMarketPhase } from "./taxInfo";

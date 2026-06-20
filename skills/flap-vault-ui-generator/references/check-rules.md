@@ -36,7 +36,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - undeclared URL, endpoint, or external resource
 - host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch target
 - browser storage/navigation/worker/cross-context/permission API or direct browser network/media API
-- non-HTTPS, IPFS, Arweave, WebSocket, or embedded data URL resource usage in Vault source
+- non-HTTPS, `ipfs://` / gateway image URL, Arweave, WebSocket, or embedded data URL resource usage in Vault source; immutable Vault-specific images must use `IpfsImage` with a static image CID
 - missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - i18n key missing from any locale declared by `manifest.i18n`
 - missing current contract risk-status integration from host `riskLevel`, including the prominent unavailable-risk warning state

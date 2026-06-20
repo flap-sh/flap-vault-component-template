@@ -6,6 +6,7 @@ export * from "./Countdown";
 export * from "./DataRow";
 export * from "./DetailTile";
 export * from "./Input";
+export * from "./IpfsImage";
 export * from "./Metric";
 export * from "./ReviewedFrame";
 export * from "./StatusBadge";

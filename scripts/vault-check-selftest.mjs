@@ -498,6 +498,71 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertNoRule("comment-only URLs do not require manifest endpoint declarations", runVaultCheck(commentedUrlSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
 
+  const allowedIpfsImageSlug = `${FIXTURE_PREFIX}-ipfs-image`;
+  writeVault(allowedIpfsImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <IpfsImage cid="bafkreicllrojftwdwi7gukkpydxkimru55isnrngj5ggyuy2zbbqvmfyiq" alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  const allowedIpfsImageCheck = runVaultCheck(allowedIpfsImageSlug, { silent: true });
+  assertNoRule("IpfsImage CIDs do not require endpoint declarations", allowedIpfsImageCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("IpfsImage CIDs are not remote-media violations", allowedIpfsImageCheck, "media-policy/remote-media", "blocking");
+  assertNoRule("valid IpfsImage CIDs pass static CID validation", allowedIpfsImageCheck, "media-policy/invalid-ipfs-image-cid", "blocking");
+
+  const invalidIpfsCidSlug = `${FIXTURE_PREFIX}-ipfs-image-invalid-cid`;
+  writeVault(invalidIpfsCidSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <IpfsImage cid="https://flap.mypinata.cloud/ipfs/bafkreicllrojftwdwi7gukkpydxkimru55isnrngj5ggyuy2zbbqvmfyiq" alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  assertRule("IpfsImage rejects URL values in cid", runVaultCheck(invalidIpfsCidSlug, { silent: true }), "media-policy/invalid-ipfs-image-cid", "blocking");
+
+  const directIpfsImageUrlSlug = `${FIXTURE_PREFIX}-ipfs-image-direct-url`;
+  writeVault(directIpfsImageUrlSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <img src="https://flap.mypinata.cloud/ipfs/bafkreicllrojftwdwi7gukkpydxkimru55isnrngj5ggyuy2zbbqvmfyiq" alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  assertRule("direct Flap gateway image URLs remain blocked", runVaultCheck(directIpfsImageUrlSlug, { silent: true }), "media-policy/remote-media", "blocking");
+
   const externalResourceSlug = `${FIXTURE_PREFIX}-external`;
   writeVault(externalResourceSlug, {
     component: `"use client";

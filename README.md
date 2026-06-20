@@ -358,14 +358,14 @@ Blocking by default:
 - additional SDK packages or SDK-like wrappers outside the shared runtime surface
 - missing locales declared by `manifest.i18n`
 - i18n keys missing from any locale declared by `manifest.i18n`
-- remote images inside Vault source
+- remote images inside Vault source; immutable Vault-specific images must use `IpfsImage` from `@/src/ui` with a static image CID verified by `vault:check`
 - contract reads/writes, event watches, log/filter calls, or gas estimates to routers, bridges, aggregators, or unrelated contracts outside the Vault/token/NFT/factory/declaration boundary
 - binding by type field instead of registry-controlled chain/factory or chain/Vault targets
 - extra files, folders, or symlinks inside the Vault package
 - relative imports other than `./VaultABI`
 
 External endpoints, oracle usage, third-party images, extra fixed contract targets, and other external resources should be avoided when the same result can be achieved through Flap SDK capabilities or on-chain reads. Non-oracle endpoints are declared in `manifest.json`; fixed non-token/non-Vault/non-factory contract targets are declared under `match.bindings[].externalContracts`; oracle config, media policy, actions, fallback, artifact id, and version are Flap Artifact Workbench/runtime concerns. Any undeclared external URL or fixed extra contract target in Vault source is rejected.
-Endpoint declarations may be either one HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked by default, as are IPFS/Arweave links, WebSocket URLs, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs.
+Endpoint declarations may be either one HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked by default, as are `ipfs://`/Arweave links, WebSocket URLs, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs. Full gateway image URLs are blocked in Vault source; immutable Vault-specific images must use `IpfsImage` from `@/src/ui` with a static image CID, and the CID must pass `vault:check` image validation.
 Component-owned navigation should stay on the current chain explorer only. If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in `manifest.endpoints`; do not use endpoint declarations as a back door for off-site user navigation. Internal Oracle endpoints should normally stay behind `sdk.readOracle(...)` and host/runtime provisioning rather than raw URL literals in Vault source.
 
 ## Artifact Model

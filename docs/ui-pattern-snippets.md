@@ -31,7 +31,7 @@ Avoid:
 - Marketing hero sections, large decorative banners, or sample-dashboard filler.
 - Duplicating host-owned intro banners, token summaries, or top hero cards inside `Component.tsx`.
 - Treating `example` or `action-gallery-example` as the visual default. They are behavior references; the scaffold default and this document define the preferred default visual direction.
-- Third-party images or external media.
+- Third-party images or external media. If a Vault-specific immutable image is unavoidable, use `IpfsImage` from `@/src/ui` with a static image CID that `vault:check` can verify.
 - Ad hoc SVG when CSS/HTML or a `lucide-react` icon can express the same mark. If inline SVG is necessary, keep it to safe static pure shape nodes and local fragment refs only.
 - Turning `<canvas>` into a full-screen whiteboard, background scene, or shell replacement.
 - Hardcoded addresses or private endpoints.

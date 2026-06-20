@@ -4,8 +4,14 @@ import type { Address, HostRuntimePresentationFetcher, HostTokenPresentation } f
 
 const DEFAULT_FLAP_HOST_ORIGIN = "https://flap.sh";
 const DEFAULT_RUNTIME_PRESENTATION_ENDPOINT = "/api/runtime/token-presentation";
-const DEFAULT_IPFS_GATEWAY = "https://gateway.pinata.cloud";
-const LEGACY_IPFS_GATEWAY_HOSTS = new Set(["cf-ipfs.com", "pump.mypinata.cloud", "gateway.pinata.cloud"]);
+const DEFAULT_IPFS_GATEWAY = "https://flap.mypinata.cloud";
+const LEGACY_IPFS_GATEWAY_HOSTS = new Set([
+  "cf-ipfs.com",
+  "pump.mypinata.cloud",
+  "gateway.pinata.cloud",
+  "flap.mypinata.cloud",
+  "magenta-naval-penguin-822.mypinata.cloud",
+]);
 
 interface HostMetadataResponseItem {
   address?: string;

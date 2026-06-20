@@ -114,6 +114,11 @@ const WARNING = "warning";
 const INFO = "info";
 const TYPE_BINDING_KEYS = new Set(["vault" + "Type", "vault" + "Types"]);
 const UNSAFE_RESOURCE_SCHEMES = ["ipfs://", "ar://", "data:", "javascript:"];
+const ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS = new Set([
+  "https://flap.mypinata.cloud",
+  "https://magenta-naval-penguin-822.mypinata.cloud",
+]);
+const IPFS_IMAGE_CID_RE = /^(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/;
 const ALLOWED_INLINE_SVG_TAGS = new Set([
   "svg",
   "g",
@@ -228,7 +233,9 @@ const FIX_HINTS = {
   "imports-and-dependencies/unreviewed-import": "Remove the dependency unless Flap explicitly approves it.",
   "imports-and-dependencies/dynamic-import": "Use static imports only.",
   "media/local-asset": "Move local media outside the Vault package. Vault folders must contain only the four allowed files.",
-  "media-policy/remote-media": "Remove remote media. Media is controlled by Flap Artifact Workbench/runtime policy.",
+  "media-policy/remote-media": "Remove remote media URLs. Use host-provided media for token images, or IpfsImage with a static image CID for immutable Vault-specific images.",
+  "media-policy/invalid-ipfs-image-cid": "Pass only a static image CID to IpfsImage. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic expressions.",
+  "media-policy/ipfs-image-unavailable": "Use a static image CID that resolves through an allowed Flap IPFS gateway to an image/* response.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites. Keep component-owned links on the current chain explorer only, and use host-reviewed allowlists for any exceptional metadata/oracle origin during review.",
   "contract-boundary/missing-contract-label": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the call target.",
@@ -995,6 +1002,70 @@ function collectHardcodedVisibleCopyIssues(content, file) {
 
 function isAllowlistedExternalUrl(url, declaredUrls, declaredFrames = new Map()) {
   return isDeclaredUrl(url, declaredUrls) || isDeclaredExternalFrameUrl(url, declaredFrames) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
+}
+
+function isAllowedIpfsImageGatewayUrl(url) {
+  const parsed = parseUrl(url);
+  return (
+    parsed?.protocol === "https:" &&
+    !parsed.username &&
+    !parsed.password &&
+    !parsed.search &&
+    !parsed.hash &&
+    ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS.has(parsed.origin) &&
+    /^\/ipfs\/[^/]+(?:\/[^?#]*)?$/.test(parsed.pathname)
+  );
+}
+
+function collectStaticImgSrcUrls(content, file) {
+  const urls = [];
+  const tagRegex = /<img\b[^>]*>/gi;
+  for (const tagMatch of content.matchAll(tagRegex)) {
+    const tag = tagMatch[0];
+    const tagStart = tagMatch.index ?? 0;
+    const srcRegex = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*(["'`])((?:\\.|(?!\3)[\s\S])*?)\3\s*\})/g;
+    for (const srcMatch of tag.matchAll(srcRegex)) {
+      const url = srcMatch[1] ?? srcMatch[2] ?? srcMatch[4];
+      if (!url) continue;
+      urls.push({
+        url: sanitizeUrlLiteral(url),
+        file,
+        line: lineForIndex(content, tagStart + (srcMatch.index ?? 0)),
+      });
+    }
+  }
+  return urls;
+}
+
+function staticJsxStringAttribute(tag, attributeName) {
+  const attrRegex = new RegExp(`\\b${attributeName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{\\s*(["'\`])((?:\\\\.|(?!\\3)[\\s\\S])*?)\\3\\s*\\})`);
+  const match = attrRegex.exec(tag);
+  if (!match) return undefined;
+  return match[1] ?? match[2] ?? match[4] ?? null;
+}
+
+function collectIpfsImageCidUsages(content, file) {
+  const usages = [];
+  const tagRegex = /<IpfsImage\b[^>]*>/g;
+  for (const tagMatch of content.matchAll(tagRegex)) {
+    const tag = tagMatch[0];
+    const index = tagMatch.index ?? 0;
+    const cid = staticJsxStringAttribute(tag, "cid");
+    usages.push({
+      cid: cid ? cid.trim() : cid,
+      file,
+      line: lineForIndex(content, index),
+    });
+  }
+  return usages;
+}
+
+function isValidIpfsImageCid(cid) {
+  return typeof cid === "string" && IPFS_IMAGE_CID_RE.test(cid);
+}
+
+function ipfsImageUrlsForCid(cid) {
+  return [...ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS].map((origin) => `${origin}/ipfs/${cid}`);
 }
 
 function isValidFolderName(folderName) {
@@ -2584,6 +2655,20 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     issues.push(...collectDynamicImportIssues(content, rel));
     issues.push(...collectReviewedFrameIssues(scanContent, rel, declaredFrames));
+    const staticImgSrcUrls = collectStaticImgSrcUrls(scanContent, rel);
+    const ipfsImageCidUsages = collectIpfsImageCidUsages(scanContent, rel);
+    for (const usage of ipfsImageCidUsages) {
+      if (!isValidIpfsImageCid(usage.cid)) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "media-policy/invalid-ipfs-image-cid",
+            "IpfsImage must receive a static image CID. URLs, ipfs:// values, metadata CIDs, and dynamic expressions are not allowed.",
+            usage,
+          ),
+        );
+      }
+    }
     const requireRegex = /\brequire\s*\(/g;
     for (const match of scanContent.matchAll(requireRegex)) {
       issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
@@ -2700,8 +2785,13 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         );
       }
     }
-    if (/url\(\s*["']?(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(scanContent) || /<img[^>]+src=["'](?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(scanContent)) {
+    if (/url\(\s*["']?(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(scanContent)) {
       issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote media is not developer-declared in this template. Use Flap-controlled media/runtime policy instead.", { file: rel }));
+    }
+    for (const imageSrc of staticImgSrcUrls) {
+      if (/^(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(imageSrc.url)) {
+        issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote image sources must use IpfsImage with a static cid prop instead of a URL.", imageSrc));
+      }
     }
     const hardcodedAddressRegex = /["'`]0x[a-fA-F0-9]{40}["'`]/g;
     for (const match of scanContent.matchAll(hardcodedAddressRegex)) {
@@ -2786,6 +2876,79 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         }
       }
     }
+  }
+  return issues;
+}
+
+function collectIpfsImageCidSources(vaultDir) {
+  return walk(vaultDir)
+    .filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/))
+    .flatMap((item) => {
+      const rel = path.relative(ROOT, item.path);
+      const content = stripCommentsForScanning(fs.readFileSync(item.path, "utf8"));
+      return collectIpfsImageCidUsages(content, rel)
+        .filter((source) => isValidIpfsImageCid(source.cid))
+        .map((source) => ({
+          ...source,
+          urls: ipfsImageUrlsForCid(source.cid),
+        }));
+    });
+}
+
+async function probeImageUrl(url) {
+  for (const method of ["HEAD", "GET"]) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: method === "GET" ? { Range: "bytes=0-0" } : undefined,
+        signal: controller.signal,
+      });
+      if (response.body) await response.body.cancel().catch(() => {});
+      const finalUrl = response.url || url;
+      const contentType = response.headers.get("content-type") ?? "";
+      if (response.ok && isAllowedIpfsImageGatewayUrl(finalUrl) && contentType.toLowerCase().startsWith("image/")) return null;
+      if (method === "HEAD" && (response.status === 405 || response.status === 403 || !contentType.toLowerCase().startsWith("image/"))) continue;
+      return { status: response.status, contentType, finalUrl };
+    } catch (error) {
+      if (method === "HEAD") continue;
+      return { error: error instanceof Error ? error.message : String(error) };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  return { error: "image probe failed" };
+}
+
+async function collectIpfsImageValidationIssues(vaultDir) {
+  const seen = new Set();
+  const sources = collectIpfsImageCidSources(vaultDir).filter((source) => {
+    if (seen.has(source.cid)) return false;
+    seen.add(source.cid);
+    return true;
+  });
+  const issues = [];
+  for (const source of sources) {
+    const attempts = [];
+    let resolved = false;
+    for (const url of source.urls) {
+      const failure = await probeImageUrl(url);
+      if (!failure) {
+        resolved = true;
+        break;
+      }
+      attempts.push({ url, ...failure });
+    }
+    if (resolved) continue;
+    issues.push(
+      issue(
+        BLOCKING,
+        "media-policy/ipfs-image-unavailable",
+        `IpfsImage cid ${source.cid} must resolve through at least one allowed Flap IPFS gateway with an image/* content-type.`,
+        { ...source, attempts },
+      ),
+    );
   }
   return issues;
 }
@@ -2956,7 +3119,8 @@ export async function runVaultCheckWithTokenContracts(folderName, options = {}) 
   const tokenIssues = await collectManifestErc20TokenIssues(manifest, {
     file: `src/vaults/${folderName}/manifest.json`,
   });
-  const report = buildCheckReport(folderName, [...staticReport.issues, ...tokenIssues]);
+  const ipfsImageIssues = await collectIpfsImageValidationIssues(path.join(ROOT, "src", "vaults", folderName));
+  const report = buildCheckReport(folderName, [...staticReport.issues, ...tokenIssues, ...ipfsImageIssues]);
   if (!options.silent) {
     console.log(JSON.stringify(report, null, 2));
   }
