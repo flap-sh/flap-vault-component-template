@@ -182,6 +182,28 @@ Do not use:
 - Reimplementing token phase detection inside `Component.tsx`; use the host-provided `marketPhase`.
 - Uploading media, fetching private token metadata or token image APIs inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host, or `IpfsImage` with a static image CID when the image is Vault-specific and immutable.
 
+### Vault-Specific Images
+
+Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token presentation. Only use custom media when the image is Vault-specific, immutable, and already pinned outside the Vault UI package.
+
+When a user provides an `imageCid`, render it through `IpfsImage` and emit the CID as a static string literal:
+
+```tsx
+import { IpfsImage } from "@/src/ui";
+
+<IpfsImage
+  cid="bafkreicllrojftwdwi7gukkpydxkimru55isnrngj5ggyuy2zbbqvmfyiq"
+  alt={i18n.t("media.heroAlt")}
+  className="aspect-[16/9] w-full rounded-md object-cover"
+/>
+```
+
+Do not emit `imageUrl`, `<img src="https://.../ipfs/...">`, `ipfs://...`, CSS `url(...)`, a metadata CID, or a runtime variable/expression for `cid`. If the upload flow returns a metadata CID, fetch the metadata JSON and extract the `image` field first; then strip the gateway or `ipfs://` prefix and keep only the actual image CID. The Vault package must not implement the upload or pinning flow.
+
+`vault:check` validates every static `IpfsImage cid` by probing the allowed Flap IPFS gateways and requiring an `image/*` response. If `media-policy/invalid-ipfs-image-cid` appears, replace the prop with a raw static image CID. If `media-policy/ipfs-image-unavailable` appears, the CID is not currently readable as an image through the allowed gateways, so use a pinned image CID that resolves correctly or remove the media.
+
+Risk status still controls visual order: if the image is a hero, preview, showcase, or other large visual block, place the required host-derived risk status before it.
+
 ## Validation Loop
 
 All Vault commands are designed for Agent recovery. On failure, parse the JSON output:

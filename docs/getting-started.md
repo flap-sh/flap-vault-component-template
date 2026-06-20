@@ -143,6 +143,20 @@ Use `context.host?.marketPhase` or the normalized `readTaxVaultHostContext(conte
 Wrong-network handling is separate from market-phase handling. Use `sdk.wallet.isWrongNetwork` to keep write buttons visible but disabled, then prompt `sdk.wallet.switchChain()` or show a clear switch-network state before any write.
 Do not fetch private token metadata or image APIs from the Vault component. If token media is needed, read `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol`; the template preview shell now injects these host values through the same-origin runtime proxy when available, then falls back to on-chain ERC20 metadata. Production Flap host should inject equivalent data.
 
+For a Vault-specific immutable image that cannot come from host token media, use CID-only `IpfsImage`. Upload and pin the image outside the Vault UI package. If that upload flow returns a metadata CID, fetch the metadata JSON and read its `image` field; from an `image` value such as `https://.../ipfs/<imageCid>` or `ipfs://<imageCid>`, keep only `<imageCid>`. Do not use the metadata CID as the image CID.
+
+```tsx
+import { IpfsImage } from "@/src/ui";
+
+<IpfsImage
+  cid="bafkreicllrojftwdwi7gukkpydxkimru55isnrngj5ggyuy2zbbqvmfyiq"
+  alt={i18n.t("media.heroAlt")}
+  className="aspect-[16/9] w-full rounded-md object-cover"
+/>
+```
+
+Do not pass a full gateway URL, an `ipfs://` value, the metadata CID, a CSS `url(...)`, an `imageUrl` prop, or a runtime variable/expression into the image source. If a generator collects an `imageCid` from the user, emit it as the static string literal in the `cid` prop. `vault:check` resolves each CID through the allowed Flap IPFS gateways and blocks packaging unless at least one response is a real `image/*` asset. The Vault UI does not upload or pin images; it only reads and verifies the already-pinned image CID. Keep required host risk status before any large or visually prominent image.
+
 Avoid external endpoints, resources, and frames. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` as a single absolute HTTPS URL string without username/password credentials or an array of those strings; it will enter Flap review and must be approved before publish. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. If a display-only chart iframe is unavoidable, declare at most one entry in `manifest.externalFrames[]` and render it only through one `ReviewedFrame` from `@/src/ui`; providers are limited to TradingView, DexScreener, and CoinGecko Terminal/GeckoTerminal, and the `src` must be a complete static HTTPS URL with fixed query params. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in the manifest. Declaration does not guarantee approval, and undeclared, host-relative, dynamic, HTTP, credentialed, raw iframe, or multiple `ReviewedFrame` usage is rejected.
 
 Avoid fixed extra contract targets. If a component must call a fixed contract address that is not `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, or a binding-scoped token/Vault reference, declare it in the relevant binding:

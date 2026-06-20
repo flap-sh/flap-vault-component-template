@@ -150,6 +150,20 @@ In local preview, the host first reads token presentation data through the same-
 Do not fetch private token metadata APIs from `src/vaults/{folder-name}/Component.tsx`.
 When implementing `Component.tsx`, start at the first Vault-specific business section below `Vault Information`. Do not recreate token/header chrome or a duplicate top summary banner when the host surface already provides one.
 
+For a Vault-specific immutable image that is not token media, use the shared UI component and pass only the raw image CID:
+
+```tsx
+import { IpfsImage } from "@/src/ui";
+
+<IpfsImage
+  cid="bafkreicllrojftwdwi7gukkpydxkimru55isnrngj5ggyuy2zbbqvmfyiq"
+  alt={i18n.t("media.heroAlt")}
+  className="aspect-[16/9] w-full rounded-md object-cover"
+/>
+```
+
+The CID must be the image CID, not a metadata CID. If an upload tool returns a metadata CID, read that metadata JSON and extract the `image` field, then strip any gateway URL or `ipfs://` prefix before using it. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic expression. `vault:check` verifies the static CID resolves as `image/*` through the allowed Flap IPFS gateways.
+
 ## Taxinfo Host Context
 
 The Flap host owns the taxinfo and feeinfo preflight layer. Production should resolve Portal token state, helper tax info, VaultPortal info, registry factory/CA binding, and fee mode before rendering a custom Vault UI. Vault components should consume the result instead of calling private backend APIs or rebuilding type / fee-mode mapping.
