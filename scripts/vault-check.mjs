@@ -1427,6 +1427,7 @@ function collectAbiFunctionOutputCounts(vaultDir) {
 }
 
 function typeReferenceNameText(typeNode) {
+  if (!typeNode) return null;
   if (!ts.isTypeReferenceNode(typeNode)) return null;
   const typeName = typeNode.typeName;
   if (ts.isIdentifier(typeName)) return typeName.text;
