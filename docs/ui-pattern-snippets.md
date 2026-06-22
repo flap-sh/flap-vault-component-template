@@ -15,9 +15,11 @@ Vault components should feel like compact business panels inside the Flap previe
 - Use `VaultBanner` only when the target host surface does not already provide a standard shared summary/header block. Do not treat a component-owned top banner as the default.
 - Use the current Flap Vault visual system: dark neutral business surfaces, white low-opacity borders, compact status pills, dense metric strips, and one clear primary action panel.
 - Default new UIs should feel closer to a polished embedded tool than to a sample dashboard: one mechanism summary, a small metric grid, one primary action area, and runtime details pushed lower or kept compact.
+- The default first screen must be one compact business card, not a stack of dashboard cards. Keep the first card to a mechanism/status header, at most one small metric strip, one primary action panel, and compact runtime facts lower in the card.
 - If a Vault needs custom visualization, treat `<canvas>` as a compact chart or diagram area inside a card, not as a page-level whiteboard or shell replacement.
 - Use `Card`, `CardHeader`, `CardTitle`, and `CardContent` for major sections, but override density when useful with `rounded-[14px]`, `rounded-[18px]`, `border-white/10`, `bg-black/25`, `bg-white/[0.03]`, and restrained accent borders.
 - Use `Metric` for top-level stats and `DetailTile` for compact action/runtime facts; reserve `DataRow` only for rare audit-style logs where row separation is the main value.
+- Use `Metric` and `DetailTile` sparingly. Do not turn every contract read into its own large tile; group secondary reads into compact strips or lower runtime detail rows.
 - Use `Alert` for notices, warnings, errors, and empty states.
 - Use `StatusBadge` for ready, paused, unavailable, and review states.
 - Use `TxButton` for approve/write flows with transaction state labels.
@@ -31,12 +33,15 @@ Avoid:
 - Marketing hero sections, large decorative banners, or sample-dashboard filler.
 - Duplicating host-owned intro banners, token summaries, or top hero cards inside `Component.tsx`.
 - Treating `example` or `action-gallery-example` as the visual default. They are behavior references; the scaffold default and this document define the preferred default visual direction.
+- Row-heavy dashboard layouts with multiple sibling `Card` sections before the primary action. If a generated UI starts with overview cards, dividend cards, staking cards, and action cards, it has copied the old sample-dashboard shape.
 - Third-party images or external media. If a Vault-specific immutable image is unavoidable, use `IpfsImage` from `@/src/ui` with a static image CID that `vault:check` can verify.
 - Ad hoc SVG when CSS/HTML or a `lucide-react` icon can express the same mark. If inline SVG is necessary, keep it to safe static pure shape nodes and local fragment refs only.
 - Turning `<canvas>` into a full-screen whiteboard, background scene, or shell replacement.
 - Hardcoded addresses or private endpoints.
 - Raw iframe, `srcDoc`, or dynamic chart URLs. If a display-only market chart is approved, use `ReviewedFrame` with a static `manifest.externalFrames` URL only.
 - Copying old Flap component names, constants, exact private flows, or legacy row-heavy layouts.
+
+When using an external visual reference such as 涅槃, extract only section hierarchy, density, spacing, and interaction emphasis. Rebuild it with the scaffold default surface and this template's SDK/UI primitives; do not copy private code, private constants, addresses, endpoints, or project-specific assets.
 
 ## Coverage Matrix
 
@@ -258,7 +263,7 @@ return (
 
 ## Default Scaffold Surface
 
-Use this as the preferred starting shape for new custom Vault UIs. It avoids the older sample-dashboard look by keeping everything inside one compact business card: mechanism summary, status metrics, runtime targets, and one primary action slot.
+Use this as the preferred starting shape for new custom Vault UIs. It avoids the older sample-dashboard look by keeping everything inside one compact business card: mechanism summary, a small status metric strip, compact runtime targets, and one primary action slot. Built-in examples stay secondary behavior references; this section wins for visual structure.
 
 ```tsx
 return (

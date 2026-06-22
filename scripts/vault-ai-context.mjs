@@ -24,7 +24,7 @@ const BASE_FILES = [
 const EXAMPLE_HINTS = {
   example: "reward/oracle pattern with approve, simulate, write, claim, and refetch",
   "dex-listed-example": "DEX-listed-only action gate with visible disabled states before listing",
-  "action-gallery-example": "default behavior reference when the user is unsure; shows internal-market, DEX-listed, both-stage, and read-only states",
+  "action-gallery-example": "secondary behavior reference when the user is unsure about action stages; shows internal-market, DEX-listed, both-stage, and read-only states",
   "community-buyback-example": "live governance or buyback-style vault reference",
   "flapixel-example": "live NFT vault reference",
 };
@@ -100,6 +100,8 @@ ${fence}
 function promptTemplate(exampleFolder) {
   return `You are a Flap Vault UI generation agent. I pasted a local context pack from flap-vault-ui-template, including the core docs and the selected reference example: ${exampleFolder}.
 
+The selected example is a secondary behavior reference only. The visual default is the scaffold default surface in docs/ui-pattern-snippets.md, and it wins over any example component.
+
 Before writing code:
 1. Summarize the strict Vault folder boundary, manifest rules, safety boundaries, and validation commands you must follow.
 2. Use docs/agent-intake-template.md to ask me for missing inputs and docs/from-zero-vault-ui.md as the from-zero validation flow.
@@ -107,8 +109,10 @@ Before writing code:
 4. Use the scaffold default surface / docs/ui-pattern-snippets.md as the visual default; use examples for behavior, not for visual styling.
 5. Confirm actionAvailabilityStage as one of internal-market, dex-listed, both, or read-only.
 6. After inputs are complete, generate only the allowed four Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json.
-7. Keep all user-facing copy in i18n.json, include every locale declared in manifest.i18n, and do not add helper files, assets, external navigation, undeclared endpoints, direct wallet APIs, or private Flap code.
-8. Do not call the package ready until yarn vault:check, yarn vault:package, and yarn vault:verify-package pass for the target folder.
+7. Keep the first screen to one compact business card, at most one small metric strip, one primary action panel, and lower compact runtime details. Do not generate row-heavy overview/dividend/staking dashboard stacks.
+8. If the user provides an external visual reference such as 涅槃, extract section hierarchy, density, spacing, and interaction emphasis only; do not copy private code, constants, addresses, endpoints, or assets.
+9. Keep all user-facing copy in i18n.json, include every locale declared in manifest.i18n, and do not add helper files, assets, external navigation, undeclared endpoints, direct wallet APIs, or private Flap code.
+10. Do not call the package ready until yarn vault:check, yarn vault:e2e, yarn vault:package, and yarn vault:verify-package pass for the target folder.
 
 If anything is missing or unsafe, stop and ask questions instead of guessing. Answer in the language I use.`;
 }
@@ -121,6 +125,7 @@ This pack is for web-based AI tools that cannot read this repository directly. P
 
 Selected example: \`${exampleFolder}\`
 Example purpose: ${EXAMPLE_HINTS[exampleFolder] ?? "custom Vault UI reference package"}
+Visual default: scaffold default surface from \`docs/ui-pattern-snippets.md\`. The selected example is behavior-only and must not override the default visual structure.
 
 ## First Message To Send
 
@@ -130,13 +135,13 @@ ${promptTemplate(exampleFolder)}
 
 ## Example Selection Guide
 
-- \`action-gallery-example\`: start here when the user is unsure about behavior; it shows internal-market, DEX-listed, both-stage, and read-only action states.
+- \`action-gallery-example\`: secondary behavior reference when the user is unsure about action stages; it shows internal-market, DEX-listed, both-stage, and read-only action states.
 - \`example\`: use for reward/oracle flows with approve, simulate, write, claim, and refetch.
 - \`dex-listed-example\`: use when writes should be unavailable until \`marketPhase=dex-listed\`.
 - \`community-buyback-example\`: use for governance, reserve, or buyback-style vaults.
 - \`flapixel-example\`: use for NFT vault flows.
 
-Examples are behavior references, not the default visual style. Start visual structure from the scaffold default surface and the Default Scaffold Surface section in \`docs/ui-pattern-snippets.md\`.
+Examples are behavior references, not the default visual style. Start visual structure from the scaffold default surface and the Default Scaffold Surface section in \`docs/ui-pattern-snippets.md\`. The first screen should be one compact business card with a small metric strip, one primary action panel, and lower runtime details, not a row-heavy dashboard stack.
 
 ## Files
 
