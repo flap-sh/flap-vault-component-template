@@ -16,7 +16,7 @@
       "type": "object",
       "required": ["bindings"],
       "additionalProperties": false,
-      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more tokenAddresses entries. At least one binding must include tokenAddresses as the manifest-declared test token source for vault:check/e2e.",
+      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more no-factory tokenAddresses entries. At least one binding must include tokenAddresses as the manifest-declared test token source for vault:check/e2e; prefer testnet tokens. Factory-mode tokenAddresses are not production CA restrictions.",
       "properties": {
         "bindings": {
           "type": "array",
@@ -63,7 +63,7 @@
               },
               "tokenAddresses": {
                 "$ref": "#/$defs/addressArray",
-                "description": "Binding-scoped token CA list. Every manifest must include at least one real deployed ERC20 token address under a binding for Workbench/e2e test coverage. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
+                "description": "Binding-scoped manifest test token list. Every manifest must include at least one real deployed ERC20 token address under a binding for Workbench/e2e test coverage; prefer testnet. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",

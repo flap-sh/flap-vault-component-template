@@ -12,8 +12,9 @@ Before asking an Agent to build anything, collect these inputs:
 | --- | --- | --- |
 | Folder name | `my-vault` | Creates `src/vaults/my-vault` and preview route `/my-vault`. |
 | Display name | `My Vault UI` | Written to `manifest.json` for Workbench display. |
-| Binding target | `chainId 56 + factory 0x...` or `chainId 56 + vault 0x...` | Controls which runtime Vault can use this UI. |
-| Optional token address | `0x...` | Useful for single-Vault preview and matching. |
+| Binding target | `chainId 97 + testnet factory 0x...` plus `chainId 56 + final mainnet factory 0x...`, or `chainId 56 + vault 0x...` | Controls which runtime Vault can use this UI. Collect the final mainnet factory early to avoid later binding edits. |
+| Test token address | `0x...` on testnet when possible | Required for package proof. This is not a production CA restriction in factory mode. |
+| CA restriction mode | `none`, `reserved`, or `verified` | Workbench/registry production policy. Do not put production CA policy in `manifest.json`. |
 | Minimal Vault ABI | `function claim()`, `function info(address)` | The UI can only call methods it knows. |
 | Reads and writes | `info`, `deposit`, `claim` | Defines the actual business workflow. |
 | Approval spender | Usually `context.vaultAddress` | Required for token approval flows. |
@@ -40,13 +41,14 @@ This confirms the template runs before custom logic is introduced.
 
 ## Step 2: Create The Package
 
-Factory-scoped UI:
+Factory-scoped UI, preferred when a testnet token is available:
 
 ```bash
 yarn vault:scaffold my-vault \
   --name "My Vault UI" \
-  --chain 56 --factory 0xFactoryAddressRequired \
-  --token 0xTokenAddressRequired \
+  --chain 97 --factory 0xTestnetFactory \
+  --token 0xTestnetTokenForTesting \
+  --chain 56 --factory 0xMainnetFactory \
   --locales en,zh
 ```
 
@@ -60,7 +62,7 @@ yarn vault:scaffold my-vault \
   --locales en,zh
 ```
 
-Replace placeholder addresses with real deployment addresses before running scaffold. The token address is required because `vault:check` and Workbench use manifest `match.bindings[].tokenAddresses` as the package's E2E test token source.
+Replace placeholder addresses with real deployment addresses before running scaffold. The token address is required because `vault:check` and Workbench use manifest `match.bindings[].tokenAddresses` as the package's E2E test token source; prefer a testnet token. In factory mode, this token does not restrict production CA. Production CA restriction belongs to Workbench/registry `caRestrictionMode`: `none`, `reserved`, or `verified`.
 
 `vault:scaffold` creates the four-file package and registers the preview route. Do not add helper files, assets, nested folders, or extra local imports.
 
@@ -75,6 +77,9 @@ Build a controlled Flap Vault UI for:
 - folder name:
 - display name:
 - binding target:
+- caRestrictionMode:
+- test token address, preferably testnet:
+- final mainnet factory address, if mainnet launch is planned:
 - locales:
 - action stage:
 - risk posture:

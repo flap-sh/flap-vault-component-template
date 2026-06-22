@@ -26,6 +26,20 @@ Endpoint, external frame, and external contract declarations are only review inp
 
 When `vault:check` reports `manual-review/external-frame`, the output includes the full iframe `src` both in the warning issue and in `review.externalFrames[]`. Workbench should display those exact `src` values in the human review UI instead of asking reviewers to inspect `manifest.json` manually.
 
+## Test Token vs Production CA Restriction
+
+`match.bindings[].tokenAddresses` in a source package is the manifest-declared test token source for `vault:check`, `vault:e2e`, preview, and package proof. Prefer a testnet ERC20 test token for this proof. It is not, by itself, a production CA restriction for factory-scoped UI.
+
+The Flap Artifact Workbench must collect and display a separate `caRestrictionMode` decision before registry publish:
+
+| Mode | Publish behavior |
+| --- | --- |
+| `none` | Use the test token only for validation proof. Do not write a token CA restriction into the production registry binding; route by the verified factory or Vault binding. |
+| `reserved` | Save the future CA reservation, but block formal publish and runtime routing until it becomes verified. |
+| `verified` | After ERC20 validation and factory/Vault/token relationship checks pass, write the token CA restriction into the Workbench/registry binding. |
+
+For factory-scoped mainnet launches, Workbench and agents should collect the final real mainnet factory address early, while using a testnet token for package proof when possible. Do not let a developer's random manifest token become a production restriction without the Workbench `verified` path.
+
 ## Source Package Marker Schema
 
 The `flap-vault-package.json` marker is the Workbench acceptance anchor. The Workbench verifier should treat this shape as required for package format version `4`:
@@ -97,7 +111,7 @@ Validation requirements:
 - `folderName` must be valid lowercase kebab-case and must match every `src/vaults/<folder-name>/...` source entry.
 - `check.passed` must be true and `check.summary.blocking` must be `0`; warning and info counts may be non-zero and remain review evidence.
 - The zip must contain exactly the marker, `package-metadata.json`, `schemas/manifest.schema.json`, `qa/e2e-report.json`, and the four required Vault source files.
-- `qa/e2e-report.json` must have `passed: true`, zero blocking issues, current hashes for the four Vault files and manifest schema, required PC / iPad / H5 viewports, required `default` / `internal-market` / `dex-listed` phase checks, and a valid BNB token declared in manifest `match.bindings[].tokenAddresses` for package testing. The V1 report is deterministic Playwright DOM/layout/state proof, not AI image judgment.
+- `qa/e2e-report.json` must have `passed: true`, zero blocking issues, current hashes for the four Vault files and manifest schema, required PC / iPad / H5 viewports, required `default` / `internal-market` / `dex-listed` phase checks, and a valid BNB token declared in manifest `match.bindings[].tokenAddresses` for package testing, preferably on testnet. The V1 report is deterministic Playwright DOM/layout/state proof, not AI image judgment.
 - Duplicate zip entry names, path traversal entries, unsupported compression, mismatched central/local header names, unexpected files, or mismatched hashes are rejection reasons.
 - `manifest.json` inside the zip must have the same `artifactId` as the marker.
 - `package-metadata.json` must agree with marker kind, format version, folder name, artifact id, runtime provenance, and `e2e` summary.
@@ -189,7 +203,7 @@ Versioning rules for `agent-contract.json`, `schemas/manifest.schema.json`, and 
 
 The Vault folder name is the source folder and local preview route. `artifactId` is the stable unique source-package artifact identity and follows `vaultui_<folder-name>_<ULID>`. The Flap Artifact Workbench should use that `artifactId` to track the artifact family, while runtime build versions and storage paths remain Workbench-owned.
 
-One runtime artifact can serve testnet, mainnet, future factories, fixed single-Vault deployments, or token-scoped deployments when the UI logic is the same. Deployment bindings map `chainId + factoryAddress`, no-factory `chainId + vaultAddress`, or no-factory `chainId + tokenAddress` targets to the shared artifact id. No-factory token scoping may carry multiple token CAs in `match.bindings[].tokenAddresses`. If it needs a fixed extra contract target, it should do so only as `match.bindings[].externalContracts`.
+One runtime artifact can serve testnet, mainnet, future factories, fixed single-Vault deployments, or token-scoped deployments when the UI logic is the same. Deployment bindings map `chainId + factoryAddress`, no-factory `chainId + vaultAddress`, or no-factory `chainId + tokenAddress` targets to the shared artifact id. No-factory token scoping may carry multiple token CAs in `match.bindings[].tokenAddresses`; factory-scoped production CA restriction is Workbench/registry policy, not a public manifest field. If it needs a fixed extra contract target, it should do so only as `match.bindings[].externalContracts`.
 
 ## Import Contract
 

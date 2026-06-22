@@ -37,18 +37,18 @@ Ask these in order. Each answer gates the next.
 
 - Example: `56` (BNB Chain mainnet only), `56` and `97` (mainnet + testnet)
 - Must be integers.
-- Each entry will be paired with a factory address or one Vault address depending on the core binding mode. The same chain can appear more than once when multiple targets share the same UI logic.
+- Each entry will be paired with a factory address or one Vault address depending on the core binding mode. Prefer a testnet binding with the test token, plus the final real mainnet factory binding when mainnet launch is planned.
 
 ### Q4: Binding mode and target addresses
 
 > Is each binding factory-scoped or Vault-scoped without a factory?
 
-- For factory mode, provide one real non-zero factory address per chain.
+- For factory mode, provide one real non-zero factory address per chain. If mainnet launch is planned, collect the final real mainnet factory address now so the production binding does not need repeated edits.
 - For no-factory Vault-scoped mode, omit `factoryAddress` and provide exactly one real non-zero Vault address per chain.
-- Example factory binding: chain 56 -> factory `0xAbcMainnet...`, test token `0xToken...`.
+- Recommended factory binding set: chain 97 -> testnet factory `0xTestnetFactory...` + test token `0xTestnetToken...`, and chain 56 -> final mainnet factory `0xMainnetFactory...`.
 - Example no-factory binding: chain 56 -> Vault `0xVault...`, test token `0xToken...`.
 - Do not invent fake factory addresses. A zero factory address is invalid; use no-factory mode instead.
-- Every manifest must include at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing.
+- Every manifest must include at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing. Prefer a testnet token for this proof.
 
 ### Q5: Vault addresses
 
@@ -58,19 +58,33 @@ Ask these in order. Each answer gates the next.
 - No-factory Vault-scoped mode: required exactly once and already collected in Q4. Token-scoped mode may omit it.
 - Store all Vault addresses under `match.bindings[].vaultAddresses`, never as a top-level field.
 
-### Q6: Token address list (optional)
+### Q6: Production CA restriction mode
 
-> Does any binding need a reference token CA allowlist for this UI?
+> Should production routing restrict this UI to specific token CAs?
 
-- Usually: omit for factory-scoped shared UI unless the binding is intentionally token-specific.
-- In no-factory mode, this may contain multiple token addresses when Flap review/runtime supplies that mapping; the core scaffold path still starts from a Vault address.
-- Store token addresses under `match.bindings[].tokenAddresses`, never as a top-level field.
+| Mode | Meaning | Where it is configured |
+| --- | --- | --- |
+| `none` | Production does not restrict CA; route by factory or Vault. A test token is still required for package proof. | Workbench/registry records `none`; manifest keeps only test token(s). |
+| `reserved` | A future CA is locked early but not verified. It must not publish or route yet. | Workbench/registry reservation only. |
+| `verified` | CA is deployed, ERC20 validation passes, and factory/Vault/token relationship is verified. | Workbench/registry production binding only. |
+
+- Do not add `restrictTokenAddresses`, `caPolicy`, or global `tokenAddresses` to `manifest.json`.
+- In factory mode, `match.bindings[].tokenAddresses` is a manifest test-token source, not the production CA restriction.
+
+### Q7: Test token addresses
+
+> Which real ERC20 token(s) should package checks and E2E use?
+
+- Prefer a testnet test token and place that binding first when using `vault:scaffold`, for example chain 97 + testnet factory + `--token 0xTestnetToken...`.
+- Store test tokens under `match.bindings[].tokenAddresses`, never as a top-level field.
+- If `caRestrictionMode` is `none`, this test token still exists and still does not restrict production CA.
+- If production CA restriction is `verified`, collect `productionRestrictedTokenAddresses` for Workbench/registry separately; do not use manifest fields for that production policy.
 
 ---
 
 ## Step 3 — Localization
 
-### Q7: Locales
+### Q8: Locales
 
 > Which languages should this UI support?
 
@@ -81,7 +95,7 @@ Ask these in order. Each answer gates the next.
 
 ## Step 4 — Action Availability Stage
 
-### Q8: Action stage
+### Q9: Action stage
 
 > When can users interact with this Vault?
 
@@ -99,7 +113,7 @@ Ask these in order. Each answer gates the next.
 
 ## Step 5 — Contract Interface
 
-### Q9: Vault ABI fragments
+### Q10: Vault ABI fragments
 
 > What are the Vault contract methods this UI needs to read or write?
 
@@ -107,7 +121,7 @@ Ask these in order. Each answer gates the next.
 - Do not include standard ERC20 methods (`balanceOf`, `allowance`, `approve`, etc.); those come from `erc20Abi` in `@/src/sdk`.
 - Include custom token methods only if the token has non-standard mechanics.
 
-### Q10: UI workflow
+### Q11: UI workflow
 
 Confirm each:
 
@@ -117,7 +131,7 @@ Confirm each:
 - **Native value**: Does any write send native token (BNB/ETH)? If so, which method and how is the amount calculated?
 - **Refetch points**: After which transactions should data reload? (Usually: after approve, after each write)
 
-### Q11: Empty and error states
+### Q12: Empty and error states
 
 What states must the UI handle explicitly?
 
@@ -130,7 +144,7 @@ What states must the UI handle explicitly?
 - [ ] Transaction simulation failure
 - [ ] Transaction submitted but not confirmed
 
-### Q12: Risk posture
+### Q13: Risk posture
 
 > How should this Vault be presented to users?
 
@@ -147,7 +161,7 @@ Also confirm how the UI will render current contract risk status from host `risk
 
 ## Step 6 — Oracle and Endpoints (Optional)
 
-### Q13: Oracle usage
+### Q14: Oracle usage
 
 > Does this UI need data from an oracle (signed quotes, proofs, reserve prices)?
 
@@ -155,7 +169,7 @@ Also confirm how the UI will render current contract risk status from host `risk
 - Oracle config is not declared in `manifest.json`. `vault:check` will report usage for Flap Artifact Workbench review.
 - Oracle unavailable state must be handled in the UI.
 
-### Q14: External endpoints (optional)
+### Q15: External endpoints (optional)
 
 > Does this UI need to call any external HTTPS API that is not an oracle?
 
@@ -163,7 +177,7 @@ Also confirm how the UI will render current contract risk status from host `risk
 - If unavoidable: provide either one full HTTPS endpoint URL without username/password credentials or a list of those URLs. These are declared in `manifest.endpoints` and enter Flap review; declaration does not guarantee approval. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration.
 - Host-relative URLs (`/api/...`), dynamic fetch targets, credentialed URLs, non-HTTPS, `ipfs://` / gateway image URLs, Arweave, WebSocket, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are always blocked. Immutable Vault-specific images must use `IpfsImage` with a static image CID instead of an image URL.
 
-### Q15: External chart frames (optional)
+### Q16: External chart frames (optional)
 
 > Does this UI need to embed a display-only TradingView, DexScreener, or CoinGecko Terminal chart?
 
@@ -171,7 +185,7 @@ Also confirm how the UI will render current contract risk status from host `risk
 - If unavoidable: provide `id`, provider (`tradingview`, `dexscreener`, or `coingecko-terminal`), full static HTTPS `src` with fixed query params, accessibility title, and why the frame is display-only.
 - At most one is allowed. It must be declared in `manifest.externalFrames` and rendered through one `ReviewedFrame`; declaration does not guarantee approval. Raw iframe, multiple `ReviewedFrame` instances, `srcDoc`, dynamic `src`, postMessage, wallet/transaction flows, and frame-driven quote/risk/settlement logic are blocked.
 
-### Q16: Fixed external contracts (optional)
+### Q17: Fixed external contracts (optional)
 
 > Does this UI need to call a fixed contract address that is not the runtime token, Vault, factory, or binding-scoped token/Vault reference?
 
@@ -183,7 +197,7 @@ Also confirm how the UI will render current contract risk status from host `risk
 
 ## Step 7 — Preview Addresses (Recommended)
 
-### Q16: Preview addresses
+### Q18: Preview addresses
 
 > Do you have real contract addresses for local preview and testing?
 
@@ -205,6 +219,10 @@ Before running `yarn vault:scaffold`, confirm:
 | Folder name | `{folder-name}` |
 | Display name | `{name}` |
 | Chain / binding targets | `[{chainId: N, factoryAddress: "0x..."}]` or `[{chainId: N, vaultAddresses: ["0x..."], tokenAddresses: ["0x..."]}]` |
+| CA restriction mode | `{none | reserved | verified}` |
+| Test token addresses | Prefer testnet token(s), stored in `match.bindings[].tokenAddresses` |
+| Production factory address | Final real mainnet factory, if mainnet factory-scoped launch is planned |
+| Production restricted token addresses | Workbench/registry only when mode is `verified`; never as manifest top-level fields |
 | Locales | `{locales}` |
 | Action stage | `{actionAvailabilityStage}` |
 | Risk posture | `{riskPosture}` |
@@ -212,10 +230,10 @@ Before running `yarn vault:scaffold`, confirm:
 Once confirmed, run (repeat `--chain` with the matching `--factory` or `--vault` for each deployment target):
 
 ```bash
-# Single chain
+# Single chain when only one deployed test/proof token is available
 yarn vault:scaffold {folder-name} \
   --name "{name}" \
-  --chain 56 --factory 0xMainnetFactory \
+  --chain 56 --factory 0xMainnetFactory --token 0xTokenForPackageProof \
   --locales {locales}
 
 # Single Vault without factory
@@ -224,11 +242,11 @@ yarn vault:scaffold {folder-name} \
   --chain 56 --vault 0xVaultAddress --token 0xTokenAddress \
   --locales {locales}
 
-# Mainnet + testnet
+# Recommended: testnet token for proof plus final mainnet factory binding
 yarn vault:scaffold {folder-name} \
   --name "{name}" \
+  --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting \
   --chain 56 --factory 0xMainnetFactory \
-  --chain 97 --factory 0xTestnetFactory \
   --locales {locales}
 ```
 

@@ -22,7 +22,7 @@
 - Flap 拥有的 taxinfo / feeinfo host context 负责 token 状态、tax 信息、VaultPortal 信息、部署绑定、fee mode 和渲染表面。
 - Flap preview shell 提供真实 RainbowKit / wagmi 钱包连接、切链和 Flap 语言偏好行为。
 - 打包后的 Vault artifact 只包含 host shell / frame 之下的 Vault 专属业务 UI；preview shell / header UI 不进入包内。
-- manifest 只声明部署绑定意图、i18n 和不可避免的非 oracle endpoint。必要时，单个 binding 内可以携带 `tokenAddresses` 作为参考 CA allowlist。
+- manifest 只声明部署绑定意图、i18n 和不可避免的非 oracle endpoint。单个 binding 内的 `tokenAddresses` 优先作为测试 token 来源，建议使用测试网 token；生产是否限制 CA 是 Workbench/registry 的 `caRestrictionMode` 决策，不是 public manifest 字段。
 - 默认避免外部 endpoint 和外部资源。如果必须使用非 oracle endpoint，需要在 manifest 中预声明为无用户名密码的 HTTPS URL 字符串或字符串数组，供 `vault:check` 快速校验；声明不代表一定通过审核。
 - 提交前需要本地预览。
 - 打包前需要运行 `vault:check`。
@@ -34,7 +34,7 @@
 
 这是开发者在借助 AI 的同时仍然自己掌握 Vault 事实和本地测试的最短安全路径。
 
-1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。
+1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。优先使用测试网测试 token，并提前提供主网最终真实 factory 地址。
 2. 将这些输入和本仓库上下文一起交给 AI Agent。如果 AI 不能直接读取仓库，可先生成可粘贴上下文包：
 
 ```bash
@@ -44,7 +44,7 @@ yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
 3. Scaffold Vault 包。Factory-scoped 示例：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 单 Vault、无 factory 示例：
@@ -230,7 +230,7 @@ docs/agent-intake-template.md
 对于新 Vault UI，优先使用 scaffold 命令：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 无 factory 的 UI 可从一个 Vault 地址和一个 manifest 测试 token 地址 scaffold：
@@ -239,7 +239,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactory
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x55d398326f99059fF775485246999027B3197955 --locales en,zh
 ```
 
-这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把 manifest 测试 token 写入 `match.bindings[].tokenAddresses`。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
+这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把 manifest 测试 token 写入 `match.bindings[].tokenAddresses`。优先提供测试网测试 token，同时提前提供主网最终真实 factory；factory 模式下这里的 `tokenAddresses` 不是生产限制 CA。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
 
 ```bash
 yarn vault:register my-vault
@@ -269,23 +269,23 @@ Token media 使用 host context：`context.tokenImageUrl`、`context.tokenName` 
 推荐方式（单链）：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory
 ```
 
-Mainnet + testnet 可为每个目标重复 `--chain` / `--factory`：
+Mainnet + testnet 可为每个目标重复 `--chain` / `--factory`。推荐把测试网 binding 放在前面，让唯一的 `--token` 落到测试网，同时保留主网最终真实 factory：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
-  --chain 56 --factory 0xMainnetFactory --token 0xMainnetTokenForTesting \
-  --chain 97 --factory 0xTestnetFactory
+  --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting \
+  --chain 56 --factory 0xMainnetFactory
 ```
 
 No-factory 模式可为每个目标重复 `--chain` / `--vault`。至少需要一个 `--token` 作为 manifest 测试 token；可以只给第一个测试 binding，也可以按链一一配对：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
-  --chain 56 --vault 0xMainnetVault --token 0xMainnetToken \
-  --chain 97 --vault 0xTestnetVault --token 0xTestnetToken
+  --chain 97 --vault 0xTestnetVault --token 0xTestnetToken \
+  --chain 56 --vault 0xMainnetVault
 ```
 
 手工包形状：
@@ -327,7 +327,7 @@ Agent contract、manifest schema 和 source package format 的版本规则记录
 Vault folder 是严格 source package 边界，只能包含：
 
 - `Component.tsx`：受控 React Vault UI component。
-- `manifest.json`：必需 `artifactId`；必需 `match.bindings`，即显式 factory-scoped `{chainId, factoryAddress}`、no-factory `{chainId, vaultAddresses: [vaultAddress]}` 或 no-factory `{chainId, tokenAddresses}` target；每个 manifest 至少有一个 binding-scoped `tokenAddresses` 作为 Workbench/E2E 测试 token；可选非 oracle `endpoints`；可选 reviewed `externalFrames`；以及 `i18n`。
+- `manifest.json`：必需 `artifactId`；必需 `match.bindings`，即显式 factory-scoped `{chainId, factoryAddress}`、no-factory `{chainId, vaultAddresses: [vaultAddress]}` 或 no-factory `{chainId, tokenAddresses}` target；每个 manifest 至少有一个 binding-scoped `tokenAddresses` 作为 Workbench/E2E 测试 token，优先测试网 token；可选非 oracle `endpoints`；可选 reviewed `externalFrames`；以及 `i18n`。生产限制 CA 只在 Workbench/registry 的 `caRestrictionMode` 中处理。
 - `VaultABI.ts`：只包含最小 Vault ABI fragment。标准 ERC20 ABI 由 `@/src/sdk` 导出；只有自定义非标准 token 方法才放到这里。
 - `i18n.json`：manifest `i18n` 声明的 locale dictionary；manifest locale string 至少两个字符。
 
@@ -390,7 +390,7 @@ Source zip 必须由 `yarn vault:package <folder-name>` 生成。该脚本运行
 
 Flap Artifact Workbench 使用 `artifactId` 作为稳定 source-package artifact identity。Folder name 仍然只是本地 source folder 和 preview route。Runtime build version 和 storage path 属于 Workbench 关心的范围；开发者仍然不在 `manifest.json` 中声明 runtime version。
 
-一个 shared artifact 可以声明一个或多个 factory-scoped `chainId + factoryAddress` binding，一个或多个 no-factory `chainId + vaultAddress` binding，或一个或多个 no-factory `chainId + tokenAddress` binding。No-factory 模式下，一个 binding 可以是 Vault-scoped（恰好一个 Vault 地址）、token-scoped（一个或多个 token 地址），或 Vault + token scoped（一个 Vault 地址加多个 token 地址）。每个 manifest 必须至少包含一个 binding-scoped `tokenAddresses` 作为 Workbench/E2E 测试 token 来源。Token CA list 只能声明为 `match.bindings[].tokenAddresses`。
+一个 shared artifact 可以声明一个或多个 factory-scoped `chainId + factoryAddress` binding，一个或多个 no-factory `chainId + vaultAddress` binding，或一个或多个 no-factory `chainId + tokenAddress` binding。No-factory 模式下，一个 binding 可以是 Vault-scoped（恰好一个 Vault 地址）、token-scoped（一个或多个 token 地址），或 Vault + token scoped（一个 Vault 地址加多个 token 地址）。每个 manifest 必须至少包含一个 binding-scoped `tokenAddresses` 作为 Workbench/E2E 测试 token 来源，优先测试网 token。Factory 模式下生产限制 CA 只在 Workbench/registry 的 `caRestrictionMode` 中处理，不写 public manifest 的 CA policy 字段。
 
 Vault source 应通过公开 alias 导入 shared runtime surface：
 
@@ -429,7 +429,7 @@ yarn dev
 yarn build
 yarn lint
 yarn typecheck
-yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --dry-run
+yarn vault:scaffold example-copy --name "Example Copy UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --dry-run
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest

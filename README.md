@@ -22,7 +22,7 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 - Flap-owned taxinfo/feeinfo host context for token state, tax info, VaultPortal info, deployment binding, fee mode, and render surface.
 - Flap preview shell with real RainbowKit/wagmi wallet connect, chain switching, and Flap language preference behavior.
 - Packaged Vault artifacts that contain only the Vault-specific business UI below the host shell/frame; preview shell/header UI stays outside the package.
-- Minimal manifest declaration for deployment binding intent, i18n, and unavoidable non-oracle endpoints. Optional per-binding `tokenAddresses` can be carried as reference-only CA allowlists when needed.
+- Minimal manifest declaration for deployment binding intent, i18n, and unavoidable non-oracle endpoints. Binding-scoped `tokenAddresses` provide package test tokens, preferably on testnet; production CA restriction is a Workbench/registry decision, not a public manifest field.
 - External endpoints and external resources are discouraged. If a non-oracle endpoint is unavoidable, it may be predeclared in the manifest as a single HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it quickly; declaration does not guarantee approval.
 - Local preview before submission.
 - `vault:check` before packaging.
@@ -34,7 +34,7 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 
 This is the shortest safe path for a developer who wants AI help but still owns the Vault facts and local testing.
 
-1. Prepare real inputs: folder name, display name, `chainId`, factory address or single Vault address, manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses.
+1. Prepare real inputs: folder name, display name, `chainId`, factory address or single Vault address, `caRestrictionMode`, manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses. Prefer a testnet test token and collect the final real mainnet factory address early.
 2. Give those inputs to an AI Agent with this repository context. If the AI cannot read the repo directly, generate a pasteable context pack:
 
 ```bash
@@ -44,7 +44,7 @@ yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
 3. Scaffold the Vault package. Factory-scoped example:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 Single-Vault example without a factory:
@@ -240,7 +240,7 @@ The full input schema is also machine-readable in `agent-contract.json` under `r
 For a new Vault UI, prefer the scaffold command:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 For a UI without a factory, scaffold from one Vault address and one manifest test token:
@@ -251,7 +251,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddr
 
 Replace placeholder addresses with real deployment addresses before running the command. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses so a source package with a fake factory or Vault cannot enter Workbench publish by accident.
 
-This creates the strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes one manifest-declared test token under each `match.bindings[].tokenAddresses` entry. If Flap review supplies extra token restrictions, keep them as binding-scoped `tokenAddresses`; Flap review/runtime owns the final publish routing. It does not implement business logic for the Agent; it gives the Agent a valid, previewable starting point.
+This creates the strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes manifest-declared test token(s) under `match.bindings[].tokenAddresses`. Prefer a testnet test token. In factory mode, those token addresses are not production CA restrictions; Flap Workbench/registry owns final publish routing through `caRestrictionMode`.
 
 If the four Vault files already exist because they were generated from a manifest first, register only the local preview mapping:
 
@@ -285,23 +285,23 @@ For full code-base validation, run `yarn ci`. CI runs lint, typecheck, checker s
 Recommended (single chain):
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory
 ```
 
-For mainnet + testnet (repeat `--chain` / `--factory` per target):
+For mainnet + testnet, put the testnet binding first when it provides the package test token, then add the final real mainnet factory binding:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
-  --chain 56 --factory 0xMainnetFactory --token 0xMainnetTokenForTesting \
-  --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting
+  --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting \
+  --chain 56 --factory 0xMainnetFactory
 ```
 
-For no-factory mode, repeat `--chain` / `--vault` per target and provide one `--token` per chain:
+For no-factory mode, repeat `--chain` / `--vault` per target. Prefer testnet test tokens for package proof:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
-  --chain 56 --vault 0xMainnetVault --token 0xMainnetToken \
-  --chain 97 --vault 0xTestnetVault --token 0xTestnetToken
+  --chain 97 --vault 0xTestnetVault --token 0xTestnetToken \
+  --chain 56 --vault 0xMainnetVault
 ```
 
 Manual package shape:
@@ -332,7 +332,7 @@ Versioning rules for the Agent contract, manifest schema, and source package for
 The Vault folder is a strict source package boundary. It may contain only:
 
 - `Component.tsx`: the controlled React Vault UI component.
-- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}`, no-factory `{chainId, vaultAddresses: [vaultAddress]}`, or no-factory `{chainId, tokenAddresses}` targets; at least one binding needs a binding-scoped `tokenAddresses` entry for Workbench/E2E testing; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`.
+- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}`, no-factory `{chainId, vaultAddresses: [vaultAddress]}`, or no-factory `{chainId, tokenAddresses}` targets; at least one binding needs a binding-scoped `tokenAddresses` entry for Workbench/E2E testing, preferably on testnet; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`. Production CA restriction is Workbench/registry `caRestrictionMode`, not a public manifest field.
 - `VaultABI.ts`: minimal Vault ABI fragments only. Standard ERC20 ABI is exported from `@/src/sdk`; add token ABI fragments here only for custom non-standard token methods.
 - `i18n.json`: locale dictionaries declared by `manifest.i18n`; manifest locale strings must be at least two characters.
 
@@ -394,7 +394,7 @@ Use `yarn vault:verify-package <zip>` to exercise the same package acceptance sh
 
 The Flap Artifact Workbench uses `artifactId` as the stable source-package artifact identity. The folder name remains the local source folder and preview route. Runtime build versions and storage paths are Workbench concerns; developers still do not declare runtime version in `manifest.json`.
 
-One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Every manifest must include at least one binding-scoped `tokenAddresses` entry as its Workbench/E2E test token source. Declare token CA lists only as `match.bindings[].tokenAddresses`.
+One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Every manifest must include at least one binding-scoped `tokenAddresses` entry as its Workbench/E2E test token source; prefer testnet. In factory mode, production CA restriction is `caRestrictionMode` in Workbench/registry, not a manifest CA policy field.
 
 Vault source should import shared runtime surfaces through public aliases:
 
@@ -451,7 +451,7 @@ yarn dev
 yarn build
 yarn lint
 yarn typecheck
-yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired --dry-run
+yarn vault:scaffold example-copy --name "Example Copy UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --dry-run
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest

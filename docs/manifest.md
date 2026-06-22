@@ -39,7 +39,7 @@ chainId + tokenAddress
 
 For factory-scoped UI, `factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` and reserved template placeholder addresses such as `0x1000000000000000000000000000000000000001` are invalid. For UI without a factory, omit `factoryAddress` and provide either exactly one real non-zero Vault address in `match.bindings[].vaultAddresses` or one or more real non-zero token addresses in `match.bindings[].tokenAddresses`.
 
-Every manifest must include at least one binding-scoped `tokenAddresses` entry. That address is the manifest-declared test token source used by `vault:check`, Flap Artifact Workbench, and `vault:e2e`; local-only `vault:e2e --token` overrides do not satisfy package intake. It can live on any binding, such as a testnet binding for package testing while another mainnet binding has no token CA list yet. If a deployment also needs a token CA list, declare it only inside the relevant binding entry as `tokenAddresses`. In factory mode this remains a binding-scoped test/reference list. In no-factory mode it can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
+Every manifest must include at least one binding-scoped `tokenAddresses` entry. That address is the manifest-declared test token source used by `vault:check`, Flap Artifact Workbench, and `vault:e2e`; local-only `vault:e2e --token` overrides do not satisfy package intake. Prefer a testnet token for this proof and collect the final real mainnet factory address in the mainnet factory binding early. In factory mode, `tokenAddresses` is not the production CA restriction. Production CA restriction is a Workbench/registry `caRestrictionMode` decision: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` may write the production token restriction only after review checks. In no-factory mode `tokenAddresses` can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
 
 Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the Vault-scoped binding target and `tokenAddresses` can be the token-scoped binding target.
 
@@ -56,10 +56,11 @@ Preview/runtime resolution should respect those explicit bindings. Prefer an exa
   "match": {
     "bindings": [
       {
-        "chainId": 56,
-        "factoryAddress": "0xFactoryAddressRequired",
-        "tokenAddresses": ["0xTokenAddressRequired"]
-      }
+        "chainId": 97,
+        "factoryAddress": "0xTestnetFactoryRequired",
+        "tokenAddresses": ["0xTestnetTokenForTesting"]
+      },
+      { "chainId": 56, "factoryAddress": "0xMainnetFactoryRequired" }
     ]
   },
   "i18n": ["en", "zh"]
@@ -75,11 +76,11 @@ For a UI that supports both mainnet and testnet with different factory addresses
   "match": {
     "bindings": [
       {
-        "chainId": 56,
-        "factoryAddress": "0xMainnetFactoryRequired",
-        "tokenAddresses": ["0xMainnetTokenForTesting"]
+        "chainId": 97,
+        "factoryAddress": "0xTestnetFactoryRequired",
+        "tokenAddresses": ["0xTestnetTokenForTesting"]
       },
-      { "chainId": 97, "factoryAddress": "0xTestnetFactoryRequired" }
+      { "chainId": 56, "factoryAddress": "0xMainnetFactoryRequired" }
     ]
   },
   "i18n": ["en", "zh"]
@@ -133,7 +134,7 @@ For a UI that has no factory and is bound by token CA only, omit `vaultAddresses
 | --- | --- | --- |
 | `artifactId` | Yes | Stable unique artifact identity. Must match `vaultui_<folder-name>_<ULID>` and the folder-name segment must match the Vault folder name. |
 | `name` | Yes | Human-readable UI name for Workbench review. |
-| `match.bindings` | Yes | Non-empty array of explicit runtime targets. Each entry must include `chainId`, at least one valid `tokenAddresses` entry for Workbench/E2E test coverage, and optionally a non-zero `factoryAddress` or exactly one non-zero `vaultAddresses` entry. |
+| `match.bindings` | Yes | Non-empty array of explicit runtime targets. Each entry must include `chainId` and optionally a non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry, or a no-factory `tokenAddresses` target. At least one binding in the manifest must include a valid test token under `tokenAddresses` for Workbench/E2E test coverage. |
 | `i18n` | Yes | Supported locale list. Each locale string must be at least two characters, and `vault:check` validates exactly these locales. |
 
 ## Optional Chain Entry Fields
@@ -143,7 +144,7 @@ These fields are declared inside each `match.bindings` entry, not at the `match`
 | Field | Required | Description |
 | --- | --- | --- |
 | `vaultAddresses` | Required for Vault-scoped no-factory binding | Optional for factory-scoped and token-scoped bindings. If provided without `factoryAddress`, it must contain exactly one non-zero Vault address. Do not include it in the same binding as `factoryAddress`. |
-| `tokenAddresses` | Required in at least one binding | Binding-scoped token CA list and manifest-declared test token source. In no-factory mode it may contain multiple token addresses and participates in matching when token data is available. |
+| `tokenAddresses` | Required in at least one binding | Manifest-declared test token source; prefer testnet. In factory mode this is not a production CA restriction. In no-factory mode it may contain multiple token addresses and participates in matching when token data is available. |
 | `externalContracts` | No | Optional review list for fixed contract targets that are not the runtime token, Vault, factory, or binding-scoped token/Vault references. Each entry must contain only `address` and `label`. The template validates it but does not use it for preview/runtime matching. |
 
 Example:
@@ -186,7 +187,7 @@ Do not put these fields in `manifest.json`:
 - global or match-level `tokenAddresses`
 - `caPolicy`
 
-Those are either source-package identity, build/runtime concerns, or unsupported global switches. Use `artifactId`, not `id`, for the source-package artifact identity. If you need a token CA reference list, declare it only as `match.bindings[].tokenAddresses`. If you need fixed extra contract targets, declare them only as `match.bindings[].externalContracts`.
+Those are either source-package identity, build/runtime concerns, or unsupported global switches. Use `artifactId`, not `id`, for the source-package artifact identity. If you need a test token, declare it only as `match.bindings[].tokenAddresses`. If production routing must restrict CA, configure that in Workbench/registry after choosing `caRestrictionMode`; do not add a public manifest field. If you need fixed extra contract targets, declare them only as `match.bindings[].externalContracts`.
 
 ## Locale Validation
 

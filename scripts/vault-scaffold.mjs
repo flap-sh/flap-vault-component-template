@@ -407,11 +407,11 @@ async function main() {
 
   if (!folderName) {
     fail(
-      "Usage: yarn vault:scaffold <folder-name> --chain 56 --factory 0x... --token 0x... or --chain 56 --vault 0x... --token 0x... [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
+      "Usage: yarn vault:scaffold <folder-name> --chain 97 --factory 0x... --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory or --chain 56 --vault 0x... --token 0xTestToken [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
       {
         code: "cli/missing-folder-name",
         fixHint:
-          "Provide a lowercase kebab-case folder name, a real binding target, and a manifest test token, for example: yarn vault:scaffold my-vault --chain 56 --factory 0xFactoryAddressRequired --token 0xTokenAddressRequired.",
+          "Provide a lowercase kebab-case folder name, a real binding target, and a manifest test token, preferably on testnet. Example: yarn vault:scaffold my-vault --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory.",
       },
     );
   }
@@ -472,21 +472,21 @@ async function main() {
   if (parsed["restrict-token"] !== undefined) {
     fail("Global token restriction flags are not accepted in the public manifest.", {
       code: "manifest-binding/ca-policy-not-in-manifest",
-      fixHint: "Remove --restrict-token. Use match.bindings[].tokenAddresses only for the required manifest test token or reviewed binding-scoped token references.",
+      fixHint: "Remove --restrict-token. Use match.bindings[].tokenAddresses only for the required manifest test token or no-factory token-scoped bindings. Production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
       tokenCount: tokenValues.length,
     });
   }
   if (tokenValues.length === 0) {
     fail("At least one --token address is required so manifest.json carries a Workbench/vault:e2e test token.", {
       code: "manifest-binding/missing-test-token",
-      fixHint: "Pass at least one --token 0xTokenAddressRequired. For multiple chains, tokens are assigned to bindings in --chain order; add more tokenAddresses manually if a specific binding also needs a token CA list.",
+      fixHint: "Pass at least one --token 0xTokenAddressRequired, preferably for a testnet binding. For production, still provide the final real mainnet factory with --chain 56 --factory 0xMainnetFactory; do not use random mainnet token CAs as production restrictions.",
       chainCount: chainValues.length,
     });
   }
   if (tokenValues.length > chainValues.length) {
     fail(`--token count must not exceed --chain count: got ${chainValues.length} chain(s) and ${tokenValues.length} token address(es).`, {
       code: "manifest-binding/chain-token-count-mismatch",
-      fixHint: "Provide at most one --token per --chain in the same order, or add extra reviewed token CA references manually in manifest.json.",
+      fixHint: "Provide at most one --token per --chain in the same order. Prefer putting the testnet binding first when only the testnet token is ready, then add the final mainnet factory binding without treating the test token as a production CA restriction.",
       chainCount: chainValues.length,
       tokenCount: tokenValues.length,
     });
@@ -533,7 +533,7 @@ async function main() {
     if (address.toLowerCase() === ZERO_ADDRESS) {
       fail(`Invalid zero address: ${address}`, {
         code: "manifest-binding/invalid-address",
-        fixHint: "Use a real deployed Vault or token address. At least one valid token address is required in manifest tokenAddresses.",
+        fixHint: "Use a real deployed Vault or test token address. At least one valid token address is required in manifest tokenAddresses; prefer testnet for the package proof.",
         address,
       });
     }
