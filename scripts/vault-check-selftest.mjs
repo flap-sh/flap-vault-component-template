@@ -223,6 +223,39 @@ try {
   });
   assertNoRule("one manifest test token can cover a multi-binding manifest", runVaultCheck(partialTestTokenSlug, { silent: true }), "manifest-binding/missing-test-token", "blocking");
 
+  const invalidTxButtonStateSlug = `${FIXTURE_PREFIX}-invalid-tx-state`;
+  writeVault(invalidTxButtonStateSlug, {
+    component: `"use client";
+
+import { useState } from "react";
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge, type TxButtonState } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel;
+  const riskLabel = riskLevel === null ? i18n.t("risk.missing") : i18n.t("risk.ready");
+  const riskTone = riskLevel === null ? "danger" : "neutral";
+  const [txState, setTxState] = useState<TxButtonState>("idle");
+  function run() {
+    setTxState("pending");
+    return txState;
+  }
+  return (
+    <div>
+      {riskLevel === null ? <Alert tone="danger">{i18n.t("risk.missing")}</Alert> : null}
+      <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
+      <button onClick={run}>{i18n.t("title")}</button>
+    </div>
+  );
+}
+`,
+    i18n: { en: { title: "Selftest", "risk.missing": "Risk unavailable", "risk.ready": "Risk ready" } },
+  });
+  assertRule("invalid TxButtonState setter values are blocked", runVaultCheck(invalidTxButtonStateSlug, { silent: true }), "ui/invalid-tx-button-state", "blocking");
+
   const placeholderTokenSlug = `${FIXTURE_PREFIX}-placeholder-token`;
   writeVault(placeholderTokenSlug, {
     manifest: baseManifest({

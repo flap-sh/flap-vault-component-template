@@ -44,6 +44,8 @@ const FRAME_PROVIDER_POLICIES = {
   },
 };
 const STANDARD_ERC20_METHODS = ["balanceOf", "allowance", "approve", "decimals", "symbol", "transfer", "transferFrom"];
+const TX_BUTTON_STATES = new Set(["idle", "validating", "approving", "approval_confirming", "simulating", "writing", "confirming", "success", "failed"]);
+const TX_BUTTON_STATE_LIST = [...TX_BUTTON_STATES].join(", ");
 const ALLOWED_IMPORTS = [
   "react",
   "viem",
@@ -247,6 +249,7 @@ const FIX_HINTS = {
   "contract-abi/human-readable-requires-parse-abi": "Wrap human-readable ABI string arrays with parseAbi([...]) from viem, or use full object ABI fragments. Do not export raw function/event signature strings as the runtime ABI.",
   "contract-abi/multiple-outputs-require-tuple-read": "Read ABI methods with multiple return values as tuple/array results, then map indexes into object-shaped UI state. Do not type sdk.readContract for multi-output methods as an object.",
   "contract-abi/standard-erc20-in-vault-abi": "Use erc20Abi or standardErc20Abi from @/src/sdk for standard ERC20 methods. Add token ABI fragments to VaultABI.ts only for custom token mechanics.",
+  "ui/invalid-tx-button-state": `Use a valid TxButtonState: ${TX_BUTTON_STATE_LIST}. Replace legacy pending with writing or confirming, and error with failed.`,
 };
 
 function issue(severity, ruleId, message, extra = {}) {
@@ -1531,6 +1534,62 @@ function collectMultipleOutputObjectReadIssues(content, file, abiFunctionOutputC
         );
       }
     }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(source);
+  return issues;
+}
+
+function collectTxButtonStateIssues(content, file) {
+  const issues = [];
+  const source = createTsSourceFile(file, content);
+  const setters = new Set();
+
+  function report(value, node) {
+    if (!value || TX_BUTTON_STATES.has(value)) return;
+    issues.push(
+      issue(
+        BLOCKING,
+        "ui/invalid-tx-button-state",
+        `TxButtonState "${value}" is not supported. Use one of: ${TX_BUTTON_STATE_LIST}.`,
+        { file, line: lineForIndex(content, node.getStart(source)), state: value },
+      ),
+    );
+  }
+
+  function jsxStateValue(initializer) {
+    if (!initializer) return null;
+    if (ts.isStringLiteral(initializer)) return initializer.text;
+    if (ts.isJsxExpression(initializer)) return tsStaticStringValue(initializer.expression);
+    return null;
+  }
+
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && ts.isArrayBindingPattern(node.name) && node.initializer) {
+      const initializer = unwrapTsExpression(node.initializer);
+      if (ts.isCallExpression(initializer) && callExpressionMethodName(initializer.expression) === "useState" && typeReferenceNameText(initializer.typeArguments?.[0]) === "TxButtonState") {
+        report(tsStaticStringValue(initializer.arguments[0]), initializer);
+        const setter = node.name.elements[1]?.name;
+        if (setter && ts.isIdentifier(setter)) setters.add(setter.text);
+      }
+    }
+
+    if (ts.isCallExpression(node)) {
+      const expression = unwrapTsExpression(node.expression);
+      if (ts.isIdentifier(expression) && setters.has(expression.text)) {
+        report(tsStaticStringValue(node.arguments[0]), node);
+      }
+    }
+
+    if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && jsxTagNameText(node.tagName)?.endsWith("TxButton")) {
+      for (const attribute of node.attributes.properties) {
+        if (ts.isJsxAttribute(attribute) && ts.isIdentifier(attribute.name) && attribute.name.text === "state") {
+          report(jsxStateValue(attribute.initializer), attribute);
+        }
+      }
+    }
+
     ts.forEachChild(node, visit);
   }
 
@@ -2851,6 +2910,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     if (item.name === "Component.tsx") {
       issues.push(...collectMultipleOutputObjectReadIssues(content, rel, abiFunctionOutputCounts));
+      issues.push(...collectTxButtonStateIssues(content, rel));
       if (hasComponentRiskStatusIntegration && !hasProminentRiskStatusPlacement(scanContent)) {
         issues.push(
           issue(
