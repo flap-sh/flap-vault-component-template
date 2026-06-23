@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Info, RefreshCcw, ShieldCheck, Timer, Wallet, Zap } from "lucide-react";
+import { ArrowRight, RefreshCcw, ShieldCheck, Timer, Wallet, Zap } from "lucide-react";
 import type { ActionAvailabilityStage, Address, VaultComponentProps } from "@/src/sdk";
 import { erc20Abi, formatTokenAmount, handleTxError, isActionAvailableForPhase, parseTokenAmount, readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
 import { exampleVaultAbi } from "./VaultABI";
@@ -26,7 +26,6 @@ interface OracleData {
   signature: Address;
 }
 
-const sparklineHeights = [38, 52, 46, 64, 58, 78, 70, 88, 82, 100] as const;
 type QuickAmountPercent = 25 | 50 | 75 | 100;
 
 function toTimestampMs(value: bigint) {
@@ -308,13 +307,16 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
   }
 
   return (
-    <div className="w-full space-y-4">
-      <Card>
-        <CardHeader className="gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <CardTitle>{t("sections.rewardStatus")}</CardTitle>
-              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#a8b5c7]">{t("sections.rewardStatusDescription")}</p>
+    <div className="w-full space-y-3 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[length:34px_34px] sm:space-y-4">
+      <Card className="overflow-hidden rounded-[18px] border-white/10 bg-gradient-to-b from-[#0e141d] to-[#070b11] shadow-[0_20px_70px_-38px_rgba(76,141,255,0.65)]">
+        <CardHeader className="p-4 pb-3 sm:p-5 sm:pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#4c8dff] shadow-[0_0_12px_rgba(76,141,255,0.85)]" />
+                <CardTitle className="text-base sm:text-lg">{t("title")}</CardTitle>
+              </div>
+              <p className="max-w-2xl text-sm font-medium leading-6 text-[#7c8899]">{t("sections.rewardStatusDescription")}</p>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <StatusBadge tone={riskTone}>{riskLabel}</StatusBadge>
@@ -322,163 +324,154 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
-          {usingPreviewData ? <Alert tone="info">{t("notices.previewData")}</Alert> : null}
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(16rem,0.92fr)]">
-            <div className="rounded-lg border border-[#344963] bg-[#101827] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <div className="flex items-center gap-2 text-sm font-semibold text-[#d8e2ef]">
-                <Info className="h-4 w-4 text-[#a78bfa]" />
-                {t("sections.mechanism")}
+        <CardContent className="space-y-3 p-4 pt-0 sm:space-y-4 sm:p-5 sm:pt-0">
+          <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
+            <div className="rounded-[14px] border border-white/10 bg-black/25 p-3 sm:rounded-[16px] sm:p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-[#eaf1f8]">{t("sections.mechanism")}</span>
+                <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs font-semibold text-[#7c8899]">
+                  {t("badges.templateSafe")}
+                </span>
               </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
+              <div className="mt-3 flex items-stretch gap-1.5 sm:mt-4 sm:gap-2">
                 <FlowNode title={t("flow.deposit")} detail={t("flow.depositDetail")} />
                 <FlowArrow />
                 <FlowNode title={t("flow.reward")} detail={t("flow.rewardDetail")} />
                 <FlowArrow />
                 <FlowNode title={t("flow.claim")} detail={t("flow.claimDetail")} />
               </div>
-              <p className="mt-4 text-sm font-medium leading-6 text-[#9facbf]">{t("flow.description")}</p>
-              <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-[#6d5dd3]/35 bg-[#241d42]/65 p-3 text-sm">
-                <span className="shrink-0 text-xs font-semibold text-[#c4b5fd]">{t("labels.vaultTarget")}</span>
-                <AddressLink address={context.vaultAddress} explorerBaseUrl={context.explorerBaseUrl} />
-              </div>
+              <p className="mt-3 text-xs font-semibold leading-5 text-[#7c8899] sm:mt-4 sm:text-sm sm:leading-6">{t("flow.description")}</p>
             </div>
 
-            <div className="grid gap-3">
-              <div className="rounded-lg border border-[#f0b90b]/25 bg-[#172131] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="flex items-center gap-2 text-xs font-medium text-[#a9b6c8]">
-                  <Timer className="h-4 w-4 text-[#f0b90b]" />
-                  {t("labels.rewardWindow")}
-                </div>
-                <div className="mt-3 break-words text-3xl font-semibold leading-none text-white">
-                  <Countdown targetTimeMs={vaultInfo?.rewardEndsAt} />
-                </div>
-                <div className="mt-2 text-xs font-medium text-[#8d9caf]">{t("sections.rewardWindowHint")}</div>
-              </div>
-              <div className="rounded-lg border border-[#a78bfa]/30 bg-[#151b2b] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="flex items-center gap-2 text-xs font-medium text-[#a9b6c8]">
-                  <Zap className="h-4 w-4 text-[#a78bfa]" />
-                  {t("labels.oracle")}
-                </div>
-                <div className="mt-3 text-3xl font-semibold leading-none text-white">{oracle ? `${oracle.rewardMultiplierBps / 100}x` : "-"}</div>
-                <Sparkline />
-                <div className="mt-2 break-words text-xs font-medium text-[#8d9caf]">{oracleDetail}</div>
-              </div>
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
+              <Metric label={t("labels.totalDeposited")} value={formatTokenAmount(vaultInfo?.totalDeposited, decimals)} hint={context.tokenSymbol} tone="primary" />
+              <Metric label={t("labels.claimable")} value={formatTokenAmount(myInfo?.claimable, decimals)} hint={context.tokenSymbol} tone="success" />
+              <Metric label={t("labels.marketPhase")} value={marketPhaseLabel} hint={host.renderSurface} />
+              <Metric label={t("labels.riskStatus")} value={riskLabel} hint={t("labels.hostRisk")} tone={riskTone === "success" ? "success" : "warning"} />
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label={t("labels.totalDeposited")} value={formatTokenAmount(vaultInfo?.totalDeposited, decimals)} hint={context.tokenSymbol} tone="primary" />
-            <Metric label={t("labels.myDeposit")} value={formatTokenAmount(myInfo?.deposited, decimals)} hint={context.tokenSymbol} />
-            <Metric label={t("labels.claimable")} value={formatTokenAmount(myInfo?.claimable, decimals)} hint={context.tokenSymbol} tone="success" />
-            <Metric label={t("labels.allowance")} value={formatTokenAmount(allowance, decimals)} hint={context.tokenSymbol} tone={needsApproval ? "warning" : "muted"} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <CardTitle>{t("actions.deposit")}</CardTitle>
-              <p className="mt-2 text-sm font-medium leading-6 text-[#a8b5c7]">{t("sections.actionDescription")}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => void loadData()}>
-              <RefreshCcw className="h-4 w-4" />
-              {t("actions.refresh")}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert tone="info">{t("notices.actionStageBoth")}</Alert>
+          {riskLevel === null ? <Alert tone="danger">{t("notices.riskMissing")}</Alert> : null}
+          {usingPreviewData ? <Alert tone="info">{t("notices.previewData")}</Alert> : null}
           {actionUnavailableReason ? <Alert tone="warning">{actionUnavailableReason}</Alert> : null}
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.72fr)_minmax(18rem,1fr)]">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <DetailTile
-                icon={<Wallet className="h-4 w-4" />}
-                label={t("labels.availableBalance")}
-                value={formatTokenAmount(balance, decimals)}
-                detail={context.tokenSymbol}
-                tone="muted"
-              />
-              <DetailTile
-                icon={<ShieldCheck className="h-4 w-4" />}
-                label={t("labels.allowance")}
-                value={formatTokenAmount(allowance, decimals)}
-                detail={needsApproval ? t("states.approvalNeeded") : t("states.approvalReady")}
-                tone={needsApproval ? "warning" : "success"}
-              />
-              <DetailTile label={t("labels.myDeposit")} value={formatTokenAmount(myInfo?.deposited, decimals)} detail={context.tokenSymbol} />
-              <DetailTile label={t("labels.claimable")} value={formatTokenAmount(myInfo?.claimable, decimals)} detail={myInfo?.claimable && myInfo.claimable > 0n ? context.tokenSymbol : t("states.noClaimable")} tone="success" />
+          <div className="grid grid-cols-2 overflow-hidden rounded-[14px] border border-white/10 sm:rounded-[16px] lg:grid-cols-4">
+            <div className="min-w-0 border-white/10 bg-[#0e141d] p-3 lg:border-r">
+              <div className="flex items-center gap-2 truncate text-xs font-medium text-[#7c8899]">
+                <Timer className="h-3.5 w-3.5" />
+                {t("labels.rewardWindow")}
+              </div>
+              <div className="mt-2 min-w-0 break-words text-sm font-semibold leading-tight text-[#eaf1f8]">
+                <Countdown targetTimeMs={vaultInfo?.rewardEndsAt} />
+              </div>
+            </div>
+            <div className="min-w-0 border-l border-white/10 bg-[#0e141d] p-3 lg:border-r">
+              <div className="flex items-center gap-2 truncate text-xs font-medium text-[#7c8899]">
+                <Zap className="h-3.5 w-3.5" />
+                {t("labels.oracle")}
+              </div>
+              <div className="mt-2 min-w-0 break-words text-sm font-semibold leading-tight text-[#eaf1f8]">{oracle ? `${oracle.rewardMultiplierBps / 100}x` : "-"}</div>
+              <div className="mt-1 truncate text-xs font-medium text-[#5a6678]">{oracleDetail}</div>
+            </div>
+            <div className="min-w-0 border-t border-white/10 bg-[#0e141d] p-3 sm:border-l lg:border-l-0 lg:border-t-0 lg:border-r">
+              <div className="truncate text-xs font-medium text-[#7c8899]">{t("labels.myDeposit")}</div>
+              <div className="mt-2 min-w-0 break-words text-sm font-semibold leading-tight text-[#eaf1f8]">{formatTokenAmount(myInfo?.deposited, decimals)}</div>
+              <div className="mt-1 truncate text-xs font-medium text-[#5a6678]">{context.tokenSymbol}</div>
+            </div>
+            <div className="min-w-0 border-l border-t border-white/10 bg-[#0e141d] p-3 lg:border-t-0">
+              <div className="truncate text-xs font-medium text-[#7c8899]">{t("labels.allowance")}</div>
+              <div className="mt-2 min-w-0 break-words text-sm font-semibold leading-tight text-[#eaf1f8]">{formatTokenAmount(allowance, decimals)}</div>
+              <div className="mt-1 truncate text-xs font-medium text-[#5a6678]">{needsApproval ? t("states.approvalNeeded") : t("states.approvalReady")}</div>
+            </div>
+          </div>
+
+          <div className="rounded-[14px] border border-white/10 bg-black/30 p-3 sm:rounded-[16px] sm:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-[#eaf1f8]">{t("actions.deposit")}</div>
+                <p className="mt-1 text-xs font-medium leading-5 text-[#7c8899]">{t("sections.actionDescription")}</p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => void loadData()}>
+                <RefreshCcw className="h-4 w-4" />
+                {t("actions.refresh")}
+              </Button>
             </div>
 
-            <div className="rounded-lg border border-[#40536c] bg-[#172131] p-4">
-              <label className="block space-y-2">
-                <span className="text-sm font-semibold text-[#d8e2ef]">{t("labels.amount")}</span>
-                <Input value={amount} inputMode="decimal" onChange={(event) => setAmount(event.target.value)} />
-              </label>
-              <div className="mt-3 grid grid-cols-4 gap-2">
-                {quickAmountOptions.map(({ percent, label }) => (
-                  <Button key={percent} variant="ghost" size="sm" onClick={() => setAmountFromBalance(percent)} disabled={!context.userAddress || balance <= 0n}>
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <DetailTile label={t("labels.estimatedDeposit")} value={formatTokenAmount(parsedAmount, decimals)} detail={context.tokenSymbol} tone="primary" />
-                <DetailTile label={t("labels.approvalRoute")} value={depositRouteLabel} detail={context.vaultAddress} tone={needsApproval ? "warning" : "success"} />
-              </div>
-              <div className="mt-3 space-y-2">
-                {needsApproval ? <Alert tone="warning">{t("states.approvalNeeded")}</Alert> : null}
-                {error ? <Alert tone="danger">{error}</Alert> : null}
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {sdk.wallet.isWrongNetwork ? (
-                  <Button className="w-full sm:col-span-2" variant="outline" loading={sdk.wallet.isSwitchingChain} onClick={() => void sdk.wallet.switchChain().catch((nextError) => setError(handleTxError(nextError, txErrorMessages)))}>
-                    {t("actions.switchNetwork")}
-                  </Button>
-                ) : null}
-                <TxButton
-                  className="w-full"
-                  idleLabel={needsApproval ? t("actions.approve") : t("actions.deposit")}
-                  state={depositTxState}
-                  onClick={() => void deposit()}
-                  disabled={writesDisabled}
+            <div className="mt-3 grid gap-3 lg:grid-cols-[0.92fr_1.08fr]">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                <DetailTile
+                  icon={<Wallet className="h-4 w-4" />}
+                  label={t("labels.availableBalance")}
+                  value={formatTokenAmount(balance, decimals)}
+                  detail={context.tokenSymbol}
+                  tone="muted"
                 />
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  loading={claiming}
-                  onClick={() => void claim()}
-                  disabled={writesDisabled || !myInfo?.claimable || myInfo.claimable <= 0n}
-                >
-                  {t("actions.claim")}
-                </Button>
+                <DetailTile
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                  label={t("labels.approvalRoute")}
+                  value={depositRouteLabel}
+                  detail={t("labels.vaultTarget")}
+                  tone={needsApproval ? "warning" : "success"}
+                />
+              </div>
+
+              <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-3">
+                <label className="block space-y-2">
+                  <span className="text-sm font-semibold text-[#d8e2ef]">{t("labels.amount")}</span>
+                  <Input value={amount} inputMode="decimal" onChange={(event) => setAmount(event.target.value)} />
+                </label>
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {quickAmountOptions.map(({ percent, label }) => (
+                    <Button key={percent} variant="ghost" size="sm" onClick={() => setAmountFromBalance(percent)} disabled={!context.userAddress || balance <= 0n}>
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <DetailTile label={t("labels.estimatedDeposit")} value={formatTokenAmount(parsedAmount, decimals)} detail={context.tokenSymbol} tone="primary" />
+                  <DetailTile label={t("labels.claimable")} value={formatTokenAmount(myInfo?.claimable, decimals)} detail={myInfo?.claimable && myInfo.claimable > 0n ? context.tokenSymbol : t("states.noClaimable")} tone="success" />
+                </div>
+                <div className="mt-3 space-y-2">
+                  {needsApproval ? <Alert tone="warning">{t("states.approvalNeeded")}</Alert> : null}
+                  {error ? <Alert tone="danger">{error}</Alert> : null}
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {sdk.wallet.isWrongNetwork ? (
+                    <Button className="w-full sm:col-span-2" variant="outline" loading={sdk.wallet.isSwitchingChain} onClick={() => void sdk.wallet.switchChain().catch((nextError) => setError(handleTxError(nextError, txErrorMessages)))}>
+                      {t("actions.switchNetwork")}
+                    </Button>
+                  ) : null}
+                  <TxButton
+                    className="w-full"
+                    idleLabel={needsApproval ? t("actions.approve") : t("actions.deposit")}
+                    state={depositTxState}
+                    onClick={() => void deposit()}
+                    disabled={writesDisabled}
+                  />
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    loading={claiming}
+                    onClick={() => void claim()}
+                    disabled={writesDisabled || !myInfo?.claimable || myInfo.claimable <= 0n}
+                  >
+                    {t("actions.claim")}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("labels.runtime")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <DetailTile label={t("labels.vault")} value={<AddressLink address={context.vaultAddress} explorerBaseUrl={context.explorerBaseUrl} />} tone="muted" />
             <DetailTile label={t("labels.token")} value={<AddressLink address={context.tokenAddress} explorerBaseUrl={context.explorerBaseUrl} label={context.tokenSymbol} />} tone="muted" />
-            <DetailTile label={t("labels.marketPhase")} value={marketPhaseLabel} tone={marketPhase === "unknown" ? "warning" : "success"} />
-            <DetailTile label={t("labels.riskStatus")} value={riskLabel} tone={riskTone === "success" ? "success" : "warning"} />
             <DetailTile label={t("labels.feeMode")} value={host.feeMode} />
             <DetailTile label={t("labels.renderSurface")} value={host.renderSurface} />
             <DetailTile label={t("labels.marketBps")} value={host.taxInfo ? String(host.taxInfo.marketBps) : "-"} />
             <DetailTile label={t("labels.vaultType")} value={host.vaultType ?? "-"} />
-            <DetailTile label={t("labels.rewardWindow")} value={<Countdown targetTimeMs={vaultInfo?.rewardEndsAt} />} />
           </div>
+
           <Alert>{t("notices.safety")}</Alert>
         </CardContent>
       </Card>
@@ -488,31 +481,17 @@ export default function ExampleRewardVault(_props: VaultComponentProps) {
 
 function FlowNode({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="min-w-0 rounded-md border border-[#40536c] bg-[#172131] p-3 text-center">
-      <div className="break-words text-sm font-semibold text-white">{title}</div>
-      <div className="mt-1 break-words text-xs font-medium leading-5 text-[#8d9caf]">{detail}</div>
+    <div className="min-w-0 flex-1 rounded-[10px] border border-white/10 bg-white/[0.03] px-2 py-2 text-center sm:rounded-[11px] sm:py-3">
+      <div className="truncate text-xs font-semibold text-[#eaf1f8] sm:text-sm">{title}</div>
+      <div className="mt-0.5 truncate text-[10px] font-medium text-[#5a6678] sm:mt-1">{detail}</div>
     </div>
   );
 }
 
 function FlowArrow() {
   return (
-    <div className="hidden min-h-16 place-items-center text-lg font-semibold text-[#a78bfa] sm:grid" aria-hidden="true">
-      →
-    </div>
-  );
-}
-
-function Sparkline() {
-  return (
-    <div className="mt-3 flex h-7 items-end gap-1" aria-hidden="true">
-      {sparklineHeights.map((height) => (
-        <span
-          key={height}
-          className="min-w-0 flex-1 rounded-sm bg-gradient-to-b from-[#a78bfa] to-[#4c1d95]/40"
-          style={{ height: `${height}%` }}
-        />
-      ))}
+    <div className="grid place-items-center font-mono text-sm font-semibold text-[#4c8dff]" aria-hidden="true">
+      <ArrowRight className="h-4 w-4" />
     </div>
   );
 }

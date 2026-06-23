@@ -17,7 +17,7 @@ Read in order before editing:
 5. `docs/ui-pattern-snippets.md` — read before implementing `Component.tsx`.
 6. `skills/flap-vault-ui-generator/SKILL.md` — generator skill with implementation checklist and references.
 
-If the AI assistant does not have direct repository access, use `docs/ai-copy-pack.md` or `yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md` to prepare a pasteable context pack first.
+If the AI assistant does not have direct repository access, use `docs/ai-copy-pack.md` or `yarn --silent vault:ai-context > vault-ai-context.md` to prepare a pasteable context pack first. Pass a specific example folder only when you need that behavior reference.
 
 ### Reference Docs
 

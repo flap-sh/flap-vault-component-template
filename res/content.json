@@ -29,21 +29,21 @@
         "kicker": "AI Agent Quick Start",
         "description": "Paste this prompt into your AI coding agent, replace the placeholders, and it can generate a controlled custom Vault UI from this repository.",
         "promptLabel": "Prompt template",
-        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, binding mode is <factory | Vault without factory | token without factory>, factoryAddress is <0x... | none>, Vault address is <0x... | none>, Workbench/E2E test tokenAddress is <real deployed ERC20 0x... ending in 7777>, preview tokenAddress is <same as test token | another real token | optional>. Production caRestrictionMode is <none | reserved | verified>, and production restricted CAs are <none | 0x..., 0x... for Workbench/registry only, not public manifest>. Note: any match.bindings[].tokenAddresses, including tokenAddresses inside a factory binding, must be real readable ERC20 addresses ending in 7777; in factory mode they are test-token proof only, not production CA restriction. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>, and my minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
+        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, binding mode is <factory | Vault without factory | token without factory>, factoryAddress is <0x... | none>, Vault address is <0x... | none>, Workbench/E2E test tokenAddress is <real deployed ERC20 0x... ending in 7777>, preview tokenAddress is <same as test token | another real token | optional>. Production caRestrictionMode is <none | reserved | verified>, and production restricted CAs are <none | 0x..., 0x... for Workbench/registry only, not public manifest>. Note: any match.bindings[].tokenAddresses, including tokenAddresses inside a factory binding, must be real readable ERC20 addresses ending in 7777; in factory mode they are test-token proof only, not production CA restriction. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>. If I do not explicitly request a UI style, use the scaffold default surface / NiePan-style abstract template as the only visual default; built-in examples are behavior references only. My minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
       },
       "developerEntry": {
         "kicker": "Developer Entry",
         "title": "Read the small entry set, then implement in one Vault folder.",
-        "description": "If you are a developer or AI Agent, start with the two real host-backed examples below, then use the neutral reference examples afterward. That path stays closer to how flap.sh runs in production.",
-        "realExamplesLabel": "Run real examples first",
+        "description": "If you are a developer or AI Agent, use /example as the compact default visual baseline. Use the real host-backed examples for runtime validation, and use the neutral reference examples only for behavior patterns.",
+        "realExamplesLabel": "Validate real examples",
         "openCommunityBuybackExample": "Open community buyback example",
         "openFlapixelExample": "Open FLAPixel NFT example",
         "realExamplesDescription": "These two routes already carry real token, factory, vault, and full-host runtime defaults. Use them first when validating real local development behavior.",
-        "referenceExamplesLabel": "Then review neutral references",
+        "referenceExamplesLabel": "Behavior references only",
         "openPreview": "Open reward example",
         "openDexListedPreview": "Open DEX-listed example",
         "openActionGalleryPreview": "Open action gallery",
-        "referenceExamplesDescription": "These three remain as neutral fixtures for pattern reference and minimal self-test. They are no longer the primary acceptance entry points on the board.",
+        "referenceExamplesDescription": "These routes remain as neutral behavior fixtures for reward, phase-gating, and action-state patterns. They should not override the scaffold default / NiePan-style abstract visual baseline.",
         "cards": [
           {
             "title": "Read first",
@@ -139,6 +139,7 @@
         "workflowTitle": "Agent Workflow",
         "workflow": [
           "Read the required docs and Skill first, then pick the closest pattern.",
+          "When no UI style is specified, use the scaffold default surface / NiePan-style abstract template as the only visual default; examples are behavior references only.",
           "For a new Vault package, run yarn vault:scaffold {folder-name} with chain/factory for factory mode, or chain/Vault plus optional token for no-factory mode; it generates artifactId automatically.",
           "Implement only inside the four core Vault files; do not add helpers, subcomponents, images, local docs, or sample data.",
           "Run yarn vault:register {folder-name} when scaffold did not create the package, then preview /{folder-name}.",
@@ -157,7 +158,7 @@
         },
         {
           "title": "Create or edit the Vault folder",
-          "body": "community-buyback-example and flapixel-example are the preferred real host-backed references, covering a standard tax-token buyback path and an NFT Vault path. example, dex-listed-example, and action-gallery-example remain neutral fixtures for reward panels, phase gating, and action-pattern reference. For real work, create a lowercase kebab-case folder name, let scaffold generate the manifest artifactId, and edit only the four files under src/vaults/{folder-name}.",
+          "body": "Use /example as the compact scaffold-style default visual baseline. community-buyback-example and flapixel-example are real host-backed runtime references. dex-listed-example and action-gallery-example remain neutral fixtures for phase gating and action-pattern behavior only. For real work, create a lowercase kebab-case folder name, let scaffold generate the manifest artifactId, and edit only the four files under src/vaults/{folder-name}.",
           "code": "yarn vault:scaffold my-vault --name \"My Vault UI\" --chain 56 --factory 0x1000000000000000000000000000000000000001",
           "files": [
             "src/vaults/{folder-name}/Component.tsx",

@@ -34,10 +34,10 @@ yarn dev
 Open a built-in example first:
 
 ```plain text
-http://localhost:3000/action-gallery-example
+http://localhost:3000/example
 ```
 
-This confirms the template runs before custom logic is introduced.
+This confirms the template runs and shows the compact default visual baseline before custom logic is introduced. Use `action-gallery-example` later only when you need the multi-stage action-state behavior reference.
 
 ## Step 2: Create The Package
 
@@ -94,13 +94,15 @@ Build a controlled Flap Vault UI for:
 
 Use only the four files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, do not call private token metadata APIs, do not add external navigation, and do not add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`.
 
+If I do not explicitly request a UI style, use the scaffold default surface / NiePan-style abstract template as the only visual default. Use built-in examples for behavior only, not visual styling.
+
 After editing, run yarn vault:check {folder-name}, yarn vault:e2e {folder-name}, yarn vault:package {folder-name}, and yarn vault:verify-package dist/{folder-name}.zip. Do not call the work done until those pass.
 ```
 
 If the Agent cannot read local files, generate a context pack:
 
 ```bash
-yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
+yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
 Paste `vault-ai-context.md` into the web AI chat, then send the prompt above with your real inputs.

@@ -38,7 +38,7 @@ This is the shortest safe path for a developer who wants AI help but still owns 
 2. Give those inputs to an AI Agent with this repository context. If the AI cannot read the repo directly, generate a pasteable context pack:
 
 ```bash
-yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
+yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
 3. Scaffold the Vault package. Factory-scoped example:
@@ -56,7 +56,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddr
 Replace placeholder addresses with real deployment addresses before running these commands.
 
 4. Edit only the four package files under `src/vaults/my-vault`: `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
-   Keep the scaffolded default business card structure unless the Vault needs a different pattern. The built-in example routes are behavior references, not the default visual style.
+   Keep the scaffolded default business card structure unless the Vault needs a different pattern. When no UI style is specified, use the scaffold default / NiePan-style abstract template; built-in examples are behavior references, not the default visual style.
    For icons, use `lucide-react` first and choose icons from the official Lucide icon library: `https://lucide.dev/icons/`.
 5. Preview the route and test the actual workflow:
 
@@ -212,10 +212,10 @@ docs/ai-copy-pack.md
 Fast path:
 
 ```bash
-yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
+yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
-Paste the generated Markdown into ChatGPT, Claude, or another AI assistant before asking it to create a Vault UI. If you are unsure which example to use, start with `action-gallery-example`; it shows internal-market, DEX-listed, both-stage, and read-only action states in one package.
+Paste the generated Markdown into ChatGPT, Claude, or another AI assistant before asking it to create a Vault UI. If you are unsure which example to use, start with the default `example` pack; it carries the compact scaffold visual baseline. Use `action-gallery-example` only when you specifically need internal-market, DEX-listed, both-stage, and read-only action-state behavior examples.
 
 Tool-specific entry points are included for common coding agents:
 
@@ -322,7 +322,7 @@ The local runtime proxy forwards to `FLAP_RUNTIME_HOST_ORIGIN` when that env var
 
 The file set is fixed. Do not add `helpers`, nested components, folders, assets, docs, or any other files under `src/vaults/{folder-name}`.
 
-Use `example` as the reward/oracle reference, `dex-listed-example` as the DEX-listed stage-gate plus approve/write reference, `action-gallery-example` as the richer multi-button action-state reference, `community-buyback-example` as the live governance/buyback reference, and `flapixel-example` as the live NFT vault reference.
+Use `example` as the compact default visual plus reward/oracle reference, `dex-listed-example` as the DEX-listed stage-gate plus approve/write reference, `action-gallery-example` as the richer multi-button action-state reference, `community-buyback-example` as the live governance/buyback reference, and `flapixel-example` as the live NFT vault reference.
 
 The current product requirements and implementation status are tracked in `docs/prd.md`.
 Versioning rules for the Agent contract, manifest schema, and source package format are tracked in `docs/versioning.md`.

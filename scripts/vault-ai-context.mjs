@@ -6,8 +6,8 @@ import { failAgent } from "./agent-error.mjs";
 import { REQUIRED_VAULT_FILES, isValidFolderName } from "./vault-registration.mjs";
 
 const ROOT = process.cwd();
-const DEFAULT_EXAMPLE = "action-gallery-example";
-const REFERENCE_EXAMPLES = [DEFAULT_EXAMPLE, "example", "dex-listed-example", "community-buyback-example", "flapixel-example"];
+const DEFAULT_EXAMPLE = "example";
+const REFERENCE_EXAMPLES = [DEFAULT_EXAMPLE, "dex-listed-example", "action-gallery-example", "community-buyback-example", "flapixel-example"];
 
 const BASE_FILES = [
   "README.md",
@@ -22,7 +22,7 @@ const BASE_FILES = [
 ];
 
 const EXAMPLE_HINTS = {
-  example: "reward/oracle pattern with approve, simulate, write, claim, and refetch",
+  example: "default compact scaffold visual reference plus reward/oracle behavior with approve, simulate, write, claim, and refetch",
   "dex-listed-example": "DEX-listed-only action gate with visible disabled states before listing",
   "action-gallery-example": "secondary behavior reference when the user is unsure about action stages; shows internal-market, DEX-listed, both-stage, and read-only states",
   "community-buyback-example": "live governance or buyback-style vault reference",
@@ -100,13 +100,13 @@ ${fence}
 function promptTemplate(exampleFolder) {
   return `You are a Flap Vault UI generation agent. I pasted a local context pack from flap-vault-ui-template, including the core docs and the selected reference example: ${exampleFolder}.
 
-The selected example is a secondary behavior reference only. The visual default is the scaffold default surface in docs/ui-pattern-snippets.md, and it wins over any example component.
+The selected example is a secondary behavior reference only. When the developer does not explicitly request a visual style, the only visual default is the scaffold default surface / NiePan-style abstract template in docs/ui-pattern-snippets.md; it wins over any example component.
 
 Before writing code:
 1. Summarize the strict Vault folder boundary, manifest rules, safety boundaries, and validation commands you must follow.
 2. Use docs/agent-intake-template.md to ask me for missing inputs and docs/from-zero-vault-ui.md as the from-zero validation flow.
 3. Confirm which reference example is closest to my use case and why.
-4. Use the scaffold default surface / docs/ui-pattern-snippets.md as the visual default; use examples for behavior, not for visual styling.
+4. Use the scaffold default surface / NiePan-style abstract template from docs/ui-pattern-snippets.md as the visual default whenever I did not specify a UI style; use examples for behavior, not for visual styling.
 5. Confirm actionAvailabilityStage as one of internal-market, dex-listed, both, or read-only.
 6. Confirm testTokenAddresses separately from caRestrictionMode. Any manifest match.bindings[].tokenAddresses, including factory binding entries, must be real deployed ERC20 addresses ending in 7777; factory-mode tokenAddresses are package proof tokens, not production CA restrictions.
 7. After inputs are complete, generate only the allowed four Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json.
@@ -126,7 +126,7 @@ This pack is for web-based AI tools that cannot read this repository directly. P
 
 Selected example: \`${exampleFolder}\`
 Example purpose: ${EXAMPLE_HINTS[exampleFolder] ?? "custom Vault UI reference package"}
-Visual default: scaffold default surface from \`docs/ui-pattern-snippets.md\`. The selected example is behavior-only and must not override the default visual structure.
+Visual default: scaffold default surface / NiePan-style abstract template from \`docs/ui-pattern-snippets.md\`. The selected example is behavior-only and must not override the default visual structure.
 
 ## First Message To Send
 
@@ -136,13 +136,13 @@ ${promptTemplate(exampleFolder)}
 
 ## Example Selection Guide
 
+- \`example\`: default compact visual reference plus reward/oracle flows with approve, simulate, write, claim, and refetch.
 - \`action-gallery-example\`: secondary behavior reference when the user is unsure about action stages; it shows internal-market, DEX-listed, both-stage, and read-only action states.
-- \`example\`: use for reward/oracle flows with approve, simulate, write, claim, and refetch.
 - \`dex-listed-example\`: use when writes should be unavailable until \`marketPhase=dex-listed\`.
 - \`community-buyback-example\`: use for governance, reserve, or buyback-style vaults.
 - \`flapixel-example\`: use for NFT vault flows.
 
-Examples are behavior references, not the default visual style. Start visual structure from the scaffold default surface and the Default Scaffold Surface section in \`docs/ui-pattern-snippets.md\`. The first screen should be one compact business card with a small metric strip, one primary action panel, and lower runtime details, not a row-heavy dashboard stack.
+Examples are behavior references, not the default visual style. If the developer does not explicitly request a UI style, start visual structure from the scaffold default surface / NiePan-style abstract template and the Default Scaffold Surface section in \`docs/ui-pattern-snippets.md\`. The first screen should be one compact business card with a small metric strip, one primary action panel, and lower runtime details, not a row-heavy dashboard stack.
 
 ## Files
 

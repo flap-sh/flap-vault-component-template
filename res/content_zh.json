@@ -29,21 +29,21 @@
         "kicker": "AI Agent 快速开始",
         "description": "把这段 prompt 贴进你的 AI coding Agent，替换占位符，它就可以按本仓库规则生成受控的自定义 Vault UI。",
         "promptLabel": "Prompt 模板",
-        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，绑定模式是 <factory | 无 factory 的 Vault | 无 factory 的 token>，factoryAddress 是 <0x... | 无>，Vault 地址是 <0x... | 无>，用于 Workbench/E2E 的测试 tokenAddress 是 <真实 ERC20 且 7777 结尾的 0x...>，用于预览的 tokenAddress 是 <同测试 token | 其他真实 token | 可选>。production caRestrictionMode 是 <none | reserved | verified>，生产限制 CA 是 <无 | 0x..., 0x...，仅给 Workbench/registry，不写入 public manifest>。注意：任何 match.bindings[].tokenAddresses，包括 factory binding 里的 tokenAddresses，都必须是真实可读 ERC20 且 7777 结尾；factory 模式下它只是测试 token，不是生产 CA 限制。固定额外合约目标是 <没有 | 地址 + label + purpose>；如果需要，请写入 match.bindings[].externalContracts。按钮可用阶段是 <internal-market | dex-listed | both | read-only>，最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
+        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，绑定模式是 <factory | 无 factory 的 Vault | 无 factory 的 token>，factoryAddress 是 <0x... | 无>，Vault 地址是 <0x... | 无>，用于 Workbench/E2E 的测试 tokenAddress 是 <真实 ERC20 且 7777 结尾的 0x...>，用于预览的 tokenAddress 是 <同测试 token | 其他真实 token | 可选>。production caRestrictionMode 是 <none | reserved | verified>，生产限制 CA 是 <无 | 0x..., 0x...，仅给 Workbench/registry，不写入 public manifest>。注意：任何 match.bindings[].tokenAddresses，包括 factory binding 里的 tokenAddresses，都必须是真实可读 ERC20 且 7777 结尾；factory 模式下它只是测试 token，不是生产 CA 限制。固定额外合约目标是 <没有 | 地址 + label + purpose>；如果需要，请写入 match.bindings[].externalContracts。按钮可用阶段是 <internal-market | dex-listed | both | read-only>。如果我没有明确指定 UI 风格，请把 scaffold default surface / 涅槃风格抽象模板作为唯一默认视觉；内置 examples 只作为行为参考。最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
       },
       "developerEntry": {
         "kicker": "开发者入口",
         "title": "只看必要入口，然后在一个 Vault 目录内实现。",
-        "description": "如果你是开发者或 AI Agent，先跑下面两个真实宿主示例，再回看 neutral 参考示例。这样更接近 flap.sh 上线后的真实运行方式。",
-        "realExamplesLabel": "优先跑真实示例",
+        "description": "如果你是开发者或 AI Agent，把 /example 作为 compact 默认视觉基线。真实宿主示例用于验证 runtime，neutral 参考示例只用于行为模式。",
+        "realExamplesLabel": "验证真实示例",
         "openCommunityBuybackExample": "打开 Community Buyback 实例",
         "openFlapixelExample": "打开 FLAPixel NFT 实例",
         "realExamplesDescription": "这两个入口已经带上真实 token、factory、vault 和 full-host 读取链路，优先用它们验证本地开发是否接近线上。",
-        "referenceExamplesLabel": "再看中性参考示例",
+        "referenceExamplesLabel": "仅行为参考",
         "openPreview": "打开奖励示例",
         "openDexListedPreview": "打开 DEX Listed 示例",
         "openActionGalleryPreview": "打开操作按钮示范",
-        "referenceExamplesDescription": "这三条保留给模式参考和最小实现自测，不再是首页优先推荐的真实验收入口。",
+        "referenceExamplesDescription": "这些路由保留给 reward、阶段门控和 action-state 行为模式参考，不应该覆盖 scaffold default / 涅槃风格抽象视觉基线。",
         "cards": [
           {
             "title": "先看这些",
@@ -139,6 +139,7 @@
         "workflowTitle": "Agent 执行顺序",
         "workflow": [
           "先读取必须文档和 Skill，再选最接近的 patterns。",
+          "如果没有明确指定 UI 风格，默认只能使用 scaffold default surface / 涅槃风格抽象模板；examples 只作为行为参考。",
           "如果是新 Vault 包，factory 模式传入 chain/factory，无 factory 模式传入 chain/Vault 和可选 token；vault:scaffold 会自动生成 artifactId。",
           "只在四个 Vault 核心文件内实现；不要新增 helpers、子组件、图片、本地文档或样例数据。",
           "如果不是 scaffold 创建的包，运行 yarn vault:register {folder-name}，然后预览 /{folder-name}。",
@@ -157,7 +158,7 @@
         },
         {
           "title": "创建或修改 Vault 目录",
-          "body": "community-buyback-example 和 flapixel-example 是优先参考的真实宿主示例，分别覆盖标准税币 buyback 路径和 NFT Vault 路径；example、dex-listed-example、action-gallery-example 继续保留为 neutral fixture，用来参考奖励面板、阶段门控和按钮模式。真正实施时新建全小写中划线目录名，让 scaffold 自动生成 manifest 里的 artifactId，只改 src/vaults/{folder-name} 下的四个文件。",
+          "body": "/example 是 compact scaffold 风格的默认视觉基线。community-buyback-example 和 flapixel-example 是真实宿主 runtime 参考；dex-listed-example 和 action-gallery-example 只保留为阶段门控和按钮模式的行为参考。真正实施时新建全小写中划线目录名，让 scaffold 自动生成 manifest 里的 artifactId，只改 src/vaults/{folder-name} 下的四个文件。",
           "code": "yarn vault:scaffold my-vault --name \"My Vault UI\" --chain 56 --factory 0x1000000000000000000000000000000000000001",
           "files": [
             "src/vaults/{folder-name}/Component.tsx",

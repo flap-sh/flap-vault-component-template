@@ -18,7 +18,7 @@ If you want the script to write the file directly:
 yarn vault:ai-context --out vault-ai-context.md
 ```
 
-The generated pack may include `action-gallery-example` when no example is specified, but that file is only a secondary behavior reference for action states. The visual default is always the scaffold default surface in `docs/ui-pattern-snippets.md`.
+The generated pack includes `example` when no example is specified. That route is the compact default visual reference plus a reward/oracle behavior fixture. Other examples are secondary behavior references only. If the developer does not explicitly request a UI style, the visual default is always the scaffold default surface / NiePan-style abstract template in `docs/ui-pattern-snippets.md`.
 
 List available examples:
 
@@ -53,14 +53,14 @@ src/vaults/{example-folder}/i18n.json
 
 ## Which Example To Choose
 
+- `example`: compact default visual reference plus reward/oracle behavior with approve, simulate, write, claim, and refetch.
 - `action-gallery-example`: secondary behavior reference for unclear action-stage requirements; shows internal-market, DEX-listed, both-stage, and read-only action states.
-- `example`: reward/oracle pattern with approve, simulate, write, claim, and refetch.
 - `dex-listed-example`: DEX-listed-only stage gate with visible disabled state before listing.
 - `community-buyback-example`: live governance, reserve, or buyback-style reference.
 - `flapixel-example`: live NFT vault reference.
 
 Do not treat example addresses as endorsements or production binding instructions. For a real Vault UI, collect the actual chain/factory bindings and preview addresses from the user.
-Do not copy the built-in examples' visual layout as the default. They are state-flow references; new UIs must start from the scaffold default surface and the snippets in `docs/ui-pattern-snippets.md`.
+Do not copy the built-in examples' visual layout as the default. They are state-flow references; new UIs must start from the scaffold default surface / NiePan-style abstract template and the snippets in `docs/ui-pattern-snippets.md` unless the developer explicitly requests another UI style.
 
 Hard visual rule: the first screen should be one compact business card with a mechanism/status header, at most one small metric strip, one primary action panel, and runtime details pushed lower. Do not generate row-heavy dashboard stacks such as overview cards plus dividend cards plus staking cards before the action.
 
@@ -77,7 +77,7 @@ Before writing code:
 1. Summarize the strict Vault folder boundary, manifest rules, safety boundaries, and validation commands you must follow.
 2. Use docs/agent-intake-template.md to ask me for missing inputs and docs/from-zero-vault-ui.md as the from-zero validation flow.
 3. Confirm which reference example is closest to my use case and why.
-4. Use the scaffold default surface / docs/ui-pattern-snippets.md as the visual default; it wins over any selected example. Use examples for behavior only, not for visual styling.
+4. Use the scaffold default surface / NiePan-style abstract template from docs/ui-pattern-snippets.md as the visual default whenever I did not specify a UI style; it wins over any selected example. Use examples for behavior only, not for visual styling.
 5. Confirm actionAvailabilityStage as one of internal-market, dex-listed, both, or read-only.
 6. Confirm testTokenAddresses separately from caRestrictionMode. Any manifest `match.bindings[].tokenAddresses`, including factory binding entries, must be real deployed ERC20 addresses ending in `7777`; factory-mode `tokenAddresses` are package proof tokens, not production CA restrictions.
 7. After inputs are complete, generate only the allowed four Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json.

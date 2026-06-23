@@ -38,7 +38,7 @@
 2. 将这些输入和本仓库上下文一起交给 AI Agent。如果 AI 不能直接读取仓库，可先生成可粘贴上下文包：
 
 ```bash
-yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
+yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
 3. Scaffold Vault 包。Factory-scoped 示例：
@@ -53,7 +53,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnet
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
-4. 只编辑 `src/vaults/my-vault` 下的四个包文件：`Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json`。除非 Vault 需要不同组织方式，否则保留 scaffold 默认业务卡片结构。内置 example route 是行为参考，不是默认视觉风格。需要图标时优先使用 `lucide-react`，先从 Lucide 官方图标库选择：`https://lucide.dev/icons/`。
+4. 只编辑 `src/vaults/my-vault` 下的四个包文件：`Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json`。除非 Vault 需要不同组织方式，否则保留 scaffold 默认业务卡片结构；没有明确 UI 风格时，只能使用 scaffold default / 涅槃风格抽象模板。内置 example route 是行为参考，不是默认视觉风格。需要图标时优先使用 `lucide-react`，先从 Lucide 官方图标库选择：`https://lucide.dev/icons/`。
 5. 预览路由并测试真实 workflow：
 
 ```plain text
@@ -202,10 +202,10 @@ docs/ai-copy-pack.md
 快速路径：
 
 ```bash
-yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
+yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
-在让 ChatGPT、Claude 或其他 AI assistant 创建 Vault UI 之前，将生成的 Markdown 粘贴进去。如果不确定用哪个示例，先用 `action-gallery-example`；它在一个包里展示 internal-market、DEX-listed、both-stage 和 read-only action 状态。
+在让 ChatGPT、Claude 或其他 AI assistant 创建 Vault UI 之前，将生成的 Markdown 粘贴进去。如果不确定用哪个示例，先用默认 `example` 上下文；它带 compact scaffold 视觉基线。只有明确需要 internal-market、DEX-listed、both-stage 和 read-only action 状态示例时，再用 `action-gallery-example`。
 
 常见 coding agent 的工具入口：
 
