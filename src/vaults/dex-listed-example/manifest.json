@@ -5,8 +5,8 @@
     "bindings": [
       {
         "chainId": 56,
-        "vaultAddresses": ["0x3000000000000000000000000000000000000003"],
-        "tokenAddresses": ["0x55d398326f99059fF775485246999027B3197955"]
+        "factoryAddress": "0xC3e4EE8f3c616D16297fAfcB9daab122D31eFA9E",
+        "tokenAddresses": ["0x091652ebc0a0238d7151a868f22d7cfd2a267777"]
       }
     ]
   },

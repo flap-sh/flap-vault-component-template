@@ -28,7 +28,7 @@ When `vault:check` reports `manual-review/external-frame`, the output includes t
 
 ## Test Token vs Production CA Restriction
 
-`match.bindings[].tokenAddresses` in a source package is the manifest-declared test token source for `vault:check`, `vault:e2e`, preview, and package proof. Prefer a testnet ERC20 test token for this proof. It is not, by itself, a production CA restriction for factory-scoped UI.
+`match.bindings[].tokenAddresses` in a source package is the manifest-declared test token source for `vault:check`, `vault:e2e`, preview, and package proof. It must be a real deployed ERC20 token address ending in `7777`. It is not, by itself, a production CA restriction for factory-scoped UI.
 
 The Flap Artifact Workbench must collect and display a separate `caRestrictionMode` decision before registry publish:
 
@@ -111,7 +111,7 @@ Validation requirements:
 - `folderName` must be valid lowercase kebab-case and must match every `src/vaults/<folder-name>/...` source entry.
 - `check.passed` must be true and `check.summary.blocking` must be `0`; warning and info counts may be non-zero and remain review evidence.
 - The zip must contain exactly the marker, `package-metadata.json`, `schemas/manifest.schema.json`, `qa/e2e-report.json`, and the four required Vault source files.
-- `qa/e2e-report.json` must have `passed: true`, zero blocking issues, current hashes for the four Vault files and manifest schema, required PC / iPad / H5 viewports, required `default` / `internal-market` / `dex-listed` phase checks, and a valid BNB token declared in manifest `match.bindings[].tokenAddresses` for package testing, preferably on testnet. The V1 report is deterministic Playwright DOM/layout/state proof, not AI image judgment.
+- `qa/e2e-report.json` must have `passed: true`, zero blocking issues, current hashes for the four Vault files and manifest schema, required PC / iPad / H5 viewports, required `default` / `internal-market` / `dex-listed` phase checks, and a real deployed BNB token ending in `7777` declared in manifest `match.bindings[].tokenAddresses` for package testing. The V1 report is deterministic Playwright DOM/layout/state proof, not AI image judgment.
 - Duplicate zip entry names, path traversal entries, unsupported compression, mismatched central/local header names, unexpected files, or mismatched hashes are rejection reasons.
 - `manifest.json` inside the zip must have the same `artifactId` as the marker.
 - `package-metadata.json` must agree with marker kind, format version, folder name, artifact id, runtime provenance, and `e2e` summary.

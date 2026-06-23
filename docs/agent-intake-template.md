@@ -37,7 +37,7 @@ Ask these in order. Each answer gates the next.
 
 - Example: `56` (BNB Chain mainnet only), `56` and `97` (mainnet + testnet)
 - Must be integers.
-- Each entry will be paired with a factory address or one Vault address depending on the core binding mode. Prefer a testnet binding with the test token, plus the final real mainnet factory binding when mainnet launch is planned.
+- Each entry will be paired with a factory address or one Vault address depending on the core binding mode. Include a real deployed `7777`-suffix test token, plus the final real mainnet factory binding when mainnet launch is planned.
 
 ### Q4: Binding mode and target addresses
 
@@ -45,10 +45,10 @@ Ask these in order. Each answer gates the next.
 
 - For factory mode, provide one real non-zero factory address per chain. If mainnet launch is planned, collect the final real mainnet factory address now so the production binding does not need repeated edits.
 - For no-factory Vault-scoped mode, omit `factoryAddress` and provide exactly one real non-zero Vault address per chain.
-- Recommended factory binding set: chain 97 -> testnet factory `0xTestnetFactory...` + test token `0xTestnetToken...`, and chain 56 -> final mainnet factory `0xMainnetFactory...`.
+- Recommended factory binding set: one binding with a real `7777`-suffix test token for package proof, and chain 56 -> final mainnet factory `0xMainnetFactory...`.
 - Example no-factory binding: chain 56 -> Vault `0xVault...`, test token `0xToken...`.
 - Do not invent fake factory addresses. A zero factory address is invalid; use no-factory mode instead.
-- Every manifest must include at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing. Prefer a testnet token for this proof.
+- Every manifest must include at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing. It must be a real deployed ERC20 address ending in `7777`.
 
 ### Q5: Vault addresses
 
@@ -75,7 +75,7 @@ Ask these in order. Each answer gates the next.
 
 > Which real ERC20 token(s) should package checks and E2E use?
 
-- Prefer a testnet test token and place that binding first when using `vault:scaffold`, for example chain 97 + testnet factory + `--token 0xTestnetToken...`.
+- Use a real deployed `7777`-suffix test token and place that binding first when using `vault:scaffold`.
 - Store test tokens under `match.bindings[].tokenAddresses`, never as a top-level field.
 - If `caRestrictionMode` is `none`, this test token still exists and still does not restrict production CA.
 - If production CA restriction is `verified`, collect `productionRestrictedTokenAddresses` for Workbench/registry separately; do not use manifest fields for that production policy.
@@ -220,7 +220,7 @@ Before running `yarn vault:scaffold`, confirm:
 | Display name | `{name}` |
 | Chain / binding targets | `[{chainId: N, factoryAddress: "0x..."}]` or `[{chainId: N, vaultAddresses: ["0x..."], tokenAddresses: ["0x..."]}]` |
 | CA restriction mode | `{none | reserved | verified}` |
-| Test token addresses | Prefer testnet token(s), stored in `match.bindings[].tokenAddresses` |
+| Test token addresses | Real deployed `7777`-suffix token(s), stored in `match.bindings[].tokenAddresses` |
 | Production factory address | Final real mainnet factory, if mainnet factory-scoped launch is planned |
 | Production restricted token addresses | Workbench/registry only when mode is `verified`; never as manifest top-level fields |
 | Locales | `{locales}` |
@@ -245,7 +245,7 @@ yarn vault:scaffold {folder-name} \
 # Recommended: testnet token for proof plus final mainnet factory binding
 yarn vault:scaffold {folder-name} \
   --name "{name}" \
-  --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting \
+  --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken \
   --chain 56 --factory 0xMainnetFactory \
   --locales {locales}
 ```

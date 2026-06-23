@@ -4,7 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { failAgent } from "./agent-error.mjs";
-import { validateErc20TokenContract } from "./erc20-token-validation.mjs";
+import { hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX, validateErc20TokenContract } from "./erc20-token-validation.mjs";
 import { isValidFolderName, registerVault } from "./vault-registration.mjs";
 
 const ROOT = process.cwd();
@@ -407,11 +407,11 @@ async function main() {
 
   if (!folderName) {
     fail(
-      "Usage: yarn vault:scaffold <folder-name> --chain 97 --factory 0x... --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory or --chain 56 --vault 0x... --token 0xTestToken [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
+      "Usage: yarn vault:scaffold <folder-name> --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken or --chain 56 --vault 0x... --token 0xReal7777TestToken [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
       {
         code: "cli/missing-folder-name",
         fixHint:
-          "Provide a lowercase kebab-case folder name, a real binding target, and a manifest test token, preferably on testnet. Example: yarn vault:scaffold my-vault --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory.",
+          "Provide a lowercase kebab-case folder name, a real binding target, and a real deployed ERC20 manifest test token ending in 7777. Example: yarn vault:scaffold my-vault --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken.",
       },
     );
   }
@@ -479,7 +479,7 @@ async function main() {
   if (tokenValues.length === 0) {
     fail("At least one --token address is required so manifest.json carries a Workbench/vault:e2e test token.", {
       code: "manifest-binding/missing-test-token",
-      fixHint: "Pass at least one --token 0xTokenAddressRequired, preferably for a testnet binding. For production, still provide the final real mainnet factory with --chain 56 --factory 0xMainnetFactory; do not use random mainnet token CAs as production restrictions.",
+      fixHint: "Pass at least one --token 0xReal7777TestToken. It must be a real deployed ERC20 address ending in 7777. For production, still provide the final real mainnet factory with --chain 56 --factory 0xMainnetFactory; do not use random mainnet token CAs as production restrictions.",
       chainCount: chainValues.length,
     });
   }
@@ -533,8 +533,18 @@ async function main() {
     if (address.toLowerCase() === ZERO_ADDRESS) {
       fail(`Invalid zero address: ${address}`, {
         code: "manifest-binding/invalid-address",
-        fixHint: "Use a real deployed Vault or test token address. At least one valid token address is required in manifest tokenAddresses; prefer testnet for the package proof.",
+        fixHint: "Use a real deployed Vault or test token address. At least one real 7777-suffix token address is required in manifest tokenAddresses for package proof.",
         address,
+      });
+    }
+  }
+  for (const address of tokenValues) {
+    if (!hasRequiredTestTokenSuffix(address)) {
+      fail(`Invalid test token address: ${address}`, {
+        code: "manifest-binding/invalid-test-token-suffix",
+        fixHint: `Use a real deployed ERC20 test token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}. Non-${REQUIRED_TEST_TOKEN_SUFFIX} token addresses are not accepted as package proof.`,
+        address,
+        requiredSuffix: REQUIRED_TEST_TOKEN_SUFFIX,
       });
     }
   }

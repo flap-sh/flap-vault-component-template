@@ -16,7 +16,7 @@
       "type": "object",
       "required": ["bindings"],
       "additionalProperties": false,
-      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more no-factory tokenAddresses entries. At least one binding must include tokenAddresses as the manifest-declared test token source for vault:check/e2e; prefer testnet tokens. Factory-mode tokenAddresses are not production CA restrictions.",
+      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more no-factory tokenAddresses entries. Any tokenAddresses entry, including entries on factory bindings, must end in 7777 and be a real deployed ERC20 token. Factory-mode tokenAddresses are not production CA restrictions.",
       "properties": {
         "bindings": {
           "type": "array",
@@ -42,7 +42,7 @@
                 "then": {
                   "properties": {
                     "vaultAddresses": { "$ref": "#/$defs/singleAddressArray" },
-                    "tokenAddresses": { "$ref": "#/$defs/addressArray" }
+                    "tokenAddresses": { "$ref": "#/$defs/testTokenAddressArray" }
                   }
                 }
               }
@@ -62,8 +62,8 @@
                 "description": "Vault address list for this binding. In no-factory mode this may contain exactly one Vault address and participates in preview/runtime matching."
               },
               "tokenAddresses": {
-                "$ref": "#/$defs/addressArray",
-                "description": "Binding-scoped manifest test token list. Every manifest must include at least one real deployed ERC20 token address under a binding for Workbench/e2e test coverage; prefer testnet. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
+                "$ref": "#/$defs/testTokenAddressArray",
+                "description": "Binding-scoped token list for package proof or no-factory token scoping. Every entry, including factory-mode entries, must be a real deployed ERC20 token address ending in 7777. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",
@@ -116,6 +116,17 @@
       "type": "array",
       "minItems": 1,
       "items": { "$ref": "#/$defs/nonZeroAddress" }
+    },
+    "testTokenAddress": {
+      "allOf": [
+        { "$ref": "#/$defs/nonZeroAddress" },
+        { "pattern": "7777$" }
+      ]
+    },
+    "testTokenAddressArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/testTokenAddress" }
     },
     "singleAddressArray": {
       "type": "array",

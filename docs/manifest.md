@@ -39,7 +39,7 @@ chainId + tokenAddress
 
 For factory-scoped UI, `factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` and reserved template placeholder addresses such as `0x1000000000000000000000000000000000000001` are invalid. For UI without a factory, omit `factoryAddress` and provide either exactly one real non-zero Vault address in `match.bindings[].vaultAddresses` or one or more real non-zero token addresses in `match.bindings[].tokenAddresses`.
 
-Every manifest must include at least one binding-scoped `tokenAddresses` entry. That address is the manifest-declared test token source used by `vault:check`, Flap Artifact Workbench, and `vault:e2e`; local-only `vault:e2e --token` overrides do not satisfy package intake. Prefer a testnet token for this proof and collect the final real mainnet factory address in the mainnet factory binding early. In factory mode, `tokenAddresses` is not the production CA restriction. Production CA restriction is a Workbench/registry `caRestrictionMode` decision: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` may write the production token restriction only after review checks. In no-factory mode `tokenAddresses` can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
+Every binding-scoped `tokenAddresses` entry must be a real deployed ERC20 token address ending in `7777`, including entries placed on factory bindings. In factory mode, `tokenAddresses` is package proof input, not the production CA restriction. Production CA restriction is a Workbench/registry `caRestrictionMode` decision: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` may write the production token restriction only after review checks. In no-factory mode `tokenAddresses` can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
 
 Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the Vault-scoped binding target and `tokenAddresses` can be the token-scoped binding target.
 
@@ -58,7 +58,7 @@ Preview/runtime resolution should respect those explicit bindings. Prefer an exa
       {
         "chainId": 97,
         "factoryAddress": "0xTestnetFactoryRequired",
-        "tokenAddresses": ["0xTestnetTokenForTesting"]
+        "tokenAddresses": ["0xReal7777TestToken"]
       },
       { "chainId": 56, "factoryAddress": "0xMainnetFactoryRequired" }
     ]
@@ -78,7 +78,7 @@ For a UI that supports both mainnet and testnet with different factory addresses
       {
         "chainId": 97,
         "factoryAddress": "0xTestnetFactoryRequired",
-        "tokenAddresses": ["0xTestnetTokenForTesting"]
+        "tokenAddresses": ["0xReal7777TestToken"]
       },
       { "chainId": 56, "factoryAddress": "0xMainnetFactoryRequired" }
     ]
@@ -99,8 +99,8 @@ For a UI that has no factory and is bound to one Vault, use one Vault address an
         "chainId": 56,
         "vaultAddresses": ["0xVaultAddressRequired"],
         "tokenAddresses": [
-          "0xTokenAddressRequired",
-          "0xAdditionalTokenAddressIfNeeded"
+          "0xReal7777TestToken",
+          "0xAdditional7777TokenIfNeeded"
         ]
       }
     ]
@@ -134,7 +134,7 @@ For a UI that has no factory and is bound by token CA only, omit `vaultAddresses
 | --- | --- | --- |
 | `artifactId` | Yes | Stable unique artifact identity. Must match `vaultui_<folder-name>_<ULID>` and the folder-name segment must match the Vault folder name. |
 | `name` | Yes | Human-readable UI name for Workbench review. |
-| `match.bindings` | Yes | Non-empty array of explicit runtime targets. Each entry must include `chainId` and optionally a non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry, or a no-factory `tokenAddresses` target. At least one binding in the manifest must include a valid test token under `tokenAddresses` for Workbench/E2E test coverage. |
+| `match.bindings` | Yes | Non-empty array of explicit runtime targets. Each entry must include `chainId` and optionally a non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry, or a no-factory `tokenAddresses` target. At least one binding in the manifest must include a real deployed `7777`-suffix test token under `tokenAddresses` for Workbench/E2E test coverage. |
 | `i18n` | Yes | Supported locale list. Each locale string must be at least two characters, and `vault:check` validates exactly these locales. |
 
 ## Optional Chain Entry Fields
@@ -144,7 +144,7 @@ These fields are declared inside each `match.bindings` entry, not at the `match`
 | Field | Required | Description |
 | --- | --- | --- |
 | `vaultAddresses` | Required for Vault-scoped no-factory binding | Optional for factory-scoped and token-scoped bindings. If provided without `factoryAddress`, it must contain exactly one non-zero Vault address. Do not include it in the same binding as `factoryAddress`. |
-| `tokenAddresses` | Required in at least one binding | Manifest-declared test token source; prefer testnet. In factory mode this is not a production CA restriction. In no-factory mode it may contain multiple token addresses and participates in matching when token data is available. |
+| `tokenAddresses` | Required in at least one binding | Manifest-declared test token source; every entry must be a real deployed ERC20 token address ending in `7777`. In factory mode this is not a production CA restriction. In no-factory mode it may contain multiple token addresses and participates in matching when token data is available. |
 | `externalContracts` | No | Optional review list for fixed contract targets that are not the runtime token, Vault, factory, or binding-scoped token/Vault references. Each entry must contain only `address` and `label`. The template validates it but does not use it for preview/runtime matching. |
 
 Example:

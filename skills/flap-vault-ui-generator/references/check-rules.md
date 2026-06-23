@@ -20,6 +20,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - forbidden files like `.env`, `.git`, `.vercel`, `node_modules`
 - invalid manifest binding: `match.bindings` must be a non-empty array of factory-scoped, Vault-scoped, or token-scoped targets
 - duplicate `match.bindings` entries with the same runtime target
+- missing or non-`7777` manifest test token in `match.bindings[].tokenAddresses`
 - legacy `chainIds` top-level field present (removed; chain IDs must live inside `match.bindings` entries)
 - disallowed fields at `match` level (only `bindings` is allowed)
 - invalid binding entry: missing or invalid `chainId`, missing target, zero factory, no-factory Vault binding without exactly one Vault address, or invalid token target list

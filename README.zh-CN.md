@@ -22,7 +22,7 @@
 - Flap 拥有的 taxinfo / feeinfo host context 负责 token 状态、tax 信息、VaultPortal 信息、部署绑定、fee mode 和渲染表面。
 - Flap preview shell 提供真实 RainbowKit / wagmi 钱包连接、切链和 Flap 语言偏好行为。
 - 打包后的 Vault artifact 只包含 host shell / frame 之下的 Vault 专属业务 UI；preview shell / header UI 不进入包内。
-- manifest 只声明部署绑定意图、i18n 和不可避免的非 oracle endpoint。单个 binding 内的 `tokenAddresses` 优先作为测试 token 来源，建议使用测试网 token；生产是否限制 CA 是 Workbench/registry 的 `caRestrictionMode` 决策，不是 public manifest 字段。
+- manifest 只声明部署绑定意图、i18n 和不可避免的非 oracle endpoint。任何 binding-scoped `tokenAddresses`，包括 factory binding 内的可选条目，都必须是真实可读 ERC20 且地址以 `7777` 结尾；factory 模式下它只是测试 token 来源，不是生产 CA 限制。生产是否限制 CA 是 Workbench/registry 的 `caRestrictionMode` 决策，不是 public manifest 字段。
 - 默认避免外部 endpoint 和外部资源。如果必须使用非 oracle endpoint，需要在 manifest 中预声明为无用户名密码的 HTTPS URL 字符串或字符串数组，供 `vault:check` 快速校验；声明不代表一定通过审核。
 - 提交前需要本地预览。
 - 打包前需要运行 `vault:check`。
@@ -34,7 +34,7 @@
 
 这是开发者在借助 AI 的同时仍然自己掌握 Vault 事实和本地测试的最短安全路径。
 
-1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。优先使用测试网测试 token，并提前提供主网最终真实 factory 地址。
+1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且 `7777` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。提前提供主网最终真实 factory 地址。
 2. 将这些输入和本仓库上下文一起交给 AI Agent。如果 AI 不能直接读取仓库，可先生成可粘贴上下文包：
 
 ```bash
@@ -44,13 +44,13 @@ yarn --silent vault:ai-context action-gallery-example > vault-ai-context.md
 3. Scaffold Vault 包。Factory-scoped 示例：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 单 Vault、无 factory 示例：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x55d398326f99059fF775485246999027B3197955 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
 4. 只编辑 `src/vaults/my-vault` 下的四个包文件：`Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json`。除非 Vault 需要不同组织方式，否则保留 scaffold 默认业务卡片结构。内置 example route 是行为参考，不是默认视觉风格。需要图标时优先使用 `lucide-react`，先从 Lucide 官方图标库选择：`https://lucide.dev/icons/`。
@@ -69,7 +69,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的测试 token；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
+`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的真实可读 `7777` 后缀测试 token；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
 
 首次运行的本地机器，尤其是 Windows 机器，可能需要先安装一次 Playwright 浏览器：
 
@@ -230,16 +230,16 @@ docs/agent-intake-template.md
 对于新 Vault UI，优先使用 scaffold 命令：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 无 factory 的 UI 可从一个 Vault 地址和一个 manifest 测试 token 地址 scaffold：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0x3000000000000000000000000000000000000003 --token 0x55d398326f99059fF775485246999027B3197955 --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
-这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把 manifest 测试 token 写入 `match.bindings[].tokenAddresses`。优先提供测试网测试 token，同时提前提供主网最终真实 factory；factory 模式下这里的 `tokenAddresses` 不是生产限制 CA。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
+这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把真实可读 `7777` 后缀测试 token 写入 `match.bindings[].tokenAddresses`。提前提供主网最终真实 factory；factory 模式下这里的 `tokenAddresses` 不是生产限制 CA。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
 
 ```bash
 yarn vault:register my-vault
@@ -269,22 +269,22 @@ Token media 使用 host context：`context.tokenImageUrl`、`context.tokenName` 
 推荐方式（单链）：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory
 ```
 
 Mainnet + testnet 可为每个目标重复 `--chain` / `--factory`。推荐把测试网 binding 放在前面，让唯一的 `--token` 落到测试网，同时保留主网最终真实 factory：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
-  --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting \
+  --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken \
   --chain 56 --factory 0xMainnetFactory
 ```
 
-No-factory 模式可为每个目标重复 `--chain` / `--vault`。至少需要一个 `--token` 作为 manifest 测试 token；可以只给第一个测试 binding，也可以按链一一配对：
+No-factory 模式可为每个目标重复 `--chain` / `--vault`。至少需要一个真实可读 `7777` 后缀 `--token` 作为 manifest 测试 token；可以只给第一个测试 binding，也可以按链一一配对：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
-  --chain 97 --vault 0xTestnetVault --token 0xTestnetToken \
+  --chain 97 --vault 0xTestnetVault --token 0xReal7777TestToken \
   --chain 56 --vault 0xMainnetVault
 ```
 
@@ -429,7 +429,7 @@ yarn dev
 yarn build
 yarn lint
 yarn typecheck
-yarn vault:scaffold example-copy --name "Example Copy UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --dry-run
+yarn vault:scaffold example-copy --name "Example Copy UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --dry-run
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest

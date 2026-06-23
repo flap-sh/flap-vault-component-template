@@ -2,6 +2,7 @@ import { createPublicClient, erc20Abi, http } from "viem";
 import { bsc, bscTestnet } from "viem/chains";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+export const REQUIRED_TEST_TOKEN_SUFFIX = "7777";
 const DEFAULT_RPC_URLS = {
   56: ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
   97: ["https://data-seed-prebsc-1-s1.binance.org:8545", "https://bsc-testnet-rpc.publicnode.com"],
@@ -12,6 +13,8 @@ const CHAIN_BY_ID = {
 };
 const TOKEN_VALIDATION_FIX_HINT =
   "Replace the token address with a real deployed ERC20 contract on the declared chain, rerun yarn vault:check <folder-name>, then regenerate E2E/package proof.";
+const TOKEN_SUFFIX_FIX_HINT =
+  "Replace the test token with a real deployed ERC20 token address ending in 7777, rerun yarn vault:check <folder-name>, then regenerate E2E/package proof.";
 
 function envValue(name) {
   const value = process.env[name];
@@ -20,6 +23,10 @@ function envValue(name) {
 
 export function normalizeTokenAddress(value) {
   return typeof value === "string" && ADDRESS_RE.test(value) ? value : undefined;
+}
+
+export function hasRequiredTestTokenSuffix(value) {
+  return Boolean(normalizeTokenAddress(value)?.toLowerCase().endsWith(REQUIRED_TEST_TOKEN_SUFFIX));
 }
 
 function chainRpcCandidates(chainId) {
@@ -156,6 +163,24 @@ export async function collectManifestErc20TokenIssues(manifest, { file = "manife
     for (const [tokenIndex, tokenAddress] of binding.tokenAddresses.entries()) {
       const normalizedAddress = normalizeTokenAddress(tokenAddress);
       if (!normalizedAddress) continue;
+      const field = `match.bindings[${bindingIndex}].tokenAddresses[${tokenIndex}]`;
+      if (!hasRequiredTestTokenSuffix(normalizedAddress)) {
+        issues.push(
+          tokenContractIssue(
+            "manifest-binding/invalid-test-token-suffix",
+            `${field} must be a real test token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}: ${normalizedAddress}.`,
+            {
+              file,
+              field,
+              chainId: binding.chainId,
+              tokenAddress: normalizedAddress,
+              requiredSuffix: REQUIRED_TEST_TOKEN_SUFFIX,
+              fixHint: TOKEN_SUFFIX_FIX_HINT,
+            },
+          ),
+        );
+        continue;
+      }
       const cacheKey = `${binding.chainId}:${normalizedAddress.toLowerCase()}`;
       let result = cache.get(cacheKey);
       if (!result) {
@@ -163,7 +188,6 @@ export async function collectManifestErc20TokenIssues(manifest, { file = "manife
         cache.set(cacheKey, result);
       }
       if (!result.ok) {
-        const field = `match.bindings[${bindingIndex}].tokenAddresses[${tokenIndex}]`;
         issues.push(
           tokenContractIssue(
             "manifest-binding/invalid-erc20-token",
@@ -187,6 +211,23 @@ export async function collectE2EReportErc20TokenIssues(report, { file = "qa/e2e-
   const chainId = report?.binding?.chainId;
   const tokenAddress = normalizeTokenAddress(report?.binding?.tokenAddress);
   if ((chainId !== 56 && chainId !== 97) || !tokenAddress) return [];
+  if (!hasRequiredTestTokenSuffix(tokenAddress)) {
+    return [
+      tokenContractIssue(
+        "e2e-report/invalid-test-token-suffix",
+        `E2E report tokenAddress must be a real test token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}: ${tokenAddress}.`,
+        {
+          file,
+          field: "binding.tokenAddress",
+          folderName,
+          chainId,
+          tokenAddress,
+          requiredSuffix: REQUIRED_TEST_TOKEN_SUFFIX,
+          fixHint: `Use a real deployed BNB Chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun yarn vault:e2e ${folderName ?? "<folder-name>"}, then regenerate the source package.`,
+        },
+      ),
+    ];
+  }
   const result = await validateErc20TokenContract(chainId, tokenAddress);
   if (result.ok) return [];
   return [

@@ -13,6 +13,7 @@ export const REQUIRED_VIEWPORTS = ["pc", "ipad", "h5"];
 export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+const REQUIRED_TEST_TOKEN_SUFFIX = "7777";
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
   ["0x2000000000000000000000000000000000000002", "template token placeholder"],
@@ -38,7 +39,7 @@ export function placeholderAddressLabel(value) {
 
 function validTestToken(value) {
   const address = normalizeAddress(value);
-  return address && !placeholderAddressLabel(address) ? address : undefined;
+  return address && !placeholderAddressLabel(address) && address.toLowerCase().endsWith(REQUIRED_TEST_TOKEN_SUFFIX) ? address : undefined;
 }
 
 export function requiredSourcePaths(folderName) {
@@ -129,7 +130,7 @@ export function selectE2EBinding(manifest, overrides = {}) {
 
   const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet or BNB mainnet";
   throw new Error(
-    `vault:e2e requires a real non-placeholder test token for ${chainLabel}. Declare it in match.bindings[].tokenAddresses, or pass --token only for local self-test.`,
+    `vault:e2e requires a real non-placeholder test token ending in ${REQUIRED_TEST_TOKEN_SUFFIX} for ${chainLabel}. Declare it in match.bindings[].tokenAddresses, or pass --token only for local self-test.`,
   );
 }
 
@@ -213,6 +214,13 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
       tokenAddress: binding.tokenAddress,
       fixHint: `Use a real deployed BNB Chain token address, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
+  } else if (!validTestToken(binding.tokenAddress)) {
+    addIssue("e2e-report/invalid-test-token-suffix", `E2E report tokenAddress must end in ${REQUIRED_TEST_TOKEN_SUFFIX}.`, {
+      field: "binding.tokenAddress",
+      tokenAddress: binding.tokenAddress,
+      requiredSuffix: REQUIRED_TEST_TOKEN_SUFFIX,
+      fixHint: `Use a real deployed BNB Chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+    });
   }
   if (binding.chainId === 97 && binding.tokenPolicy !== "testnet") {
     addIssue("e2e-report/token-policy-mismatch", "chainId 97 E2E reports must use tokenPolicy=testnet.");
@@ -223,9 +231,9 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   const manifestTokens = manifestTokenAddresses(manifest);
   const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();
   if (manifestTokens.length === 0) {
-    addIssue("e2e-report/missing-manifest-test-token", "Manifest must declare at least one real non-placeholder tokenAddresses entry for Workbench/E2E test coverage.", {
+    addIssue("e2e-report/missing-manifest-test-token", `Manifest must declare at least one real non-placeholder tokenAddresses entry ending in ${REQUIRED_TEST_TOKEN_SUFFIX} for Workbench/E2E test coverage.`, {
       field: "match.bindings[].tokenAddresses",
-      fixHint: `Add a real deployed token address under at least one manifest match.bindings[].tokenAddresses entry, run ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+      fixHint: `Add a real deployed token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX} under at least one manifest match.bindings[].tokenAddresses entry, run ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
   } else if (tokenAddress && !manifestTokens.includes(tokenAddress)) {
     addIssue("e2e-report/token-address-mismatch", "E2E report tokenAddress must match a manifest tokenAddresses entry.", {

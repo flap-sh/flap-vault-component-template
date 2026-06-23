@@ -20,6 +20,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Changed
 
+- Bumped `agent-contract.json` to version `28` and require manifest/E2E test tokens to be real deployed ERC20 addresses ending in `7777`; `vault:check`, `vault:scaffold`, package verification, and selftest now reject non-`7777` test tokens.
 - Bumped `agent-contract.json` to version `20` for the V1 E2E platform notes: deterministic Playwright checks, first-time Chromium install recovery, and write-UI local-origin proof limits.
 - Source package format is now `4`. `yarn vault:package <folder-name>` requires a passing, source-hash-bound E2E report and includes `qa/e2e-report.json` plus an `e2e` summary in `flap-vault-package.json` and `package-metadata.json`.
 - `yarn ci` now runs the full three-viewport E2E gate for every built-in example before package/verify, and GitHub Actions uploads `dist/e2e/**`.

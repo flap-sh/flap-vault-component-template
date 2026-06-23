@@ -55,10 +55,10 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | --- | --- | --- |
 | `folder name` | Yes | Use 3-64 characters of lowercase kebab-case. Used in `src/vaults/{folder-name}` and preview route `/{folder-name}`. |
 | `name` | Yes | Human-readable manifest name shown in the Artifact Workbench. |
-| `bindings` | Yes | Core generation uses `chainId` plus non-zero `factoryAddress` for factory-scoped UI, or exactly one non-zero `vaultAddresses` entry for no-factory UI. Prefer a testnet binding with the test token plus the final real mainnet factory binding when mainnet launch is planned. |
+| `bindings` | Yes | Core generation uses `chainId` plus non-zero `factoryAddress` for factory-scoped UI, or exactly one non-zero `vaultAddresses` entry for no-factory UI. Include a real deployed ERC20 test token ending in `7777` plus the final real mainnet factory binding when mainnet launch is planned. |
 | `vaultAddresses` | Required for core no-factory binding | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]` for the normal scaffold path. |
 | `caRestrictionMode` | Yes | One of `none`, `reserved`, or `verified`. This is a Workbench/registry production decision, not a public manifest field. |
-| `testTokenAddresses` | Yes | Prefer testnet ERC20 token(s). Store them only inside `match.bindings[].tokenAddresses` so `vault:check`, Workbench, and `vault:e2e` have manifest-declared proof input. |
+| `testTokenAddresses` | Yes | Use real deployed ERC20 token(s) whose address ends in `7777`. Store them only inside `match.bindings[].tokenAddresses` so `vault:check`, Workbench, and `vault:e2e` have manifest-declared proof input. |
 | `productionFactoryAddress` | When mainnet factory-scoped launch is planned | Provide the final real mainnet factory address early and write it to the mainnet binding `factoryAddress` instead of using random mainnet token CAs for testing. |
 | `productionRestrictedTokenAddresses` | Only for `verified` CA restriction | Workbench/registry-only production restriction input. Do not add it as global `tokenAddresses`, `restrictTokenAddresses`, `caPolicy`, or any other public manifest field. |
 | `tokenAddresses` | Yes, at manifest level | Use only inside `match.bindings` entries. In factory mode this is the manifest test-token source, not the production CA restriction. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. |
@@ -85,24 +85,24 @@ For a step-by-step beginner path that starts from raw Vault requirements and end
 Use the scaffold command to avoid folder and manifest mistakes. When possible, use a testnet token for package proof and keep the final mainnet factory in the same manifest so it does not need another edit before launch:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken --locales en,zh
 ```
 
 For a single-Vault UI that has no factory, omit `--factory` and provide one Vault address plus a manifest test token:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xTokenAddressRequired --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
 For a single-language UI:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xTestnetTokenForTesting --chain 56 --factory 0xMainnetFactory --locales zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken --locales zh
 ```
 
 Replace these placeholder strings with real `0x` + 40 hex deployment addresses before running scaffold. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses, including the legacy `0x1000000000000000000000000000000000000001` factory fixture.
 
-Every manifest must include at least one binding-scoped `tokenAddresses` entry as its test token source for `vault:check`, Workbench, and `vault:e2e`; prefer a testnet token. In factory mode, pass at least one `--token` during scaffold or add `tokenAddresses` manually under the test binding. Do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`. Local-only `vault:e2e --token` overrides do not satisfy `vault:check`. Production CA restriction must be collected as `caRestrictionMode`: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` is applied only by Workbench/registry after ERC20 plus factory/Vault/token relationship checks.
+Every binding-scoped `tokenAddresses` entry, including optional factory-mode entries, must be a real deployed ERC20 token address ending in `7777`. In factory mode, `tokenAddresses` is package proof input, not production CA restriction. Do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`. Local-only `vault:e2e --token` overrides do not satisfy `vault:check`. Production CA restriction must be collected as `caRestrictionMode`: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` is applied only by Workbench/registry after ERC20 plus factory/Vault/token relationship checks.
 
 If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
 
@@ -239,7 +239,7 @@ The output is JSON and includes:
 If `summary.blocking` is greater than zero, fix those issues before doing anything else.
 If `manual-review/action-stage-gating` appears, the component has a write path but does not reference `marketPhase` or `isActionAvailableForPhase`. This is blocking; add explicit stage gating and visible unavailable-state copy before packaging.
 If `manifest-binding/mixed-binding-target` appears, one binding contains both `factoryAddress` and `vaultAddresses`. Choose one scope: factory-scoped UI uses `factoryAddress`; single-Vault UI omits `factoryAddress` and uses exactly one `vaultAddresses` entry.
-If `manifest-binding/missing-test-token` appears, add at least one valid test token address under one `match.bindings[].tokenAddresses` entry, preferably on testnet. This is required for Workbench and E2E test coverage, even when production CA restriction mode is `none`; it is not a production CA restriction.
+If `manifest-binding/missing-test-token` appears, add the required package-proof token source. If `manifest-binding/invalid-test-token-suffix` appears, replace the offending `tokenAddresses` entry with a real deployed ERC20 token ending in `7777`. This applies to factory bindings too; it is still not a production CA restriction.
 If `risk-status/missing-host-risk-state` appears, the component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying.
 If `risk-status/not-prominent-placement` appears, the component renders host risk status too low or after a large visual block. Move the risk badge, metric, or row within the first three visible Vault-specific business rows/blocks, before any preview, hero, banner, showcase, media, chart, or large visual block, before retrying.
 If `risk-status/manual-low-risk-label` appears, the component renders `Low risk` / `低风险` copy without deriving it from host `riskLevel === 1`. Remove the manual label or move it into the explicit host-risk mapping branch before retrying.
@@ -252,7 +252,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style non-image resources, full gateway image URLs, invalid `IpfsImage` CIDs, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, non-`7777` test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, IPFS-style non-image resources, full gateway image URLs, invalid `IpfsImage` CIDs, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 
@@ -272,7 +272,7 @@ The package command prints:
 - `sha256`
 - `bytes`
 
-`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. The E2E proof must use a test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
+`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. The E2E proof must use a real deployed `7777`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 First-time local machines, especially Windows machines, may need `yarn playwright install chromium` before Chromium can launch. If the browser is missing, `vault:e2e` must emit the JSON code `vault-e2e/playwright-browser-missing` with that fix hint. GitHub Actions uses `npx playwright install --with-deps chromium`.
 Submit only the zip produced by this command. The zip contains format-version `4` `flap-vault-package.json`, `qa/e2e-report.json`, and matching `e2e` summary fields, which identify the package as a script-generated Flap Vault UI source package and record required file hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker, proof, or matching hashes.
 The package command uses the same official git freshness gate as `vault:check` and rejects missing, failed, or stale E2E proof, so a checkout that is behind, ahead, diverged, or not E2E-proven cannot produce a source zip.
@@ -336,7 +336,7 @@ Built-in reference packages:
 - `community-buyback-example`: live CA Store example for the Community Approved Buyback vault on BNB.
 - `flapixel-example`: live CA Store example for the FLAPixel NFT vault on BNB.
 
-`example`, `dex-listed-example`, and `action-gallery-example` use no-factory neutral bindings with the preview Vault and token, so their routes render without inventing fake factory addresses. Those three routes are workflow fixtures only. `community-buyback-example` and `flapixel-example` instead default to reviewed live BNB token/factory/Vault bindings so a developer can verify the real host/runtime flow without typing URL params. Do not treat any example as a factory, token, Vault, or project endorsement. For local testing with a different reviewed Store factory or fixed Vault, pass real runtime values through URL params instead of committing additional addresses into a public template fixture.
+Built-in examples use real `7777`-suffix BNB token/factory bindings for package proof. `example`, `dex-listed-example`, and `action-gallery-example` are workflow fixtures only; `community-buyback-example` and `flapixel-example` are reviewed live host/runtime examples. Do not treat any example as a factory, token, Vault, or project endorsement. For local testing with a different reviewed Store factory or fixed Vault, pass real runtime values through URL params instead of committing additional addresses into a public template fixture.
 
 Token image preview is also addressable by URL. `tokenImageUrl` is the direct override when a local preview needs a different mocked image:
 
@@ -354,7 +354,7 @@ A generated Vault UI is done only when:
 - `yarn vault:check {folder-name}` reports zero blocking issues.
 - The local template package version is at least npm latest `@flapsdk/vault-runtime`.
 - `manifest.artifactId` exists, matches `vaultui_<folder-name>_<ULID>`, and is unique in this repo.
-- The manifest includes at least one valid `match.bindings[].tokenAddresses` entry for Workbench/E2E test coverage, preferably on a testnet binding.
+- The manifest includes at least one valid real deployed `7777`-suffix `match.bindings[].tokenAddresses` entry for Workbench/E2E test coverage.
 - `yarn vault:e2e {folder-name}` succeeds and writes a current `dist/e2e/{folder-name}/qa-report.json`.
 - `yarn vault:package {folder-name}` succeeds and prints the package path.
 - `yarn vault:verify-package dist/{folder-name}.zip` succeeds.

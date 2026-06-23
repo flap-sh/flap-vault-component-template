@@ -45,7 +45,7 @@ Do not store or publish private repository paths, private component names, facto
 - `src/vaults/dex-listed-example`: listed-only action gate using `context.host.marketPhase`, with approve -> write after listing.
 - `src/vaults/action-gallery-example`: multi-action gallery with internal-market, DEX-listed, both-stage, and read-only controls.
 
-Neutral fixtures use no-factory preview Vault/token bindings and must not be described as endorsements of any Store factory, token, Vault, or project. For local testing with a real reviewed factory or fixed Vault, pass it through preview URL params instead of committing it into this public reference file.
+Workflow fixtures use real `7777`-suffix token/factory bindings for package proof and must not be described as endorsements of any Store factory, token, Vault, or project. For local testing with a different real reviewed factory or fixed Vault, pass it through preview URL params instead of committing it into this public reference file.
 
 ---
 

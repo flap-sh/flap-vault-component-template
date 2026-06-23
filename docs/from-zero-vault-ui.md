@@ -41,13 +41,13 @@ This confirms the template runs before custom logic is introduced.
 
 ## Step 2: Create The Package
 
-Factory-scoped UI, preferred when a testnet token is available:
+Factory-scoped UI:
 
 ```bash
 yarn vault:scaffold my-vault \
   --name "My Vault UI" \
   --chain 97 --factory 0xTestnetFactory \
-  --token 0xTestnetTokenForTesting \
+  --token 0xReal7777TestToken \
   --chain 56 --factory 0xMainnetFactory \
   --locales en,zh
 ```
@@ -58,11 +58,11 @@ Single-Vault UI without a factory:
 yarn vault:scaffold my-vault \
   --name "My Vault UI" \
   --chain 56 --vault 0xVaultAddressRequired \
-  --token 0xTokenAddressRequired \
+  --token 0xReal7777TestToken \
   --locales en,zh
 ```
 
-Replace placeholder addresses with real deployment addresses before running scaffold. The token address is required because `vault:check` and Workbench use manifest `match.bindings[].tokenAddresses` as the package's E2E test token source; prefer a testnet token. In factory mode, this token does not restrict production CA. Production CA restriction belongs to Workbench/registry `caRestrictionMode`: `none`, `reserved`, or `verified`.
+Replace placeholder addresses with real deployment addresses before running scaffold. The token address is required because `vault:check` and Workbench use manifest `match.bindings[].tokenAddresses` as the package's E2E test token source; it must be a real deployed ERC20 address ending in `7777`. In factory mode, this token does not restrict production CA. Production CA restriction belongs to Workbench/registry `caRestrictionMode`: `none`, `reserved`, or `verified`.
 
 `vault:scaffold` creates the four-file package and registers the preview route. Do not add helper files, assets, nested folders, or extra local imports.
 
@@ -78,7 +78,7 @@ Build a controlled Flap Vault UI for:
 - display name:
 - binding target:
 - caRestrictionMode:
-- test token address, preferably testnet:
+- real deployed `7777`-suffix test token address:
 - final mainnet factory address, if mainnet launch is planned:
 - locales:
 - action stage:
