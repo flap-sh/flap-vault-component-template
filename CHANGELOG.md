@@ -15,6 +15,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Added
 
+- Added built-in shared-runtime support for the official `v2-pool-reserves` Flap Oracle, routing chain `56` to `oracle.taxed.fun` and chain `97` to `oracle-testnet.taxed.fun`.
 - Added `yarn vault:e2e <folder-name>` for V1 PC / iPad / H5 Playwright coverage across `default`, `internal-market`, `dex-listed`, and wrong-network preview states.
 - E2E reports are written to `dist/e2e/<folder-name>/qa-report.json`, with screenshots and traces kept as CI artifacts under `dist/e2e/**`.
 

@@ -1,6 +1,7 @@
 import type { OracleProvision, OracleReadRequest, OracleReader } from "./types";
 
 const DEFAULT_LOCAL_ORACLE_ENDPOINT_BASE = "/api/runtime/oracle";
+const CONTEXT_CHAIN_ORACLE_IDS = new Set(["v2-pool-reserves"]);
 
 export class OracleReadError extends Error {
   status?: number;
@@ -88,9 +89,17 @@ export function createLocalOracleReader(options: { endpointBase?: string; fetchI
   const endpointBase = options.endpointBase ?? DEFAULT_LOCAL_ORACLE_ENDPOINT_BASE;
   const fetchImpl = options.fetchImpl;
 
-  return async function readLocalOracle<T>({ oracleId, params }: OracleReadRequest): Promise<T> {
+  return async function readLocalOracle<T>({ oracleId, params, context }: OracleReadRequest): Promise<T> {
+    const oracleParams =
+      CONTEXT_CHAIN_ORACLE_IDS.has(oracleId) && !params?.chainId
+        ? {
+            ...(params ?? {}),
+            chainId: String(context.chainId),
+          }
+        : params;
+
     return fetchOracleJson<T>({
-      endpoint: buildLocalOracleUrl(oracleId, params, endpointBase),
+      endpoint: buildLocalOracleUrl(oracleId, oracleParams, endpointBase),
       fetchImpl,
     });
   };

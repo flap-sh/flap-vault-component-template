@@ -1691,6 +1691,34 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertNoRule("built-in runtime oracle ids do not block packaging", builtinOracleCheck, "manual-review/oracle-usage", "blocking");
   assertRule("built-in runtime oracle ids remain visible for manual review", builtinOracleCheck, "manual-review/oracle-usage", "warning");
 
+  const officialPoolOracleSlug = `${FIXTURE_PREFIX}-oracle-v2-pool-reserves`;
+  writeVault(officialPoolOracleSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readOracle("v2-pool-reserves", { pool: "0x0000000000000000000000000000000000007777" });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const officialPoolOracleCheck = runVaultCheck(officialPoolOracleSlug, { silent: true });
+  assertNoRule("official v2 pool reserves oracle id does not block packaging", officialPoolOracleCheck, "manual-review/oracle-usage", "blocking");
+  assert.ok(
+    officialPoolOracleCheck.review?.oracles?.some(
+      (item) =>
+        item.oracleId === "v2-pool-reserves" &&
+        item.provisioned === true &&
+        item.allowedParams?.includes("pool") &&
+        item.endpoints?.includes("https://oracle-testnet.taxed.fun/v2-pool-reserves"),
+    ),
+    "official v2 pool reserves oracle review output includes endpoint and param policy",
+  );
+  passed.push("official v2 pool reserves oracle review output includes endpoint and param policy");
+
   const registryOracleSlug = `${FIXTURE_PREFIX}-oracle-registry`;
   writeVault(registryOracleSlug, {
     component: `"use client";

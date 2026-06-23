@@ -101,6 +101,15 @@ const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
       fixedParams: {},
     },
   ],
+  [
+    "v2-pool-reserves",
+    {
+      source: "built-in",
+      endpoints: ["https://oracle.taxed.fun/v2-pool-reserves", "https://oracle-testnet.taxed.fun/v2-pool-reserves"],
+      allowedParams: ["pool"],
+      fixedParams: {},
+    },
+  ],
 ]);
 const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow)\b(?=[^>]*\b(?:riskLabel|riskLevel|riskTone)\b)|<StatusBadge\b[^>]*>\s*{?\s*(?:riskLabel|riskLevel|riskTone)\b/;
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
