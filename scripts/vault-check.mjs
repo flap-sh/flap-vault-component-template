@@ -181,6 +181,7 @@ const FIX_HINTS = {
   "manifest-binding/placeholder-address": "Replace the template placeholder with a real deployment address. If the factory or Vault is not deployed yet, leave the package unpublished and do not use a placeholder binding.",
   "manifest-binding/zero-factory-address": "Omit factoryAddress for no-factory mode, or use the real deployed non-zero factory contract address for factory mode.",
   "manifest-binding/mixed-binding-target": "Use factoryAddress for a factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI.",
+  "manifest-binding/mixed-chain-scope": "Do not split one chain into factory and no-factory bindings. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
   "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
@@ -2410,6 +2411,8 @@ function checkManifest(manifest, folderName) {
     } else {
       const seenBindingKeys = new Map();
       const manifestTestTokenFields = [];
+      const factoryFieldsByChain = new Map();
+      const noFactoryFieldsByChain = new Map();
       for (const [index, bindingEntry] of manifest.match.bindings.entries()) {
         const field = `match.bindings[${index}]`;
         if (!bindingEntry || typeof bindingEntry !== "object" || Array.isArray(bindingEntry)) {
@@ -2424,6 +2427,17 @@ function checkManifest(manifest, folderName) {
         }
         if (!Number.isInteger(bindingEntry.chainId) || bindingEntry.chainId <= 0) {
           issues.push(issue(BLOCKING, "manifest-binding/invalid-chain-id", `${field}.chainId must be a positive integer (for example 56 or 97).`, { field: `${field}.chainId` }));
+        }
+        if (Number.isInteger(bindingEntry.chainId) && bindingEntry.chainId > 0) {
+          if (isNonZeroAddress(bindingEntry.factoryAddress)) {
+            if (!factoryFieldsByChain.has(bindingEntry.chainId)) factoryFieldsByChain.set(bindingEntry.chainId, field);
+          } else if (
+            bindingEntry.factoryAddress === undefined &&
+            ((Array.isArray(bindingEntry.tokenAddresses) && bindingEntry.tokenAddresses.length > 0) ||
+              (Array.isArray(bindingEntry.vaultAddresses) && bindingEntry.vaultAddresses.length > 0))
+          ) {
+            if (!noFactoryFieldsByChain.has(bindingEntry.chainId)) noFactoryFieldsByChain.set(bindingEntry.chainId, field);
+          }
         }
         const hasFactoryField = bindingEntry.factoryAddress !== undefined;
         if (hasFactoryField && !ADDRESS_RE.test(bindingEntry.factoryAddress)) {
@@ -2513,6 +2527,18 @@ function checkManifest(manifest, folderName) {
           );
           issues.push(...checkExternalContracts(bindingEntry.externalContracts, `${field}.externalContracts`, builtInAddresses));
         }
+      }
+      for (const [chainId, factoryField] of factoryFieldsByChain.entries()) {
+        const noFactoryField = noFactoryFieldsByChain.get(chainId);
+        if (!noFactoryField) continue;
+        issues.push(
+          issue(
+            BLOCKING,
+            "manifest-binding/mixed-chain-scope",
+            `${noFactoryField} cannot coexist with ${factoryField} on chain ${chainId}. Use one factory binding, optionally with tokenAddresses, or one no-factory binding mode for that chain.`,
+            { field: noFactoryField, chainId, factoryField },
+          ),
+        );
       }
       if (manifestTestTokenFields.length === 0) {
         issues.push(

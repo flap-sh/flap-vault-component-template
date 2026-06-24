@@ -273,6 +273,10 @@
       "severity": "blocking",
       "fixAction": "Use factoryAddress for factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI. Do not include factoryAddress and vaultAddresses in one binding."
     },
+    "manifest-binding/mixed-chain-scope": {
+      "severity": "blocking",
+      "fixAction": "Do not declare factory-scoped and no-factory bindings for the same chain in one manifest. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode."
+    },
     "manifest-binding/missing-test-token": {
       "severity": "blocking",
       "fixAction": "Add at least one real deployed ERC20 test token ending in 7777 under any match.bindings[] entry's tokenAddresses. This manifest token is required for Workbench/vault:e2e test coverage and is not a production CA restriction. Local --token overrides do not satisfy vault:check."

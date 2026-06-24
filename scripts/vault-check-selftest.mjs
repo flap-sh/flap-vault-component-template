@@ -387,6 +387,19 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("bindings cannot mix factory and Vault targets", runVaultCheck(mixedTargetSlug, { silent: true }), "manifest-binding/mixed-binding-target", "blocking");
 
+  const mixedChainScopeSlug = `${FIXTURE_PREFIX}-mixed-chain-scope`;
+  writeVault(mixedChainScopeSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [
+          { chainId: 56, factoryAddress: FACTORY },
+          { chainId: 56, tokenAddresses: [TOKEN] },
+        ],
+      },
+    }),
+  });
+  assertRule("factory and no-factory bindings cannot share one chain", runVaultCheck(mixedChainScopeSlug, { silent: true }), "manifest-binding/mixed-chain-scope", "blocking");
+
   const duplicateBindingSlug = `${FIXTURE_PREFIX}-duplicate-binding`;
   writeVault(duplicateBindingSlug, {
     manifest: baseManifest({
