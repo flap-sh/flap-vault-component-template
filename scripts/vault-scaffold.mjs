@@ -407,11 +407,11 @@ async function main() {
 
   if (!folderName) {
     fail(
-      "Usage: yarn vault:scaffold <folder-name> --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken or --chain 56 --vault 0x... --token 0xReal7777TestToken [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
+      "Usage: yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory or --chain 56 --vault 0x... --token 0xReal7777TestToken [--name \"My Vault UI\"] [--locales en,zh] [--artifact-id vaultui_<folder-name>_<ulid>]",
       {
         code: "cli/missing-folder-name",
         fixHint:
-          "Provide a lowercase kebab-case folder name, a real binding target, and a real deployed ERC20 manifest test token ending in 7777. Example: yarn vault:scaffold my-vault --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken.",
+          "Provide a lowercase kebab-case folder name, a real binding target, and a real deployed ERC20 manifest test token ending in 7777. Example: yarn vault:scaffold my-vault --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory.",
       },
     );
   }
@@ -450,13 +450,13 @@ async function main() {
   if (!usingFactoryMode && !usingVaultMode) {
     fail("Each binding needs either --factory or --vault.", {
       code: "manifest-binding/missing-binding-target",
-      fixHint: "Pass --chain 56 --factory 0x... --token 0x... for factory-scoped UI, or --chain 56 --vault 0x... --token 0x... for single-Vault UI.",
+      fixHint: "Pass --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory for factory-scoped UI with mainnet launch intent, or --chain 56 --vault 0x... --token 0x... for single-Vault UI.",
     });
   }
   if (usingFactoryMode && chainValues.length !== factoryValues.length) {
     fail(`--chain and --factory must be paired: got ${chainValues.length} chain(s) and ${factoryValues.length} factory address(es).`, {
       code: "manifest-binding/chain-factory-count-mismatch",
-      fixHint: "Provide exactly one --factory for each --chain, in the same order. Example: --chain 56 --factory 0xAAA --chain 97 --factory 0xBBB",
+      fixHint: "Provide exactly one --factory for each --chain, in the same order. Example: --chain 97 --factory 0xTestnetFactory --chain 56 --factory 0xMainnetFactory",
       chainCount: chainValues.length,
       factoryCount: factoryValues.length,
     });
@@ -479,7 +479,7 @@ async function main() {
   if (tokenValues.length === 0) {
     fail("At least one --token address is required so manifest.json carries a Workbench/vault:e2e test token.", {
       code: "manifest-binding/missing-test-token",
-      fixHint: "Pass at least one --token 0xReal7777TestToken. It must be a real deployed ERC20 address ending in 7777. For production, still provide the final real mainnet factory with --chain 56 --factory 0xMainnetFactory; do not use random mainnet token CAs as production restrictions.",
+      fixHint: "Pass at least one --token 0xReal7777TestToken. It must be a real deployed ERC20 address ending in 7777. Prefer --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory; do not use random mainnet token CAs as production restrictions.",
       chainCount: chainValues.length,
     });
   }

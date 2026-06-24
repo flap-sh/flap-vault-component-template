@@ -49,6 +49,8 @@ Preview/runtime resolution should respect those explicit bindings. Prefer an exa
 
 ## Required Fields
 
+Complete factory-scoped case: testnet proof token plus final mainnet factory binding.
+
 ```json
 {
   "artifactId": "vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N",
@@ -67,7 +69,7 @@ Preview/runtime resolution should respect those explicit bindings. Prefer an exa
 }
 ```
 
-For a UI that supports both mainnet and testnet with different factory addresses:
+For a UI that supports both mainnet and testnet with different factory addresses, use the same shape and replace both factory placeholders with real deployed factories:
 
 ```json
 {

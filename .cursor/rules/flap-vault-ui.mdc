@@ -20,7 +20,7 @@ Before editing, read:
 Follow these rules:
 
 - Use `yarn`.
-- Create new Vault packages with `yarn vault:scaffold <folder-name> --chain 56 --factory 0x... --token 0x...` for factory mode, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x...` for single-Vault mode without a factory. At least one manifest binding must include `tokenAddresses` for Workbench/E2E testing; prefer a testnet test token, collect the final real mainnet factory early, and keep production CA restriction in Workbench/registry `caRestrictionMode`.
+- Create new Vault packages with `yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory` for factory mode when mainnet launch is planned, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x...` for single-Vault mode without a factory. At least one manifest binding must include `tokenAddresses` for Workbench/E2E testing; prefer a testnet test token, collect the final real mainnet factory early, and keep production CA restriction in Workbench/registry `caRestrictionMode`.
 - If the strict four Vault files already exist, run `yarn vault:register <folder-name>` for local preview wiring.
 - Keep each Vault package limited to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
 - Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.

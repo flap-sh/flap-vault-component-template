@@ -156,7 +156,7 @@ const FIX_HINTS = {
   "cli/missing-folder-name": "Run yarn vault:check <folder-name> with a registered Vault folder name.",
   "cli/missing-slug": "Run yarn vault:check <slug> with a registered Vault slug.",
   "cli/invalid-folder-name": "Use a 3-64 character lowercase kebab-case folder name, for example my-vault.",
-  "package-structure/missing-vault-dir": "Create the package with yarn vault:scaffold <folder-name> --chain 56 --factory 0x... or yarn vault:scaffold <folder-name> --chain 56 --vault 0x..., or add src/vaults/<folder-name>.",
+  "package-structure/missing-vault-dir": "Create the package with yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory or yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x..., or add src/vaults/<folder-name>.",
   "package-structure/missing-required-file": "Keep exactly Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder.",
   "package-structure/disallowed-vault-file": "Move helpers, assets, nested components, docs, and sample data outside src/vaults/<folder-name> or inline small code in Component.tsx.",
   "preview-registration/missing-vault-module": "Register the folder name in src/vaults/index.ts with loadComponent, loadManifest, and loadI18n entries.",

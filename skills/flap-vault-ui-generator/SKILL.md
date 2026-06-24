@@ -52,7 +52,7 @@ chainId + tokenAddress
    - i18n requirements
 8. Pick the closest pattern.
 9. Select the closest public-safe snippet from `docs/ui-pattern-snippets.md` for section order, transaction state, and empty/error states.
-10. For a new package, prefer `yarn vault:scaffold {folder-name} --name "..." --chain 56 --factory 0x... --token 0x... [--chain 97 --factory 0x...] --locales ...` for factory mode, or `yarn vault:scaffold {folder-name} --name "..." --chain 56 --vault 0x... --token 0x... --locales ...` for no-factory mode before implementation.
+10. For a new package, prefer `yarn vault:scaffold {folder-name} --name "..." --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales ...` for factory mode with mainnet launch intent, or `yarn vault:scaffold {folder-name} --name "..." --chain 56 --vault 0x... --token 0x... --locales ...` for no-factory mode before implementation.
 11. Implement package files only under `src/vaults/{folder-name}`. Do not create auxiliary files, helper files, local component modules, assets, or nested folders.
 12. Generate:
    - `src/vaults/{folder-name}/Component.tsx`

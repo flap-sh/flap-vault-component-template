@@ -86,10 +86,10 @@ These shell elements are preview-only and are not part of the packaged Vault sou
 Recommended for AI agents and repeatable local setup:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
-This creates the strict four-file package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`. Use a real deployed ERC20 test token ending in `7777` for package proof and collect the final real mainnet factory address early. In factory mode, `tokenAddresses` is not the production CA restriction; Workbench/registry owns `caRestrictionMode`.
+This creates the strict four-file package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`. Use a real deployed ERC20 test token ending in `7777` for package proof and keep the final real mainnet factory binding in the same manifest. In factory mode, `tokenAddresses` is not the production CA restriction; Workbench/registry owns `caRestrictionMode`.
 
 `my-vault` is the folder name. It becomes both the source folder and the preview route. Folder names must use 3-64 characters of lowercase kebab-case: letters/numbers separated by single hyphens. Do not use spaces, underscores, uppercase letters, leading/trailing hyphens, or nested folders.
 

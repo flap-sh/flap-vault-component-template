@@ -162,7 +162,7 @@ Agents should use `docs/ai-agent.md` as the human-readable entry point and `agen
 For new Vault packages, agents should run:
 
 ```bash
-yarn vault:scaffold <folder-name> --name "My Vault UI" --chain 56 --factory 0x...
+yarn vault:scaffold <folder-name> --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory
 ```
 
 The scaffold command creates the strict four-file package and registers the folder name in `src/vaults/index.ts`.

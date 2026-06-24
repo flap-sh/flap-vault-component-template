@@ -15,7 +15,7 @@ This repository is a public template for controlled Flap Vault UI packages. Read
 
 - Use `yarn` as the package manager.
 - A Vault package lives under `src/vaults/{folder-name}` and may contain only four files: `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
-- Create new Vault packages with `yarn vault:scaffold <folder-name> --chain 56 --factory 0x... --token 0x...` for factory mode, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x...` for single-Vault mode without a factory. At least one manifest binding must include `tokenAddresses` for Workbench/E2E testing; prefer a testnet test token and collect the final real mainnet factory early.
+- Create new Vault packages with `yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory` for factory mode when mainnet launch is planned, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x...` for single-Vault mode without a factory. At least one manifest binding must include `tokenAddresses` for Workbench/E2E testing; prefer a testnet test token and collect the final real mainnet factory early.
 - If the four files already exist, register with `yarn vault:register <folder-name>`.
 - Do not add helper files, nested components, assets, or extra folders inside `src/vaults/{folder-name}`.
 - Use `@/src/sdk` for runtime context, contract reads/writes, oracle, i18n, formatting, and tx errors.

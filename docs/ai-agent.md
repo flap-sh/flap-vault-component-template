@@ -82,10 +82,10 @@ There are two supported creation paths:
 Both paths must end with `yarn vault:check {folder-name}`, `yarn vault:e2e {folder-name}`, and `yarn vault:package {folder-name}`. Do not hand-edit `src/vaults/index.ts` unless `vault:register` reports that the index shape cannot be parsed.
 For a step-by-step beginner path that starts from raw Vault requirements and ends with a verified zip, follow `docs/from-zero-vault-ui.md`.
 
-Use the scaffold command to avoid folder and manifest mistakes. When possible, use a testnet token for package proof and keep the final mainnet factory in the same manifest so it does not need another edit before launch:
+Use the scaffold command to avoid folder and manifest mistakes. For a mainnet factory-scoped launch, the complete case keeps the testnet proof token and final mainnet factory in the same manifest:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 For a single-Vault UI that has no factory, omit `--factory` and provide one Vault address plus a manifest test token:
@@ -97,7 +97,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddr
 For a single-language UI:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken --locales zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales zh
 ```
 
 Replace these placeholder strings with real `0x` + 40 hex deployment addresses before running scaffold. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses, including the legacy `0x1000000000000000000000000000000000000001` factory fixture.

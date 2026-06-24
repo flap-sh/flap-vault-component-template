@@ -34,17 +34,17 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 
 This is the shortest safe path for a developer who wants AI help but still owns the Vault facts and local testing.
 
-1. Prepare real inputs: folder name, display name, `chainId`, factory address or single Vault address, `caRestrictionMode`, real deployed `7777`-suffix manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses. Collect the final real mainnet factory address early.
+1. Prepare real inputs: folder name, display name, binding targets, factory address or single Vault address, `caRestrictionMode`, real deployed `7777`-suffix manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses. For factory-scoped mainnet launch, collect both the testnet proof binding and the final real mainnet factory address early.
 2. Give those inputs to an AI Agent with this repository context. If the AI cannot read the repo directly, generate a pasteable context pack:
 
 ```bash
 yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
-3. Scaffold the Vault package. Factory-scoped example:
+3. Scaffold the Vault package. Factory-scoped mainnet launch example:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 Single-Vault example without a factory:
@@ -240,7 +240,7 @@ The full input schema is also machine-readable in `agent-contract.json` under `r
 For a new Vault UI, prefer the scaffold command:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
 For a UI without a factory, scaffold from one Vault address and one manifest test token:
@@ -282,18 +282,19 @@ For full code-base validation, run `yarn ci`. CI runs lint, typecheck, checker s
 
 ## Add a Vault UI
 
-Recommended (single chain):
-
-```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken
-```
-
-For multiple bindings, include the real `7777`-suffix package test token on the binding that should drive validation, then add the final real mainnet factory binding:
+Recommended factory-scoped mainnet launch:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
   --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken \
   --chain 56 --factory 0xMainnetFactory
+```
+
+For testnet-only development, include the real `7777`-suffix package test token on that binding and add the final real mainnet factory binding before treating the manifest as mainnet-ready:
+
+```bash
+yarn vault:scaffold my-vault --name "My Vault UI" \
+  --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken
 ```
 
 For no-factory mode, repeat `--chain` / `--vault` per target and use real `7777`-suffix test tokens for package proof:
@@ -451,7 +452,7 @@ yarn dev
 yarn build
 yarn lint
 yarn typecheck
-yarn vault:scaffold example-copy --name "Example Copy UI" --chain 56 --factory 0xMainnetFactory --token 0xReal7777TestToken --dry-run
+yarn vault:scaffold example-copy --name "Example Copy UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --dry-run
 yarn vault:check example
 yarn vault:check action-gallery-example
 yarn vault:check:selftest

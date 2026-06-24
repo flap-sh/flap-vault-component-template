@@ -15,7 +15,7 @@ Core operating rules:
 
 - Use `yarn`.
 - Edit one Vault UI package at a time.
-- Prefer `yarn vault:scaffold <folder-name> --chain 56 --factory 0x... --token 0x...` for factory-scoped packages, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x...` for single-Vault packages without a factory. Repeat `--chain` with the matching `--factory` or `--vault` target for each deployment; at least one manifest binding must include `tokenAddresses` for Workbench/E2E testing. Prefer a testnet test token, collect the final real mainnet factory early, and treat production CA restriction as `caRestrictionMode` for Workbench/registry only.
+- Prefer `yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory` for factory-scoped packages that will launch on mainnet, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x...` for single-Vault packages without a factory. Repeat `--chain` with the matching `--factory` or `--vault` target for each deployment; at least one manifest binding must include `tokenAddresses` for Workbench/E2E testing. Prefer a testnet test token, collect the final real mainnet factory early, and treat production CA restriction as `caRestrictionMode` for Workbench/registry only.
 - If the four Vault files already exist, run `yarn vault:register <folder-name>`.
 - Keep `src/vaults/{folder-name}` limited to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
 - Use `docs/ui-pattern-snippets.md` for public-safe Flap style and workflow organization.

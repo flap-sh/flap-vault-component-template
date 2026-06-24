@@ -35,7 +35,8 @@ Ask these in order. Each answer gates the next.
 
 > Which deployment target(s) should this UI declare?
 
-- Example: `56` (BNB Chain mainnet only), `56` and `97` (mainnet + testnet)
+- Complete factory-scoped example: `97` for the testnet proof token plus `56` for the final mainnet factory binding.
+- Single-chain examples: `56` only for mainnet-only Vault-scoped UI, or `97` only for testnet-only development that will not publish to mainnet yet.
 - Must be integers.
 - Each entry will be paired with a factory address or one Vault address depending on the core binding mode. Include a real deployed `7777`-suffix test token, plus the final real mainnet factory binding when mainnet launch is planned.
 
@@ -45,7 +46,7 @@ Ask these in order. Each answer gates the next.
 
 - For factory mode, provide one real non-zero factory address per chain. If mainnet launch is planned, collect the final real mainnet factory address now so the production binding does not need repeated edits.
 - For no-factory Vault-scoped mode, omit `factoryAddress` and provide exactly one real non-zero Vault address per chain.
-- Recommended factory binding set: one binding with a real `7777`-suffix test token for package proof, and chain 56 -> final mainnet factory `0xMainnetFactory...`.
+- Complete factory binding set: chain 97 -> testnet factory + real `7777`-suffix test token for package proof, and chain 56 -> final mainnet factory with no production CA restriction implied.
 - Example no-factory binding: chain 56 -> Vault `0xVault...`, test token `0xToken...`.
 - Do not invent fake factory addresses. A zero factory address is invalid; use no-factory mode instead.
 - Every manifest must include at least one binding-scoped `tokenAddresses` entry for Workbench/E2E testing. It must be a real deployed ERC20 address ending in `7777`.
@@ -218,7 +219,7 @@ Before running `yarn vault:scaffold`, confirm:
 | --- | --- |
 | Folder name | `{folder-name}` |
 | Display name | `{name}` |
-| Chain / binding targets | `[{chainId: N, factoryAddress: "0x..."}]` or `[{chainId: N, vaultAddresses: ["0x..."], tokenAddresses: ["0x..."]}]` |
+| Chain / binding targets | Complete factory case: `[{chainId: 97, factoryAddress: "0xTestnetFactory", tokenAddresses: ["0xReal7777TestToken"]}, {chainId: 56, factoryAddress: "0xMainnetFactory"}]`; or no-factory: `[{chainId: N, vaultAddresses: ["0x..."], tokenAddresses: ["0x..."]}]` |
 | CA restriction mode | `{none | reserved | verified}` |
 | Test token addresses | Real deployed `7777`-suffix token(s), stored in `match.bindings[].tokenAddresses` |
 | Production factory address | Final real mainnet factory, if mainnet factory-scoped launch is planned |
@@ -230,10 +231,11 @@ Before running `yarn vault:scaffold`, confirm:
 Once confirmed, run (repeat `--chain` with the matching `--factory` or `--vault` for each deployment target):
 
 ```bash
-# Single chain when only one deployed test/proof token is available
+# Complete factory case: testnet token for proof plus final mainnet factory binding
 yarn vault:scaffold {folder-name} \
   --name "{name}" \
-  --chain 56 --factory 0xMainnetFactory --token 0xTokenForPackageProof \
+  --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken \
+  --chain 56 --factory 0xMainnetFactory \
   --locales {locales}
 
 # Single Vault without factory
@@ -242,11 +244,10 @@ yarn vault:scaffold {folder-name} \
   --chain 56 --vault 0xVaultAddress --token 0xTokenAddress \
   --locales {locales}
 
-# Recommended: testnet token for proof plus final mainnet factory binding
+# Testnet-only development, not a mainnet-ready manifest
 yarn vault:scaffold {folder-name} \
   --name "{name}" \
   --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken \
-  --chain 56 --factory 0xMainnetFactory \
   --locales {locales}
 ```
 
