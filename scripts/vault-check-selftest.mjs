@@ -1755,7 +1755,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
     },
   });
   const registryOracleCheck = runVaultCheck(registryOracleSlug, { silent: true });
-  assertNoRule("runtime registry-provisioned oracle ids do not block packaging", registryOracleCheck, "manual-review/oracle-usage", "blocking");
+  assertRule("runtime registry-provisioned oracle ids block packaging", registryOracleCheck, "manual-review/oracle-usage", "blocking");
   assert.ok(
     registryOracleCheck.review?.oracles?.some((item) => item.oracleId === "reviewed-settlement-oracle" && item.endpoints?.includes("https://oracle.example.com/settlement") && item.allowedParams?.includes("symbol") && item.fixedParams?.feed === "qqq"),
     "registry oracle review output includes endpoint and param policy",

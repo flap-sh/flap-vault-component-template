@@ -39,9 +39,9 @@ import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
 </VaultRuntimeProvider>
 ```
 
-`createLocalOracleReader()` targets the same-origin runtime proxy at `/api/runtime/oracle/{oracleId}`. In this template, local preview now ships with built-in runtime defaults for `example-reward-oracle`, the display-only `bnb-usd-price` price oracle, and the official `v2-pool-reserves` Flap Oracle path. `bnb-usd-price` returns `{ price: number, symbol: string, timestamp: number, source: string }` for BNB-to-USD display conversion. `v2-pool-reserves` forwards `{ pool }` to the mainnet or testnet Flap Oracle endpoint based on the current runtime `chainId`. If a host/runtime needs to override an oracle id with a reviewed upstream URL, it should register that in the host integration layer rather than exposing endpoint config to Vault authors. The older `context.extraConfig.oracleEndpoints` map remains a legacy preview fallback only.
+`createLocalOracleReader()` targets the same-origin runtime proxy at `/api/runtime/oracle/{oracleId}`. In this template, local preview now ships with built-in runtime defaults for `example-reward-oracle`, the display-only `bnb-usd-price` price oracle, and the official `v2-pool-reserves` Flap Oracle path. `bnb-usd-price` returns `{ price: number, symbol: string, timestamp: number, source: string }` for BNB-to-USD display conversion. `v2-pool-reserves` forwards `{ pool }` to the mainnet or testnet Flap Oracle endpoint based on the current runtime `chainId`. If a host/runtime needs to override an oracle id with a reviewed upstream URL, it should register that in the host integration layer rather than exposing endpoint config to Vault authors. The older `context.extraConfig.oracleEndpoints` map remains a legacy preview fallback only. Source package validation accepts built-in runtime oracle ids only; registry-only ids remain blocking so template packages cannot pass locally and then fail in Workbench production.
 
-For the same-origin runtime proxy, reviewed oracle ids can be provisioned with `FLAP_RUNTIME_ORACLE_REGISTRY`. The value is a JSON object keyed by oracle id:
+For the same-origin runtime proxy, reviewed oracle ids can be previewed with `FLAP_RUNTIME_ORACLE_REGISTRY`. The value is a JSON object keyed by oracle id:
 
 ```json
 {
@@ -53,7 +53,7 @@ For the same-origin runtime proxy, reviewed oracle ids can be provisioned with `
 }
 ```
 
-`fixedParams` are appended by the runtime after UI params, so a component cannot override server-fixed routing values such as `feed`. `allowedParams` limits which UI-provided params are forwarded. Registry entries cannot include headers, and Flap runtime does not hold or forward upstream tokens. If authentication is required, the provider must expose its own reviewed no-secret HTTPS relay before the oracle is provisioned.
+`fixedParams` are appended by the runtime after UI params, so a component cannot override server-fixed routing values such as `feed`. `allowedParams` limits which UI-provided params are forwarded. Registry entries cannot include headers, and Flap runtime does not hold or forward upstream tokens. If authentication is required, the provider must expose its own reviewed no-secret HTTPS relay before the oracle is provisioned. Registry-only ids are still blocked by `vault:check` for source packages; repeated or official oracle ids must be promoted into the built-in shared runtime provider list.
 
 ### Runtime-Owned Oracle Providers
 

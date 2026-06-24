@@ -219,7 +219,7 @@ const FIX_HINTS = {
   "frame-policy/undeclared-frame-src": "Declare the exact static ReviewedFrame src in manifest.externalFrames with the same provider and frameId.",
   "frame-policy/too-many-reviewed-frames": "Use at most one ReviewedFrame and one manifest.externalFrames entry per Vault UI.",
   "manual-review/external-frame": "External frames are review candidates only. Keep the frame display-only and wait for Flap review approval before publish.",
-  "manual-review/oracle-usage": `Do not add oracle config to manifest. Unprovisioned oracle ids must be removed or provisioned through built-in runtime defaults or ${RUNTIME_ORACLE_REGISTRY_ENV} before packaging; registry entries may include endpoint, allowedParams, and fixedParams only, not headers or Flap-held tokens. Provisioned oracle ids still require review.oracles[] endpoint and params review before publish.`,
+  "manual-review/oracle-usage": `Do not add oracle config to manifest. Source packages may use only built-in runtime oracle ids before packaging; ${RUNTIME_ORACLE_REGISTRY_ENV} is for host/runtime preview diagnostics and does not make a custom oracle id packageable. Built-in oracle ids still require review.oracles[] endpoint and params review before publish.`,
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
   "risk-status/manual-low-risk-label": "Do not hardcode or unconditionally render Low risk / 低风险 labels. A low-risk label is allowed only when selected from the host-derived riskLevel === 1 branch.",
@@ -2785,12 +2785,15 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     for (const oracleUsage of collectReadOracleUsages(scanContent, rel)) {
       const provision = oracleProvisionDetails.get(oracleUsage.oracleId);
+      const isBuiltInOracle = provision?.source === "built-in";
       issues.push(
         issue(
-          provision ? WARNING : BLOCKING,
+          isBuiltInOracle ? WARNING : BLOCKING,
           "manual-review/oracle-usage",
-          provision
+          isBuiltInOracle
             ? `Oracle ${oracleUsage.oracleId} is used by code and is provisioned through ${provision.source}. Flap Artifact Workbench/runtime must still review the oracle endpoint and params before production publish.`
+            : provision
+              ? `Oracle ${oracleUsage.oracleId} is provisioned only through ${RUNTIME_ORACLE_REGISTRY_ENV}. Template source packages must use built-in runtime oracle ids so Workbench production validates the same package. Promote this oracle to the shared runtime or switch to an existing built-in oracle id before packaging.`
             : `Oracle ${oracleUsage.oracleId} is used by code but is not provisioned by the runtime oracle registry. Do not declare oracle config in manifest.json; Flap Artifact Workbench/runtime must review and provision it before packaging.`,
           {
             ...oracleUsage,
