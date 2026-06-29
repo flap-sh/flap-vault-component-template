@@ -1761,6 +1761,23 @@ export default function SelftestVault(_props: VaultComponentProps) {
     "registry oracle review output includes endpoint and param policy",
   );
   passed.push("registry oracle review output includes endpoint and param policy");
+
+  const numberBigintSlug = `${FIXTURE_PREFIX}-number-bigint`;
+  writeVault(numberBigintSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const rewardAmount = 1n;
+  const unsafeRewardAmount = Number(rewardAmount);
+  return <div>{i18n.t("title")} {unsafeRewardAmount}</div>;
+}
+`,
+  });
+  assertRule("Number conversion for token amount math blocks packaging", runVaultCheck(numberBigintSlug, { silent: true }), "contract-abi/number-bigint", "blocking");
   process.env.FLAP_RUNTIME_ORACLE_REGISTRY = JSON.stringify({
     "reviewed-settlement-oracle": {
       endpoint: "https://oracle.example.com/settlement",

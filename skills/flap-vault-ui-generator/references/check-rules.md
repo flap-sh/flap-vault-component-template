@@ -44,6 +44,8 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - current contract risk status placed after the first three Vault-specific business rows or after preview/hero/media/chart visuals
 - manual `Low risk` / `低风险` labels, badges, summaries, or reassuring copy that are not selected from the host-derived `riskLevel === 1` branch
 - object result types on `sdk.readContract` calls for ABI methods with multiple return values; read those methods as tuple arrays and map indexes into UI state
+- unprovisioned or registry-only `sdk.readOracle(...)` usage that is not built into the shared runtime
+- suspicious `Number(...)` token amount conversion
 - remote media inside Vault source
 - hardcoded EVM addresses in Vault source unless they are binding-scoped token/Vault/factory references or declared external contract targets
 - contract reads/writes, event watches, log/filter calls, or gas estimates against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`
@@ -72,12 +74,12 @@ Run `yarn vault:verify-package dist/{folder-name}.zip` after packaging. It check
 - local image asset
 - i18n key mismatch
 - refetch below recommended interval
-- suspicious `Number(...)` token amount conversion
+- built-in oracle usage is reported for Flap review/provisioning
 - standard ERC20 methods declared in `VaultABI.ts`; use `erc20Abi` or `standardErc20Abi` from `@/src/sdk` instead
 
 ## Info
 
-- oracle usage is reported for Flap review/provisioning
+- none
 
 ## Expected Fix Style
 
