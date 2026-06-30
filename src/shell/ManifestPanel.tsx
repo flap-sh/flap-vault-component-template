@@ -23,10 +23,12 @@ interface ManifestPanelProps {
   runtimeSnapshot?: TokenRuntimeSnapshot | null;
   hostRuntimeResult?: HostRuntimeResult | null;
   hostOverrideActive?: boolean;
+  placement?: ManifestPanelPlacement;
 }
 
 const phaseOptions: TokenMarketPhase[] = ["internal-market", "dex-listed"];
 type PhasePreviewControl = TokenMarketPhase | "runtime";
+type ManifestPanelPlacement = "sidebar" | "footer";
 
 function phaseTone(phase: TokenMarketPhase) {
   if (phase === "dex-listed") return "success";
@@ -47,6 +49,7 @@ export function ManifestPanel({
   runtimeSnapshot,
   hostRuntimeResult,
   hostOverrideActive = false,
+  placement = "sidebar",
 }: ManifestPanelProps) {
   const { lang } = useLang();
   const router = useRouter();
@@ -63,6 +66,14 @@ export function ManifestPanel({
   const runtimeStatus = hostRuntimeResult?.status ?? "unavailable";
   const runtimePolicy = hostRuntimeResult?.policy ?? "prefer-full-host";
   const runtimeSources = hostRuntimeResult?.sources;
+  const panelClassName =
+    placement === "footer"
+      ? "mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8"
+      : "mx-auto w-full max-w-[768px] px-4 pb-6 sm:px-0 xl:fixed xl:right-6 xl:top-[92px] xl:z-30 xl:max-h-[calc(100vh-116px)] xl:w-[360px] xl:max-w-none xl:overflow-hidden xl:px-0 xl:pb-0";
+  const manifestCodeClassName =
+    placement === "footer"
+      ? "max-h-[420px] overflow-auto p-4 text-xs leading-5 text-white/70"
+      : "max-h-[360px] overflow-auto p-4 text-xs leading-5 text-white/70 xl:max-h-[calc(100vh-348px)]";
   const phaseOverrideActive = Boolean(
     searchParams.get("marketPhase") ||
       searchParams.get("phase") ||
@@ -192,7 +203,7 @@ export function ManifestPanel({
   }
 
   return (
-    <aside className="mx-auto w-full max-w-[768px] px-4 pb-6 sm:px-0 xl:fixed xl:right-6 xl:top-[92px] xl:z-30 xl:max-h-[calc(100vh-116px)] xl:w-[360px] xl:max-w-none xl:overflow-hidden xl:px-0 xl:pb-0">
+    <aside className={panelClassName} data-manifest-panel-placement={placement}>
       <div className="overflow-hidden rounded-lg border border-white/10 bg-[#101522] shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
         <div className="border-b border-white/10 px-4 py-3">
           <div className="flex min-w-0 items-center justify-between gap-3">
@@ -283,7 +294,7 @@ export function ManifestPanel({
           </div>
           <p className="mt-3 text-xs leading-5 text-white/42">{lang.preview.hostReadPanelHint}</p>
         </div>
-        <pre className="max-h-[360px] overflow-auto p-4 text-xs leading-5 text-white/70 xl:max-h-[calc(100vh-348px)]">
+        <pre className={manifestCodeClassName}>
           <code>{manifestJson}</code>
         </pre>
       </div>

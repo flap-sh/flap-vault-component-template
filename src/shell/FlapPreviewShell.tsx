@@ -472,6 +472,7 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
       }),
     [connectedChainId, hostRuntime, manifest, runtimeContextOverrides],
   );
+  const isFullscreenLayout = manifest.layout === "fullscreen";
 
   return (
     <VaultRuntimeProvider
@@ -484,14 +485,15 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
     >
       <div className="min-h-screen bg-background">
         <FlapNavbar manifest={manifest} />
-        <div className="xl:pr-[408px]">
+        <div className={isFullscreenLayout ? undefined : "xl:pr-[408px]"}>
           <div data-vault-e2e-scope="vault-preview">
-            <PreviewTaxInfoFrame fullscreen={manifest.layout === "fullscreen"}>{children}</PreviewTaxInfoFrame>
+            <PreviewTaxInfoFrame fullscreen={isFullscreenLayout}>{children}</PreviewTaxInfoFrame>
           </div>
         </div>
         <ManifestPanel
           manifest={manifest}
           folderName={folderName}
+          placement={isFullscreenLayout ? "footer" : "sidebar"}
           host={runtimeContext.host}
           chainId={previewChainId}
           tokenAddress={runtimeContext.tokenAddress}
