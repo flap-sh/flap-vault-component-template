@@ -191,7 +191,7 @@ export function FlapNavbar({ manifest }: FlapNavbarProps) {
     <nav className="relative z-[100] flex h-16 w-full min-w-0 items-center justify-between gap-2 border-b border-[#484B51] bg-black px-3 font-mono md:h-[68px] md:px-6">
       <div className="hidden shrink-0 items-center gap-3 md:flex">
         <Link href="/" className="flex h-10 w-10 items-center justify-center text-[#D0FF00]" aria-label="Flap home">
-          <Image src="/logo.png" height={40} width={40} alt="flap" className="h-10 w-10" priority />
+          <Ui20FlapMarkIcon className="h-10 w-10" />
         </Link>
       </div>
 
