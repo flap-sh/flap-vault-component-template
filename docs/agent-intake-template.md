@@ -176,7 +176,7 @@ Also confirm how the UI will render current contract risk status from host `risk
 
 - Default: no. Prefer Flap SDK methods and on-chain reads.
 - If unavoidable: provide either one full HTTPS endpoint URL without username/password credentials or a list of those URLs. These are declared in `manifest.endpoints` and enter Flap review; declaration does not guarantee approval. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration.
-- Host-relative URLs (`/api/...`), dynamic fetch targets, credentialed URLs, non-HTTPS, `ipfs://` / gateway image URLs, Arweave, WebSocket, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are always blocked. Immutable Vault-specific images must use `IpfsImage` with a static image CID instead of an image URL.
+- Host-relative URLs (`/api/...`), dynamic fetch targets, credentialed URLs, non-HTTPS, `ipfs://` / gateway image URLs, Arweave, WebSocket, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are always blocked. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` with a static image CID instead of an image URL.
 
 ### Q16: External chart frames (optional)
 

@@ -51,7 +51,7 @@
     "tokenMetadataSource": ["context.tokenImageUrl", "context.tokenName", "context.tokenSymbol"],
     "tokenMetadataPreviewCapability": "The template preview shell first asks the same-origin host proxy for token presentation data, then falls back to public SDK ERC20 symbol() and name() reads from the preview tokenAddress. The mocked /logo.png image is reserved for the neutral preview fixture unless tokenImageUrl is explicitly overridden.",
     "allowedIpfsImageGateways": ["https://flap.mypinata.cloud", "https://magenta-naval-penguin-822.mypinata.cloud"],
-    "ipfsImageRule": "Vault source may render immutable Vault-specific images only through IpfsImage from @/src/ui with a static image CID in the cid prop. vault:check validates that each CID resolves through at least one allowed Flap IPFS gateway to image/* before packaging. Full gateway URLs, ipfs:// values, metadata CIDs, CSS url(...), fetch targets, dynamic image URLs, upload flows, and non-allowlisted gateway URLs remain blocked.",
+    "ipfsImageRule": "Vault source may render immutable Vault-specific images only through IpfsImage from @/src/ui, or decorative full-area/background images through IpfsBackground from @/src/ui, with a static image CID in the cid prop. vault:check validates that each CID resolves through at least one allowed Flap IPFS gateway to image/* before packaging. Full gateway URLs, ipfs:// values, metadata CIDs, CSS url(...), fetch targets, dynamic image URLs, upload flows, and non-allowlisted gateway URLs remain blocked.",
     "shellOwnedUi": [
       "Flap header and wallet connect",
       "token breadcrumb, image, symbol/name, CA, copy, explorer link",
@@ -412,7 +412,7 @@
     },
     "security/non-https-resource": {
       "severity": "blocking",
-      "fixAction": "Remove non-HTTPS, credentialed, IPFS scheme, Arweave, WebSocket, browser-global, browser-storage, browser-navigation, browser-worker, browser-permission, or embedded data URL resources. Only declared credential-free HTTPS endpoints are allowed; immutable Vault-specific images must use IpfsImage with a static image CID."
+      "fixAction": "Remove non-HTTPS, credentialed, IPFS scheme, Arweave, WebSocket, browser-global, browser-storage, browser-navigation, browser-worker, browser-permission, or embedded data URL resources. Only declared credential-free HTTPS endpoints are allowed; immutable Vault-specific images must use IpfsImage or IpfsBackground with a static image CID."
     },
     "security/hardcoded-address": {
       "severity": "blocking",
@@ -420,11 +420,11 @@
     },
     "security/remote-media": {
       "severity": "blocking",
-      "fixAction": "Remove remote image URLs from Vault source. Token media should come from context.tokenImageUrl; immutable Vault-specific images must use IpfsImage with a static image CID."
+      "fixAction": "Remove remote image URLs from Vault source. Token media should come from context.tokenImageUrl; immutable Vault-specific images must use IpfsImage or IpfsBackground with a static image CID."
     },
     "media-policy/invalid-ipfs-image-cid": {
       "severity": "blocking",
-      "fixAction": "Pass only a static image CID to IpfsImage cid. Do not pass gateway URLs, metadata CIDs, ipfs:// values, or dynamic expressions."
+      "fixAction": "Pass only a static image CID to IpfsImage/IpfsBackground cid. Do not pass gateway URLs, metadata CIDs, ipfs:// values, or dynamic expressions."
     },
     "media-policy/ipfs-image-unavailable": {
       "severity": "blocking",

@@ -250,8 +250,8 @@ const FIX_HINTS = {
   "imports-and-dependencies/unreviewed-import": "Remove the dependency unless Flap explicitly approves it.",
   "imports-and-dependencies/dynamic-import": "Use static imports only.",
   "media/local-asset": "Move local media outside the Vault package. Vault folders must contain only the four allowed files.",
-  "media-policy/remote-media": "Remove remote media URLs. Use host-provided media for token images, or IpfsImage with a static image CID for immutable Vault-specific images.",
-  "media-policy/invalid-ipfs-image-cid": "Pass only a static image CID to IpfsImage. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic expressions.",
+  "media-policy/remote-media": "Remove remote media URLs. Use host-provided media for token images, or IpfsImage/IpfsBackground with a static image CID for immutable Vault-specific images.",
+  "media-policy/invalid-ipfs-image-cid": "Pass only a static image CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic expressions.",
   "media-policy/ipfs-image-unavailable": "Use a static image CID that resolves through an allowed Flap IPFS gateway to an image/* response.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites. Keep component-owned links on the current chain explorer only, and use host-reviewed allowlists for any exceptional metadata/oracle origin during review.",
@@ -1064,12 +1064,13 @@ function staticJsxStringAttribute(tag, attributeName) {
 
 function collectIpfsImageCidUsages(content, file) {
   const usages = [];
-  const tagRegex = /<IpfsImage\b[^>]*>/g;
+  const tagRegex = /<(IpfsImage|IpfsBackground)\b[^>]*>/g;
   for (const tagMatch of content.matchAll(tagRegex)) {
     const tag = tagMatch[0];
     const index = tagMatch.index ?? 0;
     const cid = staticJsxStringAttribute(tag, "cid");
     usages.push({
+      component: tagMatch[1],
       cid: cid ? cid.trim() : cid,
       file,
       line: lineForIndex(content, index),
@@ -2797,7 +2798,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "media-policy/invalid-ipfs-image-cid",
-            "IpfsImage must receive a static image CID. URLs, ipfs:// values, metadata CIDs, and dynamic expressions are not allowed.",
+            "IpfsImage/IpfsBackground must receive a static image CID. URLs, ipfs:// values, metadata CIDs, and dynamic expressions are not allowed.",
             usage,
           ),
         );
@@ -2927,7 +2928,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     for (const imageSrc of staticImgSrcUrls) {
       if (/^(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(imageSrc.url)) {
-        issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote image sources must use IpfsImage with a static cid prop instead of a URL.", imageSrc));
+        issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote image sources must use IpfsImage or IpfsBackground with a static cid prop instead of a URL.", imageSrc));
       }
     }
     const hardcodedAddressRegex = /["'`]0x[a-fA-F0-9]{40}["'`]/g;
@@ -3083,7 +3084,7 @@ async function collectIpfsImageValidationIssues(vaultDir) {
       issue(
         BLOCKING,
         "media-policy/ipfs-image-unavailable",
-        `IpfsImage cid ${source.cid} must resolve through at least one allowed Flap IPFS gateway with an image/* content-type.`,
+        `${source.component} cid ${source.cid} must resolve through at least one allowed Flap IPFS gateway with an image/* content-type.`,
         { ...source, attempts },
       ),
     );

@@ -619,6 +619,30 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertNoRule("IpfsImage CIDs are not remote-media violations", allowedIpfsImageCheck, "media-policy/remote-media", "blocking");
   assertNoRule("valid IpfsImage CIDs pass static CID validation", allowedIpfsImageCheck, "media-policy/invalid-ipfs-image-cid", "blocking");
 
+  const allowedIpfsBackgroundSlug = `${FIXTURE_PREFIX}-ipfs-background`;
+  writeVault(allowedIpfsBackgroundSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsBackground } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div className="relative">
+      <IpfsBackground cid="bafkreicllrojftwdwi7gukkpydxkimru55isnrngj5ggyuy2zbbqvmfyiq" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  const allowedIpfsBackgroundCheck = runVaultCheck(allowedIpfsBackgroundSlug, { silent: true });
+  assertNoRule("IpfsBackground CIDs do not require endpoint declarations", allowedIpfsBackgroundCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("IpfsBackground CIDs are not remote-media violations", allowedIpfsBackgroundCheck, "media-policy/remote-media", "blocking");
+  assertNoRule("valid IpfsBackground CIDs pass static CID validation", allowedIpfsBackgroundCheck, "media-policy/invalid-ipfs-image-cid", "blocking");
+
   const invalidIpfsCidSlug = `${FIXTURE_PREFIX}-ipfs-image-invalid-cid`;
   writeVault(invalidIpfsCidSlug, {
     component: `"use client";
