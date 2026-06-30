@@ -2292,6 +2292,28 @@ export default function SelftestVault(_props: VaultComponentProps) {
   );
   passed.push("scaffold accepts one manifest test token for multiple bindings");
 
+  const crlfRegisterSlug = `${FIXTURE_PREFIX}-crlf-register`;
+  writeVault(crlfRegisterSlug);
+  fs.writeFileSync(INDEX_PATH, fs.readFileSync(INDEX_PATH, "utf8").replace(/\r?\n/g, "\r\n"));
+  const crlfRegisterOutput = execFileSync(process.execPath, ["scripts/vault-register.mjs", crlfRegisterSlug], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  const crlfRegisterReport = JSON.parse(crlfRegisterOutput);
+  assert.equal(crlfRegisterReport.ok, true);
+  assert.ok(fs.readFileSync(INDEX_PATH, "utf8").includes(`\r\n  "${crlfRegisterSlug}": {`));
+  const crlfUnregisterOutput = execFileSync(process.execPath, ["scripts/vault-register.mjs", crlfRegisterSlug, "--remove"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  const crlfUnregisterReport = JSON.parse(crlfUnregisterOutput);
+  assert.equal(crlfUnregisterReport.ok, true);
+  assert.equal(crlfUnregisterReport.removed, true);
+  assert.equal(fs.readFileSync(INDEX_PATH, "utf8").includes(`./${crlfRegisterSlug}/Component`), false);
+  passed.push("vault:register supports CRLF index.ts files");
+
   createdFolderNames.push(scaffoldFlowSlug);
   createdPackagePaths.push(path.join(ROOT, "dist", `${scaffoldFlowSlug}.zip`));
   execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", scaffoldFlowSlug, "--chain", "56", "--factory", FACTORY, "--token", TOKEN, "--locales", "en,zh"], {

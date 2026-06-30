@@ -16,14 +16,18 @@ export function isValidFolderName(folderName) {
   );
 }
 
-export function vaultModuleEntry(folderName) {
+function lineEndingFor(content) {
+  return content.includes("\r\n") ? "\r\n" : "\n";
+}
+
+export function vaultModuleEntry(folderName, eol = "\n") {
   return `  ${JSON.stringify(folderName)}: {
     folderName: ${JSON.stringify(folderName)},
     loadComponent: () => import("./${folderName}/Component"),
     loadManifest: () => import("./${folderName}/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./${folderName}/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
-`;
+`.replaceAll("\n", eol);
 }
 
 export function isVaultRegistered(folderName, { root = process.cwd() } = {}) {
@@ -54,12 +58,12 @@ export function registerVault(folderName, { dryRun = false, root = process.cwd()
     return { changed: false, file: "src/vaults/index.ts", alreadyRegistered: true };
   }
 
-  const marker = "};\n\nexport function getVaultFolderNames()";
-  if (!content.includes(marker)) {
+  const markerRe = /};\r?\n\r?\nexport function getVaultFolderNames\(\)/;
+  if (!markerRe.test(content)) {
     throw new Error("Cannot register vault automatically. src/vaults/index.ts has an unexpected shape.");
   }
 
-  const nextContent = content.replace(marker, `${vaultModuleEntry(folderName)}${marker}`);
+  const nextContent = content.replace(markerRe, `${vaultModuleEntry(folderName, lineEndingFor(content))}$&`);
   if (!dryRun) fs.writeFileSync(indexPath, nextContent);
   return { changed: true, file: "src/vaults/index.ts", alreadyRegistered: false };
 }
@@ -73,7 +77,7 @@ export function unregisterVault(folderName, { dryRun = false, root = process.cwd
 
   // Match the full entry block for this folder: `  "name": { ... },\n`.
   const escaped = folderName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const entryRe = new RegExp(`[ \\t]*"${escaped}":\\s*\\{[\\s\\S]*?\\n[ \\t]*\\},\\n`);
+  const entryRe = new RegExp(`[ \\t]*"${escaped}":\\s*\\{[\\s\\S]*?\\r?\\n[ \\t]*\\},\\r?\\n`);
   if (!entryRe.test(content)) {
     throw new Error("Cannot unregister vault automatically. src/vaults/index.ts has an unexpected shape.");
   }
