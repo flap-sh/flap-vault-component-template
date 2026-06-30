@@ -23,9 +23,10 @@ const FORBIDDEN_NAMES = new Set(["node_modules", ".git", ".vercel", ".env", ".en
 const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const ALLOWED_VAULT_FILES = new Set(REQUIRED_FILES);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "endpoints", "externalFrames"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "layout", "endpoints", "externalFrames"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
+const FULLSCREEN_LAYOUT = "fullscreen";
 const FRAME_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FRAME_ID_MIN_LENGTH = 3;
 const FRAME_ID_MAX_LENGTH = 64;
@@ -163,7 +164,8 @@ const FIX_HINTS = {
   "forbidden-files/disallowed-entry": "Remove environment, dependency, git, or build output files from the Vault package.",
   "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
-  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
+  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
+  "manifest-schema/invalid-layout": "Remove manifest.layout, or set it exactly to fullscreen when Flap explicitly asks for a full-screen Vault body.",
   "manifest-schema/missing-field": "Add the required manifest field.",
   "manifest-schema/invalid-artifact-id": "Use artifactId format vaultui_<folder-name>_<26-char ULID>, for example vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N.",
   "manifest-schema/artifact-id-folder-name-mismatch": "Make the artifactId folder-name segment match the src/vaults/<folder-name> folder name.",
@@ -219,6 +221,7 @@ const FIX_HINTS = {
   "frame-policy/undeclared-frame-src": "Declare the exact static ReviewedFrame src in manifest.externalFrames with the same provider and frameId.",
   "frame-policy/too-many-reviewed-frames": "Use at most one ReviewedFrame and one manifest.externalFrames entry per Vault UI.",
   "manual-review/external-frame": "External frames are review candidates only. Keep the frame display-only and wait for Flap review approval before publish.",
+  "manual-review/fullscreen-layout": "Fullscreen layout is an internal-review candidate. Keep host-owned token/header constraints in flap.sh and complete the extra fullscreen review before publish.",
   "manual-review/oracle-usage": `Do not add oracle config to manifest. Source packages may use only built-in runtime oracle ids before packaging; ${RUNTIME_ORACLE_REGISTRY_ENV} is for host/runtime preview diagnostics and does not make a custom oracle id packageable. Built-in oracle ids still require review.oracles[] endpoint and params review before publish.`,
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
@@ -2341,7 +2344,7 @@ function checkManifest(manifest, folderName) {
         issue(
           BLOCKING,
           ruleId,
-          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, match, i18n, endpoints, and externalFrames.`,
+          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, match, i18n, optional layout, endpoints, and externalFrames.`,
           { field: key },
         ),
       );
@@ -2368,6 +2371,27 @@ function checkManifest(manifest, folderName) {
   }
   if (manifest.name !== undefined && (!isNonEmptyString(manifest.name) || manifest.name.trim().length < 2)) {
     issues.push(issue(BLOCKING, "manifest-schema/invalid-name", "manifest.name must be a human-readable string with at least two characters.", { field: "name" }));
+  }
+  if (manifest.layout !== undefined) {
+    if (manifest.layout !== FULLSCREEN_LAYOUT) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "manifest-schema/invalid-layout",
+          'manifest.layout may only be "fullscreen" when Flap explicitly asks for a full-screen Vault body. Omit it for the standard layout.',
+          { field: "layout", layout: manifest.layout },
+        ),
+      );
+    } else {
+      issues.push(
+        issue(
+          WARNING,
+          "manual-review/fullscreen-layout",
+          "manifest.layout=fullscreen requests a full-screen Vault body and requires additional Flap review. flap.sh must keep host-owned token/header constraints around the artifact.",
+          { field: "layout", layout: FULLSCREEN_LAYOUT },
+        ),
+      );
+    }
   }
   // Detect old chainIds top-level field and report it as disallowed
   if (Object.prototype.hasOwnProperty.call(manifest, "chainIds")) {
@@ -3133,7 +3157,16 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames };
+  const fullscreenLayouts = issues
+    .filter((item) => item.ruleId === "manual-review/fullscreen-layout")
+    .map((item) => ({
+      layout: item.layout,
+      field: item.field,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  return { externalEndpoints, oracles, externalFrames, fullscreenLayouts };
 }
 
 function buildCheckReport(folderName, issues) {

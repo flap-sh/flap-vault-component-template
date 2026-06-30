@@ -201,6 +201,37 @@ try {
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/missing-test-token"), false);
   passed.push("binding-level tokenAddresses reference lists are allowed");
 
+  const standardLayoutSlug = `${FIXTURE_PREFIX}-standard-layout`;
+  writeVault(standardLayoutSlug);
+  const standardLayoutCheck = runVaultCheck(standardLayoutSlug, { silent: true });
+  assertNoRule("omitted manifest layout keeps the standard layout without fullscreen review", standardLayoutCheck, "manual-review/fullscreen-layout", "warning");
+  assert.equal(standardLayoutCheck.review.fullscreenLayouts.length, 0);
+  passed.push("omitted manifest layout produces no fullscreen review output");
+
+  const fullscreenLayoutSlug = `${FIXTURE_PREFIX}-fullscreen-layout`;
+  writeVault(fullscreenLayoutSlug, {
+    manifest: baseManifest({ layout: "fullscreen" }),
+  });
+  const fullscreenLayoutCheck = runVaultCheck(fullscreenLayoutSlug, { silent: true });
+  assertRule("manifest layout fullscreen triggers manual review", fullscreenLayoutCheck, "manual-review/fullscreen-layout", "warning");
+  assert.deepEqual(fullscreenLayoutCheck.review.fullscreenLayouts, [
+    {
+      layout: "fullscreen",
+      field: "layout",
+      severity: "warning",
+      ruleId: "manual-review/fullscreen-layout",
+    },
+  ]);
+  passed.push("fullscreen layout review output is machine-readable");
+
+  for (const invalidLayout of ["fullwidth", "fullwide", "immersive"]) {
+    const invalidLayoutSlug = `${FIXTURE_PREFIX}-${invalidLayout}`;
+    writeVault(invalidLayoutSlug, {
+      manifest: baseManifest({ layout: invalidLayout }),
+    });
+    assertRule(`manifest layout ${invalidLayout} is blocked`, runVaultCheck(invalidLayoutSlug, { silent: true }), "manifest-schema/invalid-layout", "blocking");
+  }
+
   const non7777TestTokenSlug = `${FIXTURE_PREFIX}-non-7777-test-token`;
   writeVault(non7777TestTokenSlug, {
     manifest: baseManifest({

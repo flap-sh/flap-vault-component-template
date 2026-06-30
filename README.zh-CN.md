@@ -327,7 +327,7 @@ Agent contract、manifest schema 和 source package format 的版本规则记录
 Vault folder 是严格 source package 边界，只能包含：
 
 - `Component.tsx`：受控 React Vault UI component。
-- `manifest.json`：必需 `artifactId`；必需 `match.bindings`，即显式 factory-scoped `{chainId, factoryAddress}`、no-factory `{chainId, vaultAddresses: [vaultAddress]}` 或 no-factory `{chainId, tokenAddresses}` target；每个 manifest 至少有一个 binding-scoped `tokenAddresses` 作为 Workbench/E2E 测试 token，优先测试网 token；可选非 oracle `endpoints`；可选 reviewed `externalFrames`；以及 `i18n`。生产限制 CA 只在 Workbench/registry 的 `caRestrictionMode` 中处理。
+- `manifest.json`：必需 `artifactId`；必需 `match.bindings`，即显式 factory-scoped `{chainId, factoryAddress}`、no-factory `{chainId, vaultAddresses: [vaultAddress]}` 或 no-factory `{chainId, tokenAddresses}` target；每个 manifest 至少有一个 binding-scoped `tokenAddresses` 作为 Workbench/E2E 测试 token，优先测试网 token；只有 Flap 明确要求全屏 Vault 业务内容区时才可选 `layout: "fullscreen"`；可选非 oracle `endpoints`；可选 reviewed `externalFrames`；以及 `i18n`。生产限制 CA 只在 Workbench/registry 的 `caRestrictionMode` 中处理。
 - `VaultABI.ts`：只包含最小 Vault ABI fragment。标准 ERC20 ABI 由 `@/src/sdk` 导出；只有自定义非标准 token 方法才放到这里。
 - `i18n.json`：manifest `i18n` 声明的 locale dictionary；manifest locale string 至少两个字符。
 

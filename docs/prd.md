@@ -70,6 +70,7 @@ Allowed fields:
 - `name`
 - `match`
 - `i18n`
+- `layout`
 - `endpoints`
 - `externalFrames`
 
@@ -107,6 +108,8 @@ Vault matching intent is captured by explicit chain/factory pairs:
 `match.bindings` is a non-empty array where each entry declares one explicit runtime target: `(chainId, factoryAddress)` for factory-scoped UI, `(chainId, vaultAddress)` for Vault-scoped UI without a factory, or `(chainId, tokenAddress)` for token-scoped UI without a factory. The same UI logic can target multiple chains, factories, fixed Vaults, or token CAs by adding entries or token lists.
 
 In factory mode, the Vault address can be runtime-derived, and `tokenAddresses` is the manifest test-token source, not a production CA restriction. The test token must be a real deployed ERC20 address ending in `7777`; collect the final real mainnet factory binding early. In no-factory mode, `match.bindings[].vaultAddresses` is optional unless the binding is Vault-scoped; if provided without factoryAddress it must contain exactly one non-zero Vault address. `tokenAddresses` may be used as the no-factory token-scoped target and may contain multiple token addresses. If a deployment needs a fixed non-token/non-Vault/non-factory contract target, it is declared only as `match.bindings[].externalContracts` with `address` and `label`. This `match` block is not the local route and does not auto-publish anything; it is a developer-facing binding declaration for deployment targets. Production CA restriction is decided in Workbench/registry by `caRestrictionMode`.
+
+`layout` is optional and currently accepts only `"fullscreen"`. Omit it for the standard 768px Vault body. Use it only when Flap explicitly requests a full-screen Vault body; `vault:check` emits `manual-review/fullscreen-layout`, and production `flap.sh` remains responsible for host-owned token/header constraints. `fullscreen` is not a free-form website container: the strict four-file package boundary, risk-status placement, i18n, external resource review, and contract boundary all still apply.
 
 ### i18n Policy
 
@@ -229,7 +232,7 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Fixed Vault package file set | Done | `vault:check` blocks files outside `Component.tsx`, `manifest.json`, `VaultABI.ts`, `i18n.json`. |
 | Folder route boundary | Done | `vault:check` requires 3-64 character lowercase kebab-case folder names for source folders and preview routes. |
 | Artifact identity | Done | `artifactId` is required, follows `vaultui_<folder-name>_<ULID>`, matches the Vault folder name, and is unique across Vault manifests. |
-| Minimal manifest | Done | Schema and check script allow only developer-facing fields. |
+| Minimal manifest | Done | Schema and check script allow only developer-facing fields, including optional `layout: "fullscreen"` for Flap-requested fullscreen review. |
 | CA policy boundary | Done | `vault:check` blocks global `restrictTokenAddresses`, global `tokenAddresses`, and `caPolicy`, while requiring every manifest to include at least one binding-scoped `match.bindings[].tokenAddresses` entry as its Workbench/E2E test token source. Factory-mode production CA restriction is a Workbench/registry `caRestrictionMode` decision, not a manifest field. |
 | No-factory binding variants | Done | Schema, `vault:check`, preview resolution, and packaging allow no-factory `chainId + vaultAddress`, `chainId + tokenAddress`, and `chainId + vaultAddress + tokenAddress` targets; no-factory token lists may contain multiple token addresses. |
 | Binding address safety | Done | `vault:check`, `vault:scaffold`, and the manifest schema block malformed, zero, and reserved template placeholder binding addresses so fake factory/Vault targets cannot pass into Workbench publish. |

@@ -134,7 +134,7 @@ Use:
 - `@/src/ui` for Flap UI primitives.
 - `lucide-react` for icons before ad hoc SVG. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`).
 - `./VaultABI` as the only allowed local relative import.
-- `manifest.json` for required `artifactId`, match fields, i18n, at least one binding-scoped real `7777`-suffix `tokenAddresses` entry per manifest for Workbench/E2E testing, optional per-binding `externalContracts`, optional non-oracle endpoints, and optional reviewed `externalFrames`. Each binding needs `chainId` plus either non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry when there is no factory, or token-only binding via `tokenAddresses`; production CA restriction is Workbench/registry `caRestrictionMode`, not a manifest field.
+- `manifest.json` for required `artifactId`, match fields, i18n, at least one binding-scoped real `7777`-suffix `tokenAddresses` entry per manifest for Workbench/E2E testing, optional per-binding `externalContracts`, optional `layout: "fullscreen"` only when Flap explicitly asks for a full-screen Vault body, optional non-oracle endpoints, and optional reviewed `externalFrames`. Each binding needs `chainId` plus either non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry when there is no factory, or token-only binding via `tokenAddresses`; production CA restriction is Workbench/registry `caRestrictionMode`, not a manifest field.
 
 Do not copy standard ERC20 ABI into `VaultABI.ts`. Add token ABI fragments there only when a token has custom non-standard methods or a special mechanism.
 

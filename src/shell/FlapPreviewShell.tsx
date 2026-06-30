@@ -486,7 +486,7 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
         <FlapNavbar manifest={manifest} />
         <div className="xl:pr-[408px]">
           <div data-vault-e2e-scope="vault-preview">
-            <PreviewTaxInfoFrame>{children}</PreviewTaxInfoFrame>
+            <PreviewTaxInfoFrame fullscreen={manifest.layout === "fullscreen"}>{children}</PreviewTaxInfoFrame>
           </div>
         </div>
         <ManifestPanel
@@ -545,7 +545,7 @@ function isManifestBindingMismatch(
   return !resolveManifestBinding(manifest, input);
 }
 
-function PreviewTaxInfoFrame({ children }: { children: ReactNode }) {
+function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: ReactNode; fullscreen?: boolean }) {
   const { lang } = useLang();
   const searchParams = useSearchParams();
   const context = useVaultContext();
@@ -574,8 +574,17 @@ function PreviewTaxInfoFrame({ children }: { children: ReactNode }) {
   };
 
   return (
-    <main className="mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden px-0 py-0 sm:px-4 sm:py-8">
-      <Card className="mx-auto w-full max-w-full overflow-hidden rounded-none border-x-0 bg-[#050914] sm:max-w-[768px] sm:rounded-lg sm:border-x">
+    <main
+      data-vault-layout={fullscreen ? "fullscreen" : "standard"}
+      className="mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden px-0 py-0 sm:px-4 sm:py-8"
+    >
+      <Card
+        className={
+          fullscreen
+            ? "mx-auto w-full max-w-full overflow-hidden rounded-none border-x-0 bg-[#050914] sm:rounded-lg sm:border-x"
+            : "mx-auto w-full max-w-full overflow-hidden rounded-none border-x-0 bg-[#050914] sm:max-w-[768px] sm:rounded-lg sm:border-x"
+        }
+      >
         <CardHeader className="px-4 py-5 sm:p-6">
           <div className="relative flex flex-col space-y-4">
             <Link href={homeHref} className="absolute right-0 top-0 p-2 text-gray-400 transition-colors hover:text-white" title={lang.preview.close}>

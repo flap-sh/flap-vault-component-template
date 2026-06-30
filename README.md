@@ -333,7 +333,7 @@ Versioning rules for the Agent contract, manifest schema, and source package for
 The Vault folder is a strict source package boundary. It may contain only:
 
 - `Component.tsx`: the controlled React Vault UI component.
-- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}`, no-factory `{chainId, vaultAddresses: [vaultAddress]}`, or no-factory `{chainId, tokenAddresses}` targets; at least one binding needs a binding-scoped `tokenAddresses` entry for Workbench/E2E testing, preferably on testnet; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`. Production CA restriction is Workbench/registry `caRestrictionMode`, not a public manifest field.
+- `manifest.json`: required `artifactId`; required `match.bindings` — explicit factory-scoped `{chainId, factoryAddress}`, no-factory `{chainId, vaultAddresses: [vaultAddress]}`, or no-factory `{chainId, tokenAddresses}` targets; at least one binding needs a binding-scoped `tokenAddresses` entry for Workbench/E2E testing, preferably on testnet; optional `layout: "fullscreen"` only when Flap explicitly asks for a full-screen Vault body; optional non-oracle `endpoints`; optional reviewed `externalFrames`; and `i18n`. Production CA restriction is Workbench/registry `caRestrictionMode`, not a public manifest field.
 - `VaultABI.ts`: minimal Vault ABI fragments only. Standard ERC20 ABI is exported from `@/src/sdk`; add token ABI fragments here only for custom non-standard token methods.
 - `i18n.json`: locale dictionaries declared by `manifest.i18n`; manifest locale strings must be at least two characters.
 

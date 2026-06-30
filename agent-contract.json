@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 28,
+  "version": 29,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -102,7 +102,7 @@
     "recharts"
   ],
   "manifest": {
-    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "endpoints", "externalFrames"],
+    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "layout", "endpoints", "externalFrames"],
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
@@ -110,6 +110,7 @@
     "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
+    "layoutRule": "Omit manifest.layout for the standard 768px Vault body. Set layout to fullscreen only when Flap explicitly requests a full-screen Vault body; this triggers manual-review/fullscreen-layout and flap.sh remains responsible for host-owned token/header constraints.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
     "localeRule": "manifest.i18n entries must be locale strings with at least two characters. Only locales declared by manifest.i18n are required and compared.",
     "oracleRule": "Do not declare oracle config in manifest.json. Source packages may use only built-in runtime oracle ids before packaging. FLAP_RUNTIME_ORACLE_REGISTRY is for host/runtime preview diagnostics and does not make a custom oracle id packageable. vault:check prints oracle id, endpoint/provisioning details, allowed/fixed params, and source file location in review.oracles[] for Workbench human review.",

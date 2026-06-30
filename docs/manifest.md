@@ -168,8 +168,31 @@ Example:
 
 | Field | Required | Description |
 | --- | --- | --- |
+| `layout` | No | Optional internal-review layout request. Omit it for the standard 768px Vault business body. Use `"fullscreen"` only when Flap explicitly asks for a full-screen Vault body; `vault:check` emits `manual-review/fullscreen-layout`, and production host constraints remain owned by `flap.sh`. |
 | `endpoints` | No | Optional non-oracle external endpoint declarations. Use a single absolute HTTPS URL string without username/password credentials or an array of those strings. Avoid by default; declared endpoints enter Flap review and must be approved before publish. |
 | `externalFrames` | No | Optional reviewed display-only chart iframe declaration. At most one entry is allowed. Use only for `tradingview`, `dexscreener`, or `coingecko-terminal` provider embeds with a complete static HTTPS `src` URL and fixed query string. |
+
+Fullscreen example:
+
+```json
+{
+  "artifactId": "vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N",
+  "name": "My Vault UI",
+  "layout": "fullscreen",
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "factoryAddress": "0xFactoryAddressRequired",
+        "tokenAddresses": ["0xReal7777TestToken"]
+      }
+    ]
+  },
+  "i18n": ["en", "zh"]
+}
+```
+
+Do not use `fullwidth`, `fullwide`, or other layout names. `fullscreen` does not turn a Vault package into a free-form website container: the four-file package boundary, risk-status placement, i18n, endpoint/frame review, and contract-boundary rules still apply.
 
 ## Do Not Declare
 

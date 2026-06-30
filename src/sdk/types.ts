@@ -206,12 +206,15 @@ export interface ManifestExternalContract {
   label: string;
 }
 
+export type VaultManifestLayout = "fullscreen";
+
 export interface VaultManifest {
   artifactId: string;
   name: string;
   match: {
     bindings: ManifestBindingEntry[];
   };
+  layout?: VaultManifestLayout;
   endpoints?: EndpointPolicy;
   i18n: string[];
 }
