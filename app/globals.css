@@ -71,3 +71,27 @@ textarea:-webkit-autofill:focus {
   box-shadow: 0 0 0 1000px #0a0d14 inset;
   transition: background-color 999999s ease-out;
 }
+
+.ui20-connect-chamfer {
+  --ui20-chamfer-bg: #000000;
+  --ui20-chamfer-border: #d0ff00;
+  --ui20-chamfer-path: polygon(10px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 4px 100%, 0 calc(100% - 4px), 0 10px);
+  background: var(--ui20-chamfer-border) !important;
+  border: none !important;
+  clip-path: var(--ui20-chamfer-path);
+  position: relative;
+}
+
+.ui20-connect-chamfer::before {
+  background: var(--ui20-chamfer-bg);
+  clip-path: var(--ui20-chamfer-path);
+  content: "";
+  inset: 1px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.ui20-connect-chamfer > * {
+  position: relative;
+  z-index: 1;
+}
