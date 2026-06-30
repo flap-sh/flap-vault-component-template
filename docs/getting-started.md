@@ -143,7 +143,18 @@ Use `context.host?.marketPhase` or the normalized `readTaxVaultHostContext(conte
 Wrong-network handling is separate from market-phase handling. Use `sdk.wallet.isWrongNetwork` to keep write buttons visible but disabled, then prompt `sdk.wallet.switchChain()` or show a clear switch-network state before any write.
 Do not fetch private token metadata or image APIs from the Vault component. If token media is needed, read `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol`; the template preview shell now injects these host values through the same-origin runtime proxy when available, then falls back to on-chain ERC20 metadata. Production Flap host should inject equivalent data.
 
-For a Vault-specific immutable image that cannot come from host token media, use CID-only `IpfsImage`. Upload and pin the image outside the Vault UI package. If that upload flow returns a metadata CID, fetch the metadata JSON and read its `image` field; from an `image` value such as `https://.../ipfs/<imageCid>` or `ipfs://<imageCid>`, keep only `<imageCid>`. Do not use the metadata CID as the image CID.
+For a Vault-specific immutable image that cannot come from host token media, use CID-only `IpfsImage`. Upload and pin the image outside the Vault UI package. Prefer the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) when the image must be available through Flap's gateway rather than a developer's personal Pinata gateway. Call `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation; the returned `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` value. Fetch that metadata JSON and read its `image` field; from an `image` value such as `https://.../ipfs/<imageCid>` or `ipfs://<imageCid>`, keep only `<imageCid>`. Do not use the metadata CID as the image CID.
+
+Minimal image upload example:
+
+```bash
+curl -X POST "https://funcs.flap.sh/api/upload" \
+  -F 'operations={"query":"mutation Create($file: Upload!, $meta: MetadataInput!) { create(file: $file, meta: $meta) }","variables":{"file":null,"meta":{"website":null,"twitter":null,"telegram":null,"description":"placeholder","creator":"0x0000000000000000000000000000000000000000"}}}' \
+  -F 'map={"0":["variables.file"]}' \
+  -F "0=@./logo.png;type=image/png"
+```
+
+Use real metadata values before a production token launch; placeholder social fields are only acceptable for a temporary image-pinning handoff.
 
 ```tsx
 import { IpfsImage } from "@/src/ui";

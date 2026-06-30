@@ -190,6 +190,8 @@ Do not use:
 
 Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token presentation. Only use custom media when the image is Vault-specific, immutable, and already pinned outside the Vault UI package.
 
+If a project needs Flap-hosted IPFS availability instead of a developer's personal Pinata gateway, upload the image through the Flap token metadata upload API documented in [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata). Use `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation. The response `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` value. For Vault UI media, fetch that metadata JSON, read its `image` field, strip any gateway URL or `ipfs://` prefix, and keep only the actual image CID.
+
 When a user provides an `imageCid`, render it through `IpfsImage` and emit the CID as a static string literal:
 
 ```tsx

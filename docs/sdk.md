@@ -162,7 +162,7 @@ import { IpfsImage } from "@/src/ui";
 />
 ```
 
-The CID must be the image CID, not a metadata CID. If an upload tool returns a metadata CID, read that metadata JSON and extract the `image` field, then strip any gateway URL or `ipfs://` prefix before using it. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic expression. `vault:check` verifies the static CID resolves as `image/*` through the allowed Flap IPFS gateways.
+The CID must be the image CID, not a metadata CID. If an image must be pinned through Flap instead of a personal Pinata gateway, use the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) outside the Vault package. The `https://funcs.flap.sh/api/upload` `create(file, meta)` response `data.create` is the metadata CID used for Portal launch `meta`; read that metadata JSON and extract the `image` field before using `IpfsImage`. Strip any gateway URL or `ipfs://` prefix before using the value. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic expression. `vault:check` verifies the static CID resolves as `image/*` through the allowed Flap IPFS gateways.
 
 ## Taxinfo Host Context
 
