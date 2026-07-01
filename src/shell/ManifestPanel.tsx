@@ -68,7 +68,7 @@ export function ManifestPanel({
   const runtimeSources = hostRuntimeResult?.sources;
   const panelClassName =
     placement === "footer"
-      ? "mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8"
+      ? "mt-12 border-t border-[#D0FF00]/30 bg-black/40 px-4 pb-8 pt-10 sm:px-6 lg:px-8"
       : "mx-auto w-full max-w-[768px] px-4 pb-6 sm:px-0 xl:fixed xl:right-6 xl:top-[92px] xl:z-30 xl:max-h-[calc(100vh-116px)] xl:w-[360px] xl:max-w-none xl:overflow-hidden xl:px-0 xl:pb-0";
   const manifestCodeClassName =
     placement === "footer"
@@ -204,7 +204,7 @@ export function ManifestPanel({
 
   return (
     <aside className={panelClassName} data-manifest-panel-placement={placement}>
-      <div className="overflow-hidden rounded-lg border border-white/10 bg-[#101522] shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-lg border border-white/10 bg-[#101522] shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
         <div className="border-b border-white/10 px-4 py-3">
           <div className="flex min-w-0 items-center justify-between gap-3">
             <div className="min-w-0">
