@@ -16,7 +16,7 @@
       "type": "object",
       "required": ["bindings"],
       "additionalProperties": false,
-      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more no-factory tokenAddresses entries. Any tokenAddresses entry, including entries on factory bindings, must end in 7777 and be a real deployed ERC20 token. Factory-mode tokenAddresses are not production CA restrictions.",
+      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more no-factory tokenAddresses entries. Any tokenAddresses entry, including entries on factory bindings, must end in 7777 or 8888 and be a real deployed ERC20 token. Factory-mode tokenAddresses are not production CA restrictions.",
       "properties": {
         "bindings": {
           "type": "array",
@@ -63,7 +63,7 @@
               },
               "tokenAddresses": {
                 "$ref": "#/$defs/testTokenAddressArray",
-                "description": "Binding-scoped token list for package proof or no-factory token scoping. Every entry, including factory-mode entries, must be a real deployed ERC20 token address ending in 7777. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
+                "description": "Binding-scoped token list for package proof or no-factory token scoping. Every entry, including factory-mode entries, must be a real deployed ERC20 token address ending in 7777 or 8888. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",
@@ -125,7 +125,7 @@
     "testTokenAddress": {
       "allOf": [
         { "$ref": "#/$defs/nonZeroAddress" },
-        { "pattern": "7777$" }
+        { "pattern": "(?:7777|8888)$" }
       ]
     },
     "testTokenAddressArray": {

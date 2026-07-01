@@ -106,8 +106,8 @@
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
-    "bindingsRule": "match.bindings is a non-empty array of unique runtime targets. Each entry must declare chainId plus either a non-zero, non-placeholder factoryAddress for factory-scoped UI, exactly one non-zero, non-placeholder vaultAddresses entry for Vault-scoped UI without a factory, or one or more non-zero, non-placeholder tokenAddresses entries for token-scoped UI without a factory. A zero factoryAddress or reserved template placeholder address is invalid; omit factoryAddress for no-factory mode. Every tokenAddresses entry under any binding, including factory bindings, must be a real deployed ERC20 address ending in 7777. Also collect the final real mainnet factoryAddress for the production binding early. Preview/runtime should prefer exact chainId + factoryAddress, chainId + vaultAddress (+ optional tokenAddress), or chainId + tokenAddress matches, treat partial hints as valid only when unambiguous, and use the first binding as a preview default only when the route provides no runtime hints.",
-    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
+    "bindingsRule": "match.bindings is a non-empty array of unique runtime targets. Each entry must declare chainId plus either a non-zero, non-placeholder factoryAddress for factory-scoped UI, exactly one non-zero, non-placeholder vaultAddresses entry for Vault-scoped UI without a factory, or one or more non-zero, non-placeholder tokenAddresses entries for token-scoped UI without a factory. A zero factoryAddress or reserved template placeholder address is invalid; omit factoryAddress for no-factory mode. Every tokenAddresses entry under any binding, including factory bindings, must be a real deployed ERC20 address ending in 7777 or 8888. Also collect the final real mainnet factoryAddress for the production binding early. Preview/runtime should prefer exact chainId + factoryAddress, chainId + vaultAddress (+ optional tokenAddress), or chainId + tokenAddress matches, treat partial hints as valid only when unambiguous, and use the first binding as a preview default only when the route provides no runtime hints.",
+    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 or 8888 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
     "layoutRule": "Omit manifest.layout for the standard 768px Vault body. Set layout to fullscreen only when Flap explicitly requests a full-screen Vault body; this triggers manual-review/fullscreen-layout and flap.sh remains responsible for host-owned token/header constraints.",
@@ -281,11 +281,11 @@
     },
     "manifest-binding/missing-test-token": {
       "severity": "blocking",
-      "fixAction": "Add at least one real deployed ERC20 test token ending in 7777 under any match.bindings[] entry's tokenAddresses. This manifest token is required for Workbench/vault:e2e test coverage and is not a production CA restriction. Local --token overrides do not satisfy vault:check."
+      "fixAction": "Add at least one real deployed ERC20 test token ending in 7777 or 8888 under any match.bindings[] entry's tokenAddresses. This manifest token is required for Workbench/vault:e2e test coverage and is not a production CA restriction. Local --token overrides do not satisfy vault:check."
     },
     "manifest-binding/invalid-test-token-suffix": {
       "severity": "blocking",
-      "fixAction": "Replace the manifest test token with a real deployed ERC20 token address ending in 7777, then rerun vault:check and regenerate E2E/package proof."
+      "fixAction": "Replace the manifest test token with a real deployed ERC20 token address ending in 7777 or 8888, then rerun vault:check and regenerate E2E/package proof."
     },
     "visual-policy/row-heavy-dashboard": {
       "severity": "blocking",
@@ -515,10 +515,10 @@
             "chainId": { "type": "integer", "description": "EVM chain ID. Example: 56 for BNB Chain mainnet, 97 for testnet." },
             "factoryAddress": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$", "description": "Non-zero, non-placeholder factory contract address on this chain for factory-scoped UI. For mainnet production, collect the final real factory address early and pair package proof with a testnet token when possible." },
             "vaultAddresses": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }, "description": "Vault address list for this binding. If provided without factoryAddress, it must contain exactly one non-zero, non-placeholder address." },
-            "tokenAddresses": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}7777$" }, "description": "Binding-scoped token list for Workbench/vault:e2e proof or no-factory token scoping; every token must be a real deployed ERC20 address ending in 7777. In factory mode this is not a production CA restriction. In no-factory mode this may be the binding target and may contain multiple non-zero, non-placeholder token addresses." }
+            "tokenAddresses": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}(?:7777|8888)$" }, "description": "Binding-scoped token list for Workbench/vault:e2e proof or no-factory token scoping; every token must be a real deployed ERC20 address ending in 7777 or 8888. In factory mode this is not a production CA restriction. In no-factory mode this may be the binding target and may contain multiple non-zero, non-placeholder token addresses." }
           }
         },
-        "description": "Explicit binding targets. Use chainId + factoryAddress for factory-scoped UI, chainId + exactly one vaultAddresses entry for Vault-scoped no-factory UI, or chainId + tokenAddresses for token-scoped no-factory UI. Complete factory-scoped input declares chain 97 with the real deployed 7777-suffix test token for Workbench/vault:e2e proof plus chain 56 with the final real mainnet factory binding."
+        "description": "Explicit binding targets. Use chainId + factoryAddress for factory-scoped UI, chainId + exactly one vaultAddresses entry for Vault-scoped no-factory UI, or chainId + tokenAddresses for token-scoped no-factory UI. Complete factory-scoped input declares chain 97 with the real deployed 7777/8888-suffix test token for Workbench/vault:e2e proof plus chain 56 with the final real mainnet factory binding."
       },
       "caRestrictionMode": {
         "type": "string",
@@ -530,8 +530,8 @@
         "type": "array",
         "required": true,
         "minItems": 1,
-        "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}7777$" },
-        "description": "Real deployed ERC20 tokens ending in 7777 used only for local preview, vault:check, vault:e2e, and Workbench package proof. These values are written under match.bindings[].tokenAddresses and do not by themselves restrict production CA."
+        "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}(?:7777|8888)$" },
+        "description": "Real deployed ERC20 tokens ending in 7777 or 8888 used only for local preview, vault:check, vault:e2e, and Workbench package proof. These values are written under match.bindings[].tokenAddresses and do not by themselves restrict production CA."
       },
       "productionFactoryAddress": {
         "type": "string",
@@ -649,7 +649,7 @@
     },
     {
       "step": "create-source-package",
-      "description": "Use scaffold-first or manifest-first. For factory-scoped mainnet launch, use a real deployed 7777-suffix testnet token for --token and keep the final real mainnet factoryAddress in the production binding. Scaffold-first runs yarn vault:scaffold {folder-name} ...; manifest-first writes the four Vault files, then runs yarn vault:register {folder-name}."
+      "description": "Use scaffold-first or manifest-first. For factory-scoped mainnet launch, use a real deployed 7777/8888-suffix testnet token for --token and keep the final real mainnet factoryAddress in the production binding. Scaffold-first runs yarn vault:scaffold {folder-name} ...; manifest-first writes the four Vault files, then runs yarn vault:register {folder-name}."
     },
     {
       "step": "implement-vault-ui",

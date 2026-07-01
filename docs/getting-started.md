@@ -89,7 +89,7 @@ Recommended for AI agents and repeatable local setup:
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
-This creates the strict four-file package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`. Use a real deployed ERC20 test token ending in `7777` for package proof and keep the final real mainnet factory binding in the same manifest. In factory mode, `tokenAddresses` is not the production CA restriction; Workbench/registry owns `caRestrictionMode`.
+This creates the strict four-file package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`. Use a real deployed ERC20 test token ending in `7777` or `8888` for package proof and keep the final real mainnet factory binding in the same manifest. In factory mode, `tokenAddresses` is not the production CA restriction; Workbench/registry owns `caRestrictionMode`.
 
 `my-vault` is the folder name. It becomes both the source folder and the preview route. Folder names must use 3-64 characters of lowercase kebab-case: letters/numbers separated by single hyphens. Do not use spaces, underscores, uppercase letters, leading/trailing hyphens, or nested folders.
 
@@ -134,7 +134,7 @@ Use:
 - `@/src/ui` for Flap UI primitives.
 - `lucide-react` for icons before ad hoc SVG. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`).
 - `./VaultABI` as the only allowed local relative import.
-- `manifest.json` for required `artifactId`, match fields, i18n, at least one binding-scoped real `7777`-suffix `tokenAddresses` entry per manifest for Workbench/E2E testing, optional per-binding `externalContracts`, optional `layout: "fullscreen"` only when Flap explicitly asks for a full-screen Vault body, optional non-oracle endpoints, and optional reviewed `externalFrames`. Each binding needs `chainId` plus either non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry when there is no factory, or token-only binding via `tokenAddresses`; production CA restriction is Workbench/registry `caRestrictionMode`, not a manifest field.
+- `manifest.json` for required `artifactId`, match fields, i18n, at least one binding-scoped real `7777`/`8888`-suffix `tokenAddresses` entry per manifest for Workbench/E2E testing, optional per-binding `externalContracts`, optional `layout: "fullscreen"` only when Flap explicitly asks for a full-screen Vault body, optional non-oracle endpoints, and optional reviewed `externalFrames`. Each binding needs `chainId` plus either non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry when there is no factory, or token-only binding via `tokenAddresses`; production CA restriction is Workbench/registry `caRestrictionMode`, not a manifest field.
 
 Do not copy standard ERC20 ABI into `VaultABI.ts`. Add token ABI fragments there only when a token has custom non-standard methods or a special mechanism.
 
@@ -209,7 +209,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-The E2E command runs deterministic PC / iPad / H5 Playwright checks for default, internal-market, DEX-listed, and wrong-network states, then writes `dist/e2e/my-vault/qa-report.json`. It checks DOM/layout/state rules directly and does not require AI image judgment. It must use a real deployed `7777`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
+The E2E command runs deterministic PC / iPad / H5 Playwright checks for default, internal-market, DEX-listed, and wrong-network states, then writes `dist/e2e/my-vault/qa-report.json`. It checks DOM/layout/state rules directly and does not require AI image judgment. It must use a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 On a first local run, especially on Windows, install Chromium once if Playwright reports a missing browser:
 
 ```bash

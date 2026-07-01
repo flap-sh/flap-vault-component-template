@@ -2,7 +2,8 @@ import { createPublicClient, erc20Abi, http } from "viem";
 import { bsc, bscTestnet } from "viem/chains";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
-export const REQUIRED_TEST_TOKEN_SUFFIX = "7777";
+export const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
+export const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
 const DEFAULT_RPC_URLS = {
   56: ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
   97: ["https://data-seed-prebsc-1-s1.binance.org:8545", "https://bsc-testnet-rpc.publicnode.com"],
@@ -14,7 +15,7 @@ const CHAIN_BY_ID = {
 const TOKEN_VALIDATION_FIX_HINT =
   "Replace the token address with a real deployed ERC20 contract on the declared chain, rerun yarn vault:check <folder-name>, then regenerate E2E/package proof.";
 const TOKEN_SUFFIX_FIX_HINT =
-  "Replace the test token with a real deployed ERC20 token address ending in 7777, rerun yarn vault:check <folder-name>, then regenerate E2E/package proof.";
+  `Replace the test token with a real deployed ERC20 token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun yarn vault:check <folder-name>, then regenerate E2E/package proof.`;
 
 function envValue(name) {
   const value = process.env[name];
@@ -26,7 +27,8 @@ export function normalizeTokenAddress(value) {
 }
 
 export function hasRequiredTestTokenSuffix(value) {
-  return Boolean(normalizeTokenAddress(value)?.toLowerCase().endsWith(REQUIRED_TEST_TOKEN_SUFFIX));
+  const address = normalizeTokenAddress(value)?.toLowerCase();
+  return Boolean(address && REQUIRED_TEST_TOKEN_SUFFIXES.some((suffix) => address.endsWith(suffix)));
 }
 
 function chainRpcCandidates(chainId) {

@@ -411,7 +411,7 @@ async function main() {
       {
         code: "cli/missing-folder-name",
         fixHint:
-          "Provide a lowercase kebab-case folder name, a real binding target, and a real deployed ERC20 manifest test token ending in 7777. Example: yarn vault:scaffold my-vault --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory.",
+          "Provide a lowercase kebab-case folder name, a real binding target, and a real deployed ERC20 manifest test token ending in 7777 or 8888. Example: yarn vault:scaffold my-vault --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory.",
       },
     );
   }
@@ -479,7 +479,7 @@ async function main() {
   if (tokenValues.length === 0) {
     fail("At least one --token address is required so manifest.json carries a Workbench/vault:e2e test token.", {
       code: "manifest-binding/missing-test-token",
-      fixHint: "Pass at least one --token 0xReal7777TestToken. It must be a real deployed ERC20 address ending in 7777. Prefer --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory; do not use random mainnet token CAs as production restrictions.",
+      fixHint: "Pass at least one --token 0xReal7777TestToken. It must be a real deployed ERC20 address ending in 7777 or 8888. Prefer --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory; do not use random mainnet token CAs as production restrictions.",
       chainCount: chainValues.length,
     });
   }
@@ -533,7 +533,7 @@ async function main() {
     if (address.toLowerCase() === ZERO_ADDRESS) {
       fail(`Invalid zero address: ${address}`, {
         code: "manifest-binding/invalid-address",
-        fixHint: "Use a real deployed Vault or test token address. At least one real 7777-suffix token address is required in manifest tokenAddresses for package proof.",
+        fixHint: "Use a real deployed Vault or test token address. At least one real 7777/8888-suffix token address is required in manifest tokenAddresses for package proof.",
         address,
       });
     }

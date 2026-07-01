@@ -4,11 +4,10 @@ import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
-import { collectManifestErc20TokenIssues } from "./erc20-token-validation.mjs";
+import { collectManifestErc20TokenIssues, hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX } from "./erc20-token-validation.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
-const REQUIRED_TEST_TOKEN_SUFFIX = "7777";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
@@ -197,8 +196,8 @@ const FIX_HINTS = {
   "manifest-binding/mixed-chain-scope": "Do not split one chain into factory and no-factory bindings. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
-  "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
-  "manifest-binding/invalid-test-token-suffix": "Use a real deployed ERC20 test token address ending in 7777. Non-7777 tokenAddresses are not accepted as package proof.",
+  "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 or 8888 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
+  "manifest-binding/invalid-test-token-suffix": "Use a real deployed ERC20 test token address ending in 7777 or 8888. Non-7777/8888 tokenAddresses are not accepted as package proof.",
   "manifest-binding/invalid-erc20-token": "Use a real deployed ERC20 token contract on the declared chain. The checker must read bytecode plus standard ERC20 metadata before packaging.",
   "manifest-binding/invalid-vault-address-list": "Use a non-empty array of valid non-zero EVM addresses. No-factory Vault bindings may contain exactly one Vault address.",
   "manifest-binding/invalid-token-address-list": "Use a non-empty array of valid non-zero EVM addresses, or omit it when no token CA list is needed.",
@@ -2166,10 +2165,6 @@ function placeholderAddressLabel(value) {
   return normalized ? RESERVED_PLACEHOLDER_ADDRESSES.get(normalized) : undefined;
 }
 
-function hasRequiredTestTokenSuffix(value) {
-  return Boolean(normalizeAddress(value)?.endsWith(REQUIRED_TEST_TOKEN_SUFFIX));
-}
-
 function placeholderAddressIssue(field, value) {
   const label = placeholderAddressLabel(value) || "template placeholder";
   return issue(
@@ -2624,7 +2619,7 @@ function checkManifest(manifest, folderName) {
           issue(
             BLOCKING,
             "manifest-binding/missing-test-token",
-            "manifest.match.bindings must declare at least one real deployed 7777-suffix tokenAddresses entry for Workbench/vault:e2e test coverage. Local vault:e2e --token overrides do not satisfy vault:check, and production CA restrictions belong in Workbench/registry caRestrictionMode configuration.",
+            `manifest.match.bindings must declare at least one real deployed ${REQUIRED_TEST_TOKEN_SUFFIX}-suffix tokenAddresses entry for Workbench/vault:e2e test coverage. Local vault:e2e --token overrides do not satisfy vault:check, and production CA restrictions belong in Workbench/registry caRestrictionMode configuration.`,
             { field: "match.bindings[].tokenAddresses", required: "at least one tokenAddresses entry" },
           ),
         );

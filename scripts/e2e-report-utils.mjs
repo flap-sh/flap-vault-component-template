@@ -13,7 +13,8 @@ export const REQUIRED_VIEWPORTS = ["pc", "ipad", "h5"];
 export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
-const REQUIRED_TEST_TOKEN_SUFFIX = "7777";
+const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
+const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
   ["0x2000000000000000000000000000000000000002", "template token placeholder"],
@@ -39,7 +40,7 @@ export function placeholderAddressLabel(value) {
 
 function validTestToken(value) {
   const address = normalizeAddress(value);
-  return address && !placeholderAddressLabel(address) && address.toLowerCase().endsWith(REQUIRED_TEST_TOKEN_SUFFIX) ? address : undefined;
+  return address && !placeholderAddressLabel(address) && REQUIRED_TEST_TOKEN_SUFFIXES.some((suffix) => address.toLowerCase().endsWith(suffix)) ? address : undefined;
 }
 
 export function requiredSourcePaths(folderName) {

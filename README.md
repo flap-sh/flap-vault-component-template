@@ -22,7 +22,7 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 - Flap-owned taxinfo/feeinfo host context for token state, tax info, VaultPortal info, deployment binding, fee mode, and render surface.
 - Flap preview shell with real RainbowKit/wagmi wallet connect, chain switching, and Flap language preference behavior.
 - Packaged Vault artifacts that contain only the Vault-specific business UI below the host shell/frame; preview shell/header UI stays outside the package.
-- Minimal manifest declaration for deployment binding intent, i18n, and unavoidable non-oracle endpoints. Any binding-scoped `tokenAddresses`, including factory-mode entries, must be real deployed `7777`-suffix tokens; production CA restriction is a Workbench/registry decision, not a public manifest field.
+- Minimal manifest declaration for deployment binding intent, i18n, and unavoidable non-oracle endpoints. Any binding-scoped `tokenAddresses`, including factory-mode entries, must be real deployed `7777`/`8888`-suffix tokens; production CA restriction is a Workbench/registry decision, not a public manifest field.
 - External endpoints and external resources are discouraged. If a non-oracle endpoint is unavoidable, it may be predeclared in the manifest as a single HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it quickly; declaration does not guarantee approval.
 - Local preview before submission.
 - `vault:check` before packaging.
@@ -34,7 +34,7 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 
 This is the shortest safe path for a developer who wants AI help but still owns the Vault facts and local testing.
 
-1. Prepare real inputs: folder name, display name, binding targets, factory address or single Vault address, `caRestrictionMode`, real deployed `7777`-suffix manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses. For factory-scoped mainnet launch, collect both the testnet proof binding and the final real mainnet factory address early.
+1. Prepare real inputs: folder name, display name, binding targets, factory address or single Vault address, `caRestrictionMode`, real deployed `7777`/`8888`-suffix manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses. For factory-scoped mainnet launch, collect both the testnet proof binding and the final real mainnet factory address early.
 2. Give those inputs to an AI Agent with this repository context. If the AI cannot read the repo directly, generate a pasteable context pack:
 
 ```bash
@@ -73,7 +73,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a real deployed `7777`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
+`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 
 First-time local machines, especially Windows machines, may need to install the Playwright browser once:
 
@@ -140,7 +140,7 @@ Built-in examples:
 - `community-buyback-example`: live CA Store example bound to a real Community Approved Buyback token/factory on BNB.
 - `flapixel-example`: live CA Store example bound to a real FLAPixel NFT vault token/factory on BNB.
 
-Built-in examples now use real `7777`-suffix BNB token/factory bindings for package proof. `example`, `dex-listed-example`, and `action-gallery-example` remain workflow fixtures; `community-buyback-example` and `flapixel-example` are reviewed live host/runtime examples. `yarn preview:smoke:real` checks the live routes plus their host-presentation proxy responses, and `yarn ci` runs that live regression as part of the default validation spine. For local testing against another reviewed CA Store / Store factory, pass real runtime values through preview URL params such as `chainId`, `factoryAddress`, `tokenAddress`, and `vaultAddress`; for no-factory testing, pass `chainId`, `vaultAddress`, and optional `tokenAddress` without `factoryAddress`. On supported preview chains, the shell then reads the real Portal `getTokenV7` state and, when available, the tax helper / VaultPortal state for that token. Manual `marketPhase` / `isListed` params remain explicit overrides for UI QA, not the default source of truth. In the preview panel, `Real` restores the live host phase while `Internal` and `Listing` apply temporary overrides; `unknown` can still appear in runtime readout when host data is missing, but it is no longer a primary phase tab.
+Built-in examples now use real `7777`/`8888`-suffix BNB token/factory bindings for package proof. `example`, `dex-listed-example`, and `action-gallery-example` remain workflow fixtures; `community-buyback-example` and `flapixel-example` are reviewed live host/runtime examples. `yarn preview:smoke:real` checks the live routes plus their host-presentation proxy responses, and `yarn ci` runs that live regression as part of the default validation spine. For local testing against another reviewed CA Store / Store factory, pass real runtime values through preview URL params such as `chainId`, `factoryAddress`, `tokenAddress`, and `vaultAddress`; for no-factory testing, pass `chainId`, `vaultAddress`, and optional `tokenAddress` without `factoryAddress`. On supported preview chains, the shell then reads the real Portal `getTokenV7` state and, when available, the tax helper / VaultPortal state for that token. Manual `marketPhase` / `isListed` params remain explicit overrides for UI QA, not the default source of truth. In the preview panel, `Real` restores the live host phase while `Internal` and `Listing` apply temporary overrides; `unknown` can still appear in runtime readout when host data is missing, but it is no longer a primary phase tab.
 
 After registering another Vault folder name in `src/vaults/index.ts`, preview it with:
 
@@ -251,7 +251,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddr
 
 Replace placeholder addresses with real deployment addresses before running the command. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses so a source package with a fake factory or Vault cannot enter Workbench publish by accident.
 
-This creates the strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes real `7777`-suffix token(s) under `match.bindings[].tokenAddresses` when token proof or no-factory token scoping is needed. In factory mode, those token addresses are not production CA restrictions; Flap Workbench/registry owns final publish routing through `caRestrictionMode`.
+This creates the strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes real `7777`/`8888`-suffix token(s) under `match.bindings[].tokenAddresses` when token proof or no-factory token scoping is needed. In factory mode, those token addresses are not production CA restrictions; Flap Workbench/registry owns final publish routing through `caRestrictionMode`.
 
 If the four Vault files already exist because they were generated from a manifest first, register only the local preview mapping:
 
@@ -290,14 +290,14 @@ yarn vault:scaffold my-vault --name "My Vault UI" \
   --chain 56 --factory 0xMainnetFactory
 ```
 
-For testnet-only development, include the real `7777`-suffix package test token on that binding and add the final real mainnet factory binding before treating the manifest as mainnet-ready:
+For testnet-only development, include the real `7777`/`8888`-suffix package test token on that binding and add the final real mainnet factory binding before treating the manifest as mainnet-ready:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
   --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken
 ```
 
-For no-factory mode, repeat `--chain` / `--vault` per target and use real `7777`-suffix test tokens for package proof:
+For no-factory mode, repeat `--chain` / `--vault` per target and use real `7777`/`8888`-suffix test tokens for package proof:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" \
@@ -395,7 +395,7 @@ Use `yarn vault:verify-package <zip>` to exercise the same package acceptance sh
 
 The Flap Artifact Workbench uses `artifactId` as the stable source-package artifact identity. The folder name remains the local source folder and preview route. Runtime build versions and storage paths are Workbench concerns; developers still do not declare runtime version in `manifest.json`.
 
-One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Any binding-scoped `tokenAddresses` entry, including factory-mode proof tokens, must be a real deployed ERC20 address ending in `7777`. In factory mode, production CA restriction is `caRestrictionMode` in Workbench/registry, not a manifest CA policy field.
+One shared artifact can declare one or more factory-scoped `chainId + factoryAddress` binding entries, one or more no-factory `chainId + vaultAddress` entries, or one or more no-factory `chainId + tokenAddress` entries. In no-factory mode, a binding can be Vault-scoped with exactly one Vault address, token-scoped with one or more token addresses, or Vault + token scoped with one Vault address and multiple token addresses. Any binding-scoped `tokenAddresses` entry, including factory-mode proof tokens, must be a real deployed ERC20 address ending in `7777` or `8888`. In factory mode, production CA restriction is `caRestrictionMode` in Workbench/registry, not a manifest CA policy field.
 
 Vault source should import shared runtime surfaces through public aliases:
 

@@ -28,6 +28,7 @@ const NON_7777_TOKEN = "0x55d398326f99059fF775485246999027B3197955";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TOKEN = "0x091652ebc0a0238d7151a868f22d7cfd2a267777";
 const SECOND_TOKEN = "0x6BcC641D1eF33c4d7A2C9536a3E0356F77Ff7777";
+const TOKEN_8888 = "0x3000000000000000000000000000000000008888";
 const VAULT = "0x3000000000000000000000000000000000000003";
 const EXTERNAL_CONTRACT = "0x4000000000000000000000000000000000000004";
 const FIXTURE_ULID = "01K9V9Z0P0AAAAAAAAAAAAAAAA";
@@ -232,7 +233,7 @@ try {
     assertRule(`manifest layout ${invalidLayout} is blocked`, runVaultCheck(invalidLayoutSlug, { silent: true }), "manifest-schema/invalid-layout", "blocking");
   }
 
-  const non7777TestTokenSlug = `${FIXTURE_PREFIX}-non-7777-test-token`;
+  const non7777TestTokenSlug = `${FIXTURE_PREFIX}-non-allowed-suffix-test-token`;
   writeVault(non7777TestTokenSlug, {
     manifest: baseManifest({
       match: {
@@ -240,7 +241,17 @@ try {
       },
     }),
   });
-  assertRule("manifest test tokens must end in 7777", runVaultCheck(non7777TestTokenSlug, { silent: true }), "manifest-binding/invalid-test-token-suffix", "blocking");
+  assertRule("manifest test tokens must end in 7777 or 8888", runVaultCheck(non7777TestTokenSlug, { silent: true }), "manifest-binding/invalid-test-token-suffix", "blocking");
+
+  const suffix8888TestTokenSlug = `${FIXTURE_PREFIX}-suffix-8888-test-token`;
+  writeVault(suffix8888TestTokenSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
+  assertNoRule("8888 manifest test tokens pass suffix validation", runVaultCheck(suffix8888TestTokenSlug, { silent: true }), "manifest-binding/invalid-test-token-suffix", "blocking");
 
   const missingTestTokenSlug = `${FIXTURE_PREFIX}-missing-test-token`;
   writeVault(missingTestTokenSlug, {
@@ -324,7 +335,17 @@ export default function SelftestVault(_props: VaultComponentProps) {
       },
     }),
   );
-  passed.push("vault:e2e selection rejects non-7777 test tokens");
+  passed.push("vault:e2e selection rejects non-7777/8888 test tokens");
+
+  assert.equal(
+    selectE2EBinding({
+      match: {
+        bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [TOKEN_8888] }],
+      },
+    }).tokenAddress,
+    TOKEN_8888,
+  );
+  passed.push("vault:e2e selection accepts 8888 test tokens");
 
   const invalidErc20TokenSlug = `${FIXTURE_PREFIX}-invalid-erc20-token`;
   createdFolderNames.push(invalidErc20TokenSlug);
@@ -2396,12 +2417,12 @@ export default function SelftestVault(_props: VaultComponentProps) {
   passed.push("scaffold rejects template placeholder token input");
 
   assert.throws(() =>
-    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-non-7777-token-scaffold`, "--chain", "56", "--factory", FACTORY, "--token", NON_7777_TOKEN, "--locales", "en"], {
+    execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-non-allowed-suffix-token-scaffold`, "--chain", "56", "--factory", FACTORY, "--token", NON_7777_TOKEN, "--locales", "en"], {
       cwd: ROOT,
       stdio: "pipe",
     }),
   );
-  passed.push("scaffold rejects non-7777 test token input");
+  passed.push("scaffold rejects non-7777/8888 test token input");
 
   assert.throws(() =>
     execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", `${FIXTURE_PREFIX}-invalid-erc20-token-scaffold`, "--chain", "56", "--factory", FACTORY, "--token", NON_ERC20_TOKEN, "--locales", "en"], {

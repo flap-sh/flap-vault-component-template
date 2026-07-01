@@ -108,7 +108,7 @@ Before writing code:
 3. Confirm which reference example is closest to my use case and why.
 4. Use the scaffold default surface / NiePan-style abstract template from docs/ui-pattern-snippets.md as the visual default whenever I did not specify a UI style; use examples for behavior, not for visual styling.
 5. Confirm actionAvailabilityStage as one of internal-market, dex-listed, both, or read-only.
-6. Confirm testTokenAddresses separately from caRestrictionMode. Any manifest match.bindings[].tokenAddresses, including factory binding entries, must be real deployed ERC20 addresses ending in 7777; factory-mode tokenAddresses are package proof tokens, not production CA restrictions.
+6. Confirm testTokenAddresses separately from caRestrictionMode. Any manifest match.bindings[].tokenAddresses, including factory binding entries, must be real deployed ERC20 addresses ending in 7777 or 8888; factory-mode tokenAddresses are package proof tokens, not production CA restrictions.
 7. After inputs are complete, generate only the allowed four Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json.
 8. Keep the first screen to one compact business card, at most one small metric strip, one primary action panel, and lower compact runtime details. Do not generate row-heavy overview/dividend/staking dashboard stacks.
 9. If the user provides an external visual reference such as 涅槃, extract section hierarchy, density, spacing, and interaction emphasis only; do not copy private code, constants, addresses, endpoints, or assets.
