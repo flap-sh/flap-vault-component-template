@@ -149,6 +149,7 @@ Use:
 - `docs/ui-pattern-snippets.md` to choose section order, metric grids, action panels, transaction states, and empty/error states.
 - The scaffold default surface as the preferred visual starting point. Built-in examples are behavior references; do not copy their visual layout as the default.
 - For `manifest.mode: "mini-app"`, put a full-height class or inline height on the outermost returned layout element, for example `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full`.
+- Local preview uses separate host shells: default Vault UI packages keep the existing Vault Information shell, and `manifest.mode: "mini-app"` packages render inside the beta `/mini-app`-style shell with zero factory/Vault runtime addresses plus artifact-area fullscreen.
 - An explicit action availability stage: `internal-market`, `dex-listed`, `both`, or `read-only`.
 - `context.host?.marketPhase` as the stage source of truth. The current template preview host provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
 - `readTaxVaultHostContext(context.host)` as the normalized public SDK accessor for custom Vault host state. Custom Vault UI in this template targets the tax-token path, so the live runtime fields that matter are `marketPhase`, `isListed`, and host-injected token metadata rather than ad hoc token-type props.

@@ -93,3 +93,15 @@ textarea:-webkit-autofill:focus {
   position: relative;
   z-index: 1;
 }
+
+.mini-app-artifact-shell:fullscreen {
+  background: #1d1d1d;
+  height: 100vh;
+  width: 100vw;
+}
+
+.mini-app-artifact-shell:fullscreen .mini-app-artifact-content {
+  height: 100vh;
+  max-height: 100vh;
+  width: 100vw;
+}

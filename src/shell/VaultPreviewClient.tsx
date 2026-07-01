@@ -5,6 +5,7 @@ import type { VaultComponentProps, VaultManifest } from "@/src/sdk";
 import { useLang } from "@/src/i18n/useLang";
 import { Alert } from "@/src/ui/Alert";
 import { FlapPreviewShell } from "./FlapPreviewShell";
+import { MiniAppPreviewShell } from "./MiniAppPreviewShell";
 import { vaultModules } from "@/src/vaults";
 
 interface LoadedVault {
@@ -61,9 +62,10 @@ export function VaultPreviewClient({ folderName }: { folderName: string }) {
   }
 
   const { Component, manifest, i18n } = loaded;
+  const Shell = manifest.mode === "mini-app" ? MiniAppPreviewShell : FlapPreviewShell;
   return (
-    <FlapPreviewShell folderName={folderName} manifest={manifest} i18n={i18n}>
+    <Shell folderName={folderName} manifest={manifest} i18n={i18n}>
       <Component />
-    </FlapPreviewShell>
+    </Shell>
   );
 }
