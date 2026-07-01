@@ -1454,6 +1454,55 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertRule("non-vault token nft contract labels are blocked", contractBoundaryCheck, "contract-boundary/disallowed-contract-label", "blocking");
   assertRule("undeclared fixed contract addresses are blocked", contractBoundaryCheck, "contract-boundary/undeclared-contract-address", "blocking");
 
+  const operatorMethodSlug = `${FIXTURE_PREFIX}-operator-method`;
+  writeVault(operatorMethodSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.simulateContract({
+    contract: "vault",
+    address: sdk.context.vaultAddress,
+    abi: [],
+    functionName: "setSplit",
+    args: [5000],
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("operator config methods are blocked from Vault UI", runVaultCheck(operatorMethodSlug, { silent: true }), "contract-boundary/operator-method-exposed", "blocking");
+
+  const vaultProxyActionSlug = `${FIXTURE_PREFIX}-vault-proxy-action`;
+  writeVault(vaultProxyActionSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.simulateContract({
+    contract: "vault",
+    address: sdk.context.vaultAddress,
+    abi: [],
+    functionName: "resolveDividend",
+  });
+  void sdk.simulateContract({
+    contract: "vault",
+    address: sdk.context.vaultAddress,
+    abi: [],
+    functionName: "swapAndDeposit",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule("Vault user-facing proxy actions stay allowed", runVaultCheck(vaultProxyActionSlug, { silent: true }), "contract-boundary/operator-method-exposed", "blocking");
+
   const derivedTokenAddressSlug = `${FIXTURE_PREFIX}-derived-token-address`;
   writeVault(derivedTokenAddressSlug, {
     component: `"use client";
@@ -2247,6 +2296,79 @@ export default function SelftestVault(_props: VaultComponentProps) {
     i18n: { en: { "labels.balance": "Balance", "risk.missing": "Risk status missing", "state.ready": "Ready" } },
   });
   assertNoRule("risk status in the third business UI row is accepted", runVaultCheck(riskThirdRowSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+
+  execFileSync(process.execPath, ["scripts/vault-e2e.mjs"], {
+    cwd: ROOT,
+    env: { ...process.env, VAULT_E2E_CONSOLE_FILTER_SELFTEST: "1" },
+    stdio: "pipe",
+  });
+  passed.push("vault:e2e console filter ignores transient network-changed resource errors only");
+
+  const rowHeavyDashboardSlug = `${FIXTURE_PREFIX}-row-heavy-dashboard`;
+  writeVault(rowHeavyDashboardSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, Button, Card, CardContent, CardHeader, CardTitle, DetailTile, Metric, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+  return (
+    <div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{i18n.t("title")}</CardTitle>
+          <StatusBadge tone={riskLevel === null ? "danger" : "success"}>{riskLabel}</StatusBadge>
+        </CardHeader>
+        <CardContent>
+          {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+          <Metric label={i18n.t("labels.a")} value="1" />
+          <Metric label={i18n.t("labels.b")} value="2" />
+          <Metric label={i18n.t("labels.c")} value="3" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
+          <DetailTile label={i18n.t("labels.d")} value="4" />
+          <DetailTile label={i18n.t("labels.e")} value="5" />
+          <DetailTile label={i18n.t("labels.f")} value="6" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
+          <DetailTile label={i18n.t("labels.g")} value="7" />
+          <DetailTile label={i18n.t("labels.h")} value="8" />
+          <Button>{i18n.t("actions.submit")}</Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+`,
+    i18n: {
+      en: {
+        "actions.submit": "Submit",
+        "labels.a": "A",
+        "labels.b": "B",
+        "labels.c": "C",
+        "labels.d": "D",
+        "labels.e": "E",
+        "labels.f": "F",
+        "labels.g": "G",
+        "labels.h": "H",
+        "risk.missing": "Risk status missing",
+        title: "Selftest",
+      },
+    },
+  });
+  assertRule("row-heavy dashboard layouts are blocked for new Vault UI", runVaultCheck(rowHeavyDashboardSlug, { silent: true }), "visual-policy/row-heavy-dashboard", "blocking");
 
   const scaffoldFlowSlug = `${FIXTURE_PREFIX}-flow`;
   assert.throws(() =>

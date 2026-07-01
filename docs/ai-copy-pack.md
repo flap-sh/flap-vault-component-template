@@ -62,7 +62,7 @@ src/vaults/{example-folder}/i18n.json
 Do not treat example addresses as endorsements or production binding instructions. For a real Vault UI, collect the actual chain/factory bindings and preview addresses from the user.
 Do not copy the built-in examples' visual layout as the default. They are state-flow references; new UIs must start from the scaffold default surface / NiePan-style abstract template and the snippets in `docs/ui-pattern-snippets.md` unless the developer explicitly requests another UI style.
 
-Hard visual rule: the first screen should be one compact business card with a mechanism/status header, at most one small metric strip, one primary action panel, and runtime details pushed lower. Do not generate row-heavy dashboard stacks such as overview cards plus dividend cards plus staking cards before the action.
+Hard visual rule: the first screen should be one compact business card with a mechanism/status header, at most one small metric strip, one primary action panel, and runtime details pushed lower. Do not generate row-heavy dashboard stacks such as overview cards plus dividend cards plus staking cards before the action; `vault:check` blocks that shape for new Vault folders.
 
 If the user gives an external visual reference such as 涅槃, translate it into section hierarchy, density, spacing, and interaction emphasis only. Rebuild with this template's SDK/UI primitives and do not copy private code, constants, addresses, endpoints, or assets.
 

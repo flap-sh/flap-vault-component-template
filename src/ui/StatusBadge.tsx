@@ -4,15 +4,15 @@ import { cn } from "./utils";
 export type StatusTone = "neutral" | "success" | "warning" | "danger";
 
 const toneClass: Record<StatusTone, string> = {
-  neutral: "border-[#5d6f86] bg-[#2d3b50] text-[#d8e2ef]",
-  success: "border-[#35d39d]/45 bg-[#176755]/55 text-[#78f2bf]",
-  warning: "border-[#f2c94c]/45 bg-[#59451f]/55 text-[#ffe08a]",
-  danger: "border-[#ff6b6b]/45 bg-[#5f2027]/55 text-[#ffb2b2]",
+  neutral: "border-[#303236] bg-black text-[#D4D4D4]",
+  success: "border-[#D0FF00]/65 bg-[#101400] text-[#D0FF00]",
+  warning: "border-[#FFD166]/55 bg-[#1A1305] text-[#FFD166]",
+  danger: "border-[#FF4A55]/65 bg-[#1D0709] text-[#FF8A91]",
 };
 
 export function StatusBadge({ children, tone = "neutral" }: { children: ReactNode; tone?: StatusTone }) {
   return (
-    <span data-flap-ui="status-badge" className={cn("inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold leading-none", toneClass[tone])}>
+    <span data-flap-ui="status-badge" className={cn("inline-flex items-center rounded-[6px] border px-2.5 py-1 text-xs font-semibold uppercase leading-none", toneClass[tone])}>
       {children}
     </span>
   );

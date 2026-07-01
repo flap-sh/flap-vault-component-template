@@ -5,10 +5,10 @@ import { cn } from "./utils";
 type AlertTone = "info" | "success" | "warning" | "danger";
 
 const toneClass: Record<AlertTone, string> = {
-  info: "border-[#3f5f8f] bg-[#17243a] text-[#d8e2ef]",
-  success: "border-[#35d39d]/35 bg-[#173c39] text-[#8ff4c8]",
-  warning: "border-[#f2c94c]/35 bg-[#42381f] text-[#fff0b8]",
-  danger: "border-[#ff6b6b]/35 bg-[#4a1f27] text-[#ffc4c4]",
+  info: "border-[#303236] bg-black text-[#D4D4D4]",
+  success: "border-[#D0FF00]/45 bg-[#101400] text-[#D0FF00]",
+  warning: "border-[#FFD166]/45 bg-[#1A1305] text-[#FFD166]",
+  danger: "border-[#FF4A55]/55 bg-[#1D0709] text-[#FF8A91]",
 };
 
 const iconMap = {
@@ -21,7 +21,7 @@ const iconMap = {
 export function Alert({ children, tone = "info", className }: { children: ReactNode; tone?: AlertTone; className?: string }) {
   const Icon = iconMap[tone];
   return (
-    <div data-flap-ui="alert" className={cn("flex gap-3 rounded-md border p-3 text-sm font-medium leading-6", toneClass[tone], className)}>
+    <div data-flap-ui="alert" className={cn("flex gap-3 rounded-[6px] border p-3 text-sm font-medium leading-6", toneClass[tone], className)}>
       <Icon className="mt-0.5 h-4 w-4 shrink-0 opacity-90" />
       <div className="min-w-0 break-words">{children}</div>
     </div>

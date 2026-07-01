@@ -29,6 +29,8 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Remote image URLs inside Vault source. Immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid` and pass `vault:check`.
 - Arbitrary external navigation or hardcoded off-site jumps that are not the current chain explorer.
 - Contract reads/writes, event watches, log/filter calls, or gas estimates to unrelated contracts such as routers, bridges, aggregators, or other app contracts outside the Vault/token/NFT/factory/declaration boundary.
+- Direct calls to dynamic module contracts such as wrap factories, routers, dividend distributors, staking wrappers, or trigger helpers when the same workflow can be exposed as Vault UI-facing views or public proxy actions on `context.vaultAddress`.
+- Operator/admin configuration methods such as `setConfig`, `setSwapPath`, and `setSplit` exposed from `Component.tsx`.
 - Binding by unreliable type fields.
 - Reimplementing Flap host preflight for taxinfo/feeinfo type mapping, fee mode detection, or deployment binding inside a submitted Vault component.
 - Extra files, folders, local utility modules, or local component modules inside the Vault package.
@@ -48,6 +50,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Reading Flap-provided `context.host` values for token info, parsed tax info, VaultPortal info, fee mode, render surface, and registry-selected Vault type.
 - `sdk.readOracle(...)` only when the Flap Artifact Workbench/runtime can review and provision the oracle id.
 - SDK contract writes using runtime context addresses such as `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress`, plus token/NFT addresses derived from runtime context or Vault reads and fixed targets declared in `match.bindings[].externalContracts`.
+- UI-facing Vault views and public proxy actions called through `context.vaultAddress`, including read-only state helpers and gated resolve/claim/deposit flows. Keep router/wrap/dividend/staking internals behind the Vault contract.
 - Explorer links through `context.explorerBaseUrl`, `AddressLink`, `sdk.openExplorerTx(...)`, or reviewed `window.open` calls that target `context.explorerBaseUrl` address/transaction URLs with `noopener` or `noreferrer`.
 - Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images may use only `IpfsImage` or `IpfsBackground` with a static image CID verified through the allowed Flap IPFS gateways.
 - One display-only `ReviewedFrame` chart from `@/src/ui` only when the exact static provider URL is declared in `manifest.externalFrames` and approved by Flap review.
@@ -60,6 +63,7 @@ If an NFT metadata base URL or another reviewed non-oracle host must be fetched 
 Declared external frames are review candidates, not automatic approvals. Avoid them by default. If a display-only market chart is unavoidable, declare at most one entry in `manifest.externalFrames` with `id`, `provider`, `src`, and `title`, then render it only through one `ReviewedFrame`. Providers are limited to TradingView, DexScreener, and CoinGecko Terminal/GeckoTerminal exact origins. Frame URLs must be complete static HTTPS URLs with fixed non-empty query strings; more than one `ReviewedFrame`, dynamic URL construction, credentials, hashes, `srcDoc`, postMessage integration, wallet connection, and frame-driven quotes/risk/settlement/transactions are rejected. Frame declarations do not allow `fetch(...)`, navigation, scripts, images, or other external resources.
 
 Declared external contracts are also review candidates, not automatic approvals. Avoid them by default. If a special fixed contract target is unavoidable and is not the runtime token, Vault, factory, or binding-scoped token/Vault reference, declare it under the relevant `match.bindings[].externalContracts` entry with `address` and `label`. Undeclared fixed contract targets are rejected by `vault:check`.
+Do not use `externalContracts` for dynamic addresses learned from Vault state, such as module factories, routers, dividend contracts, or wrappers. If the UI needs those values, add a Vault view or user-facing Vault proxy method instead.
 
 ## Media
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 29,
+  "version": 31,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -122,7 +122,7 @@
     "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
   },
   "securityBoundaries": {
-    "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
+    "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. For complex Vault modules, expose UI-facing views and public proxy actions on the Vault contract, then call those methods through context.vaultAddress. Do not interact with routers, bridges, aggregators, dynamic module contracts, or unrelated app contracts from a Vault package, and do not expose operator/admin config methods such as setConfig, setSwapPath, or setSplit in Component.tsx.",
     "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation.",
     "externalFrameBoundaryRule": "ReviewedFrame is the only iframe path and may be used at most once per Vault UI. External frames are display-only review candidates and must not connect wallets, drive quotes, route trades, influence risk/settlement, receive postMessage data, or replace SDK/on-chain/oracle reads.",
     "canvasRule": "Canvas is allowed only as a component-scoped business visualization inside the Vault body. Use a React ref with local or SDK/host-derived data, keep required host risk status before large canvas visuals, and do not turn the package into a free-form whiteboard/editor or rely on browser-global DOM queries, workers, direct browser network/media APIs, or external assets.",
@@ -161,6 +161,7 @@
   },
   "checkerWarnings": {
     "manual-review/action-stage-gating": "Component has a write path but no marketPhase or isActionAvailableForPhase usage. Add explicit internal-market / DEX-listed button gating and visible unavailable-state copy.",
+    "visual-policy/row-heavy-dashboard": "Component uses a row-heavy dashboard shape. Replace stacked sample cards and large metric grids with the scaffold default surface / NiePan-style compact template.",
     "risk-status/missing-host-risk-state": "Component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add riskLevel handling and a prominent unavailable-risk warning.",
     "risk-status/not-prominent-placement": "Component renders host risk status too low in the Vault business UI or after a large visual block. Move it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block.",
     "risk-status/manual-low-risk-label": "Component renders Low risk / 低风险 copy without selecting it from host riskLevel === 1. Remove the manual label or map the host-derived risk level explicitly."
@@ -285,6 +286,10 @@
     "manifest-binding/invalid-test-token-suffix": {
       "severity": "blocking",
       "fixAction": "Replace the manifest test token with a real deployed ERC20 token address ending in 7777, then rerun vault:check and regenerate E2E/package proof."
+    },
+    "visual-policy/row-heavy-dashboard": {
+      "severity": "blocking",
+      "fixAction": "Use the scaffold default surface / NiePan-style compact template: one primary business card, a small metric strip, one visible primary action panel, and compact runtime facts lower in the card."
     },
     "risk-status/missing-host-risk-state": {
       "severity": "blocking",
@@ -449,6 +454,10 @@
     "contract/undeclared-address": {
       "severity": "blocking",
       "fixAction": "Declare intentional fixed non-token/non-Vault/non-factory contract targets under match.bindings[].externalContracts, or replace the target with a runtime context address."
+    },
+    "contract-boundary/operator-method-exposed": {
+      "severity": "blocking",
+      "fixAction": "Remove operator/admin configuration calls from Component.tsx. Expose only user-facing Vault methods such as read-only views, resolve/claim/deposit flows, and leave setConfig, setSwapPath, setSplit, and similar controls to reviewed operator tooling."
     },
     "i18n/missing-locale": {
       "severity": "blocking",

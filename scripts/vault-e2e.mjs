@@ -143,6 +143,20 @@ function isMissingPlaywrightBrowser(error) {
   return /Executable doesn't exist|Looks like Playwright was just installed or updated|Please run.*playwright install|playwright install chromium/i.test(message);
 }
 
+function isBlockingConsoleMessage(message) {
+  if (message.type !== "error") return false;
+  return !/^Failed to load resource: net::ERR_NETWORK_CHANGED\b/.test(message.text);
+}
+
+if (process.env.VAULT_E2E_CONSOLE_FILTER_SELFTEST === "1") {
+  const transient = { type: "error", text: "Failed to load resource: net::ERR_NETWORK_CHANGED" };
+  const realError = { type: "error", text: "Unhandled Runtime Error: boom" };
+  if (isBlockingConsoleMessage(transient) || !isBlockingConsoleMessage(realError)) {
+    throw new Error("vault:e2e console filter selftest failed");
+  }
+  process.exit(0);
+}
+
 async function launchChromium() {
   try {
     return await chromium.launch({ headless: args.headed !== "1" });
@@ -399,7 +413,7 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
     if (wrongNetwork && !/wrong network|switch wallet|switch.*chain|切换|网络/i.test(bodyText)) {
       issues.push({ ruleId: "wallet/wrong-network-state-missing", message: "Wrong-network preview did not render a visible switch-network state." });
     }
-    if (consoleMessages.some((message) => message.type === "error")) {
+    if (consoleMessages.some(isBlockingConsoleMessage)) {
       issues.push({ ruleId: "render/console-error", message: "Browser console emitted errors.", consoleMessages });
     }
     await page.screenshot({ path: screenshotPath, fullPage: true });

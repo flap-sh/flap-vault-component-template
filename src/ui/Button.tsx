@@ -5,21 +5,25 @@ import { Loader2 } from "lucide-react";
 import { cn } from "./utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4a90ff]/60 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold uppercase leading-[1.4] tracking-normal duration-0 hover:transition-colors hover:duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D0FF00]/45 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "border border-[#4a90ff]/60 bg-[#315fb5] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] hover:bg-[#3b70d6]",
-        secondary: "border border-[#3a4d66] bg-[#304057] text-white hover:bg-[#3a4c65]",
-        outline: "border border-[#3d6ba8] bg-[#17243a] text-[#d8e8ff] hover:border-[#559cff] hover:bg-[#1d3150]",
-        ghost: "text-[#a8b5c7] hover:bg-[#304057] hover:text-white",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        default:
+          "ui20-connect-chamfer text-[#070808] [--ui20-chamfer-bg:#D0FF00] [--ui20-chamfer-border:#D0FF00] hover:[--ui20-chamfer-bg:#BDE800] hover:[--ui20-chamfer-border:#BDE800]",
+        secondary:
+          "ui20-connect-chamfer text-white [--ui20-chamfer-bg:#262626] [--ui20-chamfer-border:#262626] hover:text-[#D0FF00] hover:[--ui20-chamfer-bg:#303030] hover:[--ui20-chamfer-border:#303030]",
+        outline:
+          "ui20-connect-chamfer text-[#D4D4D4] [--ui20-chamfer-bg:#000000] [--ui20-chamfer-border:#303236] hover:text-[#D0FF00] hover:[--ui20-chamfer-border:#D0FF00]",
+        ghost: "rounded-[6px] text-[#D4D4D4] hover:bg-[#131516] hover:text-[#D0FF00]",
+        destructive:
+          "ui20-connect-chamfer text-[#FF4A55] [--ui20-chamfer-bg:#000000] [--ui20-chamfer-border:#FF4A55] hover:text-black hover:[--ui20-chamfer-bg:#FF4A55]",
       },
       size: {
         default: "h-10 px-4",
         sm: "h-8 px-3 text-xs",
         lg: "h-12 px-5",
-        icon: "h-10 w-10",
+        icon: "h-10 w-10 px-0",
       },
     },
     defaultVariants: {
@@ -52,8 +56,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         {...props}
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {children}
+        {loading ? <Loader2 className="relative z-10 h-4 w-4 animate-spin" /> : null}
+        <span className="relative z-10 inline-flex min-w-0 items-center justify-center gap-2">{children}</span>
       </Comp>
     );
   },

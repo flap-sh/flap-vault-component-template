@@ -77,6 +77,7 @@ const APPROVED_CONTRACT_ADDRESS_KEYWORD_RE =
 const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|oracle|aggregator|pair|amm|treasury|governor)/i;
 const CONTRACT_INTERACTION_METHODS = ["readContract", "simulateContract", "writeContract", "watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"];
 const CONTRACT_LABEL_REQUIRED_METHODS = new Set(["readContract", "simulateContract", "writeContract"]);
+const FORBIDDEN_UI_OPERATOR_FUNCTION_NAMES = new Set(["setConfig", "setSwapPath", "setSplit"]);
 const CONTRACT_INTERACTION_METHOD_RE = new RegExp(`^(?:${CONTRACT_INTERACTION_METHODS.join("|")})\\b`, "u");
 const RUNTIME_ORACLE_REGISTRY_ENV = "FLAP_RUNTIME_ORACLE_REGISTRY";
 const ORACLE_ID_RE = /^[a-zA-Z0-9._:-]{1,96}$/;
@@ -117,6 +118,16 @@ const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 const RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE = 2;
 const RISK_STATUS_PRECEDING_BUSINESS_ROW_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow|TxButton)\b/g;
 const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<ReviewedFrame\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
+const VISUAL_REFERENCE_EXAMPLE_FOLDERS = new Set([
+  "example",
+  "dex-listed-example",
+  "action-gallery-example",
+  "community-buyback-example",
+  "flapixel-example",
+]);
+const VISUAL_BUSINESS_TILE_RE = /<(?:Metric|DetailTile|DataRow)\b/g;
+const VISUAL_CARD_RE = /<Card\b/g;
+const VISUAL_ACTION_RE = /<(?:TxButton|Button)\b/g;
 const ALLOWED_BROWSER_GLOBAL_MEMBERS = new Map([
   ["window", new Set(["setTimeout", "clearTimeout", "setInterval", "clearInterval", "open"])],
 ]);
@@ -224,6 +235,7 @@ const FIX_HINTS = {
   "manual-review/fullscreen-layout": "Fullscreen layout is an internal-review candidate. Keep host-owned token/header constraints in flap.sh and complete the extra fullscreen review before publish.",
   "manual-review/oracle-usage": `Do not add oracle config to manifest. Source packages may use only built-in runtime oracle ids before packaging; ${RUNTIME_ORACLE_REGISTRY_ENV} is for host/runtime preview diagnostics and does not make a custom oracle id packageable. Built-in oracle ids still require review.oracles[] endpoint and params review before publish.`,
   "manual-review/action-stage-gating": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed.",
+  "visual-policy/row-heavy-dashboard": "Use the scaffold default surface / NiePan-style compact template: one primary business card, a small metric strip, one visible primary action panel, and compact runtime facts lower in the card.",
   "risk-status/missing-host-risk-state": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable.",
   "risk-status/manual-low-risk-label": "Do not hardcode or unconditionally render Low risk / 低风险 labels. A low-risk label is allowed only when selected from the host-derived riskLevel === 1 branch.",
   "risk-status/not-prominent-placement": "Place the contract risk status within the first three Vault business rows, before any preview, hero, banner, showcase, media, chart, or large visual block.",
@@ -259,6 +271,7 @@ const FIX_HINTS = {
   "contract-boundary/disallowed-contract-label": "Limit contract labels to vault/token/nft-related targets. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
   "contract-boundary/disallowed-contract-address-source": "Keep contract targets on context.vaultAddress, context.tokenAddress, context.factoryAddress, token/NFT-related runtime addresses, or declared externalContracts only.",
   "contract-boundary/undeclared-contract-address": "Use runtime context addresses for Vault/token/factory targets. If this is an intentional fixed external contract, declare it under match.bindings[].externalContracts.",
+  "contract-boundary/operator-method-exposed": "Do not expose operator/admin configuration methods from Component.tsx. Keep public UI actions on Vault user-facing methods such as resolve/claim/deposit flows, and leave config changes to reviewed operator tooling.",
   "performance/refetch-too-fast": "Use a refetch interval of at least 5000ms unless Flap approves a faster polling path.",
   "contract-abi/number-bigint": "Keep token amounts as bigint/Decimal and avoid Number(...) for transaction math.",
   "contract-abi/human-readable-requires-parse-abi": "Wrap human-readable ABI string arrays with parseAbi([...]) from viem, or use full object ABI fragments. Do not export raw function/event signature strings as the runtime ABI.",
@@ -634,6 +647,30 @@ function hasProminentRiskStatusPlacement(content) {
     if (precedingBusinessRows <= RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE) return true;
   }
   return false;
+}
+
+function countMatches(content, regex) {
+  return [...content.matchAll(regex)].length;
+}
+
+function collectRowHeavyDashboardIssues(content, rel, folderName) {
+  if (VISUAL_REFERENCE_EXAMPLE_FOLDERS.has(folderName)) return [];
+
+  const cardCount = countMatches(content, new RegExp(VISUAL_CARD_RE.source, "g"));
+  const tileCount = countMatches(content, new RegExp(VISUAL_BUSINESS_TILE_RE.source, "g"));
+  const firstAction = content.search(VISUAL_ACTION_RE);
+  const tilesBeforeAction = firstAction >= 0 ? countMatches(content.slice(0, firstAction), new RegExp(VISUAL_BUSINESS_TILE_RE.source, "g")) : tileCount;
+  const looksRowHeavy = (cardCount >= 3 && tileCount >= 6) || (tileCount >= 10 && tilesBeforeAction >= 8) || (cardCount >= 2 && tilesBeforeAction >= 6);
+
+  if (!looksRowHeavy) return [];
+  return [
+    issue(
+      BLOCKING,
+      "visual-policy/row-heavy-dashboard",
+      "Component has a row-heavy dashboard shape. New Vault UIs must use the scaffold default surface / NiePan-style compact template instead of stacked sample cards.",
+      { file: rel, cardCount, tileCount, tilesBeforeAction },
+    ),
+  ];
 }
 
 function hasManualLowRiskCopy(value) {
@@ -1964,8 +2001,25 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
   for (const call of findSdkContractCalls(content)) {
     const contractProperty = extractObjectPropertyExpression(call.objectText, "contract");
     const addressProperty = extractObjectPropertyExpression(call.objectText, "address");
+    const functionNameProperty = extractObjectPropertyExpression(call.objectText, "functionName");
+    const functionName = functionNameProperty ? parseStaticStringLiteral(stripExpressionDecorators(functionNameProperty.text)) : null;
     const resolvedAddress = addressProperty ? resolveAddressExpressionText(addressProperty.text, addressConstants) : null;
     const isDeclaredExternalAddress = Boolean(resolvedAddress && contractPolicy.external.has(resolvedAddress));
+
+    if (functionName && FORBIDDEN_UI_OPERATOR_FUNCTION_NAMES.has(functionName)) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "contract-boundary/operator-method-exposed",
+          `${call.methodName} exposes operator/admin method ${functionName}. Custom Vault UI must not expose config methods such as setConfig, setSwapPath, or setSplit.`,
+          {
+            file,
+            line: lineForIndex(content, call.objectStart + functionNameProperty.index),
+            functionName,
+          },
+        ),
+      );
+    }
 
     if (contractProperty) {
       const contractLabel = parseStaticStringLiteral(stripExpressionDecorators(contractProperty.text));
@@ -2652,6 +2706,7 @@ function checkI18n(i18n, manifestLocales) {
 
 function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
+  const folderName = path.basename(vaultDir);
   const declaredUrls = collectDeclaredUrls(manifest);
   const declaredFrames = collectDeclaredFrames(manifest);
   const contractPolicy = collectManifestContractPolicy(manifest);
@@ -3001,6 +3056,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         );
       }
       issues.push(...collectManualLowRiskLabelIssues(scanContent, i18n, manifestLocales, rel));
+      issues.push(...collectRowHeavyDashboardIssues(scanContent, rel, folderName));
     }
     if (/Number\s*\([^)]*(amount|balance|allowance|deposit|claim|reward)/i.test(scanContent)) {
       issues.push(issue(BLOCKING, "contract-abi/number-bigint", "Avoid Number(...) for token amounts used in transaction logic.", { file: rel }));
