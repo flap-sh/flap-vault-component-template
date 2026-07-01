@@ -281,6 +281,17 @@ try {
   assertRule("mini-app mode rejects factory-scoped bindings", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-binding", "blocking");
   assertRule("mini-app mode requires an 8888 token", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-token", "blocking");
 
+  const miniAppMissingHeightSlug = `${FIXTURE_PREFIX}-mini-app-missing-height`;
+  writeVault(miniAppMissingHeightSlug, {
+    manifest: baseManifest({
+      mode: "mini-app",
+      match: {
+        bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
+  assertRule("mini-app mode requires a full-height root layout", runVaultCheck(miniAppMissingHeightSlug, { silent: true }), "mini-app-layout/missing-full-height-root", "blocking");
+
   const non7777TestTokenSlug = `${FIXTURE_PREFIX}-non-allowed-suffix-test-token`;
   writeVault(non7777TestTokenSlug, {
     manifest: baseManifest({
@@ -2002,6 +2013,16 @@ export default function SelftestVault(_props: VaultComponentProps) {
 
   const miniAppRiskStatusSlug = `${FIXTURE_PREFIX}-mini-app-risk-status`;
   writeVault(miniAppRiskStatusSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <div className="min-h-full">{i18n.t("title")}</div>;
+}
+`,
     manifest: baseManifest({
       mode: "mini-app",
       match: {

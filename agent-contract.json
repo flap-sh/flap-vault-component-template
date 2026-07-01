@@ -111,6 +111,7 @@
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
     "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped 8888-token Mini App artifacts; mini-app mode is strongly bound to the token address, keeps the same source-package boundary, and requires match.bindings[].tokenAddresses ending in 8888, but does not require the Vault risk-status tag checks.",
+    "miniAppLayoutRule": "Mini App Component.tsx must put a full-height class or inline height on the outermost returned layout element, for example min-h-[100vh], min-h-screen, min-h-full, or h-full.",
     "layoutRule": "Omit manifest.layout for the standard 768px Vault body. Set layout to fullscreen only when Flap explicitly requests a full-screen Vault body; this triggers manual-review/fullscreen-layout and flap.sh remains responsible for host-owned token/header constraints.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
     "localeRule": "manifest.i18n entries must be locale strings with at least two characters. Only locales declared by manifest.i18n are required and compared.",
@@ -299,6 +300,10 @@
     "manifest-binding/invalid-mini-app-token": {
       "severity": "blocking",
       "fixAction": "Use manifest.mode=mini-app only with a token-scoped match.bindings[].tokenAddresses entry ending in 8888; Mini App artifacts must provide the bound token address."
+    },
+    "mini-app-layout/missing-full-height-root": {
+      "severity": "blocking",
+      "fixAction": "Add min-h-[100vh], min-h-screen, min-h-full, or h-full to the outermost returned Mini App layout element."
     },
     "visual-policy/row-heavy-dashboard": {
       "severity": "blocking",

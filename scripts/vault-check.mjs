@@ -28,6 +28,8 @@ const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultA
 const FULLSCREEN_LAYOUT = "fullscreen";
 const MINI_APP_MODE = "mini-app";
 const MINI_APP_TOKEN_SUFFIX = "8888";
+const MINI_APP_FULL_HEIGHT_CLASS_RE = /(?:^|[\s"'`{])(?:min-h-(?:screen|dvh|svh|lvh|full|\[100(?:vh|dvh|svh|lvh|%)\])|h-(?:screen|dvh|svh|lvh|full|\[100(?:vh|dvh|svh|lvh|%)\]))(?=$|[\s"'`}])/;
+const MINI_APP_FULL_HEIGHT_STYLE_RE = /\b(?:minHeight|height)\s*:\s*["'`](?:100vh|100dvh|100svh|100lvh|100%)["'`]/;
 const FRAME_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FRAME_ID_MIN_LENGTH = 3;
 const FRAME_ID_MAX_LENGTH = 64;
@@ -201,6 +203,7 @@ const FIX_HINTS = {
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
   "manifest-binding/invalid-mini-app-binding": "Mini App mode is token-address-bound. Use only token-scoped 8888 tokenAddresses; omit factoryAddress and vaultAddresses.",
   "manifest-binding/invalid-mini-app-token": "Mini App mode must provide the bound token address as an 8888-suffix tokenAddresses entry. Omit mode for default Vault UI packages.",
+  "mini-app-layout/missing-full-height-root": "Add min-h-[100vh], min-h-screen, min-h-full, or h-full to the outermost returned Mini App layout element.",
   "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 or 8888 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
   "manifest-binding/invalid-test-token-suffix": "Use a real deployed ERC20 test token address ending in 7777 or 8888. Non-7777/8888 tokenAddresses are not accepted as package proof.",
   "manifest-binding/invalid-erc20-token": "Use a real deployed ERC20 token contract on the declared chain. The checker must read bytecode plus standard ERC20 metadata before packaging.",
@@ -286,6 +289,21 @@ const FIX_HINTS = {
 
 function issue(severity, ruleId, message, extra = {}) {
   return { severity, ruleId, message, fixHint: FIX_HINTS[ruleId], ...extra };
+}
+
+function defaultComponentSlice(content) {
+  const directDefault = content.search(/\bexport\s+default\s+(?:function\b|\()/);
+  if (directDefault >= 0) return content.slice(directDefault);
+  const namedDefault = /\bexport\s+default\s+([A-Za-z_$][\w$]*)\b/.exec(content);
+  if (!namedDefault) return content;
+  const declaration = new RegExp(`\\b(?:function|const|let|var)\\s+${namedDefault[1]}\\b`).exec(content);
+  return declaration ? content.slice(declaration.index) : content.slice(namedDefault.index);
+}
+
+function hasMiniAppFullHeightRoot(content) {
+  const match = /\breturn\s*(?:\(\s*)?<([A-Za-z][\w.:]*)\b([^>]*)>/s.exec(defaultComponentSlice(content));
+  const attrs = match?.[2] ?? "";
+  return MINI_APP_FULL_HEIGHT_CLASS_RE.test(attrs) || MINI_APP_FULL_HEIGHT_STYLE_RE.test(attrs);
 }
 
 function readJson(file) {
@@ -2762,6 +2780,16 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const rel = path.relative(ROOT, item.path);
     const content = fs.readFileSync(item.path, "utf8");
     const scanContent = stripCommentsForScanning(content);
+    if (manifest?.mode === MINI_APP_MODE && item.name === "Component.tsx" && !hasMiniAppFullHeightRoot(content)) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "mini-app-layout/missing-full-height-root",
+          "Mini App Component.tsx must put a full-height class or inline height on the outermost returned layout element.",
+          { file: rel },
+        ),
+      );
+    }
     const checks = [
       [/\b(?:window|globalThis|global|self)\.(?:ethereum|web3|solana|BinanceChain|tronWeb|coinbaseWalletExtension|okxwallet|trustwallet)\b/, "forbidden-api/direct-window-ethereum", "Direct injected wallet provider access is not allowed."],
       [/\b(?:window|globalThis|global|self)\s*\[\s*["'`](?:ethereum|web3|solana|BinanceChain|tronWeb|coinbaseWalletExtension|okxwallet|trustwallet)["'`]\s*\]/, "forbidden-api/direct-window-ethereum", "Direct injected wallet provider access is not allowed."],

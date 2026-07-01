@@ -45,6 +45,12 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./cz-burn-dividend-vault-v1/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./cz-burn-dividend-vault-v1/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
+  "flap-farm-vault": {
+    folderName: "flap-farm-vault",
+    loadComponent: () => import("./flap-farm-vault/Component"),
+    loadManifest: () => import("./flap-farm-vault/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./flap-farm-vault/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
 };
 
 export function getVaultFolderNames() {
