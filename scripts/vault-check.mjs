@@ -22,10 +22,12 @@ const FORBIDDEN_NAMES = new Set(["node_modules", ".git", ".vercel", ".env", ".en
 const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const ALLOWED_VAULT_FILES = new Set(REQUIRED_FILES);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "layout", "endpoints", "externalFrames"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
+const MINI_APP_MODE = "mini-app";
+const MINI_APP_TOKEN_SUFFIX = "8888";
 const FRAME_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FRAME_ID_MIN_LENGTH = 3;
 const FRAME_ID_MAX_LENGTH = 64;
@@ -174,7 +176,8 @@ const FIX_HINTS = {
   "forbidden-files/disallowed-entry": "Remove environment, dependency, git, or build output files from the Vault package.",
   "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
-  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
+  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
+  "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 8888-token Mini App.',
   "manifest-schema/invalid-layout": "Remove manifest.layout, or set it exactly to fullscreen when Flap explicitly asks for a full-screen Vault body.",
   "manifest-schema/missing-field": "Add the required manifest field.",
   "manifest-schema/invalid-artifact-id": "Use artifactId format vaultui_<folder-name>_<26-char ULID>, for example vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N.",
@@ -196,6 +199,8 @@ const FIX_HINTS = {
   "manifest-binding/mixed-chain-scope": "Do not split one chain into factory and no-factory bindings. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
+  "manifest-binding/invalid-mini-app-binding": "Use manifest.mode=mini-app only for token-scoped 8888 Mini App artifacts. Omit factoryAddress and vaultAddresses.",
+  "manifest-binding/invalid-mini-app-token": "Use manifest.mode=mini-app only with 8888-suffix tokenAddresses. Omit mode for default Vault UI packages.",
   "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 or 8888 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
   "manifest-binding/invalid-test-token-suffix": "Use a real deployed ERC20 test token address ending in 7777 or 8888. Non-7777/8888 tokenAddresses are not accepted as package proof.",
   "manifest-binding/invalid-erc20-token": "Use a real deployed ERC20 token contract on the declared chain. The checker must read bytecode plus standard ERC20 metadata before packaging.",
@@ -2387,6 +2392,7 @@ function checkExternalFrames(value) {
 
 function checkManifest(manifest, folderName) {
   const issues = [];
+  const isMiniAppMode = manifest?.mode === MINI_APP_MODE;
   for (const key of Object.keys(manifest || {})) {
     if (!ALLOWED_MANIFEST_KEYS.has(key)) {
       const ruleId = key === "restrictTokenAddresses" || key === "tokenAddresses" || key === "caPolicy" ? "manifest-binding/ca-policy-not-in-manifest" : "manifest-schema/disallowed-field";
@@ -2394,7 +2400,7 @@ function checkManifest(manifest, folderName) {
         issue(
           BLOCKING,
           ruleId,
-          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, match, i18n, optional layout, endpoints, and externalFrames.`,
+          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, match, i18n, optional mode, layout, endpoints, and externalFrames.`,
           { field: key },
         ),
       );
@@ -2421,6 +2427,16 @@ function checkManifest(manifest, folderName) {
   }
   if (manifest.name !== undefined && (!isNonEmptyString(manifest.name) || manifest.name.trim().length < 2)) {
     issues.push(issue(BLOCKING, "manifest-schema/invalid-name", "manifest.name must be a human-readable string with at least two characters.", { field: "name" }));
+  }
+  if (manifest.mode !== undefined && manifest.mode !== MINI_APP_MODE) {
+    issues.push(
+      issue(
+        BLOCKING,
+        "manifest-schema/invalid-mode",
+        'manifest.mode may only be "mini-app". Omit it for the default Vault UI.',
+        { field: "mode", mode: manifest.mode },
+      ),
+    );
   }
   if (manifest.layout !== undefined) {
     if (manifest.layout !== FULLSCREEN_LAYOUT) {
@@ -2485,6 +2501,7 @@ function checkManifest(manifest, folderName) {
     } else {
       const seenBindingKeys = new Map();
       const manifestTestTokenFields = [];
+      const miniAppTokenFields = [];
       const factoryFieldsByChain = new Map();
       const noFactoryFieldsByChain = new Map();
       for (const [index, bindingEntry] of manifest.match.bindings.entries()) {
@@ -2514,6 +2531,16 @@ function checkManifest(manifest, folderName) {
           }
         }
         const hasFactoryField = bindingEntry.factoryAddress !== undefined;
+        if (isMiniAppMode && (hasFactoryField || bindingEntry.vaultAddresses !== undefined)) {
+          issues.push(
+            issue(
+              BLOCKING,
+              "manifest-binding/invalid-mini-app-binding",
+              `${field} uses manifest.mode=mini-app, so it must be token-scoped with tokenAddresses only.`,
+              { field, mode: MINI_APP_MODE },
+            ),
+          );
+        }
         if (hasFactoryField && !ADDRESS_RE.test(bindingEntry.factoryAddress)) {
           issues.push(issue(BLOCKING, "manifest-binding/invalid-address", `${field}.factoryAddress is not a valid 0x address.`, { field: `${field}.factoryAddress` }));
         } else if (hasFactoryField && isZeroAddress(bindingEntry.factoryAddress)) {
@@ -2577,6 +2604,18 @@ function checkManifest(manifest, folderName) {
                 );
               } else {
                 manifestTestTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
+                if (addr.toLowerCase().endsWith(MINI_APP_TOKEN_SUFFIX)) {
+                  miniAppTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
+                } else if (isMiniAppMode) {
+                  issues.push(
+                    issue(
+                      BLOCKING,
+                      "manifest-binding/invalid-mini-app-token",
+                      `${field}.tokenAddresses[${addressIndex}] must end in ${MINI_APP_TOKEN_SUFFIX} when manifest.mode is mini-app: ${addr}.`,
+                      { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffix: MINI_APP_TOKEN_SUFFIX },
+                    ),
+                  );
+                }
               }
             }
             issues.push(...checkAddressListDuplicates(bindingEntry.tokenAddresses, `${field}.tokenAddresses`));
@@ -2621,6 +2660,16 @@ function checkManifest(manifest, folderName) {
             "manifest-binding/missing-test-token",
             `manifest.match.bindings must declare at least one real deployed ${REQUIRED_TEST_TOKEN_SUFFIX}-suffix tokenAddresses entry for Workbench/vault:e2e test coverage. Local vault:e2e --token overrides do not satisfy vault:check, and production CA restrictions belong in Workbench/registry caRestrictionMode configuration.`,
             { field: "match.bindings[].tokenAddresses", required: "at least one tokenAddresses entry" },
+          ),
+        );
+      }
+      if (isMiniAppMode && miniAppTokenFields.length === 0) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "manifest-binding/invalid-mini-app-token",
+            `manifest.mode=mini-app requires at least one token-scoped tokenAddresses entry ending in ${MINI_APP_TOKEN_SUFFIX}.`,
+            { field: "match.bindings[].tokenAddresses", requiredSuffix: MINI_APP_TOKEN_SUFFIX },
           ),
         );
       }
@@ -2701,6 +2750,7 @@ function checkI18n(i18n, manifestLocales) {
 
 function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
+  const requiresRiskStatus = manifest?.mode !== MINI_APP_MODE;
   const folderName = path.basename(vaultDir);
   const declaredUrls = collectDeclaredUrls(manifest);
   const declaredFrames = collectDeclaredFrames(manifest);
@@ -3027,7 +3077,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       );
     }
     const hasComponentRiskStatusIntegration = item.name === "Component.tsx" ? hasRiskStatusIntegration(scanContent) : false;
-    if (item.name === "Component.tsx" && !hasComponentRiskStatusIntegration) {
+    if (item.name === "Component.tsx" && requiresRiskStatus && !hasComponentRiskStatusIntegration) {
       issues.push(
         issue(
           BLOCKING,
@@ -3040,7 +3090,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     if (item.name === "Component.tsx") {
       issues.push(...collectMultipleOutputObjectReadIssues(content, rel, abiFunctionOutputCounts));
       issues.push(...collectTxButtonStateIssues(content, rel));
-      if (hasComponentRiskStatusIntegration && !hasProminentRiskStatusPlacement(scanContent)) {
+      if (requiresRiskStatus && hasComponentRiskStatusIntegration && !hasProminentRiskStatusPlacement(scanContent)) {
         issues.push(
           issue(
             BLOCKING,
@@ -3050,7 +3100,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           ),
         );
       }
-      issues.push(...collectManualLowRiskLabelIssues(scanContent, i18n, manifestLocales, rel));
+      if (requiresRiskStatus) issues.push(...collectManualLowRiskLabelIssues(scanContent, i18n, manifestLocales, rel));
       issues.push(...collectRowHeavyDashboardIssues(scanContent, rel, folderName));
     }
     if (/Number\s*\([^)]*(amount|balance|allowance|deposit|claim|reward)/i.test(scanContent)) {

@@ -83,6 +83,26 @@ export default function SelftestVault(_props: VaultComponentProps) {
   fs.writeFileSync(path.join(vaultDir, "i18n.json"), `${JSON.stringify(i18n || { en: { title: "Selftest" } }, null, 2)}\n`);
 }
 
+function componentWithRiskBody(body) {
+  return `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel =
+    host.vaultInfo?.riskLevel ??
+    host.taxInfo?.vaultInfo?.riskLevel ??
+    null;
+  const riskLabel = riskLevel == null ? i18n.t("risk.missing") : String(riskLevel);
+${body}
+}
+`;
+}
+
 function writePassingE2EReport(folderName, { chainId = 56, tokenAddress = TOKEN, factoryAddress = FACTORY, vaultAddress } = {}) {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "vaults", folderName, "manifest.json"), "utf8"));
   const fileSha256 = collectSourceHashes(ROOT, folderName);
@@ -232,6 +252,34 @@ try {
     });
     assertRule(`manifest layout ${invalidLayout} is blocked`, runVaultCheck(invalidLayoutSlug, { silent: true }), "manifest-schema/invalid-layout", "blocking");
   }
+
+  const invalidModeSlug = `${FIXTURE_PREFIX}-invalid-mode`;
+  writeVault(invalidModeSlug, {
+    component: componentWithRiskBody(`  return (
+    <div>
+      <StatusBadge>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );`),
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+    manifest: baseManifest({ mode: "vault-ui" }),
+  });
+  assertRule("manifest mode values other than mini-app are blocked", runVaultCheck(invalidModeSlug, { silent: true }), "manifest-schema/invalid-mode", "blocking");
+
+  const invalidMiniAppBindingSlug = `${FIXTURE_PREFIX}-invalid-mini-app-binding`;
+  writeVault(invalidMiniAppBindingSlug, {
+    component: componentWithRiskBody(`  return (
+    <div>
+      <StatusBadge>{riskLabel}</StatusBadge>
+      {riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}
+    </div>
+  );`),
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+    manifest: baseManifest({ mode: "mini-app" }),
+  });
+  const invalidMiniAppBindingResult = runVaultCheck(invalidMiniAppBindingSlug, { silent: true });
+  assertRule("mini-app mode rejects factory-scoped bindings", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-binding", "blocking");
+  assertRule("mini-app mode requires an 8888 token", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-token", "blocking");
 
   const non7777TestTokenSlug = `${FIXTURE_PREFIX}-non-allowed-suffix-test-token`;
   writeVault(non7777TestTokenSlug, {
@@ -1951,6 +1999,17 @@ export default function SelftestVault(_props: VaultComponentProps) {
   const riskStatusSlug = `${FIXTURE_PREFIX}-risk-status`;
   writeVault(riskStatusSlug);
   assertRule("components must render host risk status", runVaultCheck(riskStatusSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
+
+  const miniAppRiskStatusSlug = `${FIXTURE_PREFIX}-mini-app-risk-status`;
+  writeVault(miniAppRiskStatusSlug, {
+    manifest: baseManifest({
+      mode: "mini-app",
+      match: {
+        bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
+  assertNoRule("mini-app mode skips host risk status requirement", runVaultCheck(miniAppRiskStatusSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
 
   const hardcodedVisibleCopySlug = `${FIXTURE_PREFIX}-hardcoded-copy`;
   writeVault(hardcodedVisibleCopySlug, {

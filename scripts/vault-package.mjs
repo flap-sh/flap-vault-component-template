@@ -173,6 +173,7 @@ const packageMarker = {
   artifactId: manifest.artifactId,
   folderName,
   sourcePackage: `src/vaults/${folderName}`,
+  ...(manifest.mode ? { mode: manifest.mode } : {}),
   packagedAt,
   check: {
     passed: checkSummary.blocking === 0,
@@ -202,6 +203,7 @@ const metadata = {
   artifactId: manifest.artifactId,
   folderName,
   name: manifest.name,
+  ...(manifest.mode ? { mode: manifest.mode } : {}),
   bindingKeys: (manifest.match?.bindings || []).flatMap(bindingKeysForEntry),
   packagedAt,
   manifestSha256: hashFile(path.join(vaultDir, "manifest.json")),

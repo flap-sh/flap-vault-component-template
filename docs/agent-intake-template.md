@@ -156,7 +156,7 @@ What states must the UI handle explicitly?
 | `unverified` | Not reviewed; user must acknowledge risk. |
 | `high-risk` | Irreversible, dangerous, or AI-generated actions. Show explicit risk gate. |
 
-Also confirm how the UI will render current contract risk status from host `riskLevel`. Every onboarded Vault UI must display `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel` within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and show a prominent warning/danger message if that value is unavailable. The UI must not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`.
+Also confirm whether this is the default Vault UI or a token-scoped 8888-token Mini App. Default Vault UI should omit `manifest.mode` and must display `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel` within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, with a prominent warning/danger message if that value is unavailable. The UI must not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`. For a token-scoped 8888-token Mini App, set `manifest.mode` to `mini-app`; that mode skips only the risk-status tag checks.
 
 ---
 

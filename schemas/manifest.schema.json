@@ -12,6 +12,11 @@
       "pattern": "^vaultui_[a-z0-9]+(-[a-z0-9]+)*_[0-9A-HJKMNPQRSTVWXYZ]{26}$"
     },
     "name": { "type": "string", "minLength": 2 },
+    "mode": {
+      "type": "string",
+      "enum": ["mini-app"],
+      "description": "Optional artifact mode. Omit for the default Vault UI. Use mini-app only for token-scoped 8888-token Mini App artifacts; Mini App mode skips the Vault risk-status tag requirement."
+    },
     "match": {
       "type": "object",
       "required": ["bindings"],

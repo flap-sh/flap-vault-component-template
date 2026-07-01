@@ -40,11 +40,11 @@ Then act:
 
 7. Collect all required inputs using `docs/agent-intake-template.md` before generating.
 8. Use `yarn` as the package manager.
-9. Use `yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory` for new factory-scoped Vault packages that will launch on mainnet, or `--vault 0x... --token 0x...` for no-factory packages. The `--token` value must be a real deployed ERC20 test token ending in `7777`; collect the final real mainnet factory binding early. In factory mode `tokenAddresses` is not the production CA restriction.
+9. Use `yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory` for new factory-scoped Vault packages that will launch on mainnet, or `--vault 0x... --token 0x...` for no-factory packages. The `--token` value must be a real deployed ERC20 test token ending in `7777` or `8888`; collect the final real mainnet factory binding early. In factory mode `tokenAddresses` is not the production CA restriction.
 10. Ask for `caRestrictionMode`: `none` means production does not restrict CA, `reserved` locks a future CA but cannot publish/route, and `verified` is applied only by Workbench/registry after validation. Do not write production CA restriction into public manifest fields.
 11. Use `yarn vault:register <folder-name>` when the four Vault files already exist.
 12. Run `yarn vault:check <folder-name>` and fix all blocking issues from `agent.nextActions`.
-13. Run `yarn vault:e2e <folder-name>` and require a passing `dist/e2e/<folder-name>/qa-report.json` bound to current source hashes and a manifest-declared real `7777`-suffix test token. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the JSON error code is `vault-e2e/playwright-browser-missing`.
+13. Run `yarn vault:e2e <folder-name>` and require a passing `dist/e2e/<folder-name>/qa-report.json` bound to current source hashes and a manifest-declared real `7777`/`8888`-suffix test token. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the JSON error code is `vault-e2e/playwright-browser-missing`.
 14. Run `yarn vault:package <folder-name>` only after blocking issues are zero and E2E passes.
 15. Run `yarn vault:verify-package dist/<folder-name>.zip` before handoff.
 16. Produce a done report using the fields in `agent-contract.json` `doneReport`.

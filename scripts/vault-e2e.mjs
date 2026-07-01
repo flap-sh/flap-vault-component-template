@@ -23,6 +23,7 @@ const HOST = "127.0.0.1";
 const YARN_COMMAND = process.platform === "win32" ? "yarn.cmd" : "yarn";
 const DEFAULT_WALLET_ADDRESS = "0x0000000000000000000000000000000000000EaE";
 const DEFAULT_WRONG_CHAIN_ID = 1;
+const MINI_APP_MODE = "mini-app";
 const folderName = process.argv[2];
 
 const VIEWPORTS = [
@@ -254,7 +255,7 @@ async function waitForMeaningfulRender(page) {
   await page.waitForFunction(() => document.body.innerText.trim().length > 80, undefined, { timeout: 20_000 });
 }
 
-function layoutCheckScript() {
+function layoutCheckScript(skipRiskStatus = false) {
   const tolerance = 4;
   const scope = document.querySelector("[data-vault-e2e-scope='vault-preview']") || document.body;
   const issues = [];
@@ -352,16 +353,19 @@ function layoutCheckScript() {
     }
   }
 
-  const riskRegex = /risk|风险|unverified|未验证|missing|缺失|低风险|高风险|中风险/i;
-  const riskElement = textElements.find((element) => riskRegex.test((element.textContent || "").trim()));
-  if (!riskElement) {
-    addIssue("layout/risk-status-not-visible", "No visible risk status text was found in the Vault business UI.");
-  } else {
-    const riskRect = riskElement.getBoundingClientRect();
-    if (riskRect.top - scopeRect.top > 420) {
-      addIssue("layout/risk-status-too-low", "Risk status is visible but too low in the Vault business UI.", {
-        riskTopWithinScope: Math.round(riskRect.top - scopeRect.top),
-      });
+  let riskElement = null;
+  if (!skipRiskStatus) {
+    const riskRegex = /risk|风险|unverified|未验证|missing|缺失|低风险|高风险|中风险/i;
+    riskElement = textElements.find((element) => riskRegex.test((element.textContent || "").trim()));
+    if (!riskElement) {
+      addIssue("layout/risk-status-not-visible", "No visible risk status text was found in the Vault business UI.");
+    } else {
+      const riskRect = riskElement.getBoundingClientRect();
+      if (riskRect.top - scopeRect.top > 420) {
+        addIssue("layout/risk-status-too-low", "Risk status is visible but too low in the Vault business UI.", {
+          riskTopWithinScope: Math.round(riskRect.top - scopeRect.top),
+        });
+      }
     }
   }
 
@@ -372,12 +376,12 @@ function layoutCheckScript() {
       documentClientWidth: document.documentElement.clientWidth,
       controlCount: controls.length,
       textNodeCount: textElements.length,
-      riskVisible: Boolean(riskElement),
+      riskVisible: skipRiskStatus ? true : Boolean(riskElement),
     },
   };
 }
 
-async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase, wrongNetwork = false }) {
+async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase, wrongNetwork = false, skipRiskStatus = false }) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: 1,
@@ -408,7 +412,7 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
     if (tokenUnavailableFallbackCount > 0 || /manifest-binding-mismatch|Token unavailable|代币不可用/i.test(previewText)) {
       issues.push({ ruleId: "render/token-unavailable", message: "Preview marked the runtime token as unavailable." });
     }
-    const layout = await page.evaluate(layoutCheckScript);
+    const layout = await page.evaluate(layoutCheckScript, skipRiskStatus);
     issues.push(...layout.issues);
     if (wrongNetwork && !/wrong network|switch wallet|switch.*chain|切换|网络/i.test(bodyText)) {
       issues.push({ ruleId: "wallet/wrong-network-state-missing", message: "Wrong-network preview did not render a visible switch-network state." });
@@ -462,6 +466,7 @@ if (!fs.existsSync(manifestPath)) {
 }
 
 const manifest = readJson(manifestPath);
+const skipRiskStatus = manifest.mode === MINI_APP_MODE;
 let binding;
 try {
   binding = selectE2EBinding(manifest, {
@@ -489,9 +494,9 @@ try {
   server = await startPreviewServer();
   for (const viewport of VIEWPORTS) {
     for (const phase of REQUIRED_PHASES) {
-      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase }));
+      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, skipRiskStatus }));
     }
-    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true }));
+    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true, skipRiskStatus }));
   }
 } finally {
   if (browser) await browser.close();

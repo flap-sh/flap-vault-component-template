@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 31,
+  "version": 32,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -68,7 +68,7 @@
     "marketPhaseRule": "The template preview host and production Flap host derive marketPhase from Portal token state: existing tokens with tokenInfo.status < 2 are internal-market; existing tokens with tokenInfo.status >= 2 are dex-listed; missing token info is unknown. In preview, taxInfo=1 is only a fixture seed when no real chain host data is available or when an explicit override is desired.",
     "actionAvailabilityHelper": "isActionAvailableForPhase(stage, context.host?.marketPhase ?? \"unknown\")",
     "riskStatusSource": "readTaxVaultHostContext(context.host).vaultInfo.riskLevel or readTaxVaultHostContext(context.host).taxInfo.vaultInfo.riskLevel",
-    "riskStatusRule": "Every onboarded Vault UI must read and visibly render the current contract risk status from host Vault/TaxInfo context. The risk status must be placed within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block. If the risk level is unavailable, render a prominent warning/danger message that risk-status integration is required. Do not hardcode or unconditionally render Low risk / 低风险 labels, badges, summaries, or reassuring copy; a low-risk label may appear only when selected from the host-derived riskLevel === 1 branch. vault:check blocks Component.tsx files that do not reference host riskLevel and a visible UI primitive, blocks risk status placed too low or after large visuals, and blocks manual low-risk labels that are not derived from host riskLevel.",
+    "riskStatusRule": "Default Vault UI packages must read and visibly render the current contract risk status from host Vault/TaxInfo context. The risk status must be placed within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block. If the risk level is unavailable, render a prominent warning/danger message that risk-status integration is required. Do not hardcode or unconditionally render Low risk / 低风险 labels, badges, summaries, or reassuring copy; a low-risk label may appear only when selected from the host-derived riskLevel === 1 branch. vault:check blocks Component.tsx files that do not reference host riskLevel and a visible UI primitive, blocks risk status placed too low or after large visuals, and blocks manual low-risk labels that are not derived from host riskLevel. The only exception is manifest.mode=\"mini-app\" for token-scoped 8888-token Mini App artifacts; mini-app mode skips these risk-status tag checks.",
     "backwardsCompatibleListedFlag": "context.host.isListed",
     "wrongNetworkCapability": "sdk.wallet exposes isWrongNetwork, requiredChainId, requiredChainLabel, canSwitchChain, isSwitchingChain, and switchChain() so write-capable Vault UIs can render a switch-network state before attempting writes."
   },
@@ -102,7 +102,7 @@
     "recharts"
   ],
   "manifest": {
-    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "layout", "endpoints", "externalFrames"],
+    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"],
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
@@ -110,6 +110,7 @@
     "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 or 8888 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
+    "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped 8888-token Mini App artifacts; mini-app mode keeps the same source-package boundary and requires match.bindings[].tokenAddresses ending in 8888, but does not require the Vault risk-status tag checks.",
     "layoutRule": "Omit manifest.layout for the standard 768px Vault body. Set layout to fullscreen only when Flap explicitly requests a full-screen Vault body; this triggers manual-review/fullscreen-layout and flap.sh remains responsible for host-owned token/header constraints.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
     "localeRule": "manifest.i18n entries must be locale strings with at least two characters. Only locales declared by manifest.i18n are required and compared.",
@@ -162,9 +163,9 @@
   "checkerWarnings": {
     "manual-review/action-stage-gating": "Component has a write path but no marketPhase or isActionAvailableForPhase usage. Add explicit internal-market / DEX-listed button gating and visible unavailable-state copy.",
     "visual-policy/row-heavy-dashboard": "Component uses a row-heavy dashboard shape. Replace stacked sample cards and large metric grids with the scaffold default surface / NiePan-style compact template.",
-    "risk-status/missing-host-risk-state": "Component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add riskLevel handling and a prominent unavailable-risk warning.",
-    "risk-status/not-prominent-placement": "Component renders host risk status too low in the Vault business UI or after a large visual block. Move it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block.",
-    "risk-status/manual-low-risk-label": "Component renders Low risk / 低风险 copy without selecting it from host riskLevel === 1. Remove the manual label or map the host-derived risk level explicitly."
+    "risk-status/missing-host-risk-state": "Default Vault UI component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add riskLevel handling and a prominent unavailable-risk warning, or use manifest.mode=mini-app only for a token-scoped 8888-token Mini App.",
+    "risk-status/not-prominent-placement": "Default Vault UI component renders host risk status too low in the Vault business UI or after a large visual block. Move it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block.",
+    "risk-status/manual-low-risk-label": "Default Vault UI component renders Low risk / 低风险 copy without selecting it from host riskLevel === 1. Remove the manual label or map the host-derived risk level explicitly."
   },
   "errorCodes": {
     "template-freshness/npm-outdated": {
@@ -286,6 +287,18 @@
     "manifest-binding/invalid-test-token-suffix": {
       "severity": "blocking",
       "fixAction": "Replace the manifest test token with a real deployed ERC20 token address ending in 7777 or 8888, then rerun vault:check and regenerate E2E/package proof."
+    },
+    "manifest-schema/invalid-mode": {
+      "severity": "blocking",
+      "fixAction": "Omit manifest.mode for the default Vault UI, or set it exactly to mini-app for a token-scoped 8888-token Mini App."
+    },
+    "manifest-binding/invalid-mini-app-binding": {
+      "severity": "blocking",
+      "fixAction": "Mini App mode must use token-scoped match.bindings[].tokenAddresses only. Remove factoryAddress and vaultAddresses, or omit manifest.mode for default Vault UI."
+    },
+    "manifest-binding/invalid-mini-app-token": {
+      "severity": "blocking",
+      "fixAction": "Use manifest.mode=mini-app only with a token-scoped match.bindings[].tokenAddresses entry ending in 8888, or omit manifest.mode for default Vault UI."
     },
     "visual-policy/row-heavy-dashboard": {
       "severity": "blocking",
@@ -740,9 +753,9 @@
     "zip contains flap-vault-package.json generated by yarn vault:package with runtimePackageGitHead provenance, qa/e2e-report.json, and matching e2e summary metadata",
     "preview route /{folder-name} resolves",
     "stage-gated actions are previewed with marketPhase=internal-market and marketPhase=dex-listed",
-    "current contract risk status is displayed from host riskLevel, with a prominent missing-risk warning state",
-    "contract risk status appears within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block",
-    "no Low risk / 低风险 label or reassuring low-risk copy appears unless selected from host riskLevel === 1",
+    "default Vault UI displays current contract risk status from host riskLevel, with a prominent missing-risk warning state; token-scoped manifest.mode=mini-app artifacts with 8888 tokenAddresses are the only exception",
+    "default Vault UI contract risk status appears within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block",
+    "default Vault UI has no Low risk / 低风险 label or reassuring low-risk copy unless selected from host riskLevel === 1",
     "write-capable flows preview a wrong-network state and render a switch-network path instead of sending writes on the wrong chain",
     "Vault folder contains only the four allowed files",
     "Component.tsx follows a public-safe pattern from docs/ui-pattern-snippets.md",

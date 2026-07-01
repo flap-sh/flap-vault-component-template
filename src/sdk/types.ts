@@ -207,6 +207,7 @@ export interface ManifestExternalContract {
 }
 
 export type VaultManifestLayout = "fullscreen";
+export type VaultManifestMode = "mini-app";
 
 export interface VaultManifest {
   artifactId: string;
@@ -214,6 +215,7 @@ export interface VaultManifest {
   match: {
     bindings: ManifestBindingEntry[];
   };
+  mode?: VaultManifestMode;
   layout?: VaultManifestLayout;
   endpoints?: EndpointPolicy;
   i18n: string[];

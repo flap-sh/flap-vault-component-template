@@ -115,7 +115,7 @@ For the first version, keep the scaffolded default surface and replace placehold
 - Show two or three Vault-specific metrics, not every possible contract field.
 - Keep one primary action area visible. Include input, quote/proof state, warnings, and the approve/write button there.
 - Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for phase gating.
-- Read current risk status from `readTaxVaultHostContext(context.host)`, place it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a prominent warning if it is missing.
+- For default Vault UI, read current risk status from `readTaxVaultHostContext(context.host)`, place it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a prominent warning if it is missing. For a token-scoped 8888-token Mini App, set `manifest.mode` to `mini-app`; this skips only the risk-status tag checks.
 - Do not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`.
 - Use the host token name, symbol, and image from `context.tokenName`, `context.tokenSymbol`, and `context.tokenImageUrl`.
 - Use `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` before writes.
@@ -142,7 +142,7 @@ Check these before packaging:
 - The page renders under the host-owned `Vault Information` frame.
 - The component does not duplicate the token breadcrumb, token header, close control, or shell summary.
 - Risk status is visible within the first three business UI rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block.
-- Missing risk status shows a warning.
+- Default Vault UI missing risk status shows a warning; `mode: "mini-app"` is the token-scoped 8888-token Mini App exception.
 - English and Chinese copy both render if both locales are declared.
 - Wrong-network state blocks writes.
 - Market phase gating is visible in `Real`, `Internal`, and `Listing` preview modes when relevant.

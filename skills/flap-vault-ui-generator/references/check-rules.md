@@ -40,9 +40,9 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - non-HTTPS, `ipfs://` / gateway image URL, Arweave, WebSocket, or embedded data URL resource usage in Vault source; immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` with a static image CID
 - missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - i18n key missing from any locale declared by `manifest.i18n`
-- missing current contract risk-status integration from host `riskLevel`, including the prominent unavailable-risk warning state
-- current contract risk status placed after the first three Vault-specific business rows or after preview/hero/media/chart visuals
-- manual `Low risk` / `低风险` labels, badges, summaries, or reassuring copy that are not selected from the host-derived `riskLevel === 1` branch
+- missing current contract risk-status integration from host `riskLevel` for default Vault UI, including the prominent unavailable-risk warning state; `manifest.mode: "mini-app"` is the only token-scoped 8888-token Mini App exception
+- default Vault UI current contract risk status placed after the first three Vault-specific business rows or after preview/hero/media/chart visuals
+- default Vault UI manual `Low risk` / `低风险` labels, badges, summaries, or reassuring copy that are not selected from the host-derived `riskLevel === 1` branch
 - object result types on `sdk.readContract` calls for ABI methods with multiple return values; read those methods as tuple arrays and map indexes into UI state
 - unprovisioned or registry-only `sdk.readOracle(...)` usage that is not built into the shared runtime
 - suspicious `Number(...)` token amount conversion
