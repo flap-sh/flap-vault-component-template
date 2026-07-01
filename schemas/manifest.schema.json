@@ -15,7 +15,7 @@
     "mode": {
       "type": "string",
       "enum": ["mini-app"],
-      "description": "Optional artifact mode. Omit for the default Vault UI. Use mini-app only for token-scoped 8888-token Mini App artifacts; Mini App mode skips the Vault risk-status tag requirement."
+      "description": "Optional artifact mode. Omit for the default Vault UI. Use mini-app only for token-scoped 8888-token Mini App artifacts. Mini App mode is bound to match.bindings[].tokenAddresses ending in 8888 and skips the Vault risk-status tag requirement."
     },
     "match": {
       "type": "object",

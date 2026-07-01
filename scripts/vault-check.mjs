@@ -177,7 +177,7 @@ const FIX_HINTS = {
   "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
   "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
-  "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 8888-token Mini App.',
+  "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 8888-token Mini App with match.bindings[].tokenAddresses.',
   "manifest-schema/invalid-layout": "Remove manifest.layout, or set it exactly to fullscreen when Flap explicitly asks for a full-screen Vault body.",
   "manifest-schema/missing-field": "Add the required manifest field.",
   "manifest-schema/invalid-artifact-id": "Use artifactId format vaultui_<folder-name>_<26-char ULID>, for example vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N.",
@@ -199,8 +199,8 @@ const FIX_HINTS = {
   "manifest-binding/mixed-chain-scope": "Do not split one chain into factory and no-factory bindings. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
-  "manifest-binding/invalid-mini-app-binding": "Use manifest.mode=mini-app only for token-scoped 8888 Mini App artifacts. Omit factoryAddress and vaultAddresses.",
-  "manifest-binding/invalid-mini-app-token": "Use manifest.mode=mini-app only with 8888-suffix tokenAddresses. Omit mode for default Vault UI packages.",
+  "manifest-binding/invalid-mini-app-binding": "Mini App mode is token-address-bound. Use only token-scoped 8888 tokenAddresses; omit factoryAddress and vaultAddresses.",
+  "manifest-binding/invalid-mini-app-token": "Mini App mode must provide the bound token address as an 8888-suffix tokenAddresses entry. Omit mode for default Vault UI packages.",
   "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 or 8888 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
   "manifest-binding/invalid-test-token-suffix": "Use a real deployed ERC20 test token address ending in 7777 or 8888. Non-7777/8888 tokenAddresses are not accepted as package proof.",
   "manifest-binding/invalid-erc20-token": "Use a real deployed ERC20 token contract on the declared chain. The checker must read bytecode plus standard ERC20 metadata before packaging.",
@@ -2536,7 +2536,7 @@ function checkManifest(manifest, folderName) {
             issue(
               BLOCKING,
               "manifest-binding/invalid-mini-app-binding",
-              `${field} uses manifest.mode=mini-app, so it must be token-scoped with tokenAddresses only.`,
+              `${field} uses manifest.mode=mini-app, so it must be token-scoped with tokenAddresses only because Mini App routing is tied to the token address.`,
               { field, mode: MINI_APP_MODE },
             ),
           );
@@ -2668,7 +2668,7 @@ function checkManifest(manifest, folderName) {
           issue(
             BLOCKING,
             "manifest-binding/invalid-mini-app-token",
-            `manifest.mode=mini-app requires at least one token-scoped tokenAddresses entry ending in ${MINI_APP_TOKEN_SUFFIX}.`,
+            `manifest.mode=mini-app requires at least one token-scoped tokenAddresses entry ending in ${MINI_APP_TOKEN_SUFFIX} because Mini App routing is tied to the token address.`,
             { field: "match.bindings[].tokenAddresses", requiredSuffix: MINI_APP_TOKEN_SUFFIX },
           ),
         );

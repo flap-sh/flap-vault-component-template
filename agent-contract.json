@@ -110,7 +110,7 @@
     "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 or 8888 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
-    "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped 8888-token Mini App artifacts; mini-app mode keeps the same source-package boundary and requires match.bindings[].tokenAddresses ending in 8888, but does not require the Vault risk-status tag checks.",
+    "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped 8888-token Mini App artifacts; mini-app mode is strongly bound to the token address, keeps the same source-package boundary, and requires match.bindings[].tokenAddresses ending in 8888, but does not require the Vault risk-status tag checks.",
     "layoutRule": "Omit manifest.layout for the standard 768px Vault body. Set layout to fullscreen only when Flap explicitly requests a full-screen Vault body; this triggers manual-review/fullscreen-layout and flap.sh remains responsible for host-owned token/header constraints.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
     "localeRule": "manifest.i18n entries must be locale strings with at least two characters. Only locales declared by manifest.i18n are required and compared.",
@@ -290,15 +290,15 @@
     },
     "manifest-schema/invalid-mode": {
       "severity": "blocking",
-      "fixAction": "Omit manifest.mode for the default Vault UI, or set it exactly to mini-app for a token-scoped 8888-token Mini App."
+      "fixAction": "Omit manifest.mode for the default Vault UI, or set it exactly to mini-app for a token-scoped 8888-token Mini App with match.bindings[].tokenAddresses."
     },
     "manifest-binding/invalid-mini-app-binding": {
       "severity": "blocking",
-      "fixAction": "Mini App mode must use token-scoped match.bindings[].tokenAddresses only. Remove factoryAddress and vaultAddresses, or omit manifest.mode for default Vault UI."
+      "fixAction": "Mini App mode is token-address-bound. Use only token-scoped match.bindings[].tokenAddresses; remove factoryAddress and vaultAddresses, or omit manifest.mode for default Vault UI."
     },
     "manifest-binding/invalid-mini-app-token": {
       "severity": "blocking",
-      "fixAction": "Use manifest.mode=mini-app only with a token-scoped match.bindings[].tokenAddresses entry ending in 8888, or omit manifest.mode for default Vault UI."
+      "fixAction": "Use manifest.mode=mini-app only with a token-scoped match.bindings[].tokenAddresses entry ending in 8888; Mini App artifacts must provide the bound token address."
     },
     "visual-policy/row-heavy-dashboard": {
       "severity": "blocking",
