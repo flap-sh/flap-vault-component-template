@@ -8,18 +8,12 @@ import { AddressLink, Alert, Card, CardContent, CardTitle, StatusBadge } from "@
 import type { TxButtonState } from "@/src/ui";
 import { factoryAbi } from "./VaultABI";
 
-const USDT_TESTNET = "0x9c452ef0e7b158f81a0e00a81aaea8ae04132cbc" as Address;
-const USDC_TESTNET = "0x9c452ef0e7b158f81a0e00a81aaea8ae04132cbc" as Address;
 const USDT_MAINNET = "0x55d398326f99059ff775485246999027b3197955" as Address;
 const USDC_MAINNET = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d" as Address;
 
 type QuoteOption = { label: string; address: Address };
 
 function getQuoteOptions(chainId: number): QuoteOption[] {
-  if (chainId === 97) return [
-    { label: "USDT", address: USDT_TESTNET },
-    { label: "USDC", address: USDC_TESTNET },
-  ];
   if (chainId === 56) return [
     { label: "USDT", address: USDT_MAINNET },
     { label: "USDC", address: USDC_MAINNET },

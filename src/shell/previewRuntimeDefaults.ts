@@ -21,9 +21,9 @@ const previewRuntimeDefaults: Record<string, PreviewRuntimeDefaults> = {
     vaultAddress: "0x5592153295bc1b7fede99dfdad295aa3651811e4",
   },
   "myx-tax-token-vault": {
-    chainId: 97,
-    factoryAddress: "0x11f5f346d7d0d56203bd0bbd85b19c2e190e7737",
-    tokenAddress: "0xec7dc70830a997748f2f24979f517f5b4c257777",
+    chainId: 56,
+    factoryAddress: "0x6CEC379ED29023b70e8843a974C4D58DCea0FF24",
+    tokenAddress: "0x3fdb8df73f742d9e5a25a0004fa9112e59f27777",
   },
 };
 

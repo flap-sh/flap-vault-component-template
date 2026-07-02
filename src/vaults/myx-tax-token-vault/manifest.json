@@ -4,15 +4,6 @@
   "match": {
     "bindings": [
       {
-        "chainId": 97,
-        "tokenAddresses": [
-          "0xec7dc70830a997748f2f24979f517f5b4c257777"
-        ],
-        "externalContracts": [
-          { "address": "0x9c452ef0e7b158f81a0e00a81aaea8ae04132cbc", "label": "USDT/USDC (testnet)" }
-        ]
-      },
-      {
         "chainId": 56,
         "factoryAddress": "0x6CEC379ED29023b70e8843a974C4D58DCea0FF24",
         "tokenAddresses": [
