@@ -6,7 +6,7 @@ import process from "node:process";
 const HOST = "127.0.0.1";
 const PORT = process.env.PORT ? Number(process.env.PORT) : await findAvailablePort(3210);
 const BASE_URL = `http://${HOST}:${PORT}`;
-const TOKEN = "0x091652ebc0a0238d7151a868f22d7cfd2a267777";
+const TOKEN = "0x286184b2660a2822671a33f24c4517f593947777";
 const FACTORY = "0xC3e4EE8f3c616D16297fAfcB9daab122D31eFA9E";
 
 function sleep(ms) {

@@ -19,6 +19,7 @@ import { useLang } from "@/src/i18n/useLang";
 import { FlapNavbar } from "./FlapNavbar";
 import { ManifestPanel } from "./ManifestPanel";
 import { MiniAppPreviewFrame } from "./MiniAppPreviewFrame";
+import { getDefaultMiniAppPreviewTokenAddress } from "./previewCoinDetail";
 import { getPreviewRuntimeDefaults } from "./previewRuntimeDefaults";
 
 interface MiniAppPreviewShellProps {
@@ -166,7 +167,8 @@ export function MiniAppPreviewShell({ folderName, manifest, i18n, children }: Mi
   );
   const publicClient = usePublicClient({ chainId: previewChainId });
   const [hostRuntime, setHostRuntime] = useState<HostRuntimeResult | null>(null);
-  const runtimeTokenAddress = requestedTokenAddress ?? previewDefaults?.tokenAddress ?? resolvedBinding?.tokenAddresses?.[0];
+  const runtimeTokenAddress =
+    requestedTokenAddress ?? previewDefaults?.tokenAddress ?? resolvedBinding?.tokenAddresses?.[0] ?? getDefaultMiniAppPreviewTokenAddress(previewChainId);
   const runtimeFactoryAddress = ZERO_ADDRESS;
   const runtimeVaultAddress = ZERO_ADDRESS;
   const runtimePolicy: HostRuntimePolicy = "prefer-full-host";

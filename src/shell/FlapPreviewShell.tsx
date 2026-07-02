@@ -30,7 +30,7 @@ import { useLang } from "@/src/i18n/useLang";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/ui/Card";
 import { FlapNavbar } from "./FlapNavbar";
 import { ManifestPanel } from "./ManifestPanel";
-import { PREVIEW_TOKEN_ADDRESS, PREVIEW_TOKEN_IMAGE_URL, PREVIEW_VAULT_ADDRESS } from "./previewCoinDetail";
+import { getDefaultVaultPreviewTokenAddress, PREVIEW_TOKEN_ADDRESS, PREVIEW_TOKEN_IMAGE_URL, PREVIEW_VAULT_ADDRESS } from "./previewCoinDetail";
 import { getPreviewRuntimeDefaults } from "./previewRuntimeDefaults";
 
 interface FlapPreviewShellProps {
@@ -338,7 +338,8 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
   );
   const publicClient = usePublicClient({ chainId: previewChainId });
   const [hostRuntime, setHostRuntime] = useState<HostRuntimeResult | null>(null);
-  const runtimeTokenAddress = requestedTokenAddress ?? previewDefaults?.tokenAddress ?? resolvedBinding?.tokenAddresses?.[0] ?? PREVIEW_TOKEN_ADDRESS;
+  const runtimeTokenAddress =
+    requestedTokenAddress ?? previewDefaults?.tokenAddress ?? resolvedBinding?.tokenAddresses?.[0] ?? getDefaultVaultPreviewTokenAddress(previewChainId);
   const usingNeutralPreviewFixture =
     runtimeTokenAddress === PREVIEW_TOKEN_ADDRESS && !requestedVaultAddress && !previewDefaults?.vaultAddress && !resolvedBinding?.vaultAddresses?.[0];
   const runtimePolicy: HostRuntimePolicy = "prefer-full-host";
@@ -525,15 +526,15 @@ function isValidTokenAddress(address?: string) {
 
 function resolveChainFactoryAddress(snapshot?: TokenRuntimeSnapshot | null) {
   const vaultFactory = snapshot?.vaultInfo?.found ? snapshot.vaultInfo.vaultFactory : undefined;
-  const helperFactory = snapshot?.taxInfo?.vaultInfo?.factory;
-  if (vaultFactory && isValidAddress(vaultFactory)) return vaultFactory;
-  if (helperFactory && isValidAddress(helperFactory)) return helperFactory;
+  const helperFactory = snapshot?.taxInfo?.vaultInfo?.isVault === true ? snapshot.taxInfo.vaultInfo.factory : undefined;
+  if (vaultFactory && isValidTokenAddress(vaultFactory)) return vaultFactory;
+  if (helperFactory && isValidTokenAddress(helperFactory)) return helperFactory;
   return undefined;
 }
 
 function resolveChainVaultAddress(snapshot?: TokenRuntimeSnapshot | null) {
   const portalVault = snapshot?.vaultInfo?.found ? snapshot.vaultInfo.vault : undefined;
-  const helperVault = snapshot?.taxInfo?.vaultInfo?.addr;
+  const helperVault = snapshot?.taxInfo?.vaultInfo?.isVault === true ? snapshot.taxInfo.vaultInfo.addr : undefined;
   if (portalVault && isValidTokenAddress(portalVault)) return portalVault;
   if (helperVault && isValidTokenAddress(helperVault)) return helperVault;
   return undefined;
