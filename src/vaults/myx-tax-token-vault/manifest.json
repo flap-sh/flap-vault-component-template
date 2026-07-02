@@ -1,0 +1,29 @@
+{
+  "artifactId": "vaultui_myx-tax-token-vault_01KWBZ34QTVC4JX39098CA8Y11",
+  "name": "MYX Tax Token Vault",
+  "match": {
+    "bindings": [
+      {
+        "chainId": 97,
+        "tokenAddresses": [
+          "0xec7dc70830a997748f2f24979f517f5b4c257777"
+        ],
+        "externalContracts": [
+          { "address": "0x9c452ef0e7b158f81a0e00a81aaea8ae04132cbc", "label": "USDT/USDC (testnet)" }
+        ]
+      },
+      {
+        "chainId": 56,
+        "factoryAddress": "0x6CEC379ED29023b70e8843a974C4D58DCea0FF24",
+        "tokenAddresses": [
+          "0x3fdb8df73f742d9e5a25a0004fa9112e59f27777"
+        ],
+        "externalContracts": [
+          { "address": "0x55d398326f99059ff775485246999027b3197955", "label": "USDT" },
+          { "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "label": "USDC" }
+        ]
+      }
+    ]
+  },
+  "i18n": ["en", "zh", "zh-TW"]
+}

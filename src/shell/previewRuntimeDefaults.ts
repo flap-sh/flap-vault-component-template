@@ -20,6 +20,11 @@ const previewRuntimeDefaults: Record<string, PreviewRuntimeDefaults> = {
     tokenAddress: "0x6BcC641D1eF33c4d7A2C9536a3E0356F77Ff7777",
     vaultAddress: "0x5592153295bc1b7fede99dfdad295aa3651811e4",
   },
+  "myx-tax-token-vault": {
+    chainId: 97,
+    factoryAddress: "0x11f5f346d7d0d56203bd0bbd85b19c2e190e7737",
+    tokenAddress: "0xec7dc70830a997748f2f24979f517f5b4c257777",
+  },
 };
 
 export function getPreviewRuntimeDefaults(folderName: string) {
