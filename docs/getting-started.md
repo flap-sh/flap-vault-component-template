@@ -43,7 +43,7 @@ Open:
 http://localhost:3000/example
 ```
 
-Live reviewed example routes:
+Additional example routes:
 
 ```plain text
 http://localhost:3000/community-buyback-example
@@ -69,11 +69,11 @@ The preview shell includes the Flap-style header, real RainbowKit/wagmi wallet c
 - DEX-listed action gating with `http://localhost:3000/example?tokenAddress=0x...&vaultAddress=0x...&factoryAddress=0x...&marketPhase=dex-listed`
 - no-factory single-Vault matching with `http://localhost:3000/example?tokenAddress=0x...&vaultAddress=0x...&marketPhase=internal-market`
 - taxinfo host context with `http://localhost:3000/example?tokenAddress=0x...&vaultAddress=0x...&factoryAddress=0x...&taxInfo=1&marketBps=10000&vaultType=myVault&marketPhase=internal-market`
-- live Community Approved Buyback flow with `http://localhost:3000/community-buyback-example`
+- Community Approved Buyback flow with `http://localhost:3000/community-buyback-example`
 - live FLAPixel NFT flow with `http://localhost:3000/flapixel-example`
-- wrong-network warnings and chain switching on write-capable real examples
+- wrong-network warnings and chain switching on write-capable examples
 
-The two live routes above are reviewed real examples, not neutral fixtures. Their chain state can move over time, but they are still part of the default regression spine now. The live smoke script checks both routes plus their host-presentation proxy responses:
+The `community-buyback-example` route currently binds to the same shared neutral preview fixture factory and token as the other workflow examples, so treat it as a workflow fixture rather than a live project binding. `flapixel-example` uses its own distinct reviewed binding. Both routes' chain state can move over time, but they are still part of the default regression spine now. The live smoke script checks both routes plus their host-presentation proxy responses:
 
 ```bash
 yarn preview:smoke:real

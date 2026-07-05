@@ -70,6 +70,7 @@ Allowed fields:
 - `name`
 - `match`
 - `i18n`
+- `mode`
 - `layout`
 - `endpoints`
 - `externalFrames`
@@ -85,6 +86,10 @@ Disallowed developer fields:
 - `media`
 - `fallback`
 - `contracts`
+- `chainIds`
+- `restrictTokenAddresses`
+- global or match-level `tokenAddresses`
+- `caPolicy`
 
 `artifactId` is the stable unique identity for the source package/artifact family. It uses:
 
@@ -194,7 +199,7 @@ The Agent workflow is not complete until blocking issues are zero, `yarn vault:e
 
 Oracle config is not declared in `manifest.json`.
 
-If component code calls `sdk.readOracle("id")`, `vault:check` reports the oracle id as an info item for Flap review/provisioning. The Flap Artifact Workbench/runtime owns endpoint and signing policy.
+If component code calls `sdk.readOracle("id")`, `vault:check` reports the oracle id for Flap review/provisioning: info/warning for provisioned built-in oracle ids that ship with the shared runtime, and blocking for unprovisioned or registry-only oracle ids that are not built into the shared runtime. The Flap Artifact Workbench/runtime owns endpoint and signing policy.
 
 Non-oracle external endpoints, one display-only external frame, and fixed extra contract targets are discouraged. If unavoidable, endpoints may be declared in `manifest.endpoints`, one display-only chart frame may be declared in `manifest.externalFrames`, and fixed extra contract targets may be declared in `match.bindings[].externalContracts`; declaration only makes them reviewable and does not guarantee approval.
 Endpoint declarations must be a single HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS target covered by that declaration. The external frame declaration is limited to TradingView, DexScreener, or CoinGecko Terminal/GeckoTerminal exact provider origins and must use one complete static HTTPS URL with fixed query string rendered through one `ReviewedFrame`. Host-relative, dynamic, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked. Raw iframe, more than one `ReviewedFrame`, `srcDoc`, dynamic frame URLs, WebSocket URLs, `ipfs://` / gateway image URLs, Arweave links, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are blocked inside Vault source by default so the template does not package code that the Workbench intake will reject. Immutable Vault-specific images use `IpfsImage` or `IpfsBackground` with a static image CID and are verified by `vault:check`.
@@ -254,7 +259,7 @@ It validates the package marker, package kind/version, current template/runtime 
 | Refetch interval guard | Done | `vault:check` blocks component query options that use a `refetchInterval` below 5000 ms. |
 | Preview shell | Done | `/example` and `/{folder-name}` render via `VaultPreviewClient`. |
 | Shell-owned header boundary | Done | Preview shell owns token header, close control, `Vault Information` frame, width, invalid-token fallback, and manifest panel; packaged Vault source is limited to business UI below that frame. |
-| Second example Vault | Done | `src/vaults/dex-listed-example` is a strict four-file package that demonstrates `dex-listed` stage gating and approve -> write with a no-factory neutral Vault binding. |
+| Second example Vault | Done | `src/vaults/dex-listed-example` is a strict four-file package that demonstrates `dex-listed` stage gating and approve -> write with a factory-scoped binding (chainId 56 + neutral fixture factory `0xC3e4EE8f...`). |
 | Multi-action example Vault | Done | `src/vaults/action-gallery-example` is a strict four-file package that demonstrates internal-market, DEX-listed, both-stage, and read-only action controls. |
 | Manifest display panel | Done | Current manifest is shown by the preview shell and homepage, outside Vault package source. |
 | Public-safe UI pattern snippets | Done | `docs/ui-pattern-snippets.md` provides sanitized layout, read/write, claim, quote, NFT/inventory, distribution, lending, prize/staking, submission/gallery, countdown, oracle, schema, risk, and error-state snippets without private names, addresses, endpoints, or copied private source. |

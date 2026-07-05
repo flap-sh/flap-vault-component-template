@@ -1350,6 +1350,58 @@ function parseStaticStringLiteral(expressionText) {
   return null;
 }
 
+function splitTopLevelPlus(value) {
+  const parts = [];
+  let start = 0;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  for (let cursor = 0; cursor < value.length; cursor += 1) {
+    const char = value[cursor];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(value, cursor) - 1;
+      continue;
+    }
+    if (char === "(") parenDepth += 1;
+    if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
+    if (char === "[") bracketDepth += 1;
+    if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    if (char === "+" && parenDepth === 0 && bracketDepth === 0) {
+      parts.push(value.slice(start, cursor));
+      start = cursor + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+
+// Parse a single string literal only when it spans the entire trimmed text, so
+// `"12".repeat(2)` or `"a" + b` are rejected rather than silently truncated to
+// their first literal.
+function parseWholeStringLiteral(expressionText) {
+  const trimmed = stripExpressionDecorators(expressionText).trim();
+  const value = parseStaticStringLiteral(trimmed);
+  if (value === null) return null;
+  const quote = trimmed[0];
+  if (trimmed.length < 2 || trimmed[trimmed.length - 1] !== quote) return null;
+  return value;
+}
+
+// Fold a string-concatenation expression such as `"0x" + "12" + "34"` into its
+// literal value. Returns null if any operand is not a static string literal.
+// This closes the "split a hardcoded value across `+` to dodge the single-literal
+// regex" class of bypasses. Single literals fall through to parseWholeStringLiteral.
+function foldConcatenatedStringText(expressionText) {
+  const parts = splitTopLevelPlus(expressionText);
+  if (parts.length === 1) return parseWholeStringLiteral(expressionText);
+  let value = "";
+  for (const part of parts) {
+    const literal = parseWholeStringLiteral(part);
+    if (literal === null) return null;
+    value += literal;
+  }
+  return value;
+}
+
 function createTsSourceFile(file, content) {
   const scriptKind = file.endsWith(".tsx") || file.endsWith(".jsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   return ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
@@ -1740,7 +1792,7 @@ function collectAddressConstants(content) {
     if (content[cursor] !== "=") continue;
     const valueStart = skipWhitespace(content, cursor + 1);
     const valueEnd = findExpressionEnd(content, valueStart);
-    const literal = parseStaticStringLiteral(stripExpressionDecorators(content.slice(valueStart, valueEnd)));
+    const literal = foldConcatenatedStringText(stripExpressionDecorators(content.slice(valueStart, valueEnd)));
     const normalized = normalizeAddress(literal);
     if (normalized) constants.set(name, normalized);
     cursor = valueEnd;
@@ -1751,7 +1803,7 @@ function collectAddressConstants(content) {
 
 function resolveAddressExpressionText(expressionText, addressConstants) {
   const expression = stripExpressionDecorators(expressionText);
-  const literal = parseStaticStringLiteral(expression);
+  const literal = foldConcatenatedStringText(expression);
   if (literal !== null) return normalizeAddress(literal);
   if (/^[$A-Z_a-z][$\w]*$/u.test(expression)) {
     return addressConstants.get(expression) ?? null;
@@ -2099,6 +2151,272 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
     }
   }
 
+  return issues;
+}
+
+const INJECTED_WALLET_GLOBAL_IDENTIFIERS = new Set([
+  "ethereum",
+  "BinanceChain",
+  "tronWeb",
+  "okxwallet",
+  "trustwallet",
+  "coinbaseWalletExtension",
+]);
+const BROWSER_GLOBAL_ROOTS = new Set(["window", "globalThis", "global", "self", "document", "navigator"]);
+
+function tsNodeStart(node, sourceFile) {
+  try {
+    return node.getStart(sourceFile);
+  } catch {
+    return node.pos;
+  }
+}
+
+function isValueReferenceIdentifier(node) {
+  const parent = node.parent;
+  if (!parent) return true;
+  if (ts.isPropertyAccessExpression(parent) && parent.name === node) return false;
+  if (ts.isQualifiedName(parent) && parent.right === node) return false;
+  if (ts.isTypeReferenceNode(parent) && parent.typeName === node) return false;
+  if (ts.isTypeQueryNode(parent)) return false;
+  if (
+    (ts.isPropertyAssignment(parent) ||
+      ts.isPropertySignature(parent) ||
+      ts.isPropertyDeclaration(parent) ||
+      ts.isMethodDeclaration(parent) ||
+      ts.isMethodSignature(parent) ||
+      ts.isEnumMember(parent)) &&
+    parent.name === node
+  ) {
+    return false;
+  }
+  if (ts.isBindingElement(parent) && (parent.name === node || parent.propertyName === node)) return false;
+  if ((ts.isVariableDeclaration(parent) || ts.isParameter(parent) || ts.isFunctionDeclaration(parent)) && parent.name === node) return false;
+  if (ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent) || ts.isNamespaceImport(parent) || ts.isImportClause(parent)) return false;
+  return true;
+}
+
+// Fold a static string expression using the TypeScript AST. Handles single
+// literals, template literals with only static spans, `+` concatenation,
+// Array.join / String.concat / String.fromCharCode, and (with varMap) simple
+// const-bound string identifiers. Returns null when any part is not static.
+function foldTsStaticString(node, varMap) {
+  if (!node) return null;
+  const current = unwrapTsExpression(node);
+  if (ts.isStringLiteral(current) || ts.isNoSubstitutionTemplateLiteral(current)) return current.text;
+  if (ts.isIdentifier(current)) return varMap && varMap.has(current.text) ? varMap.get(current.text) : null;
+  if (ts.isTemplateExpression(current)) {
+    let out = current.head.text;
+    for (const span of current.templateSpans) {
+      const value = foldTsStaticString(span.expression, varMap);
+      if (value === null) return null;
+      out += value + span.literal.text;
+    }
+    return out;
+  }
+  if (ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = foldTsStaticString(current.left, varMap);
+    const right = foldTsStaticString(current.right, varMap);
+    if (left === null || right === null) return null;
+    return left + right;
+  }
+  if (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {
+    const method = current.expression.name.text;
+    if (method === "join") {
+      const array = unwrapTsExpression(current.expression.expression);
+      if (ts.isArrayLiteralExpression(array)) {
+        const separator = current.arguments.length === 0 ? "," : foldTsStaticString(current.arguments[0], varMap);
+        if (separator === null) return null;
+        const parts = [];
+        for (const element of array.elements) {
+          const value = foldTsStaticString(element, varMap);
+          if (value === null) return null;
+          parts.push(value);
+        }
+        return parts.join(separator);
+      }
+    } else if (method === "concat") {
+      const base = foldTsStaticString(current.expression.expression, varMap);
+      if (base === null) return null;
+      let out = base;
+      for (const argument of current.arguments) {
+        const value = foldTsStaticString(argument, varMap);
+        if (value === null) return null;
+        out += value;
+      }
+      return out;
+    } else if (method === "fromCharCode") {
+      const object = unwrapTsExpression(current.expression.expression);
+      if (ts.isIdentifier(object) && object.text === "String") {
+        let out = "";
+        for (const argument of current.arguments) {
+          const unwrapped = unwrapTsExpression(argument);
+          if (ts.isNumericLiteral(unwrapped)) out += String.fromCharCode(Number(unwrapped.text));
+          else return null;
+        }
+        return out;
+      }
+    }
+  }
+  return null;
+}
+
+function collectStaticStringVarMap(sourceFile) {
+  const map = new Map();
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && node.name && ts.isIdentifier(node.name) && node.initializer) {
+      const value = foldTsStaticString(node.initializer, null);
+      if (value !== null && !map.has(node.name.text)) map.set(node.name.text, value);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return map;
+}
+
+// Inspect a fully resolved string value for a hardcoded address, unsafe scheme,
+// or undeclared external URL. Shared by the AST composite-string scan and the
+// i18n.json value scan so obfuscated payloads are caught wherever they resolve.
+function scanResolvedStringForResources(value, ctx) {
+  if (typeof value !== "string" || !value) return null;
+  const addressMatch = /0x[a-fA-F0-9]{40}\b/.exec(value);
+  if (addressMatch) {
+    const normalized = normalizeAddress(addressMatch[0]);
+    if (!normalized || !ctx.contractPolicy.all.has(normalized)) {
+      return {
+        ruleId: "security/hardcoded-address",
+        message: `Hardcoded address ${addressMatch[0]} assembled from string fragments is not allowed. Use runtime context addresses or declare external contract targets in manifest match.bindings[].externalContracts.`,
+      };
+    }
+  }
+  const schemeMatch = /(?:javascript|vbscript|data):/i.exec(value);
+  if (schemeMatch) {
+    return {
+      ruleId: "endpoint-policy/undeclared-url",
+      message: `Unsafe ${schemeMatch[0]} resource assembled from string fragments is not allowed inside Vault source.`,
+    };
+  }
+  const urlMatch = /(?:https?:\/\/|wss?:\/\/|ipfs:\/\/|ar:\/\/)[^\s"'`<>)]+/i.exec(value);
+  if (urlMatch) {
+    const url = sanitizeUrlLiteral(urlMatch[0]);
+    if (!isAllowlistedExternalUrl(url, ctx.declaredUrls, ctx.declaredFrames)) {
+      return {
+        ruleId: "endpoint-policy/undeclared-url",
+        message: `URL ${url} assembled from string fragments is not declared in manifest endpoints or externalFrames. Undeclared endpoints and external resources are rejected.`,
+      };
+    }
+  }
+  return null;
+}
+
+// AST-based obfuscation-resistant security pass. Complements the line-regex
+// checks by folding constant expressions and inspecting semantic node shapes,
+// so aliasing, comma-operator, computed-member, and string-concatenation
+// bypasses of the regex layer are still caught.
+function collectAstSecurityIssues(content, file, ctx) {
+  const issues = [];
+  let sourceFile;
+  try {
+    sourceFile = createTsSourceFile(file, content);
+  } catch {
+    return issues;
+  }
+  const varMap = collectStaticStringVarMap(sourceFile);
+  const seen = new Set();
+  const add = (ruleId, message, node) => {
+    const line = lineForIndex(content, tsNodeStart(node, sourceFile));
+    const key = `${ruleId}:${line}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    issues.push(issue(BLOCKING, ruleId, message, { file, line }));
+  };
+
+  const visit = (node) => {
+    if (ts.isIdentifier(node) && isValueReferenceIdentifier(node)) {
+      if (node.text === "eval") {
+        add("forbidden-api/eval", "eval is not allowed inside Vault components, including aliased or indirect (0, eval) usage.", node);
+      } else if (INJECTED_WALLET_GLOBAL_IDENTIFIERS.has(node.text)) {
+        add("forbidden-api/direct-window-ethereum", `Direct injected wallet provider reference (${node.text}) is not allowed inside Vault components.`, node);
+      } else if (node.text === "Function") {
+        const parent = node.parent;
+        const directConstruct = (ts.isNewExpression(parent) && parent.expression === node) || (ts.isCallExpression(parent) && parent.expression === node);
+        if (!directConstruct) {
+          add("forbidden-api/function-constructor", "Referencing the Function constructor as a value is not allowed inside Vault components.", node);
+        }
+      }
+    }
+
+    if (ts.isElementAccessExpression(node)) {
+      const key = foldTsStaticString(node.argumentExpression, varMap);
+      if (key === "constructor") {
+        add("forbidden-api/function-constructor", "Computed .constructor access is a Function-constructor escape and is not allowed.", node);
+      } else if (key === "innerHTML" || key === "outerHTML" || key === "insertAdjacentHTML") {
+        add("forbidden-api/script", "Computed HTML injection member access is not allowed inside Vault components.", node);
+      } else if (key !== null && INJECTED_WALLET_GLOBAL_IDENTIFIERS.has(key)) {
+        add("forbidden-api/direct-window-ethereum", "Computed injected wallet provider access is not allowed inside Vault components.", node);
+      }
+    }
+
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      node.name.text === "constructor" &&
+      ts.isCallExpression(node.parent) &&
+      node.parent.expression === node
+    ) {
+      add("forbidden-api/function-constructor", "Calling .constructor(...) as a Function-constructor escape is not allowed.", node);
+    }
+
+    if (ts.isCallExpression(node)) {
+      const callee = unwrapTsExpression(node.expression);
+      let calleeName = null;
+      if (ts.isIdentifier(callee)) {
+        calleeName = callee.text;
+      } else if (ts.isPropertyAccessExpression(callee)) {
+        calleeName = callee.name.text;
+        const object = unwrapTsExpression(callee.expression);
+        if (ts.isIdentifier(object) && object.text === "Reflect" && (callee.name.text === "construct" || callee.name.text === "apply")) {
+          add("forbidden-api/function-constructor", "Reflection-based invocation (Reflect.construct/apply) is not allowed inside Vault components.", node);
+        }
+      }
+      if (calleeName === "createElement") {
+        const tag = foldTsStaticString(node.arguments[0], varMap);
+        if (tag && /^(?:iframe|script|object|embed)$/i.test(tag.trim())) {
+          add(/iframe/i.test(tag) ? "forbidden-api/iframe" : "forbidden-api/script", `Dynamic createElement("${tag.trim()}") is not allowed inside Vault components.`, node);
+        }
+      }
+      if ((calleeName === "setTimeout" || calleeName === "setInterval" || calleeName === "setImmediate") && node.arguments.length > 0) {
+        if (foldTsStaticString(node.arguments[0], varMap) !== null) {
+          add("forbidden-api/eval", "String-based timer callbacks are eval-like and are not allowed inside Vault components.", node);
+        }
+      }
+    }
+
+    if (ts.isVariableDeclaration(node) && node.initializer) {
+      const initializer = unwrapTsExpression(node.initializer);
+      if (ts.isIdentifier(initializer) && BROWSER_GLOBAL_ROOTS.has(initializer.text)) {
+        add("forbidden-api/browser-global-escape", `Aliasing browser global ${initializer.text} is not allowed inside Vault components.`, node);
+      }
+    }
+
+    const isCompositeString =
+      (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) ||
+      ts.isTemplateExpression(node) ||
+      (ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        (node.expression.name.text === "join" || node.expression.name.text === "concat" || node.expression.name.text === "fromCharCode"));
+    if (isCompositeString) {
+      const parent = node.parent;
+      const parentIsPlus = parent && ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken;
+      if (!parentIsPlus) {
+        const folded = foldTsStaticString(node, varMap);
+        const finding = folded !== null ? scanResolvedStringForResources(folded, ctx) : null;
+        if (finding) add(finding.ruleId, finding.message, node);
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
   return issues;
 }
 
@@ -2766,6 +3084,40 @@ function checkI18n(i18n, manifestLocales) {
   return issues;
 }
 
+// i18n.json string values are consumable by the component (href, src, tx target)
+// but were previously never security-scanned. Treat them as a source surface:
+// reject embedded unsafe schemes, hardcoded addresses, and undeclared URLs.
+function collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractPolicy) {
+  const issues = [];
+  if (!i18n || typeof i18n !== "object") return issues;
+  const ctx = { declaredUrls, declaredFrames, contractPolicy };
+  const seen = new Set();
+  const walk = (value) => {
+    if (typeof value === "string") {
+      const finding = scanResolvedStringForResources(value, ctx);
+      if (finding) {
+        const key = `${finding.ruleId}:${value}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          issues.push(
+            issue(BLOCKING, finding.ruleId, `${finding.message} Found in i18n.json string value.`, { file: "i18n.json" }),
+          );
+        }
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value) walk(entry);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const entry of Object.values(value)) walk(entry);
+    }
+  };
+  walk(i18n);
+  return issues;
+}
+
 function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
   const requiresRiskStatus = manifest?.mode !== MINI_APP_MODE;
@@ -2775,6 +3127,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const contractPolicy = collectManifestContractPolicy(manifest);
   const abiFunctionOutputCounts = collectAbiFunctionOutputCounts(vaultDir);
   const oracleProvisionDetails = getRuntimeOracleProvisionDetails();
+  issues.push(...collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractPolicy));
   const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
@@ -2799,6 +3152,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\b(?:request|send|sendAsync)\s*\(\s*(?:\{\s*method\s*:\s*)?["'`](?:eth_|wallet_|personal_)/, "forbidden-api/direct-window-ethereum", "Raw wallet RPC request/send calls are not allowed."],
       [/["'`](?:personal_sign|eth_sign(?:TypedData(?:_v[134])?)?|eth_sendTransaction|eth_requestAccounts|wallet_[A-Za-z0-9_]+|eth_decrypt|eth_getEncryptionPublicKey|eip6963:(?:requestProvider|announceProvider))["'`]/, "forbidden-api/direct-window-ethereum", "Wallet signing, transaction, permission, or provider-discovery RPC methods are not allowed."],
       [/\beval\s*\(/, "forbidden-api/eval", "eval() is not allowed."],
+      [/\(\s*0\s*,\s*eval\s*\)/, "forbidden-api/eval", "Indirect eval via the comma operator is not allowed."],
+      [/\(\s*0\s*,\s*fetch\s*\)/, "forbidden-api/browser-network", "Indirect fetch via the comma operator is not allowed inside Vault components."],
       [/\b(?:new\s+)?Function\s*\(/, "forbidden-api/function-constructor", "Function constructor usage is not allowed."],
       [/\.\s*constructor\s*\(\s*["'`]/, "forbidden-api/function-constructor", "Calling .constructor(...) as a Function-constructor escape is not allowed."],
       [/\b(?:window\.)?set(?:Timeout|Interval)\s*\(\s*["'`]/, "forbidden-api/eval", "String-based timer callbacks are eval-like and are not allowed."],
@@ -2883,6 +3238,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
+    issues.push(...collectAstSecurityIssues(content, rel, { declaredUrls, declaredFrames, contractPolicy }));
     if (item.name === "Component.tsx") {
       issues.push(...collectHardcodedVisibleCopyIssues(content, rel));
       issues.push(...collectInlineSvgIssues(content, rel));

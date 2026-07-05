@@ -13,6 +13,13 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+### Security
+
+- Hardened `vault:check` against obfuscation bypasses of the line-regex layer with a new AST-based, constant-folding security pass. It now blocks: hardcoded addresses and external URLs assembled from `+`/`` `${}` ``/`Array.join`/`String.fromCharCode` fragments; aliased and indirect `eval` (`const e = eval`, `(0, eval)`); string-variable `setTimeout`/`setInterval` callbacks; computed `["constructor"]` and `Reflect.construct`/`Reflect.apply` escapes; `Reflect`/comma-operator indirect `fetch`; `React.createElement("iframe"/"script")` including concatenated tags; computed `["innerHTML"]`/`["outerHTML"]`/`["insertAdjacentHTML"]` writes; bare injected-provider identifiers (`ethereum`, `BinanceChain`, `tronWeb`, …) and dynamic-method wallet RPC; and typed browser-global aliasing (`const g: any = window`).
+- `i18n.json` string values are now scanned as a source surface: embedded `javascript:`/`data:`/`vbscript:` schemes, hardcoded addresses, and undeclared external URLs in locale strings are blocked (`endpoint-policy/undeclared-url`, `security/hardcoded-address`).
+- `vault:check:selftest` adds obfuscation-resistance fixtures covering each closed bypass plus benign-concatenation negative cases; all five built-in examples remain at zero blocking issues.
+- The Flap Artifact Workbench server-side gate re-runs the full `vault:check` on uploaded source; the same hardening was ported to its checker so these bypasses are caught at publish time, not just locally.
+
 ### Added
 
 - Added built-in shared-runtime support for the official `v2-pool-reserves` Flap Oracle, routing chain `56` to `oracle.taxed.fun` and chain `97` to `oracle-testnet.taxed.fun`.
@@ -29,6 +36,8 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Fixed
 
+- Bumped `agent-contract.json` to version `34` and rebuilt `errorCodes` from the checker's authoritative fix-hint table: removed ~31 phantom keys that no longer matched any emitted code (e.g. `security/eval` → `forbidden-api/eval`, `manifest/ca-policy-not-in-manifest` → `manifest-binding/ca-policy-not-in-manifest`), added the ~170 real codes that were missing, and corrected severities so `manual-review/action-stage-gating`, `risk-status/*`, and `visual-policy/row-heavy-dashboard` are recorded as blocking. Renamed the misleading `checkerWarnings` section (its entries are blocking checks).
+- Removed the project-specific `src/vaults/cz-burn-dividend-vault-v1` package that had leaked into the public template, and deregistered it from `src/vaults/index.ts`.
 - `vault:e2e` now starts the local preview with `yarn.cmd` on Windows and reports missing Playwright Chromium as machine-readable JSON with the `yarn playwright install chromium` fix hint.
 
 ## [0.1.9] - 2026-06-12

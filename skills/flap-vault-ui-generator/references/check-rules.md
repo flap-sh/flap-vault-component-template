@@ -21,6 +21,10 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - invalid manifest binding: `match.bindings` must be a non-empty array of factory-scoped, Vault-scoped, or token-scoped targets
 - duplicate `match.bindings` entries with the same runtime target
 - missing or non-`7777`/`8888` manifest test token in `match.bindings[].tokenAddresses`
+- invalid `manifest.mode` value (`manifest-schema/invalid-mode`); the only allowed value is `mini-app`
+- Mini App binding that is not token-scoped (`manifest-binding/invalid-mini-app-binding`); `mode: "mini-app"` must omit factory/Vault bindings and use `match.bindings[].tokenAddresses`
+- Mini App token that does not end in `8888` (`manifest-binding/invalid-mini-app-token`)
+- Mini App component missing a full-height root (`mini-app-layout/missing-full-height-root`); the outermost returned layout element must set `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full`
 - legacy `chainIds` top-level field present (removed; chain IDs must live inside `match.bindings` entries)
 - disallowed fields at `match` level (only `bindings` is allowed)
 - invalid binding entry: missing or invalid `chainId`, missing target, zero factory, no-factory Vault binding without exactly one Vault address, or invalid token target list
@@ -50,6 +54,19 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - hardcoded EVM addresses in Vault source unless they are binding-scoped token/Vault/factory references or declared external contract targets
 - contract reads/writes, event watches, log/filter calls, or gas estimates against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`
 
+### Obfuscation-Resistant Security Scanning
+
+The `forbidden-api/*`, `security/hardcoded-address`, and `endpoint-policy/undeclared-url` checks are AST-aware, so obfuscated or indirect variants are caught, not just literal usage. Examples that still fire:
+
+- string-concatenated addresses or URLs assembled from fragments
+- aliased or indirect `eval` (for example `const e = eval; e(...)`) and `(0, eval)(...)` / `(0, fetch)(...)` indirect-call forms
+- computed `.constructor` access used to reach the `Function` constructor, and `Reflect.construct(...)` scope escapes
+- `React.createElement("iframe", ...)` iframe construction
+- computed `innerHTML` / HTML-sink property writes
+- bare injected-provider identifiers (for example a destructured or aliased `ethereum` reference)
+
+In addition, `i18n.json` string values are now scanned the same way. Unsafe schemes, hardcoded EVM addresses, and undeclared URLs placed inside locale strings are blocked, so translation copy cannot be used to smuggle disallowed targets past the source scan.
+
 ## Selftest
 
 Run `yarn vault:check:selftest` after changing checker rules, the Agent contract, manifest policy, package generation, or package verification. It uses temporary fixtures to verify the highest-risk blocking paths still fire, including endpoint-prefix escapes, invalid external frames, and undeclared fixed contract targets, and it exercises scaffold -> check -> package -> verify for one valid temporary package.
@@ -58,13 +75,13 @@ Run `yarn vault:check:selftest` after changing checker rules, the Agent contract
 
 Run `yarn vault:verify-package dist/{folder-name}.zip` after packaging. It checks:
 
-- `flap-vault-package.json` exists
+- `flap-vault-package.json` exists (format version `4`)
 - package kind and format version match the supported Workbench intake contract
 - marker generator, sourcePackage, and check summary match the script-generated package
-- the zip contains only the four Vault files, manifest schema, package metadata, and package marker
+- the zip contains the four Vault files, manifest schema, package metadata, package marker, and the `qa/e2e-report.json` E2E proof
 - duplicate zip entries and central/local header filename mismatches are rejected
 - metadata matches the marker
-- source file and schema SHA-256 hashes match
+- source file, schema, and E2E report SHA-256 hashes match
 
 ## Warning
 

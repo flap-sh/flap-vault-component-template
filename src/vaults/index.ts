@@ -39,12 +39,6 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./flapixel-example/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./flapixel-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
-  "cz-burn-dividend-vault-v1": {
-    folderName: "cz-burn-dividend-vault-v1",
-    loadComponent: () => import("./cz-burn-dividend-vault-v1/Component"),
-    loadManifest: () => import("./cz-burn-dividend-vault-v1/manifest.json") as Promise<{ default: VaultManifest }>,
-    loadI18n: () => import("./cz-burn-dividend-vault-v1/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
-  },
 };
 
 export function getVaultFolderNames() {

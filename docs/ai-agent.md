@@ -354,10 +354,10 @@ Built-in reference packages:
 - `example`: reward/oracle pattern with approve, simulate, write, claim, and refetch.
 - `dex-listed-example`: listed-only stage gate with visible disabled state before listing and approve -> write after `marketPhase=dex-listed`.
 - `action-gallery-example`: richer action gallery showing internal-market, DEX-listed, both-stage, and read-only controls in one previewable Vault.
-- `community-buyback-example`: live CA Store example for the Community Approved Buyback vault on BNB.
-- `flapixel-example`: live CA Store example for the FLAPixel NFT vault on BNB.
+- `community-buyback-example`: Community Approved Buyback workflow example on BNB. Its manifest currently binds to the same shared neutral preview fixture factory/token as the other workflow examples.
+- `flapixel-example`: FLAPixel NFT example on BNB with its own distinct reviewed binding.
 
-Built-in examples use real `7777`/`8888`-suffix BNB token/factory bindings for package proof. `example`, `dex-listed-example`, and `action-gallery-example` are workflow fixtures only; `community-buyback-example` and `flapixel-example` are reviewed live host/runtime examples. Do not treat any example as a factory, token, Vault, or project endorsement. For local testing with a different reviewed Store factory or fixed Vault, pass real runtime values through URL params instead of committing additional addresses into a public template fixture.
+Built-in examples use real `7777`/`8888`-suffix BNB token/factory bindings for package proof. `example`, `dex-listed-example`, `action-gallery-example`, and `community-buyback-example` currently share the neutral preview fixture binding and are workflow fixtures; `flapixel-example` uses a distinct reviewed host/runtime binding. Do not treat any example as a factory, token, Vault, or project endorsement. For local testing with a different reviewed Store factory or fixed Vault, pass real runtime values through URL params instead of committing additional addresses into a public template fixture.
 
 Token image preview is also addressable by URL. `tokenImageUrl` is the direct override when a local preview needs a different mocked image:
 

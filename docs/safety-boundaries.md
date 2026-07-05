@@ -75,3 +75,19 @@ Allowed only through Flap-controlled runtime/media policy:
 - NFT metadata image through approved media handling
 - Flap official static asset
 - `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image CID verified by `vault:check`
+
+## Obfuscation Resistance
+
+The blocking checks are AST-based with constant folding, not only line-level regexes. These do not bypass the checks:
+
+- Splitting a value across `+`, template `${}`, `Array.join`, or `String.fromCharCode` to assemble a hardcoded address or external URL.
+- Aliasing a global (`const e = eval`, `const g: any = window`) or using the comma operator (`(0, eval)`, `(0, fetch)`).
+- Computed member access such as `x["innerHTML"]`, `["constructor"]`, `Reflect.construct`, or a dynamically built wallet RPC method.
+- `React.createElement("iframe" | "script")`, including concatenated tag strings.
+- Bare injected-provider identifiers (`ethereum`, `BinanceChain`, `tronWeb`, …).
+
+Hardcoded addresses, unsafe schemes, and undeclared URLs are also detected inside `i18n.json` string values, because component code can consume those strings as `href`, `src`, or a transaction target.
+
+## Verification Boundary
+
+`yarn vault:verify-package` checks source-package format and integrity only — the marker, kind/version, exact file list, metadata, and SHA-256 hashes. It is not the security decision and does not re-run `vault:check`. The Flap Artifact Workbench is the authoritative gate: on upload it re-runs the full `vault:check` on the actual submitted source before publish, so it never trusts the packaged marker's recorded check result. Passing `verify-package` locally does not imply the source is publishable; zero blocking `vault:check` issues on the real source is still required.

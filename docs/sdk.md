@@ -100,6 +100,34 @@ Use it for normal token reads and approvals such as `balanceOf`, `allowance`, `a
 
 Do not copy standard ERC20 ABI fragments into `src/vaults/{folder-name}/VaultABI.ts`. Only add token ABI fragments there when a token has custom non-standard methods or special mechanics.
 
+## Utilities
+
+The public `@/src/sdk` barrel also exports pure formatting, tx-error, IPFS, and oracle-helper utilities that Vault components can import directly:
+
+```ts
+import {
+  formatTokenAmount,
+  parseTokenAmount,
+  formatPercentBps,
+  formatCountdown,
+  shortenAddress,
+  getTxErrorKind,
+  handleTxError,
+  isIpfsImageCid,
+  resolveIpfsImageUrl,
+  resolveIpfsImageUrls,
+  buildLocalOracleUrl,
+  fetchOracleJson,
+  fetchProvisionedOracle,
+  createLocalOracleReader,
+} from "@/src/sdk";
+```
+
+- Formatting: `formatTokenAmount` / `parseTokenAmount` convert between display strings and on-chain `bigint` amounts, `formatPercentBps` renders basis points as a percent, `formatCountdown` renders a remaining-time value, and `shortenAddress` renders a truncated address.
+- Tx errors: `getTxErrorKind` classifies a caught error into a `TxErrorKind`, and `handleTxError` maps it to a user-facing notification path. Prefer these over ad hoc string matching on wallet/RPC errors.
+- IPFS: `isIpfsImageCid` validates an image CID, and `resolveIpfsImageUrl` / `resolveIpfsImageUrls` resolve a CID (or list) to allowed Flap gateway URLs. Vault-specific images should still render through `IpfsImage` / `IpfsBackground` from `@/src/ui` with a static CID.
+- Oracle: `createLocalOracleReader`, `buildLocalOracleUrl`, `fetchOracleJson`, and `fetchProvisionedOracle` back the runtime oracle provisioning path described above.
+
 ## i18n
 
 ```ts
@@ -213,25 +241,7 @@ In local preview, token metadata and token lifecycle are separate concerns:
 - To override lifecycle state intentionally, pass `marketPhase`, `isListed`, `status`, or `tokenStatusCode`.
 - If you pass `taxInfo=1` with a valid `tokenAddress`, the preview host seeds an existing-token taxinfo surface only when no real chain host data is available or when you intentionally want fixture data.
 
-For host/runtime integrations, the public SDK also exports the chain-read helpers used by preview:
-
-```ts
-import {
-  createLocalHostPresentationFetcher,
-  loadTokenRuntimeSnapshot,
-  readErc20TokenMetadata,
-  runHostRuntime,
-} from "@/src/sdk";
-
-const metadata = await readErc20TokenMetadata(publicClient, tokenAddress);
-const snapshot = await loadTokenRuntimeSnapshot(publicClient, chainId, tokenAddress);
-const runtime = await runHostRuntime({
-  publicClient,
-  chainId,
-  tokenAddress,
-  presentationFetcher: createLocalHostPresentationFetcher(),
-});
-```
+The preview shell and production host resolve this snapshot with chain-read helpers such as `readErc20TokenMetadata(...)`, `loadTokenRuntimeSnapshot(...)`, `runHostRuntime(...)`, and `createLocalHostPresentationFetcher(...)`. These are host/runtime-side helpers defined in the runtime package, not part of the Vault-importable `@/src/sdk` surface. A Vault Component must not import them from `@/src/sdk`; it consumes the already-resolved result through `context.host` and `readTaxVaultHostContext(context.host)`. Host/runtime integrations that need those helpers import them from the shared runtime `host` export (`@flapsdk/vault-runtime/host`), never from Vault source.
 
 `readErc20TokenMetadata(...)` reads ERC20 `symbol()` / `name()` directly from chain. `loadTokenRuntimeSnapshot(...)` reuses the same public chain-read path as preview: ERC20 metadata plus, on supported chains, `Portal.getTokenV7`, helper tax info, VaultPortal info, and a normalized `host` snapshot. `runHostRuntime(...)` adds the full-host/on-chain/unavailable policy layer on top, and `createLocalHostPresentationFetcher()` is the preview-side adapter that resolves host-owned token presentation through the same-origin runtime proxy.
 
@@ -250,14 +260,12 @@ Do not hide a supported action only because the token is in the wrong phase. Ren
 
 Wrong-network gating is separate from market-phase gating. If a component can write on only one chain, keep the write section visible, disable the write path when `sdk.wallet.isWrongNetwork === true`, and offer a clear switch-network state through `sdk.wallet.switchChain()`.
 
-The SDK exports pure helpers for the host/runtime side:
+The runtime side owns the pure parsing/resolution helpers that mirror Flap's stable taxinfo/feeinfo shape, for example:
 
-```ts
+```plain text
 parsePortalTokenInfo(rawGetTokenV7)
 parseTaxTokenInfo(rawTaxInfo, rawTaxInfoV2, options)
 parseVaultPortalInfo(rawTryGetVault)
-resolveTokenMarketPhase(tokenInfo)
-isActionAvailableForPhase(stage, marketPhase)
 resolveFeeMode(taxInfo, giftVaultFactory)
 isManifestRuntimeMatch(manifest, runtime)
 createTaxInfoHostContext(input)
@@ -265,7 +273,7 @@ readErc20TokenMetadata(publicClient, tokenAddress)
 loadTokenRuntimeSnapshot(publicClient, chainId, tokenAddress)
 ```
 
-These helpers mirror Flap's stable taxinfo/feeinfo parsing shape while keeping chain registry data and private configuration outside the public template. Custom Vault source should still import only `@/src/sdk`, `@/src/ui`, and `./VaultABI`.
+These are host/runtime-side helpers. They are NOT re-exported by the Vault-facing `@/src/sdk` barrel, so a Vault Component cannot import them from `@/src/sdk`; any example that does will not compile. From the Vault-importable surface, only the phase helpers `resolveTokenMarketPhase(tokenInfo)` and `isActionAvailableForPhase(stage, marketPhase)` (plus `readTaxVaultHostContext(context.host)`) are available. The parsing helpers keep chain registry data and private configuration outside the public template and live in the shared runtime package for hosts to import from `@flapsdk/vault-runtime/host`. Custom Vault source should still import only `@/src/sdk`, `@/src/ui`, and `./VaultABI`, and consume host state through `context.host` + `readTaxVaultHostContext(context.host)`.
 
 Local preview includes a right-side "Token phase self-test" panel. `Real` restores the live host phase resolved from `chainId + tokenAddress`; `Internal` and `Listing` apply temporary local overrides without editing code or depending on an external SDK. `unknown` remains a runtime value and can still appear in readout when host data is missing, but it is no longer a primary phase tab.
 
