@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 32,
+  "version": 33,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -689,7 +689,8 @@
     "formatVersion": 4,
     "generatedBy": "yarn vault:package",
     "verifyCommand": "yarn vault:verify-package dist/{folder-name}.zip",
-    "acceptanceRule": "Flap Artifact Workbench should reject manually assembled zips, zips missing the marker, zips missing qa/e2e-report.json, failed or stale E2E proofs, zips with duplicate entries, zips with mismatched hashes, unexpected entries, missing runtimePackageGitHead provenance, and zips with an unsupported package kind or format version.",
+    "historicalVerifyCommand": "yarn vault:verify-package dist/{folder-name}.zip --self-contained",
+    "acceptanceRule": "Flap Artifact Workbench should reject manually assembled zips, zips missing the marker, zips missing qa/e2e-report.json, failed or stale E2E proofs, zips with duplicate entries, zips with mismatched hashes, unexpected entries, stale template/runtime provenance, stale manifest schema, missing runtimePackageGitHead provenance, and zips with an unsupported package kind or format version. The --self-contained verifier mode is only for historical package inspection.",
     "markerSchema": {
       "kind": "flap-vault-ui-source-package",
       "formatVersion": 4,

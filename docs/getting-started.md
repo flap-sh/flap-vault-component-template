@@ -220,7 +220,7 @@ The missing-browser failure is reported as machine-readable JSON code `vault-e2e
 The package command runs `vault:check` first and rejects missing, failed, or stale E2E reports. Send the zip under `dist/` to the Flap Artifact Workbench after it passes.
 The command output prints the generated zip location in `sourcePackagePath` and `sourcePackageAbsolutePath`.
 Do not hand-zip files. `yarn vault:package` writes format `4` `flap-vault-package.json`, `runtimePackageGitHead`, `qa/e2e-report.json`, E2E summary, and hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, proof, provenance, or matching hashes.
-Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, runtime npm provenance, expected file list, metadata, and hashes from the Workbench acceptance side.
+Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, current template/runtime provenance, current manifest schema, expected file list, metadata, and hashes from the Workbench acceptance side. Use `--self-contained` only for historical package inspection, not handoff.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also verify the shared runtime package:
 

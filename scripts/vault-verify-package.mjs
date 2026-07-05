@@ -5,6 +5,7 @@ import path from "node:path";
 import process from "node:process";
 import zlib from "node:zlib";
 import { failAgent } from "./agent-error.mjs";
+import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
   E2E_REPORT_PACKAGE_PATH,
   summarizeE2EReportForMarker,
@@ -177,7 +178,20 @@ function expectedSourceFiles(folderName) {
   return REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`);
 }
 
-async function verifyPackage(zipPath) {
+function readCurrentPackageVersion() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version;
+  } catch (error) {
+    failVerify({
+      code: "package-verify/package-json-unreadable",
+      message: "Cannot read local package.json while checking current template package compatibility.",
+      fixHint: "Run yarn vault:verify-package from the flap-vault-ui-template repository root.",
+      extra: { detail: error instanceof Error ? error.message : String(error) },
+    });
+  }
+}
+
+async function verifyPackage(zipPath, { selfContained = false } = {}) {
   const absolutePath = path.resolve(zipPath);
   if (!fs.existsSync(absolutePath)) {
     failVerify({
@@ -258,6 +272,55 @@ async function verifyPackage(zipPath) {
   if (!issues.length) {
     const sourceFiles = expectedSourceFiles(folderName);
     const expectedFiles = new Set([PACKAGE_MARKER_FILE, PACKAGE_METADATA_FILE, SCHEMA_FILE, E2E_REPORT_PACKAGE_PATH, ...sourceFiles]);
+    if (!selfContained) {
+      const currentVersion = readCurrentPackageVersion();
+      const freshness = await assertTemplateFresh({ folderName });
+      const currentRuntimeGitHead = freshness.checks?.npm?.latestGitHead;
+      const currentSchemaSha256 = sha256(fs.readFileSync(path.join(process.cwd(), SCHEMA_FILE)));
+      const packageSchemaSha256 = entries.has(SCHEMA_FILE) ? sha256(entries.get(SCHEMA_FILE)) : undefined;
+
+      if (marker.templateVersion !== currentVersion) {
+        issues.push(
+          jsonIssue(
+            "package-verify/template-version-not-current",
+            `Package marker templateVersion mismatch: expected current template ${currentVersion}, got ${marker.templateVersion ?? "<missing>"}.`,
+            "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout.",
+            { file: PACKAGE_MARKER_FILE, expected: currentVersion, actual: marker.templateVersion },
+          ),
+        );
+      }
+      if (marker.runtimePackageVersion !== currentVersion) {
+        issues.push(
+          jsonIssue(
+            "package-verify/runtime-version-not-current",
+            `Package marker runtimePackageVersion mismatch: expected current runtime ${currentVersion}, got ${marker.runtimePackageVersion ?? "<missing>"}.`,
+            "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout.",
+            { file: PACKAGE_MARKER_FILE, expected: currentVersion, actual: marker.runtimePackageVersion },
+          ),
+        );
+      }
+      if (currentRuntimeGitHead && marker.runtimePackageGitHead !== currentRuntimeGitHead) {
+        issues.push(
+          jsonIssue(
+            "package-verify/runtime-git-head-not-current",
+            "Package marker runtimePackageGitHead does not match npm latest @flapsdk/vault-runtime provenance.",
+            "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout.",
+            { file: PACKAGE_MARKER_FILE, expected: currentRuntimeGitHead, actual: marker.runtimePackageGitHead },
+          ),
+        );
+      }
+      if (packageSchemaSha256 && packageSchemaSha256 !== currentSchemaSha256) {
+        issues.push(
+          jsonIssue(
+            "package-verify/schema-not-current",
+            "Packaged manifest schema does not match the current Workbench-supported template schema.",
+            "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout; do not edit schema files inside the zip.",
+            { file: SCHEMA_FILE, expected: currentSchemaSha256, actual: packageSchemaSha256 },
+          ),
+        );
+      }
+    }
+
     if (marker.sourcePackage !== `src/vaults/${folderName}`) {
       issues.push(jsonIssue("package-verify/source-package-mismatch", "Package marker sourcePackage does not match folderName.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
     }
@@ -391,20 +454,35 @@ async function verifyPackage(zipPath) {
     artifactId: marker.artifactId,
     sha256: sha256(buffer),
     entries: names,
+    selfContained,
     message: "Source package marker, file list, metadata, and hashes are valid.",
   };
 }
 
+function parseCliArgs(argv) {
+  const selfContained = argv.includes("--self-contained");
+  const unknownFlag = argv.find((arg) => arg.startsWith("--") && arg !== "--self-contained");
+  const packagePath = argv.find((arg) => !arg.startsWith("--"));
+  return { selfContained, unknownFlag, packagePath };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const packagePath = process.argv[2];
+  const { selfContained, unknownFlag, packagePath } = parseCliArgs(process.argv.slice(2));
+  if (unknownFlag) {
+    failVerify({
+      code: "cli/unknown-option",
+      message: `Unknown option: ${unknownFlag}`,
+      fixHint: "Use yarn vault:verify-package dist/<folder-name>.zip, or add --self-contained only for historical package forensics.",
+    });
+  }
   if (!packagePath) {
     failVerify({
       code: "cli/missing-package-path",
-      message: "Usage: yarn vault:verify-package dist/<folder-name>.zip",
+      message: "Usage: yarn vault:verify-package dist/<folder-name>.zip [--self-contained]",
       fixHint: "Run yarn vault:package <folder-name>, then pass the generated sourcePackagePath.",
     });
   }
-  console.log(JSON.stringify(await verifyPackage(packagePath), null, 2));
+  console.log(JSON.stringify(await verifyPackage(packagePath, { selfContained }), null, 2));
 }
 
 export { verifyPackage };

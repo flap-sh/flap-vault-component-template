@@ -15,7 +15,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "check": "yarn lint && yarn typecheck",
-    "ci": "yarn lint && yarn typecheck && yarn vault:check:selftest && yarn vault:check example && yarn vault:e2e example && yarn vault:package example && yarn vault:verify-package dist/example.zip && yarn vault:check dex-listed-example && yarn vault:e2e dex-listed-example && yarn vault:package dex-listed-example && yarn vault:verify-package dist/dex-listed-example.zip && yarn vault:check action-gallery-example && yarn vault:e2e action-gallery-example && yarn vault:package action-gallery-example && yarn vault:verify-package dist/action-gallery-example.zip && yarn vault:check community-buyback-example && yarn vault:e2e community-buyback-example && yarn vault:package community-buyback-example && yarn vault:verify-package dist/community-buyback-example.zip && yarn vault:check flapixel-example && yarn vault:e2e flapixel-example && yarn vault:package flapixel-example && yarn vault:verify-package dist/flapixel-example.zip && yarn build && yarn runtime:package && yarn runtime:verify-package && yarn preview:smoke && yarn preview:smoke:real",
+    "ci": "yarn lint && yarn typecheck && yarn vault:check:selftest && yarn vault:verify-package:selftest && yarn vault:check example && yarn vault:e2e example && yarn vault:package example && yarn vault:verify-package dist/example.zip && yarn vault:check dex-listed-example && yarn vault:e2e dex-listed-example && yarn vault:package dex-listed-example && yarn vault:verify-package dist/dex-listed-example.zip && yarn vault:check action-gallery-example && yarn vault:e2e action-gallery-example && yarn vault:package action-gallery-example && yarn vault:verify-package dist/action-gallery-example.zip && yarn vault:check community-buyback-example && yarn vault:e2e community-buyback-example && yarn vault:package community-buyback-example && yarn vault:verify-package dist/community-buyback-example.zip && yarn vault:check flapixel-example && yarn vault:e2e flapixel-example && yarn vault:package flapixel-example && yarn vault:verify-package dist/flapixel-example.zip && yarn build && yarn runtime:package && yarn runtime:verify-package && yarn preview:smoke && yarn preview:smoke:real",
     "preview:smoke": "node scripts/preview-smoke.mjs",
     "preview:smoke:real": "node scripts/preview-smoke-real.mjs",
     "runtime:package": "node scripts/build-runtime-package.mjs",
@@ -27,7 +27,8 @@
     "vault:check:selftest": "node scripts/vault-check-selftest.mjs",
     "vault:e2e": "node scripts/vault-e2e.mjs",
     "vault:package": "node scripts/vault-package.mjs",
-    "vault:verify-package": "node scripts/vault-verify-package.mjs"
+    "vault:verify-package": "node scripts/vault-verify-package.mjs",
+    "vault:verify-package:selftest": "node scripts/vault-verify-package-selftest.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
