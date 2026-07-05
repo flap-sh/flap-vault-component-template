@@ -73,6 +73,10 @@ const FORBIDDEN_IMPORTS = [
   "viem/accounts",
 ];
 const APPROVED_EXPLORER_ORIGINS = new Set(["https://bscscan.com", "https://testnet.bscscan.com"]);
+// Registrable domains allowed as user-facing external links (href / window.open /
+// URL literals), but NOT as fetch/data endpoints. Matches the apex and any
+// subdomain over HTTPS without credentials. x.com covers the official Flap/X (Twitter) links.
+const APPROVED_EXTERNAL_LINK_HOST_SUFFIXES = ["x.com"];
 const DEFAULT_ALLOWED_URL_PREFIXES = [];
 const APPROVED_CONTRACT_LABEL_RE = /\b(?:vault|token|nft)\b/i;
 const APPROVED_CONTRACT_ADDRESS_KEYWORD_RE =
@@ -792,9 +796,19 @@ function matchesAllowlistPrefix(url, prefixes) {
   return false;
 }
 
+function isApprovedExternalLinkUrl(url) {
+  const parsed = parseUrl(url);
+  if (!parsed) return false;
+  if (parsed.protocol !== "https:") return false;
+  if (parsed.username || parsed.password) return false;
+  const host = parsed.hostname.toLowerCase();
+  return APPROVED_EXTERNAL_LINK_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
+}
+
 function isApprovedNavigationUrl(url) {
   const origin = normalizeOrigin(url);
-  return Boolean(origin && APPROVED_EXPLORER_ORIGINS.has(origin));
+  if (origin && APPROVED_EXPLORER_ORIGINS.has(origin)) return true;
+  return isApprovedExternalLinkUrl(url);
 }
 
 function isAllowedBrowserGlobalMember(globalName, memberName) {
@@ -1078,7 +1092,7 @@ function collectHardcodedVisibleCopyIssues(content, file) {
 }
 
 function isAllowlistedExternalUrl(url, declaredUrls, declaredFrames = new Map()) {
-  return isDeclaredUrl(url, declaredUrls) || isDeclaredExternalFrameUrl(url, declaredFrames) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
+  return isDeclaredUrl(url, declaredUrls) || isDeclaredExternalFrameUrl(url, declaredFrames) || isApprovedExternalLinkUrl(url) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
 }
 
 function isAllowedIpfsImageGatewayUrl(url) {

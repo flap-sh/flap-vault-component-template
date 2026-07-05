@@ -27,7 +27,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - Missing i18n.
 - Remote image URLs inside Vault source. Immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid` and pass `vault:check`.
-- Arbitrary external navigation or hardcoded off-site jumps that are not the current chain explorer.
+- Arbitrary external navigation or hardcoded off-site jumps that are not the current chain explorer or an approved external-link host (currently `x.com` and its subdomains, HTTPS only). Approved external-link hosts are allowed for user-facing links only, not as `fetch`/data endpoints.
 - Contract reads/writes, event watches, log/filter calls, or gas estimates to unrelated contracts such as routers, bridges, aggregators, or other app contracts outside the Vault/token/NFT/factory/declaration boundary.
 - Direct calls to dynamic module contracts such as wrap factories, routers, dividend distributors, staking wrappers, or trigger helpers when the same workflow can be exposed as Vault UI-facing views or public proxy actions on `context.vaultAddress`.
 - Operator/admin configuration methods such as `setConfig`, `setSwapPath`, and `setSplit` exposed from `Component.tsx`.

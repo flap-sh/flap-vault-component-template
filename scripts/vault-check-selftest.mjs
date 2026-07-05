@@ -1599,6 +1599,60 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assert.equal(explorerNavigationCheck.issues.some((item) => item.ruleId === "navigation-policy/unapproved-external-navigation"), false);
   assertRule("hardcoded explorer URLs are still undeclared external URLs", explorerNavigationCheck, "endpoint-policy/undeclared-url", "blocking");
 
+  const xLinkSlug = `${FIXTURE_PREFIX}-x-link`;
+  writeVault(xLinkSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <a href="https://x.com/flapofficial" target="_blank" rel="noopener noreferrer">{i18n.t("title")}</a>
+      <a href="https://www.x.com/flapofficial" rel="noreferrer">{i18n.t("title")}</a>
+    </div>
+  );
+}
+`,
+  });
+  const xLinkCheck = runVaultCheck(xLinkSlug, { silent: true });
+  assertNoRule("x.com external links pass navigation policy", xLinkCheck, "navigation-policy/unapproved-external-navigation", "blocking");
+  assertNoRule("x.com external links are allowlisted URLs", xLinkCheck, "endpoint-policy/undeclared-url", "blocking");
+
+  const xLookalikeSlug = `${FIXTURE_PREFIX}-x-lookalike`;
+  writeVault(xLookalikeSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <a href="https://evilx.com/phish">{i18n.t("title")}</a>;
+}
+`,
+  });
+  assertRule("x.com lookalike domains are still blocked", runVaultCheck(xLookalikeSlug, { silent: true }), "navigation-policy/unapproved-external-navigation", "blocking");
+
+  const xFetchSlug = `${FIXTURE_PREFIX}-x-fetch`;
+  writeVault(xFetchSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void fetch("https://x.com/api/data");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("x.com is a link allowlist only, not a fetch endpoint", runVaultCheck(xFetchSlug, { silent: true }), "endpoint-policy/direct-fetch", "blocking");
+  passed.push("x.com is allowlisted for external links but not for data fetches");
+
   const contractBoundarySlug = `${FIXTURE_PREFIX}-contract-boundary`;
   writeVault(contractBoundarySlug, {
     component: `"use client";

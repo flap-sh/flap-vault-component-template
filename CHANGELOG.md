@@ -22,6 +22,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Added
 
+- Added `x.com` (and its subdomains, HTTPS only) to the external-link allowlist so Vault components can link to official X/Twitter pages via `href` or `window.open` (with `noopener`/`noreferrer`). Approved external-link hosts are allowed for user-facing links only, not as `fetch`/data endpoints; lookalike domains such as `evilx.com` remain blocked.
 - Added built-in shared-runtime support for the official `v2-pool-reserves` Flap Oracle, routing chain `56` to `oracle.taxed.fun` and chain `97` to `oracle-testnet.taxed.fun`.
 - Added `yarn vault:e2e <folder-name>` for V1 PC / iPad / H5 Playwright coverage across `default`, `internal-market`, `dex-listed`, and wrong-network preview states.
 - E2E reports are written to `dist/e2e/<folder-name>/qa-report.json`, with screenshots and traces kept as CI artifacts under `dist/e2e/**`.
