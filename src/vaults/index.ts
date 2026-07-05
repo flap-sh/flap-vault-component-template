@@ -45,6 +45,12 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./cz-burn-dividend-vault-v1/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./cz-burn-dividend-vault-v1/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
+  "myx-tax-token-vault": {
+    folderName: "myx-tax-token-vault",
+    loadComponent: () => import("./myx-tax-token-vault/Component"),
+    loadManifest: () => import("./myx-tax-token-vault/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./myx-tax-token-vault/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
 };
 
 export function getVaultFolderNames() {
