@@ -1045,6 +1045,28 @@ Every generated Vault UI should explicitly handle:
 {error ? <Alert tone="danger">{error}</Alert> : null}
 ```
 
+## External Links
+
+Vault UIs may not send users to arbitrary sites with raw anchors or `window.open`. Only the current chain explorer and approved external-link hosts (currently `x.com` and its subdomains) may be linked directly. Every other external link must use the `ExternalLink` component, which intercepts the click, shows a third-party risk confirmation, and opens the destination in a new tab only after the user acknowledges the risk.
+
+```tsx
+import { ExternalLink } from "@/src/ui";
+import { useFlapSdk } from "@/src/sdk";
+
+const { i18n } = useFlapSdk();
+
+// Pass a static absolute HTTPS url. The warning copy is bilingual and follows i18n.locale.
+<ExternalLink url="https://third-party-dapp.example/vault" locale={i18n.locale}>
+  {t("links.projectSite")}
+</ExternalLink>
+```
+
+- The `url` must be a static absolute HTTPS literal without credentials. Dynamic, non-HTTPS, `javascript:`, or `data:` urls are blocked (`navigation-policy/invalid-external-link`).
+- The destination host is shown to the user inside the warning dialog.
+- `ExternalLink` is for user-facing links only. It is not a data channel; use `manifest.endpoints` + `fetch`/`sdk.readOracle` for reviewed data fetches.
+- Every `ExternalLink` destination is non-blocking but is listed for Flap human review: `vault:check` emits an `info` `manual-review/external-link` item (surfaced in `review.externalLinks`) and the Workbench displays each destination for a reviewer before publish.
+- Copy is built-in English/Chinese, selected from the `locale` prop; pass individual `copy` overrides only if you need custom wording.
+
 ## Agent Checklist
 
 Before coding, pick one primary pattern:

@@ -231,6 +231,7 @@ const FIX_HINTS = {
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
   "endpoint-policy/direct-fetch": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
+  "manual-review/external-link": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it.",
   "frame-policy/invalid-frames": "Set manifest.externalFrames to a non-empty array of reviewed frame declarations, or remove it.",
   "frame-policy/invalid-frame-declaration": "Each externalFrames entry must include id, provider, src, and title only.",
   "frame-policy/duplicate-frame-id": "Use a unique lowercase kebab-case id for each external frame declaration.",
@@ -277,7 +278,8 @@ const FIX_HINTS = {
   "media-policy/invalid-ipfs-image-cid": "Pass only a static image CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic expressions.",
   "media-policy/ipfs-image-unavailable": "Use a static image CID that resolves through an allowed Flap IPFS gateway to an image/* response.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
-  "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites. Keep component-owned links on the current chain explorer only, and use host-reviewed allowlists for any exceptional metadata/oracle origin during review.",
+  "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
+  "navigation-policy/invalid-external-link": "Pass a static absolute HTTPS URL without credentials to the ExternalLink url prop. Do not build the destination dynamically or use non-HTTPS, javascript:, or data: URLs.",
   "contract-boundary/missing-contract-label": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the call target.",
   "contract-boundary/disallowed-contract-label": "Limit contract labels to vault/token/nft-related targets. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
   "contract-boundary/disallowed-contract-address-source": "Keep contract targets on context.vaultAddress, context.tokenAddress, context.factoryAddress, token/NFT-related runtime addresses, or declared externalContracts only.",
@@ -1154,6 +1156,35 @@ function collectIpfsImageCidUsages(content, file) {
 
 function isValidIpfsImageCid(cid) {
   return typeof cid === "string" && IPFS_IMAGE_CID_RE.test(cid);
+}
+
+// The ExternalLink component from @/src/ui is the sanctioned way to send a user to
+// a non-allowlisted external site: it intercepts navigation and shows a risk
+// confirmation before opening the destination. Collect its usages so the url prop
+// is treated as an approved user-facing link (static HTTPS only), and so the raw
+// URL literal is not double-reported as an undeclared endpoint.
+function collectExternalLinkUsages(content, file) {
+  const usages = [];
+  const tagRegex = /<ExternalLink\b[^>]*>/g;
+  for (const tagMatch of content.matchAll(tagRegex)) {
+    const tag = tagMatch[0];
+    const tagStart = tagMatch.index ?? 0;
+    const url = staticJsxStringAttribute(tag, "url");
+    usages.push({
+      url: typeof url === "string" ? url.trim() : url,
+      tagStart,
+      tagEnd: tagStart + tag.length,
+      file,
+      line: lineForIndex(content, tagStart),
+    });
+  }
+  return usages;
+}
+
+function isValidExternalLinkUrl(url) {
+  if (typeof url !== "string") return false;
+  const parsed = parseUrl(url);
+  return Boolean(parsed && parsed.protocol === "https:" && !parsed.username && !parsed.password);
 }
 
 function ipfsImageUrlsForCid(cid) {
@@ -3329,6 +3360,38 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
+    const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
+    for (const usage of externalLinkUsages) {
+      if (!isValidExternalLinkUrl(usage.url)) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "navigation-policy/invalid-external-link",
+            "ExternalLink url must be a static absolute HTTPS URL without credentials. Do not build the destination dynamically or use non-HTTPS, javascript:, or data: URLs.",
+            { file: rel, line: usage.line },
+          ),
+        );
+        continue;
+      }
+      const parsedLink = parseUrl(usage.url);
+      issues.push(
+        issue(
+          INFO,
+          "manual-review/external-link",
+          `ExternalLink sends users to third-party destination ${usage.url}. Third-party links open behind a risk confirmation and are listed for Flap human review before publish.`,
+          {
+            url: usage.url,
+            origin: parsedLink?.origin ?? null,
+            pathname: parsedLink?.pathname ?? null,
+            queryParams: queryParamsForUrl(usage.url),
+            file: rel,
+            line: usage.line,
+          },
+        ),
+      );
+    }
+    const externalLinkRanges = externalLinkUsages.map((usage) => [usage.tagStart, usage.tagEnd]);
+    const isWithinExternalLink = (index) => externalLinkRanges.some(([start, end]) => index >= start && index < end);
     const externalUrlRegex = /\b(?:https?:\/\/|wss?:\/\/|ipfs:\/\/|ar:\/\/)[^\s"'`<>)]+/g;
     const dataUrlRegex = /\bdata:(?:image|video|audio|text\/html)[^\s"'`)]+/gi;
     const relativeFetchRegex = /\bfetch\s*\(\s*["'`]\/(?!\/)[^"'`)]*["'`]/g;
@@ -3385,7 +3448,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
             issue(
               BLOCKING,
               "navigation-policy/unapproved-external-navigation",
-              `External navigation ${url} is not allowed inside a Vault component. Keep user-facing navigation on the chain explorer only.`,
+              `External navigation ${url} is not allowed inside a Vault component. Keep user-facing navigation on the chain explorer or an approved external-link host, and use the ExternalLink component from @/src/ui for other third-party links.`,
               { file: rel, line: lineForIndex(scanContent, match.index) },
             ),
           );
@@ -3393,9 +3456,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     for (const match of scanContent.matchAll(externalUrlRegex)) {
+      if (isWithinExternalLink(match.index)) continue;
       const url = sanitizeUrlLiteral(match[0]);
       if (!isAllowlistedExternalUrl(url, declaredUrls, declaredFrames)) {
-        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints or externalFrames. Undeclared endpoints and external resources are rejected.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
+        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints or externalFrames. Undeclared endpoints and external resources are rejected. For a user-facing third-party link, use the ExternalLink component from @/src/ui instead.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
     for (const match of scanContent.matchAll(dataUrlRegex)) {
@@ -3657,6 +3721,19 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
+  const externalLinks = issues
+    .filter((item) => item.ruleId === "manual-review/external-link" && item.url)
+    .map((item) => ({
+      url: item.url,
+      origin: item.origin,
+      pathname: item.pathname,
+      queryParams: item.queryParams ?? {},
+      file: item.file,
+      line: item.line,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
   const fullscreenLayouts = issues
     .filter((item) => item.ruleId === "manual-review/fullscreen-layout")
     .map((item) => ({
@@ -3666,7 +3743,7 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames, fullscreenLayouts };
+  return { externalEndpoints, oracles, externalFrames, externalLinks, fullscreenLayouts };
 }
 
 function buildCheckReport(folderName, issues) {

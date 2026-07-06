@@ -1653,6 +1653,79 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertRule("x.com is a link allowlist only, not a fetch endpoint", runVaultCheck(xFetchSlug, { silent: true }), "endpoint-policy/direct-fetch", "blocking");
   passed.push("x.com is allowlisted for external links but not for data fetches");
 
+  const externalLinkOkSlug = `${FIXTURE_PREFIX}-external-link-ok`;
+  writeVault(externalLinkOkSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ExternalLink } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <ExternalLink url="https://third-party-dapp.example/vault">{i18n.t("title")}</ExternalLink>;
+}
+`,
+  });
+  const externalLinkOkCheck = runVaultCheck(externalLinkOkSlug, { silent: true });
+  assertNoRule("ExternalLink static HTTPS destination is an approved link", externalLinkOkCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("ExternalLink static HTTPS destination is not an invalid link", externalLinkOkCheck, "navigation-policy/invalid-external-link", "blocking");
+  assertRule("ExternalLink destination is an info manual-review item, not blocking", externalLinkOkCheck, "manual-review/external-link", "info");
+  assert.equal(
+    externalLinkOkCheck.review?.externalLinks?.some((item) => item.url === "https://third-party-dapp.example/vault"),
+    true,
+    "ExternalLink destination must be listed in review.externalLinks for Workbench",
+  );
+  passed.push("ExternalLink destinations are listed for Workbench human review as non-blocking info items");
+
+  const externalLinkDynamicSlug = `${FIXTURE_PREFIX}-external-link-dynamic`;
+  writeVault(externalLinkDynamicSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ExternalLink } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  return <ExternalLink url={String(context.tokenAddress)}>{i18n.t("title")}</ExternalLink>;
+}
+`,
+  });
+  assertRule("ExternalLink with a dynamic url is blocked", runVaultCheck(externalLinkDynamicSlug, { silent: true }), "navigation-policy/invalid-external-link", "blocking");
+
+  const externalLinkHttpSlug = `${FIXTURE_PREFIX}-external-link-http`;
+  writeVault(externalLinkHttpSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ExternalLink } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <ExternalLink url="http://third-party-dapp.example">{i18n.t("title")}</ExternalLink>;
+}
+`,
+  });
+  assertRule("ExternalLink with a non-HTTPS url is blocked", runVaultCheck(externalLinkHttpSlug, { silent: true }), "navigation-policy/invalid-external-link", "blocking");
+
+  const rawExternalAnchorSlug = `${FIXTURE_PREFIX}-raw-external-anchor`;
+  writeVault(rawExternalAnchorSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <a href="https://third-party-dapp.example/vault">{i18n.t("title")}</a>;
+}
+`,
+  });
+  assertRule("raw external anchors are still blocked and must use ExternalLink", runVaultCheck(rawExternalAnchorSlug, { silent: true }), "navigation-policy/unapproved-external-navigation", "blocking");
+  passed.push("non-allowlisted external links must use the ExternalLink component");
+
   const contractBoundarySlug = `${FIXTURE_PREFIX}-contract-boundary`;
   writeVault(contractBoundarySlug, {
     component: `"use client";

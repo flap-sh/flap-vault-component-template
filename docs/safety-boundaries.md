@@ -27,7 +27,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - Missing i18n.
 - Remote image URLs inside Vault source. Immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid` and pass `vault:check`.
-- Arbitrary external navigation or hardcoded off-site jumps that are not the current chain explorer or an approved external-link host (currently `x.com` and its subdomains, HTTPS only). Approved external-link hosts are allowed for user-facing links only, not as `fetch`/data endpoints.
+- Arbitrary external navigation or hardcoded off-site jumps (raw anchors, `window.open`, `location`) that are not the current chain explorer or an approved external-link host (currently `x.com` and its subdomains, HTTPS only). Every other external link must use the `ExternalLink` component from `@/src/ui` instead. Approved external-link hosts and `ExternalLink` are for user-facing links only, not as `fetch`/data endpoints.
 - Contract reads/writes, event watches, log/filter calls, or gas estimates to unrelated contracts such as routers, bridges, aggregators, or other app contracts outside the Vault/token/NFT/factory/declaration boundary.
 - Direct calls to dynamic module contracts such as wrap factories, routers, dividend distributors, staking wrappers, or trigger helpers when the same workflow can be exposed as Vault UI-facing views or public proxy actions on `context.vaultAddress`.
 - Operator/admin configuration methods such as `setConfig`, `setSwapPath`, and `setSplit` exposed from `Component.tsx`.
@@ -46,6 +46,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Local small components inside `Component.tsx`.
 - Component-scoped `<canvas>` surfaces that draw from local React state and Flap SDK/host data through a React ref. Keep required risk status ahead of large canvas visuals and keep canvas inside the Vault business panel rather than turning the package into a whiteboard/editor.
 - CSS/HTML card shapes and `lucide-react` icons before ad hoc SVG; search the official Lucide icon library first at `https://lucide.dev/icons/`. Handwritten inline SVG JSX is allowed only for static pure graphic nodes such as `svg`, `path`, `circle`, `rect`, and gradients with local fragment references.
+- User-facing links to non-allowlisted external sites through the `ExternalLink` component from `@/src/ui` with a static absolute HTTPS `url`. It intercepts the click and requires the user to acknowledge the third-party risk before opening the destination in a new tab. Each `ExternalLink` destination is not blocking, but is surfaced as an `info` `manual-review/external-link` item and listed in the Flap Artifact Workbench for human review before publish.
 - Flap SDK contract reads/writes.
 - Reading Flap-provided `context.host` values for token info, parsed tax info, VaultPortal info, fee mode, render surface, and registry-selected Vault type.
 - `sdk.readOracle(...)` only when the Flap Artifact Workbench/runtime can review and provision the oracle id.
