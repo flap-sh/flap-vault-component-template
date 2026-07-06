@@ -151,7 +151,8 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
             aria-modal="true"
             aria-label={text.title}
             onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[calc(100vh-2rem)] w-[min(520px,100%)] flex-col overflow-hidden rounded-sm border border-primary bg-black font-mono text-white shadow-panel"
+            style={{ width: "min(520px, 100%)", maxHeight: "calc(100vh - 2rem)" }}
+            className="flex w-[min(520px,100%)] max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-sm border border-primary bg-black font-mono text-white shadow-panel"
           >
             <div className="flex items-center justify-between border-b border-primary/60 px-4 py-3 sm:px-5">
               <span className="truncate text-sm font-semibold uppercase tracking-wider sm:text-base">
