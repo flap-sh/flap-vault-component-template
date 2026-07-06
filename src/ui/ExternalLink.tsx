@@ -1,7 +1,6 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { ExternalLink as ExternalLinkIcon, X as CloseIcon } from "lucide-react";
-import { Button } from "./Button";
 import { cn } from "./utils";
 
 type ExternalLinkLocale = "en" | "zh";
@@ -65,23 +64,42 @@ function safeHost(url: string): string {
 }
 
 function WarningIcon({ className }: { className?: string }) {
-  // Chunky, crisp-edged warning triangle matching the Flap terminal aesthetic.
+  // Pixel-art warning triangle, exported from Figma (node 1196:9849). Color via currentColor.
   return (
-    <svg
-      viewBox="0 0 48 44"
-      role="img"
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      stroke="#FF7A1A"
-      strokeWidth={3}
-      strokeLinejoin="miter"
-      strokeLinecap="square"
-      shapeRendering="crispEdges"
-    >
-      <path d="M24 4 L46 42 L2 42 Z" />
-      <rect x="22" y="17" width="4" height="12" fill="#FF7A1A" stroke="none" />
-      <rect x="22" y="33" width="4" height="4" fill="#FF7A1A" stroke="none" />
+    <svg viewBox="0 0 80 80" fill="currentColor" aria-hidden="true" shapeRendering="crispEdges" className={className}>
+      <rect x="32.4395" y="11.7969" width="2.62997" height="6.57492" />
+      <rect width="2.62997" height="6.57492" transform="matrix(-1 0 0 1 47.5605 11.7969)" />
+      <rect x="35.0693" y="9.16699" width="2.62997" height="5.25994" />
+      <rect x="37.6982" y="9.16699" width="4.60245" height="2.62997" />
+      <rect x="38.333" y="6.66699" width="3.33333" height="2.5" />
+      <rect width="2.62997" height="5.25994" transform="matrix(-1 0 0 1 44.9307 9.16699)" />
+      <rect x="29.8086" y="16.3989" width="2.62997" height="6.57492" />
+      <rect width="2.62997" height="6.57492" transform="matrix(-1 0 0 1 50.1914 16.3989)" />
+      <rect x="27.1787" y="21.6592" width="2.62997" height="5.91743" />
+      <rect width="2.62997" height="5.91743" transform="matrix(-1 0 0 1 52.8213 21.6592)" />
+      <rect x="24.5488" y="24.2891" width="2.62997" height="7.23242" />
+      <rect width="2.62997" height="7.23242" transform="matrix(-1 0 0 1 55.4512 24.2891)" />
+      <rect x="21.9189" y="29.5488" width="2.62997" height="7.23242" />
+      <rect width="2.62997" height="7.23242" transform="matrix(-1 0 0 1 58.0811 29.5488)" />
+      <rect x="19.2891" y="34.8086" width="2.62997" height="7.23242" />
+      <rect width="2.62997" height="7.23242" transform="matrix(-1 0 0 1 60.7109 34.8086)" />
+      <rect x="16.6592" y="40.0693" width="2.62997" height="5.91743" />
+      <rect width="2.62997" height="5.91743" transform="matrix(-1 0 0 1 63.3408 40.0693)" />
+      <rect x="14.0293" y="44.6709" width="2.62997" height="5.91743" />
+      <rect width="2.62997" height="5.91743" transform="matrix(-1 0 0 1 65.9707 44.6709)" />
+      <rect x="11.3984" y="48.6165" width="2.62997" height="5.91743" />
+      <rect width="2.62997" height="5.91743" transform="matrix(-1 0 0 1 68.6016 48.6165)" />
+      <rect x="8.76855" y="53.8762" width="2.62997" height="5.91743" />
+      <rect width="2.62997" height="5.91743" transform="matrix(-1 0 0 1 71.2314 53.8762)" />
+      <rect x="6.13965" y="58.4783" width="2.62997" height="5.91743" />
+      <rect width="2.62997" height="5.91743" transform="matrix(-1 0 0 1 73.8604 58.4783)" />
+      <rect x="4.16699" y="62.4236" width="2.62997" height="5.91743" />
+      <rect width="2.62997" height="5.91743" transform="matrix(-1 0 0 1 75.833 62.4236)" />
+      <rect x="6.79688" y="68.3406" width="2.62997" height="2.62997" />
+      <rect x="70.5742" y="68.3406" width="2.62997" height="2.62997" />
+      <rect x="9.42578" y="70.9709" width="61.1468" height="2.62997" />
+      <rect x="38.333" y="30.833" width="4.16667" height="22.5" />
+      <rect x="38.333" y="57.5" width="4.16667" height="4.16667" />
     </svg>
   );
 }
@@ -133,7 +151,7 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
         type="button"
         data-flap-ui="external-link"
         onClick={() => setOpen(true)}
-        className={cn("inline-flex min-w-0 items-center gap-1 text-primary hover:underline", className)}
+        className={cn("inline-flex min-w-0 items-center gap-1 text-[#d0ff00] hover:underline", className)}
       >
         <span className="truncate">{children}</span>
         <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -151,37 +169,46 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
             aria-modal="true"
             aria-label={text.title}
             onClick={(event) => event.stopPropagation()}
-            style={{ width: "min(520px, 100%)", maxHeight: "calc(100vh - 2rem)" }}
-            className="flex w-[min(520px,100%)] max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-sm border border-primary bg-black font-mono text-white shadow-panel"
+            style={{
+              width: "min(540px, 100%)",
+              maxHeight: "calc(100vh - 2rem)",
+              fontFamily: "'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace",
+              backgroundColor: "#070808",
+              border: "1px solid #414141",
+            }}
+            className="flex w-[min(540px,100%)] max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-[4px] text-white shadow-panel"
           >
-            <div className="flex items-center justify-between border-b border-primary/60 px-4 py-3 sm:px-5">
-              <span className="truncate text-sm font-semibold uppercase tracking-wider sm:text-base">
-                <span className="text-[#D0FF00]">{"//"}</span>
+            <div className="flex items-center justify-between border-b border-[#484b51] px-6 py-[14px]">
+              <span className="truncate text-[18px] font-medium uppercase leading-none tracking-[-0.4px]">
+                <span className="text-[#d0ff00]">{"//"}</span>
                 {text.title}
               </span>
               <button
                 type="button"
                 onClick={close}
                 aria-label={text.cancel}
-                className="flex h-7 w-7 shrink-0 items-center justify-center border border-[#303236] text-[#D4D4D4] hover:border-primary hover:text-primary"
+                className="flex size-5 shrink-0 items-center justify-center border border-[#484b51] text-white/80 hover:text-white"
               >
-                <CloseIcon className="h-4 w-4" />
+                <CloseIcon className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            <div className="flex flex-col gap-5 overflow-y-auto px-5 py-6 sm:px-7 sm:py-8">
-              <WarningIcon className="mx-auto h-16 w-16 sm:h-20 sm:w-20" />
-              <h2 className="text-center text-lg font-semibold uppercase tracking-wide sm:text-xl">{text.heading}</h2>
-              <p className="text-xs leading-6 text-[#A3A3A3] sm:text-sm">{text.description}</p>
+            <div className="flex flex-col gap-6 overflow-y-auto p-6">
+              <div className="flex flex-col items-center gap-5">
+                <WarningIcon className="h-20 w-20 text-[#f68f15]" />
+                <h2 className="text-center text-[18px] font-medium uppercase leading-[1.4] tracking-[-0.4px]">{text.heading}</h2>
+              </div>
 
-              <div className="min-w-0 border border-[#262626] bg-[#0A0A0A] px-3 py-2 text-[11px] sm:text-xs">
-                <div className="mb-1 uppercase tracking-wider text-[#6B7280]">{text.destinationLabel}</div>
-                <div className="truncate text-[#D4D4D4]" title={url}>
+              <p className="text-[14px] leading-[1.4] tracking-[-0.4px] text-[#a0a3a7]">{text.description}</p>
+
+              <div className="min-w-0 border border-[#262626] bg-[#0a0a0a] px-3 py-2 text-[13px]">
+                <div className="mb-1 uppercase tracking-[-0.4px] text-[#6b7280]">{text.destinationLabel}</div>
+                <div className="truncate text-[#d4d4d4]" title={url}>
                   {safeHost(url)}
                 </div>
               </div>
 
-              <label className="flex cursor-pointer items-start gap-3 text-xs text-[#D4D4D4] sm:text-sm">
+              <label className="flex cursor-pointer items-center gap-2 text-[14px] leading-[1.4] tracking-[-0.4px] text-white">
                 <input
                   type="checkbox"
                   checked={acknowledged}
@@ -191,8 +218,8 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border",
-                    acknowledged ? "border-[#D0FF00] bg-[#D0FF00] text-black" : "border-[#4B5563] bg-transparent",
+                    "flex size-4 shrink-0 items-center justify-center border",
+                    acknowledged ? "border-[#d0ff00] bg-[#d0ff00] text-[#070808]" : "border-[#a0a3a7] bg-transparent",
                   )}
                 >
                   {acknowledged ? (
@@ -204,13 +231,23 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
                 <span className="min-w-0">{text.acknowledge}</span>
               </label>
 
-              <div className="flex flex-col gap-3 pt-1 sm:flex-row">
-                <Button variant="outline" size="lg" className="w-full sm:flex-1" onClick={close}>
+              <div className="flex gap-6">
+                <button
+                  type="button"
+                  onClick={close}
+                  className="flex flex-1 items-center justify-center rounded-[2px] border border-[#84888c] bg-transparent py-3 text-[14px] font-bold uppercase tracking-[-0.4px] text-white transition-colors hover:border-white"
+                >
                   {text.cancel}
-                </Button>
-                <Button variant="default" size="lg" className="w-full sm:flex-1" disabled={!acknowledged} onClick={proceed}>
+                </button>
+                <button
+                  type="button"
+                  onClick={proceed}
+                  disabled={!acknowledged}
+                  style={{ backgroundColor: acknowledged ? "#d0ff00" : "#536600", color: "#070808" }}
+                  className="flex flex-1 items-center justify-center rounded-[2px] py-3 text-[14px] font-bold uppercase tracking-[-0.4px] transition-colors"
+                >
                   {text.proceed}
-                </Button>
+                </button>
               </div>
             </div>
           </div>
