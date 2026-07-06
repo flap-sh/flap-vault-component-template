@@ -5,6 +5,7 @@ export * from "./Card";
 export * from "./Countdown";
 export * from "./DataRow";
 export * from "./DetailTile";
+export * from "./ExternalLink";
 export * from "./Input";
 export * from "./IpfsBackground";
 export * from "./IpfsImage";
