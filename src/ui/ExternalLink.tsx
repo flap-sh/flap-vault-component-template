@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { ExternalLink as ExternalLinkIcon, X as CloseIcon } from "lucide-react";
 import { Button } from "./Button";
 import { cn } from "./utils";
@@ -94,7 +95,12 @@ function WarningIcon({ className }: { className?: string }) {
 export function ExternalLink({ url, children, locale, className, copy }: ExternalLinkProps) {
   const [open, setOpen] = React.useState(false);
   const [acknowledged, setAcknowledged] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
   const text = { ...COPY[resolveLocale(locale)], ...copy };
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const close = React.useCallback(() => {
     setOpen(false);
@@ -133,11 +139,13 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
         <ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       </button>
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          onClick={close}
-        >
+      {open && mounted ? (
+        createPortal(
+          <div
+            className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            style={{ zIndex: 2147483647 }}
+            onClick={close}
+          >
           <div
             role="dialog"
             aria-modal="true"
@@ -205,7 +213,9 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
               </div>
             </div>
           </div>
-        </div>
+          </div>,
+          document.body,
+        )
       ) : null}
     </>
   );
