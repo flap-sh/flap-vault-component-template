@@ -178,8 +178,14 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
             }}
             className="flex w-[min(540px,100%)] max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-[4px] text-white shadow-panel"
           >
-            <div className="flex items-center justify-between border-b border-[#484b51] px-6 py-[14px]">
-              <span className="truncate text-[18px] font-medium uppercase leading-none tracking-[-0.4px]">
+            <div
+              className="flex items-center justify-between border-b border-[#484b51] px-6 py-[14px]"
+              style={{ boxSizing: "border-box", height: "49px", lineHeight: 1 }}
+            >
+              <span
+                className="truncate text-[18px] font-medium uppercase leading-none tracking-[-0.4px]"
+                style={{ lineHeight: 1 }}
+              >
                 <span className="text-[#d0ff00]">{"//"}</span>
                 {text.title}
               </span>
