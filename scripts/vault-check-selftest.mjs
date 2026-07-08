@@ -2132,6 +2132,38 @@ export default function SelftestVault(_props: VaultComponentProps) {
   );
   passed.push("official v2 pool reserves oracle review output includes endpoint and param policy");
 
+  const xVerifierOracleSlug = `${FIXTURE_PREFIX}-oracle-x-verifier`;
+  writeVault(xVerifierOracleSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readOracle("x-verifier", {
+    tax_token: "0x0000000000000000000000000000000000007777",
+    tweet_id: "2013910026709356660",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const xVerifierOracleCheck = runVaultCheck(xVerifierOracleSlug, { silent: true });
+  assertNoRule("x-verifier oracle id does not block packaging", xVerifierOracleCheck, "manual-review/oracle-usage", "blocking");
+  assert.ok(
+    xVerifierOracleCheck.review?.oracles?.some(
+      (item) =>
+        item.oracleId === "x-verifier" &&
+        item.provisioned === true &&
+        item.endpoints?.includes("https://x-verifier.taxvault.info/submit") &&
+        item.allowedParams?.includes("tax_token") &&
+        item.allowedParams?.includes("tweet_id"),
+    ),
+    "x-verifier oracle review output includes endpoint and param policy",
+  );
+  passed.push("x-verifier oracle review output includes endpoint and param policy");
+
   const registryOracleSlug = `${FIXTURE_PREFIX}-oracle-registry`;
   writeVault(registryOracleSlug, {
     component: `"use client";

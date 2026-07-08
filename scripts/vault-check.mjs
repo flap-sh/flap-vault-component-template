@@ -119,6 +119,15 @@ const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
       fixedParams: {},
     },
   ],
+  [
+    "x-verifier",
+    {
+      source: "built-in",
+      endpoints: ["https://x-verifier.taxvault.info/submit"],
+      allowedParams: ["tax_token", "tweet_id"],
+      fixedParams: {},
+    },
+  ],
 ]);
 const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow)\b(?=[^>]*\b(?:riskLabel|riskLevel|riskTone)\b)|<StatusBadge\b[^>]*>\s*{?\s*(?:riskLabel|riskLevel|riskTone)\b/;
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
