@@ -4,8 +4,8 @@ import type React from "react";
 import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, FileText, FolderCode, Terminal, Zap } from "lucide-react";
-import { useState } from "react";
 import { useLang } from "@/src/i18n/useLang";
 import type { VaultManifest } from "@/src/sdk";
 import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
@@ -48,6 +48,19 @@ const gridStyle: CSSProperties = {
 };
 
 type DocMode = "custom" | "miniApp";
+type SearchParamsLike = {
+  get: (name: string) => string | null;
+  toString: () => string;
+};
+
+function readDocMode(searchParams: SearchParamsLike): DocMode {
+  const value = searchParams.get("tab") ?? searchParams.get("mode");
+  return value === "mini-app" || value === "miniApp" || value === "mini" ? "miniApp" : "custom";
+}
+
+function writeDocMode(mode: DocMode) {
+  return mode === "miniApp" ? "mini-app" : "custom";
+}
 
 type MiniAppGuideContent = {
   summary: {
@@ -91,8 +104,11 @@ type MiniAppGuideContent = {
 
 export default function HomePage() {
   const { lang, languageCode } = useLang();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const sop = lang.home.sop;
-  const [docMode, setDocMode] = useState<DocMode>("custom");
+  const docMode = readDocMode(searchParams);
   const miniApp = sop.miniApp;
   const quickStart = docMode === "miniApp" ? miniApp.quickStart : sop.quickStart;
   const developerEntry = sop.developerEntry;
@@ -101,6 +117,11 @@ export default function HomePage() {
     docMode === "miniApp"
       ? { label: miniApp.label, title: miniApp.title, description: miniApp.description }
       : { label: sop.label, title: sop.title, description: sop.description };
+  const setDocMode = (mode: DocMode) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("tab", writeDocMode(mode));
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  };
 
   return (
     <VaultRuntimeProvider
