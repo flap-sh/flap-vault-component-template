@@ -1055,16 +1055,16 @@ import { useFlapSdk } from "@/src/sdk";
 
 const { i18n } = useFlapSdk();
 
-// Pass a static absolute HTTPS url. The warning copy is bilingual and follows i18n.locale.
+// The warning copy is bilingual and follows i18n.locale.
 <ExternalLink url="https://third-party-dapp.example/vault" locale={i18n.locale}>
   {t("links.projectSite")}
 </ExternalLink>
 ```
 
-- The `url` must be a static absolute HTTPS literal without credentials. Dynamic, non-HTTPS, `javascript:`, or `data:` urls are blocked (`navigation-policy/invalid-external-link`).
+- The `url` may be static or dynamic. The runtime component opens only absolute HTTPS destinations without credentials after the user acknowledges the risk prompt.
 - The destination host is shown to the user inside the warning dialog.
 - `ExternalLink` is for user-facing links only. It is not a data channel; use `manifest.endpoints` + `fetch`/`sdk.readOracle` for reviewed data fetches.
-- Every `ExternalLink` destination is non-blocking but is listed for Flap human review: `vault:check` emits an `info` `manual-review/external-link` item (surfaced in `review.externalLinks`) and the Workbench displays each destination for a reviewer before publish.
+- Static `ExternalLink` destinations are listed for Flap human review: `vault:check` emits an `info` `manual-review/external-link` item (surfaced in `review.externalLinks`) and the Workbench displays each destination for a reviewer before publish. Dynamic destinations rely on the runtime risk prompt and HTTPS-only guard.
 - Copy is built-in English/Chinese, selected from the `locale` prop; pass individual `copy` overrides only if you need custom wording.
 
 ## Agent Checklist

@@ -1688,11 +1688,15 @@ import { ExternalLink } from "@/src/ui";
 
 export default function SelftestVault(_props: VaultComponentProps) {
   const { context, i18n } = useFlapSdk();
-  return <ExternalLink url={String(context.tokenAddress)}>{i18n.t("title")}</ExternalLink>;
+  const baseUrl = "https://third-party-dapp.example";
+  const targetUrl = \`\${baseUrl}/vault/\${context.tokenAddress}\`;
+  return <ExternalLink url={targetUrl}>{i18n.t("title")}</ExternalLink>;
 }
 `,
   });
-  assertRule("ExternalLink with a dynamic url is blocked", runVaultCheck(externalLinkDynamicSlug, { silent: true }), "navigation-policy/invalid-external-link", "blocking");
+  const externalLinkDynamicCheck = runVaultCheck(externalLinkDynamicSlug, { silent: true });
+  assertNoRule("ExternalLink with a dynamic url is allowed behind the runtime risk prompt", externalLinkDynamicCheck, "navigation-policy/invalid-external-link", "blocking");
+  assertNoRule("ExternalLink dynamic url source is not treated as an endpoint", externalLinkDynamicCheck, "endpoint-policy/undeclared-url", "blocking");
 
   const externalLinkHttpSlug = `${FIXTURE_PREFIX}-external-link-http`;
   writeVault(externalLinkHttpSlug, {
@@ -1708,7 +1712,8 @@ export default function SelftestVault(_props: VaultComponentProps) {
 }
 `,
   });
-  assertRule("ExternalLink with a non-HTTPS url is blocked", runVaultCheck(externalLinkHttpSlug, { silent: true }), "navigation-policy/invalid-external-link", "blocking");
+  const externalLinkHttpCheck = runVaultCheck(externalLinkHttpSlug, { silent: true });
+  assertNoRule("ExternalLink with a non-HTTPS static url is left to the runtime guard", externalLinkHttpCheck, "navigation-policy/invalid-external-link", "blocking");
 
   const rawExternalAnchorSlug = `${FIXTURE_PREFIX}-raw-external-anchor`;
   writeVault(rawExternalAnchorSlug, {

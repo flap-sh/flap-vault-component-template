@@ -10,6 +10,7 @@ interface ExternalLinkCopy {
   heading: string;
   description: string;
   destinationLabel: string;
+  invalidDestination: string;
   acknowledge: string;
   cancel: string;
   proceed: string;
@@ -22,6 +23,7 @@ const COPY: Record<ExternalLinkLocale, ExternalLinkCopy> = {
     description:
       "You are about to visit a third-party page maintained by an external developer. This site is not operated by FLAP and may contain unknown security or privacy risks.",
     destinationLabel: "Destination",
+    invalidDestination: "Unsupported destination",
     acknowledge: "I understand the risks and want to proceed",
     cancel: "CLOSE",
     proceed: "CONTINUE",
@@ -32,6 +34,7 @@ const COPY: Record<ExternalLinkLocale, ExternalLinkCopy> = {
     description:
       "您即将访问由外部开发者维护的第三方页面。该站点不由 FLAP 运营，可能存在未知的安全或隐私风险。",
     destinationLabel: "目标地址",
+    invalidDestination: "不支持的目标地址",
     acknowledge: "我已了解风险并希望继续",
     cancel: "关闭",
     proceed: "继续",
@@ -55,11 +58,13 @@ function resolveLocale(locale?: string): ExternalLinkLocale {
   return locale && locale.toLowerCase().startsWith("zh") ? "zh" : "en";
 }
 
-function safeHost(url: string): string {
+function normalizeExternalUrl(url: string): string | null {
   try {
-    return new URL(url).host;
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) return null;
+    return parsed.href;
   } catch {
-    return url;
+    return null;
   }
 }
 
@@ -115,6 +120,8 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
   const [acknowledged, setAcknowledged] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
   const text = { ...COPY[resolveLocale(locale)], ...copy };
+  const safeUrl = React.useMemo(() => normalizeExternalUrl(url), [url]);
+  const canProceed = acknowledged && Boolean(safeUrl);
 
   React.useEffect(() => {
     setMounted(true);
@@ -140,8 +147,8 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
   }, [open, close]);
 
   const proceed = () => {
-    if (!acknowledged) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (!canProceed || !safeUrl) return;
+    window.open(safeUrl, "_blank", "noopener,noreferrer");
     close();
   };
 
@@ -209,8 +216,8 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
 
               <div className="min-w-0 border border-[#262626] bg-[#0a0a0a] px-3 py-2 text-[13px]">
                 <div className="mb-1 uppercase tracking-[-0.4px] text-[#6b7280]">{text.destinationLabel}</div>
-                <div className="truncate text-[#d4d4d4]" title={url}>
-                  {safeHost(url)}
+                <div className="truncate text-[#d4d4d4]" title={safeUrl ?? url}>
+                  {safeUrl ? new URL(safeUrl).host : text.invalidDestination}
                 </div>
               </div>
 
@@ -248,8 +255,8 @@ export function ExternalLink({ url, children, locale, className, copy }: Externa
                 <button
                   type="button"
                   onClick={proceed}
-                  disabled={!acknowledged}
-                  style={{ backgroundColor: acknowledged ? "#d0ff00" : "#536600", color: "#070808" }}
+                  disabled={!canProceed}
+                  style={{ backgroundColor: canProceed ? "#d0ff00" : "#536600", color: "#070808" }}
                   className="flex flex-1 items-center justify-center rounded-[2px] py-3 text-[14px] font-bold uppercase tracking-[-0.4px] transition-colors"
                 >
                   {text.proceed}

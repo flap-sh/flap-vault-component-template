@@ -288,7 +288,7 @@ const FIX_HINTS = {
   "media-policy/ipfs-image-unavailable": "Use a static image CID that resolves through an allowed Flap IPFS gateway to an image/* response.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
-  "navigation-policy/invalid-external-link": "Pass a static absolute HTTPS URL without credentials to the ExternalLink url prop. Do not build the destination dynamically or use non-HTTPS, javascript:, or data: URLs.",
+  "navigation-policy/invalid-external-link": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials.",
   "contract-boundary/missing-contract-label": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the call target.",
   "contract-boundary/disallowed-contract-label": "Limit contract labels to vault/token/nft-related targets. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
   "contract-boundary/disallowed-contract-address-source": "Keep contract targets on context.vaultAddress, context.tokenAddress, context.factoryAddress, token/NFT-related runtime addresses, or declared externalContracts only.",
@@ -1169,9 +1169,8 @@ function isValidIpfsImageCid(cid) {
 
 // The ExternalLink component from @/src/ui is the sanctioned way to send a user to
 // a non-allowlisted external site: it intercepts navigation and shows a risk
-// confirmation before opening the destination. Collect its usages so the url prop
-// is treated as an approved user-facing link (static HTTPS only), and so the raw
-// URL literal is not double-reported as an undeclared endpoint.
+// confirmation before opening the destination. Collect its usages so URL literals
+// used only for ExternalLink navigation are not double-reported as endpoints.
 function collectExternalLinkUsages(content, file) {
   const usages = [];
   const tagRegex = /<ExternalLink\b[^>]*>/g;
@@ -1179,8 +1178,10 @@ function collectExternalLinkUsages(content, file) {
     const tag = tagMatch[0];
     const tagStart = tagMatch.index ?? 0;
     const url = staticJsxStringAttribute(tag, "url");
+    const expressionMatch = /\burl\s*=\s*\{([\s\S]*?)\}/u.exec(tag);
     usages.push({
       url: typeof url === "string" ? url.trim() : url,
+      urlExpression: expressionMatch ? expressionMatch[1].trim() : null,
       tagStart,
       tagEnd: tagStart + tag.length,
       file,
@@ -1190,10 +1191,8 @@ function collectExternalLinkUsages(content, file) {
   return usages;
 }
 
-function isValidExternalLinkUrl(url) {
-  if (typeof url !== "string") return false;
-  const parsed = parseUrl(url);
-  return Boolean(parsed && parsed.protocol === "https:" && !parsed.username && !parsed.password);
+function isIndexWithinRanges(index, ranges = []) {
+  return ranges.some(([start, end]) => index >= start && index < end);
 }
 
 function ipfsImageUrlsForCid(cid) {
@@ -2250,6 +2249,66 @@ function isValueReferenceIdentifier(node) {
   return true;
 }
 
+function collectIdentifierNamesFromText(text) {
+  const names = new Set();
+  if (typeof text !== "string") return names;
+  for (const match of text.matchAll(/\b[$A-Z_a-z][$\w]*\b/g)) names.add(match[0]);
+  return names;
+}
+
+function collectValueIdentifierNames(node) {
+  const names = new Set();
+  const visit = (current) => {
+    if (ts.isIdentifier(current) && isValueReferenceIdentifier(current)) names.add(current.text);
+    ts.forEachChild(current, visit);
+  };
+  if (node) visit(node);
+  return names;
+}
+
+function collectVariableDeclarations(sourceFile) {
+  const declarations = new Map();
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && !declarations.has(node.name.text)) {
+      declarations.set(node.name.text, node.initializer);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return declarations;
+}
+
+function collectExternalLinkUrlSourceRanges(content, file, usages) {
+  const pending = [];
+  for (const usage of usages) {
+    if (usage.urlExpression) pending.push(...collectIdentifierNamesFromText(usage.urlExpression));
+  }
+  if (pending.length === 0) return [];
+
+  let sourceFile;
+  try {
+    sourceFile = createTsSourceFile(file, content);
+  } catch {
+    return [];
+  }
+
+  const declarations = collectVariableDeclarations(sourceFile);
+  const ranges = [];
+  const seen = new Set();
+  while (pending.length > 0) {
+    const name = pending.pop();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    const initializer = declarations.get(name);
+    if (!initializer) continue;
+    ranges.push([tsNodeStart(initializer, sourceFile), initializer.end]);
+    for (const dependency of collectValueIdentifierNames(initializer)) {
+      if (!seen.has(dependency)) pending.push(dependency);
+    }
+  }
+  return ranges;
+}
+
 // Fold a static string expression using the TypeScript AST. Handles single
 // literals, template literals with only static spans, `+` concatenation,
 // Array.join / String.concat / String.fromCharCode, and (with varMap) simple
@@ -2461,7 +2520,7 @@ function collectAstSecurityIssues(content, file, ctx) {
     if (isCompositeString) {
       const parent = node.parent;
       const parentIsPlus = parent && ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken;
-      if (!parentIsPlus) {
+      if (!parentIsPlus && !isIndexWithinRanges(tsNodeStart(node, sourceFile), ctx.externalLinkUrlSourceRanges)) {
         const folded = foldTsStaticString(node, varMap);
         const finding = folded !== null ? scanResolvedStringForResources(folded, ctx) : null;
         if (finding) add(finding.ruleId, finding.message, node);
@@ -3187,6 +3246,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const rel = path.relative(ROOT, item.path);
     const content = fs.readFileSync(item.path, "utf8");
     const scanContent = stripCommentsForScanning(content);
+    const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
+    const externalLinkRanges = externalLinkUsages.map((usage) => [usage.tagStart, usage.tagEnd]);
+    const externalLinkUrlSourceRanges = collectExternalLinkUrlSourceRanges(content, rel, externalLinkUsages);
+    const externalLinkAllowedRanges = [...externalLinkRanges, ...externalLinkUrlSourceRanges];
     if (manifest?.mode === MINI_APP_MODE && item.name === "Component.tsx" && !hasMiniAppFullHeightRoot(content)) {
       issues.push(
         issue(
@@ -3292,7 +3355,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
-    issues.push(...collectAstSecurityIssues(content, rel, { declaredUrls, declaredFrames, contractPolicy }));
+    issues.push(...collectAstSecurityIssues(content, rel, { declaredUrls, declaredFrames, contractPolicy, externalLinkUrlSourceRanges: externalLinkAllowedRanges }));
     if (item.name === "Component.tsx") {
       issues.push(...collectHardcodedVisibleCopyIssues(content, rel));
       issues.push(...collectInlineSvgIssues(content, rel));
@@ -3369,19 +3432,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
     for (const usage of externalLinkUsages) {
-      if (!isValidExternalLinkUrl(usage.url)) {
-        issues.push(
-          issue(
-            BLOCKING,
-            "navigation-policy/invalid-external-link",
-            "ExternalLink url must be a static absolute HTTPS URL without credentials. Do not build the destination dynamically or use non-HTTPS, javascript:, or data: URLs.",
-            { file: rel, line: usage.line },
-          ),
-        );
-        continue;
-      }
+      if (typeof usage.url !== "string" || !usage.url) continue;
       const parsedLink = parseUrl(usage.url);
       issues.push(
         issue(
@@ -3399,8 +3451,6 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    const externalLinkRanges = externalLinkUsages.map((usage) => [usage.tagStart, usage.tagEnd]);
-    const isWithinExternalLink = (index) => externalLinkRanges.some(([start, end]) => index >= start && index < end);
     const externalUrlRegex = /\b(?:https?:\/\/|wss?:\/\/|ipfs:\/\/|ar:\/\/)[^\s"'`<>)]+/g;
     const dataUrlRegex = /\bdata:(?:image|video|audio|text\/html)[^\s"'`)]+/gi;
     const relativeFetchRegex = /\bfetch\s*\(\s*["'`]\/(?!\/)[^"'`)]*["'`]/g;
@@ -3465,7 +3515,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     for (const match of scanContent.matchAll(externalUrlRegex)) {
-      if (isWithinExternalLink(match.index)) continue;
+      if (isIndexWithinRanges(match.index, externalLinkAllowedRanges)) continue;
       const url = sanitizeUrlLiteral(match[0]);
       if (!isAllowlistedExternalUrl(url, declaredUrls, declaredFrames)) {
         issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints or externalFrames. Undeclared endpoints and external resources are rejected. For a user-facing third-party link, use the ExternalLink component from @/src/ui instead.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
