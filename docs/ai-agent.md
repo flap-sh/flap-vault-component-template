@@ -38,9 +38,9 @@ The contract is intentionally small:
 
 - Generate or edit one Vault UI package at a time.
 - Implement only the Vault-specific business UI for that package. Do not expand a Vault task into preview shell/header work unless the user explicitly asks for shell work.
-- Keep the Vault folder limited to exactly four files.
+- Keep the default Vault folder limited to exactly four core files. Mini App mode may additionally include reviewed top-level audio files.
 - Register the Vault folder name in `src/vaults/index.ts` so local preview works.
-- Use `yarn vault:register {folder-name}` when the four files already exist and scaffold did not create the package.
+- Use `yarn vault:register {folder-name}` when the core files already exist and scaffold did not create the package.
 - Run checks before packaging.
 - Treat every Vault CLI failure as machine-readable JSON. Read `code`, `fixHint`, and `agent.nextActions`; fix those items before retrying.
 - Treat any blocking check issue as unfinished work.
@@ -55,6 +55,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | --- | --- | --- |
 | `folder name` | Yes | Use 3-64 characters of lowercase kebab-case. Used in `src/vaults/{folder-name}` and preview route `/{folder-name}`. |
 | `name` | Yes | Human-readable manifest name shown in the Artifact Workbench. |
+| `displayTitle` | Mini App only | Bilingual Mini App display title shown on flap.sh pages and tabs. Use separate values, for example `{ "zh": "蝴蝶农场", "en": "Butterfly Farm" }`. This is separate from the Workbench internal `name`. |
 | `mode` | Optional | Omit for the default Vault UI. Use `mini-app` only for token-scoped 8888-token Mini App artifacts; Mini App mode is strongly bound to the token address and skips the Vault risk-status tag checks. |
 | `bindings` | Yes | Core generation uses `chainId` plus non-zero `factoryAddress` for factory-scoped UI, or exactly one non-zero `vaultAddresses` entry for no-factory UI. Include a real deployed ERC20 test token ending in `7777` or `8888` plus the final real mainnet factory binding when mainnet launch is planned. |
 | `vaultAddresses` | Required for core no-factory binding | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]` for the normal scaffold path. |
@@ -65,6 +66,7 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `tokenAddresses` | Yes, at manifest level | Use only inside `match.bindings` entries. In factory mode this is the manifest test-token source, not the production CA restriction. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. In `mini-app` mode, a token-scoped `8888` token address is mandatory because the artifact is bound by token address. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `externalFrames` | Optional | Use only when a display-only chart embed is unavoidable. At most one entry is allowed. Providers are limited to `tradingview`, `dexscreener`, and `coingecko-terminal`; `src` must be one complete static HTTPS provider URL with fixed query params. |
+| `audioAssets` | Mini App only | Optional BGM/sound-effect files placed directly under `src/vaults/{folder-name}`. Use lowercase top-level `.mp3`, `.wav`, `.ogg`, `.m4a`, or `.aac` files, static imports from `Component.tsx`, visible mute/pause controls, and clear source/license/fallback notes for human review. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Each locale string must be at least two characters. Check validates only declared locales. |
 | `VaultABI` | Yes | Minimal Vault ABI fragments used by the component. Do not include standard ERC20 here. |
 | `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, risk posture, and current contract risk-status handling. |
@@ -78,7 +80,7 @@ There are two supported creation paths:
 | Path | Use When | Required Commands |
 | --- | --- | --- |
 | Scaffold-first | The Agent is creating a new package from inputs such as folder name, chain, factory or Vault, and locales. | `yarn vault:scaffold {folder-name} ...` |
-| Manifest-first | The Agent already has or generated the four Vault files from a provided manifest. | `yarn vault:register {folder-name}` |
+| Manifest-first | The Agent already has or generated the core Vault files from a provided manifest. | `yarn vault:register {folder-name}` |
 
 Both paths must end with `yarn vault:check {folder-name}`, `yarn vault:e2e {folder-name}`, and `yarn vault:package {folder-name}`. Do not hand-edit `src/vaults/index.ts` unless `vault:register` reports that the index shape cannot be parsed.
 For a step-by-step beginner path that starts from raw Vault requirements and ends with a verified zip, follow `docs/from-zero-vault-ui.md`.
@@ -118,6 +120,7 @@ src/vaults/{folder-name}/Component.tsx
 src/vaults/{folder-name}/manifest.json
 src/vaults/{folder-name}/VaultABI.ts
 src/vaults/{folder-name}/i18n.json
+src/vaults/{folder-name}/<optional-mini-app-audio>.mp3
 ```
 
 If the Vault files were generated directly from a provided manifest instead of using `vault:scaffold`, run:
@@ -128,7 +131,7 @@ yarn vault:register {folder-name}
 
 This only adds local preview wiring to `src/vaults/index.ts`; it does not perform any production publish or deployment binding step.
 
-Do not add helper files, nested components, assets, docs, local JSON data, symlinks, CommonJS `require(...)`, or dynamic imports inside the Vault folder.
+Do not add helper files, nested components, docs, local JSON data, symlinks, CommonJS `require(...)`, or dynamic imports inside the Vault folder. Default Vault UI cannot add local assets. Mini App mode may add only reviewed top-level audio assets with allowed extensions.
 
 The folder name is the route and source folder only. Do not use it as the artifact identity. `vault:scaffold` generates the stable source-package `artifactId`, and the folder-name segment in that ID must stay tied to the Vault folder name. `match` remains the developer-facing binding intent for deployment targets.
 
@@ -149,6 +152,8 @@ Use:
 - `docs/ui-pattern-snippets.md` to choose section order, metric grids, action panels, transaction states, and empty/error states.
 - The scaffold default surface as the preferred visual starting point. Built-in examples are behavior references; do not copy their visual layout as the default.
 - For `manifest.mode: "mini-app"`, put a full-height class or inline height on the outermost returned layout element, for example `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full`.
+- For `manifest.mode: "mini-app"`, set `manifest.displayTitle` as an object with separate `zh` and `en` strings. The Mini APP shell uses the current language query/user selection to render `displayTitle.zh` for Chinese and `displayTitle.en` for English in the page title and tab. Keep `manifest.name` for the Workbench internal name.
+- For Mini App BGM or sound effects, put lowercase top-level audio files directly under `src/vaults/{folder-name}` and import them statically from `Component.tsx`, for example `import bgmUrl from "./bgm.mp3";`. Allowed extensions are `.mp3`, `.wav`, `.ogg`, `.m4a`, and `.aac`; nested folders, remote audio, data URLs, and hidden autoplay are blocked. Add visible mute/pause controls and document source/license, play timing, fallback, and mobile impact for human review.
 - Local preview uses separate host shells: default Vault UI packages keep the existing Vault Information shell, and `manifest.mode: "mini-app"` packages render inside the beta `/mini-app`-style shell with zero factory/Vault runtime addresses plus artifact-area fullscreen.
 - An explicit action availability stage: `internal-market`, `dex-listed`, `both`, or `read-only`.
 - `context.host?.marketPhase` as the stage source of truth. The current template preview host provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
@@ -177,7 +182,7 @@ Do not use:
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
 - Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, clipboard, geolocation, permission, or notification APIs.
-- External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials. Full gateway image URLs are not allowed; immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid`.
+- External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials. Full gateway image URLs and remote audio URLs are not allowed; immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid`, and Mini App audio must be packaged as reviewed local top-level audio assets.
 - More than one `ReviewedFrame`, or external frames unless declared in `manifest.externalFrames` and rendered through `ReviewedFrame` with static string literal props that exactly match the declaration.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` targets. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`.
 - Fixed contract targets outside `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, binding-scoped `tokenAddresses`/`vaultAddresses`, or `match.bindings[].externalContracts`.
@@ -260,6 +265,7 @@ If `manifest-binding/mixed-binding-target` appears, one binding contains both `f
 If `manifest-binding/missing-test-token` appears, add the required package-proof token source. If `manifest-binding/invalid-test-token-suffix` appears, replace the offending `tokenAddresses` entry with a real deployed ERC20 token ending in `7777` or `8888`. This applies to factory bindings too; it is still not a production CA restriction.
 If `manifest-binding/invalid-mini-app-binding` or `manifest-binding/invalid-mini-app-token` appears, use `manifest.mode: "mini-app"` only with token-scoped `match.bindings[].tokenAddresses` ending in `8888`. Mini App artifacts are bound by token address, so factory/Vault bindings or missing token addresses are invalid.
 If `mini-app-layout/missing-full-height-root` appears, add `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full` to the outermost returned Mini App layout element.
+If `media/mini-app-audio-only`, `media/invalid-mini-app-audio-asset`, or `media/mini-app-audio-too-large` appears, keep audio files only in Mini App mode, top-level, lowercase, allowed extension, and within the size limits. If `manual-review/mini-app-audio-asset` appears, keep it in `openItems` until Flap review approves source/license, play timing, controls, fallback, and mobile impact.
 If `risk-status/missing-host-risk-state` appears, the default Vault UI component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying. Use `manifest.mode: "mini-app"` only for a token-scoped 8888-token Mini App.
 If `risk-status/not-prominent-placement` appears, the component renders host risk status too low or after a large visual block. Move the risk badge, metric, or row within the first three visible Vault-specific business rows/blocks, before any preview, hero, banner, showcase, media, chart, or large visual block, before retrying.
 If `risk-status/manual-low-risk-label` appears, the component renders `Low risk` / `低风险` copy without deriving it from host `riskLevel === 1`. Remove the manual label or move it into the explicit host-risk mapping branch before retrying.
@@ -295,7 +301,7 @@ The package command prints:
 
 `vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. The E2E proof must use a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 First-time local machines, especially Windows machines, may need `yarn playwright install chromium` before Chromium can launch. If the browser is missing, `vault:e2e` must emit the JSON code `vault-e2e/playwright-browser-missing` with that fix hint. GitHub Actions uses `npx playwright install --with-deps chromium`.
-Submit only the zip produced by this command. The zip contains format-version `4` `flap-vault-package.json`, `qa/e2e-report.json`, and matching `e2e` summary fields, which identify the package as a script-generated Flap Vault UI source package and record required file hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker, proof, or matching hashes.
+Submit only the zip produced by this command. The zip contains format-version `5` `flap-vault-package.json`, `qa/e2e-report.json`, and matching `e2e` summary fields, which identify the package as a script-generated Flap Vault UI source package and record required file hashes, optional Mini App audio file hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker, proof, or matching hashes.
 The package command uses the same official git freshness gate as `vault:check` and rejects missing, failed, or stale E2E proof, so a checkout that is behind, ahead, diverged, or not E2E-proven cannot produce a source zip.
 The verify command checks the same source package from the Workbench side: marker, current template/runtime provenance, current manifest schema, exact file list, metadata, E2E proof, and SHA-256 hashes. If it fails, read the JSON `code`, `fixHint`, and `agent.nextActions`, then regenerate the package instead of editing the zip by hand. `--self-contained` is only for historical package forensics and is not a handoff pass.
 Do not describe a future write-UI tx hash as a strong local-origin proof. A local wallet trace or tx hash can prove a real transaction and target, but only a platform-controlled Playwright + wallet runner can strongly prove the UI path by replaying it in a trusted environment.

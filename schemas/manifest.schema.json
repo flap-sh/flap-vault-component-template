@@ -5,6 +5,25 @@
   "type": "object",
   "required": ["artifactId", "name", "match", "i18n"],
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "required": ["mode"],
+        "properties": { "mode": { "const": "mini-app" } }
+      },
+      "then": {
+        "required": ["displayTitle"],
+        "properties": {
+          "displayTitle": {
+            "$ref": "#/$defs/miniAppDisplayTitle"
+          }
+        }
+      },
+      "else": {
+        "not": { "required": ["displayTitle"] }
+      }
+    }
+  ],
   "properties": {
     "artifactId": {
       "type": "string",
@@ -12,6 +31,9 @@
       "pattern": "^vaultui_[a-z0-9]+(-[a-z0-9]+)*_[0-9A-HJKMNPQRSTVWXYZ]{26}$"
     },
     "name": { "type": "string", "minLength": 2 },
+    "displayTitle": {
+      "$ref": "#/$defs/miniAppDisplayTitle"
+    },
     "mode": {
       "type": "string",
       "enum": ["mini-app"],
@@ -111,6 +133,24 @@
     }
   },
   "$defs": {
+    "miniAppDisplayTitle": {
+      "type": "object",
+      "required": ["zh", "en"],
+      "additionalProperties": false,
+      "description": "Mini App display title shown on flap.sh surfaces. Required only for manifest.mode=mini-app. Use separate Chinese and English values, for example {\"zh\":\"蝴蝶农场\",\"en\":\"Butterfly Farm\"}.",
+      "properties": {
+        "zh": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]"
+        },
+        "en": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "[A-Za-z]"
+        }
+      }
+    },
     "address": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
     "nonZeroAddress": {
       "allOf": [

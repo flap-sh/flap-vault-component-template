@@ -101,7 +101,7 @@ function main() {
   if (!fileCheck.ok) {
     fail(fileCheck.error, {
       code: "package-structure/missing-required-file",
-      fixHint: "Create the strict four files first: Component.tsx, manifest.json, VaultABI.ts, and i18n.json under src/vaults/<folder-name>.",
+      fixHint: "Create the four core files first: Component.tsx, manifest.json, VaultABI.ts, and i18n.json under src/vaults/<folder-name>.",
       folderName,
       missingFiles: fileCheck.missingFiles,
       nextActions: [

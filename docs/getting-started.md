@@ -89,7 +89,7 @@ Recommended for AI agents and repeatable local setup:
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
-This creates the strict four-file package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`. Use a real deployed ERC20 test token ending in `7777` or `8888` for package proof and keep the final real mainnet factory binding in the same manifest. In factory mode, `tokenAddresses` is not the production CA restriction; Workbench/registry owns `caRestrictionMode`.
+This creates the strict core package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`. Use a real deployed ERC20 test token ending in `7777` or `8888` for package proof and keep the final real mainnet factory binding in the same manifest. In factory mode, `tokenAddresses` is not the production CA restriction; Workbench/registry owns `caRestrictionMode`.
 
 `my-vault` is the folder name. It becomes both the source folder and the preview route. Folder names must use 3-64 characters of lowercase kebab-case: letters/numbers separated by single hyphens. Do not use spaces, underscores, uppercase letters, leading/trailing hyphens, or nested folders.
 
@@ -105,7 +105,7 @@ src/vaults/my-vault/
   i18n.json
 ```
 
-The Vault folder is strict. Do not add extra source files, nested folders, local assets, README files, or other documents under `src/vaults/my-vault`. The file set is fixed to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
+The default Vault folder is strict. Do not add extra source files, nested folders, local assets, README files, or other documents under `src/vaults/my-vault`. The core file set is `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) that are statically imported from `Component.tsx`.
 
 If those four files already exist because an Agent generated them from a manifest first, register the local preview route with:
 
@@ -219,7 +219,7 @@ yarn playwright install chromium
 The missing-browser failure is reported as machine-readable JSON code `vault-e2e/playwright-browser-missing`. CI installs Chromium with `npx playwright install --with-deps chromium`.
 The package command runs `vault:check` first and rejects missing, failed, or stale E2E reports. Send the zip under `dist/` to the Flap Artifact Workbench after it passes.
 The command output prints the generated zip location in `sourcePackagePath` and `sourcePackageAbsolutePath`.
-Do not hand-zip files. `yarn vault:package` writes format `4` `flap-vault-package.json`, `runtimePackageGitHead`, `qa/e2e-report.json`, E2E summary, and hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, proof, provenance, or matching hashes.
+Do not hand-zip files. `yarn vault:package` writes format `5` `flap-vault-package.json`, `runtimePackageGitHead`, `qa/e2e-report.json`, E2E summary, source hashes, and any Mini App audio hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, proof, provenance, or matching hashes.
 Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, current template/runtime provenance, current manifest schema, expected file list, metadata, and hashes from the Workbench acceptance side. Use `--self-contained` only for historical package inspection, not handoff.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also verify the shared runtime package:

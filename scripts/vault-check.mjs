@@ -4,6 +4,12 @@ import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
+import {
+  MINI_APP_AUDIO_ASSET_EXTENSIONS,
+  MINI_APP_AUDIO_MAX_BYTES,
+  MINI_APP_AUDIO_TOTAL_MAX_BYTES,
+  isMiniAppAudioAssetName,
+} from "./e2e-report-utils.mjs";
 import { collectManifestErc20TokenIssues, hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX } from "./erc20-token-validation.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
@@ -22,12 +28,14 @@ const FORBIDDEN_NAMES = new Set(["node_modules", ".git", ".vercel", ".env", ".en
 const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const ALLOWED_VAULT_FILES = new Set(REQUIRED_FILES);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
 const MINI_APP_MODE = "mini-app";
 const MINI_APP_TOKEN_SUFFIX = "8888";
+const CJK_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/u;
+const LATIN_RE = /[A-Za-z]/u;
 const MINI_APP_FULL_HEIGHT_CLASS_RE = /(?:^|[\s"'`{])(?:min-h-(?:screen|dvh|svh|lvh|full|\[100(?:vh|dvh|svh|lvh|%)\])|h-(?:screen|dvh|svh|lvh|full|\[100(?:vh|dvh|svh|lvh|%)\]))(?=$|[\s"'`}])/;
 const MINI_APP_FULL_HEIGHT_STYLE_RE = /\b(?:minHeight|height)\s*:\s*["'`](?:100vh|100dvh|100svh|100lvh|100%)["'`]/;
 const FRAME_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -185,13 +193,13 @@ const FIX_HINTS = {
   "cli/missing-slug": "Run yarn vault:check <slug> with a registered Vault slug.",
   "cli/invalid-folder-name": "Use a 3-64 character lowercase kebab-case folder name, for example my-vault.",
   "package-structure/missing-vault-dir": "Create the package with yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory or yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x..., or add src/vaults/<folder-name>.",
-  "package-structure/missing-required-file": "Keep exactly Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder.",
-  "package-structure/disallowed-vault-file": "Move helpers, assets, nested components, docs, and sample data outside src/vaults/<folder-name> or inline small code in Component.tsx.",
+  "package-structure/missing-required-file": "Keep Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder. Mini App may additionally include reviewed top-level audio assets.",
+  "package-structure/disallowed-vault-file": "Move helpers, nested components, docs, sample data, and non-audio assets outside src/vaults/<folder-name> or inline small code in Component.tsx. Mini App may include only reviewed top-level audio files.",
   "preview-registration/missing-vault-module": "Register the folder name in src/vaults/index.ts with loadComponent, loadManifest, and loadI18n entries.",
   "forbidden-files/disallowed-entry": "Remove environment, dependency, git, or build output files from the Vault package.",
   "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
-  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
+  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, displayTitle for Mini App only, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
   "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 8888-token Mini App with match.bindings[].tokenAddresses.',
   "manifest-schema/invalid-layout": "Remove manifest.layout, or set it exactly to fullscreen when Flap explicitly asks for a full-screen Vault body.",
   "manifest-schema/missing-field": "Add the required manifest field.",
@@ -199,6 +207,8 @@ const FIX_HINTS = {
   "manifest-schema/artifact-id-folder-name-mismatch": "Make the artifactId folder-name segment match the src/vaults/<folder-name> folder name.",
   "manifest-schema/duplicate-artifact-id": "Generate a new artifactId; each Vault package in the repo must have a unique artifactId.",
   "manifest-schema/invalid-name": "Set manifest.name to a human-readable string with at least two characters.",
+  "manifest-schema/display-title-mini-app-only": "Use manifest.displayTitle only for Mini App artifacts, or remove it from the default Vault UI manifest.",
+  "manifest-schema/mini-app-display-title-requires-bilingual": 'Set Mini App manifest.displayTitle to separate Chinese and English values, for example {"zh":"蝴蝶农场","en":"Butterfly Farm"}.',
   "manifest-schema/invalid-match": "Set manifest.match to an object with bindings (array of factory-scoped, single-Vault, or token-scoped binding entries).",
   "manifest-schema/disallowed-match-field": "Keep match limited to bindings. Use match.bindings[].tokenAddresses for test tokens or no-factory token-scoped bindings only; production CA restriction belongs in Workbench/registry configuration.",
   "manifest-binding/missing-bindings": "Add match.bindings as a non-empty array. Each entry needs chainId plus a non-zero factoryAddress, exactly one vaultAddresses entry, or one or more tokenAddresses.",
@@ -282,7 +292,11 @@ const FIX_HINTS = {
   "imports-and-dependencies/require-call": "Use static ESM imports only. CommonJS require() is not allowed in Vault source.",
   "imports-and-dependencies/unreviewed-import": "Remove the dependency unless Flap explicitly approves it.",
   "imports-and-dependencies/dynamic-import": "Use static imports only.",
-  "media/local-asset": "Move local media outside the Vault package. Vault folders must contain only the four allowed files.",
+  "media/local-asset": "Move local media outside the Vault package. Only Mini App mode may include reviewed top-level audio assets.",
+  "media/mini-app-audio-only": 'Audio files inside src/vaults/<folder-name> are allowed only when manifest.mode is "mini-app".',
+  "media/invalid-mini-app-audio-asset": `Use top-level lowercase Mini App audio files with one of these extensions only: ${MINI_APP_AUDIO_ASSET_EXTENSIONS.join(", ")}.`,
+  "media/mini-app-audio-too-large": `Keep each Mini App audio file at or below ${Math.round(MINI_APP_AUDIO_MAX_BYTES / 1024 / 1024)} MiB and total Mini App audio at or below ${Math.round(MINI_APP_AUDIO_TOTAL_MAX_BYTES / 1024 / 1024)} MiB.`,
+  "manual-review/mini-app-audio-asset": "Mini App audio files require Flap human review for source/license, play timing, visible mute/pause control, fallback, and mobile impact before publish.",
   "media-policy/remote-media": "Remove remote media URLs. Use host-provided media for token images, or IpfsImage/IpfsBackground with a static image CID for immutable Vault-specific images.",
   "media-policy/invalid-ipfs-image-cid": "Pass only a static image CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic expressions.",
   "media-policy/ipfs-image-unavailable": "Use a static image CID that resolves through an allowed Flap IPFS gateway to an image/* response.",
@@ -782,8 +796,34 @@ function normalizeRelativeImport(spec) {
   return spec.replace(/\.(tsx?|jsx?|mjs|cjs)$/, "");
 }
 
+function isMiniAppAudioImportSpec(spec) {
+  if (!spec.startsWith("./")) return false;
+  const localName = spec.slice(2);
+  return !localName.includes("/") && isMiniAppAudioAssetName(localName);
+}
+
+function readManifestModeForStructure(vaultDir) {
+  try {
+    return readJson(path.join(vaultDir, "manifest.json"))?.mode;
+  } catch {
+    return undefined;
+  }
+}
+
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isMiniAppDisplayTitle(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    isNonEmptyString(value.zh) &&
+    isNonEmptyString(value.en) &&
+    CJK_RE.test(value.zh) &&
+    LATIN_RE.test(value.en)
+  );
 }
 
 function sanitizeUrlLiteral(value) {
@@ -2535,6 +2575,8 @@ function collectAstSecurityIssues(content, file, ctx) {
 
 function checkStructure(vaultDir) {
   const issues = [];
+  const isMiniApp = readManifestModeForStructure(vaultDir) === MINI_APP_MODE;
+  let miniAppAudioBytes = 0;
   for (const file of REQUIRED_FILES) {
     if (!fs.existsSync(path.join(vaultDir, file))) {
       issues.push(issue(BLOCKING, "package-structure/missing-required-file", `Missing ${file}.`, { file }));
@@ -2547,8 +2589,37 @@ function checkStructure(vaultDir) {
       issues.push(issue(BLOCKING, "forbidden-files/symlink", `Symlink ${item.name} is not allowed inside a Vault package.`, { file: rel }));
       continue;
     }
-    if (item.isDirectory || relToVault.includes(path.sep) || !ALLOWED_VAULT_FILES.has(item.name)) {
-      issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may contain only ${REQUIRED_FILES.join(", ")}. Move ${item.name} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
+    if (item.isDirectory || relToVault.includes(path.sep)) {
+      issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may not contain nested folders or nested files. Move ${relToVault} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
+      continue;
+    }
+    if (!ALLOWED_VAULT_FILES.has(item.name)) {
+      const isAudioExtension = MINI_APP_AUDIO_ASSET_EXTENSIONS.some((extension) => item.name.toLowerCase().endsWith(extension));
+      if (!isMiniApp && isAudioExtension) {
+        issues.push(issue(BLOCKING, "media/mini-app-audio-only", `Audio asset ${item.name} is allowed only for manifest.mode=mini-app.`, { file: rel }));
+        continue;
+      }
+      if (isMiniApp && isAudioExtension) {
+        if (!isMiniAppAudioAssetName(item.name)) {
+          issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Mini App audio asset ${item.name} must be a top-level lowercase file with an allowed extension.`, { file: rel }));
+          continue;
+        }
+        const bytes = fs.statSync(item.path).size;
+        miniAppAudioBytes += bytes;
+        if (bytes <= 0 || bytes > MINI_APP_AUDIO_MAX_BYTES) {
+          issues.push(issue(BLOCKING, "media/mini-app-audio-too-large", `Mini App audio asset ${item.name} is ${bytes} bytes and must be between 1 byte and ${MINI_APP_AUDIO_MAX_BYTES} bytes.`, { file: rel, bytes, maxBytes: MINI_APP_AUDIO_MAX_BYTES }));
+          continue;
+        }
+        issues.push(
+          issue(WARNING, "manual-review/mini-app-audio-asset", `Mini App audio asset ${item.name} is packaged and requires Flap human review before publish.`, {
+            file: rel,
+            asset: item.name,
+            bytes,
+          }),
+        );
+        continue;
+      }
+      issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may contain only ${REQUIRED_FILES.join(", ")}${isMiniApp ? " plus reviewed top-level audio assets" : ""}. Move ${item.name} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
       continue;
     }
     if (FORBIDDEN_NAMES.has(item.name)) {
@@ -2557,6 +2628,16 @@ function checkStructure(vaultDir) {
     if (!item.isDirectory && item.name.match(/\.(png|jpe?g|gif|webp|svg)$/i)) {
       issues.push(issue(BLOCKING, "media/local-asset", `Local media asset ${item.name} is not part of the Vault package. Keep media controlled by Flap Artifact Workbench/runtime policy.`, { file: rel }));
     }
+  }
+  if (miniAppAudioBytes > MINI_APP_AUDIO_TOTAL_MAX_BYTES) {
+    issues.push(
+      issue(
+        BLOCKING,
+        "media/mini-app-audio-too-large",
+        `Mini App audio assets total ${miniAppAudioBytes} bytes and must not exceed ${MINI_APP_AUDIO_TOTAL_MAX_BYTES} bytes.`,
+        { file: `src/vaults/${path.basename(vaultDir)}`, bytes: miniAppAudioBytes, maxBytes: MINI_APP_AUDIO_TOTAL_MAX_BYTES },
+      ),
+    );
   }
   return issues;
 }
@@ -2849,7 +2930,7 @@ function checkManifest(manifest, folderName) {
         issue(
           BLOCKING,
           ruleId,
-          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, match, i18n, optional mode, layout, endpoints, and externalFrames.`,
+          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, Mini App-only displayTitle, match, i18n, optional mode, layout, endpoints, and externalFrames.`,
           { field: key },
         ),
       );
@@ -2876,6 +2957,19 @@ function checkManifest(manifest, folderName) {
   }
   if (manifest.name !== undefined && (!isNonEmptyString(manifest.name) || manifest.name.trim().length < 2)) {
     issues.push(issue(BLOCKING, "manifest-schema/invalid-name", "manifest.name must be a human-readable string with at least two characters.", { field: "name" }));
+  }
+  if (manifest.displayTitle !== undefined && !isMiniAppMode) {
+    issues.push(issue(BLOCKING, "manifest-schema/display-title-mini-app-only", "manifest.displayTitle is only used by Mini App artifacts. Omit it for the default Vault UI.", { field: "displayTitle" }));
+  }
+  if (isMiniAppMode && !isMiniAppDisplayTitle(manifest.displayTitle)) {
+    issues.push(
+      issue(
+        BLOCKING,
+        "manifest-schema/mini-app-display-title-requires-bilingual",
+        'Mini App manifest.displayTitle must be an object with separate zh and en strings because this display name is shown on flap.sh Mini App surfaces.',
+        { field: "displayTitle" },
+      ),
+    );
   }
   if (manifest.mode !== undefined && manifest.mode !== MINI_APP_MODE) {
     issues.push(
@@ -3364,8 +3458,9 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     for (const match of scanContent.matchAll(importRegex)) {
       const spec = match[1] || match[2];
       if (spec.startsWith("./") || spec.startsWith("../")) {
-        if (!ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
-          issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI may be imported from a Vault package. ${spec} is not allowed because src/vaults/${path.basename(vaultDir)} has a fixed file set.`, { file: rel }));
+        const isMiniAppAudioImport = manifest?.mode === MINI_APP_MODE && isMiniAppAudioImportSpec(spec) && fs.existsSync(path.join(vaultDir, spec.slice(2)));
+        if (!isMiniAppAudioImport && !ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
+          issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI may be imported from a default Vault package. Mini App mode may also import top-level reviewed audio assets. ${spec} is not allowed.`, { file: rel }));
         }
       } else if (FORBIDDEN_IMPORTS.some((blocked) => spec === blocked || spec.startsWith(`${blocked}/`))) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/forbidden-import", `Forbidden import ${spec}. Use Flap SDK/UI primitives instead.`, { file: rel }));
@@ -3728,6 +3823,8 @@ function buildAgentNextActions(issues) {
     provider: item.provider,
     src: item.src,
     url: item.url,
+    asset: item.asset,
+    bytes: item.bytes,
     oracleId: item.oracleId,
     locale: item.locale,
     key: item.key,
@@ -3802,7 +3899,17 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames, externalLinks, fullscreenLayouts };
+  const miniAppAudioAssets = issues
+    .filter((item) => item.ruleId === "manual-review/mini-app-audio-asset")
+    .map((item) => ({
+      asset: item.asset,
+      bytes: item.bytes,
+      file: item.file,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  return { externalEndpoints, oracles, externalFrames, externalLinks, fullscreenLayouts, miniAppAudioAssets };
 }
 
 function buildCheckReport(folderName, issues) {
@@ -3827,6 +3934,7 @@ function buildCheckReport(folderName, issues) {
       verdict: blocking > 0 ? "fix-blocking" : warning > 0 ? "review-warnings" : "package-ready",
       nextActions: buildAgentNextActions(issues),
       allowedVaultFiles: REQUIRED_FILES,
+      allowedMiniAppAudioExtensions: MINI_APP_AUDIO_ASSET_EXTENSIONS,
       allowedLocalRelativeImports: [...ALLOWED_RELATIVE_IMPORTS],
       packageCommand: folderName ? `yarn vault:package ${folderName}` : "yarn vault:package <folder-name>",
     },

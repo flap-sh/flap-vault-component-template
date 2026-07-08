@@ -176,7 +176,7 @@ yarn vault:verify-package dist/flapixel-example.zip
 
 `vault:package` 会先运行 `vault:check`，校验当前 `dist/e2e/<folder-name>/qa-report.json`，并在写 zip 前执行官方 git freshness 检查。只有 blocking issue 全部通过且 E2E 证明未过期后，zip 才会写入 `dist/`。
 命令输出会包含 `sourcePackagePath` 和 `sourcePackageAbsolutePath`，用于明确生成 zip 的位置。
-只提交 `yarn vault:package <folder-name>` 生成的 zip。该脚本会写入 format-version `4` 的 `flap-vault-package.json` marker、npm latest `@flapsdk/vault-runtime` 的 `gitHead` provenance、source/schema/E2E 文件 hash、`qa/e2e-report.json` 和 `e2e` 摘要；Flap Artifact Workbench 应拒绝没有 marker、没有证明或 hash 不匹配的手工 zip。
+只提交 `yarn vault:package <folder-name>` 生成的 zip。该脚本会写入 format-version `5` 的 `flap-vault-package.json` marker、npm latest `@flapsdk/vault-runtime` 的 `gitHead` provenance、source/schema/E2E 文件 hash、可选 Mini App 音频文件 hash、`qa/e2e-report.json` 和 `e2e` 摘要；Flap Artifact Workbench 应拒绝没有 marker、没有证明或 hash 不匹配的手工 zip。
 `dist/` 被 git 忽略。请在本地或 CI 生成 source zip，不要把生成包提交到模板仓库。
 `yarn vault:verify-package <zip>` 从 Workbench 侧验证 marker、文件列表、metadata 和 SHA-256 hash。
 

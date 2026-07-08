@@ -123,7 +123,7 @@ async function writePackage(name, { templateVersion, runtimePackageVersion, runt
   const e2eRaw = jsonBuffer(e2eReport);
   const marker = {
     kind: "flap-vault-ui-source-package",
-    formatVersion: 4,
+    formatVersion: 5,
     generatedBy: "yarn vault:package",
     generator: "flap-vault-ui-template",
     templateName: "flap-vault-ui-template",

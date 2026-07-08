@@ -9,6 +9,11 @@ export const E2E_REPORT_TOOL = "yarn vault:e2e";
 export const E2E_DIST_DIR = "dist/e2e";
 export const MANIFEST_SCHEMA_PATH = "schemas/manifest.schema.json";
 export const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
+export const MINI_APP_MODE = "mini-app";
+export const MINI_APP_AUDIO_ASSET_EXTENSIONS = [".mp3", ".wav", ".ogg", ".m4a", ".aac"];
+export const MINI_APP_AUDIO_ASSET_RE = /^[a-z0-9][a-z0-9._-]{0,79}\.(?:mp3|wav|ogg|m4a|aac)$/;
+export const MINI_APP_AUDIO_MAX_BYTES = 5 * 1024 * 1024;
+export const MINI_APP_AUDIO_TOTAL_MAX_BYTES = 12 * 1024 * 1024;
 export const REQUIRED_VIEWPORTS = ["pc", "ipad", "h5"];
 export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
 
@@ -47,9 +52,40 @@ export function requiredSourcePaths(folderName) {
   return REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`);
 }
 
+export function isMiniAppAudioAssetName(name) {
+  return MINI_APP_AUDIO_ASSET_RE.test(name);
+}
+
+function readManifestMode(root, folderName) {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, "src", "vaults", folderName, "manifest.json"), "utf8"));
+    return manifest?.mode;
+  } catch {
+    return undefined;
+  }
+}
+
+export function collectMiniAppAudioAssetPaths(root, folderName) {
+  if (readManifestMode(root, folderName) !== MINI_APP_MODE) return [];
+  const vaultDir = path.join(root, "src", "vaults", folderName);
+  try {
+    return fs
+      .readdirSync(vaultDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && isMiniAppAudioAssetName(entry.name))
+      .map((entry) => `src/vaults/${folderName}/${entry.name}`)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+export function sourcePackagePaths(root, folderName) {
+  return [...requiredSourcePaths(folderName), ...collectMiniAppAudioAssetPaths(root, folderName)];
+}
+
 export function collectSourceHashes(root, folderName) {
   const hashes = {};
-  for (const filePath of requiredSourcePaths(folderName)) {
+  for (const filePath of sourcePackagePaths(root, folderName)) {
     hashes[filePath] = sha256File(path.join(root, filePath));
   }
   hashes[MANIFEST_SCHEMA_PATH] = sha256File(path.join(root, MANIFEST_SCHEMA_PATH));

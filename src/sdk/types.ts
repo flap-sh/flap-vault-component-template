@@ -208,10 +208,15 @@ export interface ManifestExternalContract {
 
 export type VaultManifestLayout = "fullscreen";
 export type VaultManifestMode = "mini-app";
+export interface VaultManifestDisplayTitle {
+  zh: string;
+  en: string;
+}
 
 export interface VaultManifest {
   artifactId: string;
   name: string;
+  displayTitle?: VaultManifestDisplayTitle;
   match: {
     bindings: ManifestBindingEntry[];
   };

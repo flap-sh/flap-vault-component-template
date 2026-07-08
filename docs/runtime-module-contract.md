@@ -83,7 +83,7 @@ Vault source must not import:
 - `./helpers`
 - `../VaultABI`
 - local nested components
-- local assets
+- local assets, except reviewed Mini App top-level audio files that are statically imported from the same Vault folder
 - dynamic imports
 
 `Component.tsx` is allowed to import public helpers and UI primitives. It is **not** required to receive every helper via props.

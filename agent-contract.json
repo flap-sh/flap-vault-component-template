@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 34,
+  "version": 35,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -78,10 +78,17 @@
     "previewRegistrationRule": "Local preview uses src/vaults/index.ts as a static module map. vault:scaffold registers the folder automatically. If the four files already exist, run yarn vault:register {folder-name}; do not hand-edit registration unless the script cannot parse the index file.",
     "requiredFiles": ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"],
     "allowedFiles": ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"],
+    "allowedMiniAppAudioAssets": {
+      "mode": "mini-app only",
+      "placement": "Top-level files directly under src/vaults/{folder-name}; nested audio folders are not allowed.",
+      "extensions": [".mp3", ".wav", ".ogg", ".m4a", ".aac"],
+      "filenameRule": "Lowercase letters, numbers, dots, underscores, and hyphens only; max 80 characters before extension policy enforcement.",
+      "sizeLimit": "Each file must be at most 5 MiB and total Mini App audio must be at most 12 MiB. Audio files are packaged, hashed, and surfaced as manual-review/mini-app-audio-asset warnings."
+    },
     "registrationFile": "src/vaults/index.ts"
   },
   "allowedImports": {
-    "localRelative": ["./VaultABI"],
+    "localRelative": ["./VaultABI", "Mini App mode may also import top-level reviewed audio assets such as ./bgm.mp3"],
     "packagePrefixes": ["react", "viem", "decimal.js", "lucide-react"],
     "sharedRuntimeModules": ["@/src/sdk", "@/src/ui"],
     "sharedRuntimeOnlyRule": "Do not introduce any additional SDK package or SDK-like runtime wrapper. Vault source may use only exact imports from the shared @/src/sdk and @/src/ui barrel surfaces plus the explicit default allowlist; deep imports such as @/src/sdk/format or @/src/ui/Button are not allowed.",
@@ -102,7 +109,7 @@
     "recharts"
   ],
   "manifest": {
-    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"],
+    "allowedTopLevelFields": ["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"],
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
@@ -110,7 +117,7 @@
     "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 or 8888 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
-    "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped 8888-token Mini App artifacts; mini-app mode is strongly bound to the token address, keeps the same source-package boundary, and requires match.bindings[].tokenAddresses ending in 8888, but does not require the Vault risk-status tag checks.",
+    "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped 8888-token Mini App artifacts; mini-app mode is strongly bound to the token address, keeps the same core source-package boundary with an extra top-level reviewed audio-asset exception, requires match.bindings[].tokenAddresses ending in 8888, and requires displayTitle.zh plus displayTitle.en shown on flap.sh Mini App surfaces, but does not require the Vault risk-status tag checks.",
     "miniAppLayoutRule": "Mini App Component.tsx must put a full-height class or inline height on the outermost returned layout element, for example min-h-[100vh], min-h-screen, min-h-full, or h-full.",
     "layoutRule": "Omit manifest.layout for the standard 768px Vault body. Set layout to fullscreen only when Flap explicitly requests a full-screen Vault body; this triggers manual-review/fullscreen-layout and flap.sh remains responsible for host-owned token/header constraints.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
@@ -172,7 +179,7 @@
   },
   "errorCodes": {
     "ai-context/invalid-example-folder": { "severity": "blocking", "fixAction": "Pass a registered Vault example folder such as action-gallery-example, example, dex-listed-example, community-buyback-example, or flapixel-example." },
-    "ai-context/missing-file": { "severity": "blocking", "fixAction": "Run the command from the flap-vault-ui-template repository root and choose an example folder that contains the strict four Vault files." },
+    "ai-context/missing-file": { "severity": "blocking", "fixAction": "Run the command from the flap-vault-ui-template repository root and choose an example folder that contains the four core Vault files." },
     "ai-context/missing-output-path": { "severity": "blocking", "fixAction": "Pass --out vault-ai-context.md or redirect stdout instead." },
     "ai-context/output-exists": { "severity": "blocking", "fixAction": "Pass a different --out path, delete the old file, or rerun with --force." },
     "cli/invalid-boolean": { "severity": "blocking", "fixAction": "Pass --${key} true, --${key} false, or omit the flag." },
@@ -266,7 +273,8 @@
     "manifest-binding/placeholder-address": { "severity": "blocking", "fixAction": "Replace the template placeholder with a real deployment address. If the factory or Vault is not deployed yet, leave the package unpublished and do not use a placeholder binding." },
     "manifest-binding/zero-factory-address": { "severity": "blocking", "fixAction": "Omit factoryAddress for no-factory mode, or use the real deployed non-zero factory contract address for factory mode." },
     "manifest-schema/artifact-id-folder-name-mismatch": { "severity": "blocking", "fixAction": "Make the artifactId folder-name segment match the src/vaults/<folder-name> folder name." },
-    "manifest-schema/disallowed-field": { "severity": "blocking", "fixAction": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries." },
+    "manifest-schema/disallowed-field": { "severity": "blocking", "fixAction": "Remove internal runtime fields. Developer manifest fields are artifactId, name, displayTitle for Mini App only, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries." },
+    "manifest-schema/display-title-mini-app-only": { "severity": "blocking", "fixAction": "Use displayTitle only with manifest.mode=mini-app, or remove it from the default Vault UI manifest." },
     "manifest-schema/disallowed-match-field": { "severity": "blocking", "fixAction": "Keep match limited to bindings. Use match.bindings[].tokenAddresses for test tokens or no-factory token-scoped bindings only; production CA restriction belongs in Workbench/registry configuration." },
     "manifest-schema/duplicate-artifact-id": { "severity": "blocking", "fixAction": "Generate a new artifactId; each Vault package in the repo must have a unique artifactId." },
     "manifest-schema/invalid-artifact-id": { "severity": "blocking", "fixAction": "Use artifactId format vaultui_<folder-name>_<26-char ULID>, for example vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N." },
@@ -275,22 +283,27 @@
     "manifest-schema/invalid-match": { "severity": "blocking", "fixAction": "Set manifest.match to an object with bindings (array of factory-scoped, single-Vault, or token-scoped binding entries)." },
     "manifest-schema/invalid-mode": { "severity": "blocking", "fixAction": "Remove manifest.mode for the default Vault UI, or set it exactly to \"mini-app\" for a token-scoped 8888-token Mini App with match.bindings[].tokenAddresses." },
     "manifest-schema/invalid-name": { "severity": "blocking", "fixAction": "Set manifest.name to a human-readable string with at least two characters." },
+    "manifest-schema/mini-app-display-title-requires-bilingual": { "severity": "blocking", "fixAction": "Set manifest.displayTitle to an object with separate zh and en values, for example {\"zh\":\"蝴蝶农场\",\"en\":\"Butterfly Farm\"}. This is the title shown on flap.sh Mini App pages." },
     "manifest-schema/missing-field": { "severity": "blocking", "fixAction": "Add the required manifest field." },
     "manual-review/action-stage-gating": { "severity": "blocking", "fixAction": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed." },
     "manual-review/external-endpoint": { "severity": "warning", "fixAction": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review." },
     "manual-review/external-frame": { "severity": "warning", "fixAction": "External frames are review candidates only. Keep the frame display-only and wait for Flap review approval before publish." },
     "manual-review/external-link": { "severity": "info", "fixAction": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it." },
     "manual-review/fullscreen-layout": { "severity": "warning", "fixAction": "Fullscreen layout is an internal-review candidate. Keep host-owned token/header constraints in flap.sh and complete the extra fullscreen review before publish." },
+    "manual-review/mini-app-audio-asset": { "severity": "warning", "fixAction": "Mini App audio files are packaged and hashed, but require Flap human review for source/license, play timing, visible mute/pause controls, fallback, and mobile impact before publish." },
     "manual-review/oracle-usage": { "severity": "info", "fixAction": "Do not add oracle config to manifest. Source packages may use only built-in runtime oracle ids before packaging; FLAP_RUNTIME_ORACLE_REGISTRY is for host/runtime preview diagnostics and does not make a custom oracle id packageable. Built-in oracle ids still require review.oracles[] endpoint and params review before publish." },
+    "media/invalid-mini-app-audio-asset": { "severity": "blocking", "fixAction": "Use a top-level lowercase Mini App audio file with one of these extensions: .mp3, .wav, .ogg, .m4a, .aac. Do not add nested audio folders." },
+    "media/mini-app-audio-only": { "severity": "blocking", "fixAction": "Remove the audio file from the default Vault UI package, or set manifest.mode=mini-app with a valid 8888 token-scoped binding." },
+    "media/mini-app-audio-too-large": { "severity": "blocking", "fixAction": "Keep each Mini App audio file at or below 5 MiB and total Mini App audio at or below 12 MiB." },
     "media-policy/invalid-ipfs-image-cid": { "severity": "blocking", "fixAction": "Pass only a static image CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic expressions." },
     "media-policy/ipfs-image-unavailable": { "severity": "blocking", "fixAction": "Use a static image CID that resolves through an allowed Flap IPFS gateway to an image/* response." },
     "media-policy/remote-media": { "severity": "blocking", "fixAction": "Remove remote media URLs. Use host-provided media for token images, or IpfsImage/IpfsBackground with a static image CID for immutable Vault-specific images." },
-    "media/local-asset": { "severity": "blocking", "fixAction": "Move local media outside the Vault package. Vault folders must contain only the four allowed files." },
+    "media/local-asset": { "severity": "blocking", "fixAction": "Move local media outside the Vault package. Only Mini App mode may include reviewed top-level audio assets." },
     "mini-app-layout/missing-full-height-root": { "severity": "blocking", "fixAction": "Add min-h-[100vh], min-h-screen, min-h-full, or h-full to the outermost returned Mini App layout element." },
     "navigation-policy/invalid-external-link": { "severity": "blocking", "fixAction": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials." },
     "navigation-policy/unapproved-external-navigation": { "severity": "blocking", "fixAction": "Do not navigate users to arbitrary external sites. Keep component-owned links on the current chain explorer only, and use host-reviewed allowlists for any exceptional metadata/oracle origin during review." },
-    "package-structure/disallowed-vault-file": { "severity": "blocking", "fixAction": "Move helpers, assets, nested components, docs, and sample data outside src/vaults/<folder-name> or inline small code in Component.tsx." },
-    "package-structure/missing-required-file": { "severity": "blocking", "fixAction": "Keep exactly Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder." },
+    "package-structure/disallowed-vault-file": { "severity": "blocking", "fixAction": "Move helpers, nested components, docs, sample data, and non-audio assets outside src/vaults/<folder-name> or inline small code in Component.tsx. Mini App may include only reviewed top-level audio files." },
+    "package-structure/missing-required-file": { "severity": "blocking", "fixAction": "Keep Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder. Mini App may additionally include reviewed top-level audio assets." },
     "package-structure/missing-vault-dir": { "severity": "blocking", "fixAction": "Create the package with yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory or yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x..., or add src/vaults/<folder-name>." },
     "package-structure/vault-dir-exists": { "severity": "blocking", "fixAction": "Use a different folder name, edit the existing package, or pass --force only when overwriting scaffold-managed files is intentional." },
     "package-verify/artifact-id-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name> from the current source." },
@@ -321,10 +334,10 @@
     "package-verify/runtime-version-mismatch": { "severity": "blocking", "fixAction": "Regenerate with the current yarn vault:package script." },
     "package-verify/runtime-version-not-current": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout." },
     "package-verify/schema-not-current": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout; do not edit schema files inside the zip." },
-    "package-verify/source-file-list-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name> from a valid four-file Vault package." },
+    "package-verify/source-file-list-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name> from a valid Vault source package. Default Vault UI has four core files; Mini App may also include reviewed top-level audio assets." },
     "package-verify/source-package-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited." },
     "package-verify/template-version-not-current": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout." },
-    "package-verify/unexpected-entry": { "severity": "blocking", "fixAction": "Keep source packages limited to the four Vault files, schema, metadata, and package marker." },
+    "package-verify/unexpected-entry": { "severity": "blocking", "fixAction": "Keep source packages limited to the four core Vault files, allowed Mini App top-level audio assets, schema, metadata, E2E report, and package marker." },
     "package-verify/unsupported-compression": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name>." },
     "package/check-blocking": { "severity": "blocking", "fixAction": "Fix agent.nextActions from vault:check, rerun yarn vault:check <folder-name>, then rerun yarn vault:package <folder-name>." },
     "package/e2e-report-invalid": { "severity": "blocking", "fixAction": "Fix E2E issues, rerun yarn vault:e2e ${folderName}, then rerun yarn vault:package ${folderName}." },
@@ -370,6 +383,11 @@
         "type": "string",
         "required": true,
         "description": "Human-readable UI name shown in the Flap Artifact Workbench. Example: My Vault UI."
+      },
+      "displayTitle": {
+        "type": "object",
+        "required": "mini-app only",
+        "description": "Mini App display title shown on flap.sh pages. Required when manifest.mode is mini-app and must provide separate Chinese and English values, for example {\"zh\":\"蝴蝶农场\",\"en\":\"Butterfly Farm\"}."
       },
       "bindings": {
         "type": "array",
@@ -516,11 +534,11 @@
     },
     {
       "step": "create-source-package",
-      "description": "Use scaffold-first or manifest-first. For factory-scoped mainnet launch, use a real deployed 7777/8888-suffix testnet token for --token and keep the final real mainnet factoryAddress in the production binding. Scaffold-first runs yarn vault:scaffold {folder-name} ...; manifest-first writes the four Vault files, then runs yarn vault:register {folder-name}."
+      "description": "Use scaffold-first or manifest-first. For factory-scoped mainnet launch, use a real deployed 7777/8888-suffix testnet token for --token and keep the final real mainnet factoryAddress in the production binding. Scaffold-first runs yarn vault:scaffold {folder-name} ...; manifest-first writes the four core Vault files, optionally adds reviewed Mini App top-level audio assets when manifest.mode is mini-app, then runs yarn vault:register {folder-name}."
     },
     {
       "step": "implement-vault-ui",
-      "description": "Select a pattern from docs/ui-pattern-snippets.md, then edit only Component.tsx, manifest.json, VaultABI.ts, and i18n.json inside src/vaults/{folder-name}."
+      "description": "Select a pattern from docs/ui-pattern-snippets.md, then edit Component.tsx, manifest.json, VaultABI.ts, and i18n.json inside src/vaults/{folder-name}. Mini App mode may also include top-level reviewed audio files that are statically imported by Component.tsx."
     },
     {
       "step": "preview-local-route",
@@ -535,14 +553,14 @@
     "requiredMarkerFile": "flap-vault-package.json",
     "requiredE2EReportFile": "qa/e2e-report.json",
     "packageKind": "flap-vault-ui-source-package",
-    "formatVersion": 4,
+    "formatVersion": 5,
     "generatedBy": "yarn vault:package",
     "verifyCommand": "yarn vault:verify-package dist/{folder-name}.zip",
     "historicalVerifyCommand": "yarn vault:verify-package dist/{folder-name}.zip --self-contained",
     "acceptanceRule": "Flap Artifact Workbench should reject manually assembled zips, zips missing the marker, zips missing qa/e2e-report.json, failed or stale E2E proofs, zips with duplicate entries, zips with mismatched hashes, unexpected entries, stale template/runtime provenance, stale manifest schema, missing runtimePackageGitHead provenance, and zips with an unsupported package kind or format version. The --self-contained verifier mode is only for historical package inspection.",
     "markerSchema": {
       "kind": "flap-vault-ui-source-package",
-      "formatVersion": 4,
+      "formatVersion": 5,
       "generatedBy": "yarn vault:package",
       "generator": "flap-vault-ui-template",
       "artifactId": "vaultui_<folder-name>_<26-char ULID>",
@@ -576,13 +594,15 @@
         "src/vaults/<folder-name>/Component.tsx",
         "src/vaults/<folder-name>/manifest.json",
         "src/vaults/<folder-name>/VaultABI.ts",
-        "src/vaults/<folder-name>/i18n.json"
+        "src/vaults/<folder-name>/i18n.json",
+        "src/vaults/<folder-name>/<optional-mini-app-audio>.mp3"
       ],
       "fileSha256": {
         "src/vaults/<folder-name>/Component.tsx": "<sha256>",
         "src/vaults/<folder-name>/manifest.json": "<sha256>",
         "src/vaults/<folder-name>/VaultABI.ts": "<sha256>",
         "src/vaults/<folder-name>/i18n.json": "<sha256>",
+        "src/vaults/<folder-name>/<optional-mini-app-audio>.mp3": "<sha256>",
         "schemas/manifest.schema.json": "<sha256>",
         "qa/e2e-report.json": "<sha256>"
       }
@@ -612,7 +632,7 @@
     "default Vault UI contract risk status appears within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block",
     "default Vault UI has no Low risk / 低风险 label or reassuring low-risk copy unless selected from host riskLevel === 1",
     "write-capable flows preview a wrong-network state and render a switch-network path instead of sending writes on the wrong chain",
-    "Vault folder contains only the four allowed files",
+    "Default Vault folder contains only the four core files; Mini App folder contains the four core files plus only reviewed top-level audio assets when needed",
     "Component.tsx follows a public-safe pattern from docs/ui-pattern-snippets.md",
     "action availability stage is decided and reflected in visible enabled/disabled states",
     "all Component.tsx user-facing copy is in i18n.json, with no hardcoded locale text, countdown units, preview fallback names, labels, notices, or button text in Component.tsx",

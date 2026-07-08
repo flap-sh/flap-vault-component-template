@@ -63,7 +63,7 @@
           },
           {
             "title": "Implement here",
-            "body": "Each Vault UI owns exactly four source files. Registration is handled by script.",
+            "body": "Default Vault UI owns four core source files. Mini App may also include reviewed top-level audio files. Registration is handled by script.",
             "items": [
               "src/vaults/{folder-name}/Component.tsx",
               "src/vaults/{folder-name}/manifest.json",
@@ -89,13 +89,13 @@
       "miniApp": {
         "label": "Mini App SOP",
         "title": "Mini App is a fullscreen business component bound to an 8888 token.",
-        "description": "Mini App is still a Flap controlled source package: it still ships the same four Vault files and still runs vault:check, vault:e2e, and vault:package. The difference is that it uses the Mini APP preview shell instead of the default Vault Information shell, and routing is bound by token address. The current test-stage scope is real 8888 tokens, the no-tax path, and the U-pool direction, customized case by case through manual review/audit. Mini App allows broader external capabilities and creative expression within Flap's supported range, but publish review is stricter and more human-led; the code checker is an assistive gate, not the full approval decision.",
+        "description": "Mini App is still a Flap controlled source package: it ships the same four core Vault files, may additionally package reviewed top-level audio assets, and still runs vault:check, vault:e2e, and vault:package. The difference is that it uses the Mini APP preview shell instead of the default Vault Information shell, and routing is bound by token address. The current test-stage scope is real 8888 tokens, the no-tax path, and the U-pool direction, customized case by case through manual review/audit. Mini App allows broader external capabilities and creative expression within Flap's supported range, but publish review is stricter and more human-led; the code checker is an assistive gate, not the full approval decision.",
         "quickStart": {
           "kicker": "Mini App Quick Start",
           "title": "Tell the Agent the mode, 8888 token, and Mini APP preview shell up front.",
           "description": "Mini App is not a free-form webpage container. When you paste this prompt, make token-only binding, the 8888 suffix, the current no-tax/U-pool test-stage scope, a full-height root layout, and the human-review notes for external capabilities explicit.",
           "promptLabel": "Mini App Prompt Template",
-          "prompt": "Please generate a Flap Mini App source package in this repository. Folder name is <mini-app-folder>, UI name is <My Mini App>, target network is <BNB Testnet | BNB Chain>, and manifest.mode must be mini-app. Binding must use only chainId + match.bindings[].tokenAddresses. tokenAddress is <real deployed ERC20 0x... ending in 8888>; do not write factoryAddress, vaultAddresses, global tokenAddresses, restrictTokenAddresses, or caPolicy. For the current test stage, describe the requirement as a real-8888, no-tax, U-pool Mini App, and assume final publish is case-by-case manual review/audit. The Component root layout must include min-h-[100vh], min-h-screen, min-h-full, or h-full. Preview uses the Mini APP shell, factoryAddress and vaultAddress are zero addresses, and the artifact area is fullscreen. Within Flap's supported range, Mini App can carry broader creative ideas and broader external capabilities, but the checker is only an assistive code gate and publish requires stricter human review; list every external endpoint, resource, frame, external link, and fixed contract target with purpose, data source, risk, and fallback. Mini App only skips the default Vault UI host risk-status tag check; every other source-package, i18n, contract-boundary, and E2E rule still applies. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then implement, preview, run vault:check, vault:e2e, vault:package, and vault:verify-package."
+          "prompt": "Please generate a Flap Mini App source package in this repository. Folder name is <mini-app-folder>, Workbench internal UI name is <My Mini App>, flap.sh displayTitle is {\"zh\":\"<中文名>\",\"en\":\"<English Name>\"}; manifest.mode must be mini-app. Target network is <BNB Testnet | BNB Chain>. Binding must use only chainId + match.bindings[].tokenAddresses. tokenAddress is <real deployed ERC20 0x... ending in 8888>; do not write factoryAddress, vaultAddresses, global tokenAddresses, restrictTokenAddresses, or caPolicy. For the current test stage, describe the requirement as a real-8888, no-tax, U-pool Mini App, and assume final publish is case-by-case manual review/audit. The Component root layout must include min-h-[100vh], min-h-screen, min-h-full, or h-full. Preview uses the Mini APP shell, factoryAddress and vaultAddress are zero addresses, and the artifact area is fullscreen. Within Flap's supported range, Mini App can carry broader creative ideas and broader external capabilities, but the checker is only an assistive code gate and publish requires stricter human review; list every external endpoint, resource, frame, external link, fixed contract target, and audio/visual asset with purpose, data source, license, risk, and fallback. If BGM or sound effects are needed, put lowercase top-level audio files directly under src/vaults/<folder> and statically import them from Component.tsx; allowed extensions are .mp3, .wav, .ogg, .m4a, and .aac. Do not use remote audio or hidden autoplay; provide visible mute/pause controls and mobile fallback. Mini App only skips the default Vault UI host risk-status tag check; every other source-package, i18n, contract-boundary, and E2E rule still applies. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then implement, preview, run vault:check, vault:e2e, vault:package, and vault:verify-package."
         },
         "summary": {
           "kicker": "Mode Definition",
@@ -114,7 +114,7 @@
         "requirements": [
           {
             "title": "App name",
-            "body": "Mini App page title and tab should display `manifest.name`, for example `Flap Farm`; `MINI APP` is only the mode label and should not replace the project name. The default Vault UI still uses the Vault Information shell."
+            "body": "`manifest.name` remains the Workbench internal UI name. Mini App also requires `manifest.displayTitle.zh` and `manifest.displayTitle.en`, for example `{ \"zh\": \"蝴蝶农场\", \"en\": \"Butterfly Farm\" }`. This display title appears on flap.sh Mini App pages and tabs; `MINI APP` is only the mode label. The default Vault UI still uses the Vault Information shell."
           },
           {
             "title": "Animation",
@@ -122,7 +122,7 @@
           },
           {
             "title": "BGM / sound",
-            "body": "If a Mini App needs BGM or sound effects, provide audio source, license, play timing, mute/pause controls, failure fallback, and mobile impact. Do not hardwire remote audio or hidden autoplay; the default Vault UI currently does not provide this config."
+            "body": "If a Mini App needs BGM or sound effects, put lowercase top-level audio files directly under `src/vaults/<folder>` and import them from `Component.tsx`. Provide source, license, play timing, visible mute/pause controls, failure fallback, and mobile impact. Remote audio and hidden autoplay are not allowed; default Vault UI does not allow local audio assets."
           },
           {
             "title": "Visual space",
@@ -142,7 +142,7 @@
           {
             "topic": "Host shell",
             "custom": "Uses the default `Vault Information` preview shell. The host owns token header, breadcrumb, close control, width, and shared summary.",
-            "miniApp": "Uses the Mini APP preview shell. Page title and tab use the app name from `manifest.name`; `MINI APP` is only the mode label."
+            "miniApp": "Uses the Mini APP preview shell. Page title and tab use `manifest.displayTitle.zh/en` according to the active language, which is shown on flap.sh Mini App pages; `MINI APP` is only the mode label."
           },
           {
             "topic": "Binding",
@@ -182,7 +182,7 @@
           {
             "topic": "Animation / sound",
             "custom": "Does not require animation, BGM, or sound-effect config by default; usually stays static, compact, and business-first.",
-            "miniApp": "May request animation, BGM, and sound effects, but must declare resources, license, controls, and fallback for human review."
+            "miniApp": "May request animation, BGM, and sound effects. Audio can be packaged as reviewed top-level files under `src/vaults/<folder>`, with resources, license, controls, and fallback declared for human review."
           },
           {
             "topic": "SDK usage",
@@ -202,7 +202,7 @@
           {
             "topic": "Delivery",
             "custom": "Four-file source package, then check/e2e/package/verify before submitting the zip.",
-            "miniApp": "Same four-file source package, and the same check/e2e/package/verify path before submitting the zip."
+            "miniApp": "Same four core files plus optional reviewed top-level audio assets, and the same check/e2e/package/verify path before submitting the zip."
           }
         ],
         "preview": {
@@ -220,12 +220,12 @@
           "Confirm the real deployed `8888` token address and chainId; do not commit placeholder addresses.",
           "Confirm the requirement fits the current 8888 no-tax / U-pool test-stage scope; otherwise pause for manual evaluation before implementing.",
           "Set manifest `mode: \"mini-app\"` and use only token-scoped binding.",
-          "Set `manifest.name` to the real app name, for example `Flap Farm`; do not use a generic `Mini App` name.",
+          "Set `manifest.displayTitle.zh` and `manifest.displayTitle.en` to the real display titles, for example `{ \"zh\": \"蝴蝶农场\", \"en\": \"Butterfly Farm\" }`; it is shown on flap.sh Mini App pages.",
           "Add a full-height class to the Component root; do not rebuild the host navbar, wallet connect, or Mini APP shell.",
-          "If animation, BGM, sound effects, or large visual resources are needed, list source, license, controls, fallback, and mobile impact first.",
+          "If animation, BGM, sound effects, or large visual resources are needed, list source, license, controls, fallback, and mobile impact first. Audio files may be placed directly under `src/vaults/<folder>` only for Mini App mode.",
           "Describe SDK usage: which `@/src/sdk` function or hook, read/write method, state, and error fallback the app needs.",
           "If external capabilities are used, list the purpose, data, risk, and fallback for each endpoint, resource, frame, external link, or externalContracts target for human review.",
-          "Keep the four-file boundary, i18n, SDK/UI import rules, and contract boundaries unchanged.",
+          "Keep the four core files, i18n, SDK/UI import rules, and contract boundaries unchanged; Mini App audio is the only local-asset exception.",
           "Run `yarn vault:check <folder-name>` and follow JSON code / fixHint / agent.nextActions until blocking is 0.",
           "Run `yarn vault:e2e <folder-name>`, `yarn vault:package <folder-name>`, and `yarn vault:verify-package dist/<folder-name>.zip`."
         ],
@@ -235,10 +235,10 @@
           "Mini App binding may use only `tokenAddresses`; do not write factoryAddress or vaultAddresses.",
           "The Mini App token must end in `8888` and must be a real deployed ERC20.",
           "The current test stage first supports the 8888 no-tax / U-pool direction; other shapes need manual evaluation before implementation and cannot ship on checker pass alone.",
-          "Mini App name must use the project's own `manifest.name`; the preview shell no longer treats generic `MINI APP` as the project name.",
+          "Mini App must provide `manifest.displayTitle.zh` and `manifest.displayTitle.en`; this is shown on flap.sh Mini App pages.",
           "The root layout must be full-height; missing that class is blocked by `mini-app-layout/missing-full-height-root`.",
           "Animation should prefer local CSS/React. Extra animation libraries, audio, external media, or complex visual resources require human review.",
-          "BGM/sound must not use hidden autoplay; provide visible mute/pause controls and unavailable-state fallback.",
+          "BGM/sound may be submitted as reviewed top-level audio files under `src/vaults/<folder>` in Mini App mode only; do not use hidden autoplay, and provide visible mute/pause controls plus unavailable-state fallback.",
           "Do not treat Mini App as an arbitrary webpage container; direct wallet APIs, iframe, eval, undeclared endpoints, and undeclared fixed contract targets are still blocked.",
           "Mini App can request broader external capabilities within the supported range, but those items require stricter human review and cannot ship on checker pass alone.",
           "Mini App only skips the default Vault UI risk-status tag check. It does not skip source-package, E2E, manifest, i18n, or security rules."
@@ -252,15 +252,15 @@
         "Use the folder name only for the folder and preview route; vault:scaffold generates the manifest artifactId automatically.",
         "Declare Vault UI binding targets in the manifest with chain plus either factory address or a single Vault address. If a deployment needs a token CA reference list or fixed extra contract targets, declare them only inside the relevant match.bindings[] entry.",
         "Avoid external endpoints, external resources, and fixed extra contract targets; special cases must be declared and approved by Flap review before publish.",
-        "Keep the Vault package folder limited to Component.tsx, manifest.json, VaultABI.ts, and i18n.json.",
+        "Keep default Vault UI folders limited to Component.tsx, manifest.json, VaultABI.ts, and i18n.json. Mini App may additionally include reviewed top-level audio files.",
         "Register local preview routing with vault:scaffold or vault:register; do not hand-edit registration unless the script cannot parse the index file.",
-        "Do not add helpers, nested components, local assets, docs, or any other files under the Vault package.",
+        "Do not add helpers, nested components, non-audio local assets, docs, or any other files under the Vault package.",
         "Local preview renders with safe default fixture addresses and accepts real runtime addresses through URL params.",
         "Submission packages keep source files; production runtime JS is built by the Flap Artifact Workbench."
       ],
       "agentGuide": {
         "title": "AI Agent / Skill Usage",
-        "description": "Agents should work only around the entry files, four Vault files, and check output. Do not let the Agent expand the folder structure.",
+        "description": "Agents should work only around the entry files, core Vault files, allowed Mini App audio assets, and check output. Do not let the Agent expand the folder structure.",
         "skillTitle": "Required Skill",
         "skillName": "flap-vault-ui-generator",
         "skillPath": "skills/flap-vault-ui-generator/SKILL.md",
@@ -308,9 +308,9 @@
           "Read the required docs and Skill first, then pick the closest pattern.",
           "When no UI style is specified, use the scaffold default surface / NiePan-style abstract template as the only visual default; examples are behavior references only.",
           "For a new Vault package, run yarn vault:scaffold {folder-name} with chain/factory for factory mode, or chain/Vault plus optional token for no-factory mode; it generates artifactId automatically.",
-          "Implement only inside the four core Vault files; do not add helpers, subcomponents, images, local docs, or sample data.",
+          "Implement only inside the four core Vault files; Mini App may add reviewed top-level audio files. Do not add helpers, subcomponents, images, local docs, or sample data.",
           "Run yarn vault:register {folder-name} when scaffold did not create the package, then preview /{folder-name}.",
-          "Use only @/src/sdk and @/src/ui for shared capabilities; the only local relative import allowed is ./VaultABI.",
+          "Use only @/src/sdk and @/src/ui for shared capabilities; default Vault UI may locally import only ./VaultABI, while Mini App may also statically import reviewed top-level audio files.",
           "Use safe preview defaults for first render, then pass real runtime data through URL params such as chainId, tokenAddress, and vaultAddress.",
           "Run yarn vault:check {folder-name} and follow agent.nextActions until blocking issues are zero, then run yarn vault:package {folder-name}."
         ]

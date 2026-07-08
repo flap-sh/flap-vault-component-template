@@ -281,8 +281,8 @@ try {
   assertRule("mini-app mode rejects factory-scoped bindings", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-binding", "blocking");
   assertRule("mini-app mode requires an 8888 token", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-token", "blocking");
 
-  const miniAppMissingHeightSlug = `${FIXTURE_PREFIX}-mini-app-missing-height`;
-  writeVault(miniAppMissingHeightSlug, {
+  const miniAppMissingDisplayTitleSlug = `${FIXTURE_PREFIX}-mini-app-title`;
+  writeVault(miniAppMissingDisplayTitleSlug, {
     manifest: baseManifest({
       mode: "mini-app",
       match: {
@@ -290,7 +290,67 @@ try {
       },
     }),
   });
+  assertRule("mini-app mode requires bilingual displayTitle", runVaultCheck(miniAppMissingDisplayTitleSlug, { silent: true }), "manifest-schema/mini-app-display-title-requires-bilingual", "blocking");
+
+  const miniAppStringDisplayTitleSlug = `${FIXTURE_PREFIX}-mini-app-string-title`;
+  writeVault(miniAppStringDisplayTitleSlug, {
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: "自测 Mini App / Selftest Mini App",
+      match: {
+        bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
+  assertRule("mini-app mode rejects unstructured displayTitle", runVaultCheck(miniAppStringDisplayTitleSlug, { silent: true }), "manifest-schema/mini-app-display-title-requires-bilingual", "blocking");
+
+  const miniAppMissingHeightSlug = `${FIXTURE_PREFIX}-mini-app-missing-height`;
+  writeVault(miniAppMissingHeightSlug, {
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "自测 Mini App", en: "Selftest Mini App" },
+      match: {
+        bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
   assertRule("mini-app mode requires a full-height root layout", runVaultCheck(miniAppMissingHeightSlug, { silent: true }), "mini-app-layout/missing-full-height-root", "blocking");
+
+  const defaultAudioAssetSlug = `${FIXTURE_PREFIX}-default-audio-asset`;
+  writeVault(defaultAudioAssetSlug);
+  fs.writeFileSync(path.join(ROOT, "src", "vaults", defaultAudioAssetSlug, "bgm.mp3"), "audio");
+  assertRule("default Vault UI rejects local audio assets", runVaultCheck(defaultAudioAssetSlug, { silent: true }), "media/mini-app-audio-only", "blocking");
+
+  const miniAppAudioAssetSlug = `${FIXTURE_PREFIX}-mini-app-audio-asset`;
+  writeVault(miniAppAudioAssetSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import bgmUrl from "./bgm.mp3";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div className="min-h-screen">
+      <audio src={bgmUrl} controls loop />
+      <div>{i18n.t("title")}</div>
+    </div>
+  );
+}
+`,
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "自测 Mini App", en: "Selftest Mini App" },
+      match: {
+        bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
+  fs.writeFileSync(path.join(ROOT, "src", "vaults", miniAppAudioAssetSlug, "bgm.mp3"), "audio");
+  const miniAppAudioAssetCheck = runVaultCheck(miniAppAudioAssetSlug, { silent: true });
+  assertNoRule("mini-app mode accepts static imports for top-level audio assets", miniAppAudioAssetCheck, "imports-and-dependencies/disallowed-relative-import", "blocking");
+  assertRule("mini-app audio assets are surfaced for human review", miniAppAudioAssetCheck, "manual-review/mini-app-audio-asset", "warning");
 
   const non7777TestTokenSlug = `${FIXTURE_PREFIX}-non-allowed-suffix-test-token`;
   writeVault(non7777TestTokenSlug, {
@@ -2278,6 +2338,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
     manifest: baseManifest({
       mode: "mini-app",
+      displayTitle: { zh: "自测 Mini App", en: "Selftest Mini App" },
       match: {
         bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
       },

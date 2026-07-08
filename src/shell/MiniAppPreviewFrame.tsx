@@ -11,13 +11,20 @@ function readExtraString(extraConfig: Record<string, unknown> | undefined, key: 
   return typeof value === "string" ? value : undefined;
 }
 
+function readDisplayTitle(displayTitle: unknown, languageCode: "en" | "zh") {
+  if (!displayTitle || typeof displayTitle !== "object" || Array.isArray(displayTitle)) return undefined;
+  const titles = displayTitle as Partial<Record<"en" | "zh", unknown>>;
+  const title = titles[languageCode] ?? titles.zh ?? titles.en;
+  return typeof title === "string" && title.trim() ? title : undefined;
+}
+
 export function MiniAppPreviewFrame({ children }: { children: ReactNode }) {
-  const { lang } = useLang();
+  const { lang, languageCode } = useLang();
   const context = useVaultContext();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const tokenDetailHref = readExtraString(context.extraConfig, "tokenDetailHref") ?? "/";
-  const title = context.manifest.name || lang.preview.miniAppTitle;
+  const title = readDisplayTitle(context.manifest.displayTitle, languageCode) || context.manifest.name || lang.preview.miniAppTitle;
   const modeLabel = lang.preview.miniAppTitle;
   const tab = title;
   const fullscreenLabel = isFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen;

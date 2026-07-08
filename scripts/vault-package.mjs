@@ -7,8 +7,10 @@ import archiver from "archiver";
 import { failAgent } from "./agent-error.mjs";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
+  collectSourceHashes,
   E2E_REPORT_PACKAGE_PATH,
   findE2EReportPath,
+  sourcePackagePaths,
   summarizeE2EReportForMarker,
   validateE2EReportObject,
 } from "./e2e-report-utils.mjs";
@@ -16,13 +18,12 @@ import { runVaultCheckWithTokenContracts } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 4;
+const PACKAGE_FORMAT_VERSION = 5;
 const PACKAGE_TOOL = "yarn vault:package";
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const TEMPLATE_NAME = "flap-vault-ui-template";
 const RUNTIME_PACKAGE_NAME = "@flapsdk/vault-runtime";
 const RUNTIME_CONTRACT_VERSION = 1;
-const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const folderName = process.argv[2];
 const rootPackage = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const templateVersion = rootPackage.version;
@@ -128,14 +129,9 @@ archive.directory(vaultDir, `src/vaults/${folderName}`, (entry) => {
 archive.file(path.join(ROOT, "schemas", "manifest.schema.json"), { name: "schemas/manifest.schema.json" });
 
 const packagedAt = new Date().toISOString();
-const sourceFileHashes = Object.fromEntries(
-  REQUIRED_SOURCE_FILES.map((file) => {
-    const packagePath = `src/vaults/${folderName}/${file}`;
-    return [packagePath, hashFile(path.join(vaultDir, file))];
-  }),
-);
+const sourceFiles = sourcePackagePaths(ROOT, folderName);
+const sourceFileHashes = collectSourceHashes(ROOT, folderName);
 const schemaPath = "schemas/manifest.schema.json";
-const schemaSha256 = hashFile(path.join(ROOT, schemaPath));
 const e2eReportSha256 = crypto.createHash("sha256").update(e2eReportRaw).digest("hex");
 const checkSummary = summarizeCheck(result.issues);
 const e2eSummary = summarizeE2EReportForMarker(e2eReport);
@@ -172,6 +168,7 @@ const packageMarker = {
   runtimeContractVersion: RUNTIME_CONTRACT_VERSION,
   artifactId: manifest.artifactId,
   folderName,
+  ...(manifest.displayTitle ? { displayTitle: manifest.displayTitle } : {}),
   sourcePackage: `src/vaults/${folderName}`,
   ...(manifest.mode ? { mode: manifest.mode } : {}),
   packagedAt,
@@ -180,10 +177,9 @@ const packageMarker = {
     summary: checkSummary,
   },
   e2e: e2eSummary,
-  requiredSourceFiles: REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`),
+  requiredSourceFiles: sourceFiles,
   fileSha256: {
     ...sourceFileHashes,
-    [schemaPath]: schemaSha256,
     [E2E_REPORT_PACKAGE_PATH]: e2eReportSha256,
   },
 };
@@ -203,6 +199,7 @@ const metadata = {
   artifactId: manifest.artifactId,
   folderName,
   name: manifest.name,
+  ...(manifest.displayTitle ? { displayTitle: manifest.displayTitle } : {}),
   ...(manifest.mode ? { mode: manifest.mode } : {}),
   bindingKeys: (manifest.match?.bindings || []).flatMap(bindingKeysForEntry),
   packagedAt,

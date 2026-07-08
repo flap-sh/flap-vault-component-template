@@ -63,7 +63,7 @@
           },
           {
             "title": "只在这里实现",
-            "body": "每个 Vault UI 只维护四个 source 文件。注册由脚本处理。",
+            "body": "默认 Vault UI 只维护四个核心 source 文件；Mini App 可以额外携带经审核的顶层音频文件。注册由脚本处理。",
             "items": [
               "src/vaults/{folder-name}/Component.tsx",
               "src/vaults/{folder-name}/manifest.json",
@@ -89,13 +89,13 @@
       "miniApp": {
         "label": "Mini App SOP",
         "title": "Mini App 是 8888 Token 绑定的全屏业务组件。",
-        "description": "Mini App 仍然是 Flap controlled source package，仍然只交付四个 Vault 文件、走 vault:check / vault:e2e / vault:package；区别是它不挂在默认 Vault Information 壳里，而是进入 Mini APP 预览壳，按 token address 绑定。当前测试阶段先收口到真实 8888、无税模式和 U 池子方向，case by case 定制并经过人工审核/审计。Mini App 会在我们支持的允许范围内放宽外部能力和创意表达，但发布会更依赖严格人工 review，代码辅助 checker 只是辅助门槛。",
+        "description": "Mini App 仍然是 Flap controlled source package，仍然交付四个核心 Vault 文件，并且可以额外携带经过 review 的顶层音频素材，继续走 vault:check / vault:e2e / vault:package；区别是它不挂在默认 Vault Information 壳里，而是进入 Mini APP 预览壳，按 token address 绑定。当前测试阶段先收口到真实 8888、无税模式和 U 池子方向，case by case 定制并经过人工审核/审计。Mini App 会在我们支持的允许范围内放宽外部能力和创意表达，但发布会更依赖严格人工 review，代码辅助 checker 只是辅助门槛。",
         "quickStart": {
           "kicker": "Mini App 快速开始",
           "title": "给 Agent 明确 mode、8888 Token 和 Mini APP 预览壳。",
           "description": "Mini App 不是普通网页容器。把这段 prompt 贴给 Agent 时，重点确认 token-only 绑定、8888 后缀、当前测试阶段的无税/U 池子方向、全屏根布局，以及需要更完整人工 review 的外部能力说明。",
           "promptLabel": "Mini App Prompt 模板",
-          "prompt": "请在这个仓库里生成一个 Flap Mini App source package。目录名是 <mini-app-folder>，UI 名称是 <My Mini App>，目标网络是 <BNB Testnet | BNB Chain>，manifest.mode 必须是 mini-app。绑定只能使用 chainId + match.bindings[].tokenAddresses，tokenAddress 是 <真实部署 ERC20 且 8888 结尾的 0x...>；不要写 factoryAddress、vaultAddresses、全局 tokenAddresses、restrictTokenAddresses 或 caPolicy。当前测试阶段请按真实 8888、无税模式和 U 池子方向描述需求，最终能否发布 case by case 人工审核/审计。Component 根布局必须带 min-h-[100vh] / min-h-screen / min-h-full / h-full。预览会走 Mini APP shell，factoryAddress 和 vaultAddress 为零地址，artifact 区域全屏。Mini App 在 Flap 支持的允许范围内可以承载更自由的创意和更宽的外部能力，但 checker 只是代码辅助门槛，发布前需要更严格的人工 review；请把所有外部 endpoint、外部资源、externalFrames、外部链接和固定合约目标逐项写清 purpose、数据来源、风险和 fallback。Mini App 只跳过默认 Vault UI 的 host risk-status tag 检查，其他 source package、i18n、合约边界和 E2E 规则全部仍然生效。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后实现、预览、运行 vault:check、vault:e2e、vault:package 和 vault:verify-package。"
+          "prompt": "请在这个仓库里生成一个 Flap Mini App source package。目录名是 <mini-app-folder>，Workbench 内部 UI 名称 name 是 <My Mini App>，flap.sh 页面展示标题 displayTitle 是 {\"zh\":\"<中文名>\",\"en\":\"<English Name>\"}；manifest.mode 必须是 mini-app。目标网络是 <BNB Testnet | BNB Chain>。绑定只能使用 chainId + match.bindings[].tokenAddresses，tokenAddress 是 <真实部署 ERC20 且 8888 结尾的 0x...>；不要写 factoryAddress、vaultAddresses、全局 tokenAddresses、restrictTokenAddresses 或 caPolicy。当前测试阶段请按真实 8888、无税模式和 U 池子方向描述需求，最终能否发布 case by case 人工审核/审计。Component 根布局必须带 min-h-[100vh] / min-h-screen / min-h-full / h-full。预览会走 Mini APP shell，factoryAddress 和 vaultAddress 为零地址，artifact 区域全屏。Mini App 在 Flap 支持的允许范围内可以承载更自由的创意和更宽的外部能力，但 checker 只是代码辅助门槛，发布前需要更严格的人工 review；请把所有外部 endpoint、外部资源、externalFrames、外部链接、固定合约目标以及音频/视觉素材逐项写清 purpose、数据来源、授权、风险和 fallback。如果需要 BGM/音效，请把小写命名的音频文件直接放在 src/vaults/<folder> 顶层，并在 Component.tsx 里静态 import；允许扩展名是 .mp3、.wav、.ogg、.m4a、.aac。不能私自硬接远程音频或隐藏自动播放，必须提供可见静音/暂停控制和移动端 fallback。Mini App 只跳过默认 Vault UI 的 host risk-status tag 检查，其他 source package、i18n、合约边界和 E2E 规则全部仍然生效。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后实现、预览、运行 vault:check、vault:e2e、vault:package 和 vault:verify-package。"
         },
         "summary": {
           "kicker": "模式定义",
@@ -114,7 +114,7 @@
         "requirements": [
           {
             "title": "小程序名称",
-            "body": "Mini App 的页面标题和 tab 应该展示 `manifest.name`，例如 `蝴蝶农场`；`MINI APP` 只作为模式标识，不应该替代项目名称。默认 Vault UI 仍展示 Vault Information 壳。"
+            "body": "`manifest.name` 仍是 Workbench 内部 UI 名称；Mini App 需要额外填写 `manifest.displayTitle.zh` 和 `manifest.displayTitle.en`，例如 `{ \"zh\": \"蝴蝶农场\", \"en\": \"Butterfly Farm\" }`。这个展示标题会显示在 flap.sh 的 Mini App 页面标题和 tab 中；`MINI APP` 只作为模式标识，不应该替代项目名称。默认 Vault UI 仍展示 Vault Information 壳。"
           },
           {
             "title": "动画效果",
@@ -122,7 +122,7 @@
           },
           {
             "title": "BGM / 音效",
-            "body": "如果 Mini App 需要 BGM 或音效，必须提供音频来源、授权、播放时机、静音/暂停控制、失败 fallback 和是否影响移动端体验。不能私自硬接远程音频或隐藏自动播放；当前默认 Vault UI 不提供这个配置。"
+            "body": "如果 Mini App 需要 BGM 或音效，可以把小写命名的音频文件直接放在 `src/vaults/<folder>` 顶层，并从 `Component.tsx` 静态 import。必须提供音频来源、授权、播放时机、可见静音/暂停控制、失败 fallback 和是否影响移动端体验。不能私自硬接远程音频或隐藏自动播放；默认 Vault UI 不允许本地音频素材。"
           },
           {
             "title": "视觉占位和首屏",
@@ -142,7 +142,7 @@
           {
             "topic": "入口壳",
             "custom": "默认进入 `Vault Information` 预览壳，宿主拥有 token header、breadcrumb、close、宽度和共享摘要。",
-            "miniApp": "进入 Mini APP 预览壳，页面标题和 tab 使用小程序名，也就是 `manifest.name`；`MINI APP` 只是模式标识。"
+            "miniApp": "进入 Mini APP 预览壳，页面标题和 tab 按当前语言使用 `manifest.displayTitle.zh/en`；这个标题会显示在 flap.sh Mini App 页面中，`MINI APP` 只是模式标识。"
           },
           {
             "topic": "绑定方式",
@@ -182,7 +182,7 @@
           {
             "topic": "动效 / 音效",
             "custom": "默认不要求动画、BGM 或音效配置；通常保持静态、紧凑、业务优先。",
-            "miniApp": "可以申请动画、BGM 和音效，但必须声明资源、授权、交互控制和 fallback，并等待人工审核。"
+            "miniApp": "可以申请动画、BGM 和音效；音频可以作为 Mini App 顶层文件随 source package 提交，但必须声明资源、授权、交互控制和 fallback，并等待人工审核。"
           },
           {
             "topic": "SDK 使用",
@@ -202,7 +202,7 @@
           {
             "topic": "交付",
             "custom": "四文件 source package，运行 check/e2e/package/verify 后提交 zip。",
-            "miniApp": "同样四文件 source package，同样必须运行 check/e2e/package/verify 后提交 zip。"
+            "miniApp": "同样四个核心文件，可以额外携带经过 review 的顶层音频素材；同样必须运行 check/e2e/package/verify 后提交 zip。"
           }
         ],
         "preview": {
@@ -220,12 +220,12 @@
           "确认真实部署的 `8888` Token 地址和 chainId；没有真实 token 时不要硬写占位地址。",
           "确认当前需求符合测试阶段的 8888 无税模式 / U 池子方向；不符合时先进入人工评估，不要直接实现。",
           "Manifest 写 `mode: \"mini-app\"`，并只写 token-scoped binding。",
-          "把 `manifest.name` 写成实际小程序名，例如 `蝴蝶农场`，不要只写通用 `Mini App`。",
+          "把 `manifest.displayTitle.zh` 和 `manifest.displayTitle.en` 写成实际展示标题，例如 `{ \"zh\": \"蝴蝶农场\", \"en\": \"Butterfly Farm\" }`；它会显示在 flap.sh Mini App 页面中，必须分别填写中文和英文。",
           "Component 根节点加全高 class；不要重建 host navbar、钱包连接或 Mini APP shell。",
-          "如果需要动效、BGM、音效或大视觉资源，先列出资源来源、授权、控制方式、fallback 和移动端影响。",
+          "如果需要动效、BGM、音效或大视觉资源，先列出资源来源、授权、控制方式、fallback 和移动端影响；Mini App 音频素材可以直接放在 `src/vaults/<folder>` 顶层。",
           "说明 SDK 使用：需要哪些 `@/src/sdk` function / hook、读写方法、状态和错误兜底。",
           "如果使用外部能力，逐项列出 endpoint、resource、frame、external link、externalContracts 的用途、数据、风险和 fallback，交给人工 review。",
-          "照常保持四文件边界、i18n、SDK/UI import 规则和合约边界。",
+          "照常保持四个核心文件、i18n、SDK/UI import 规则和合约边界；Mini App 音频是唯一的本地素材例外。",
           "运行 `yarn vault:check <folder-name>`，按 JSON 的 code / fixHint / agent.nextActions 修到 blocking 为 0。",
           "运行 `yarn vault:e2e <folder-name>`、`yarn vault:package <folder-name>` 和 `yarn vault:verify-package dist/<folder-name>.zip`。"
         ],
@@ -235,10 +235,10 @@
           "Mini App binding 只能使用 `tokenAddresses`，不能写 factoryAddress 或 vaultAddresses。",
           "Mini App token 必须以 `8888` 结尾，且必须是真实部署 ERC20。",
           "当前测试阶段先支持 8888 无税模式 / U 池子方向，其他形态需要先人工评估，不能靠 checker 通过直接上线。",
-          "Mini App 名称必须使用项目自己的 `manifest.name`；预览壳不再把通用 `MINI APP` 当成项目名。",
+          "Mini App 必须提供 `manifest.displayTitle.zh` 和 `manifest.displayTitle.en`；它会显示在 flap.sh Mini App 页面中。",
           "根布局必须全高；缺少全高 class 会被 `mini-app-layout/missing-full-height-root` 阻断。",
           "动画优先用本地 CSS/React 实现；额外动画库、音频、外部媒体或复杂视觉资源都需要人工 review。",
-          "BGM/音效不能隐藏自动播放，必须提供用户可见的静音/暂停控制和不可用 fallback。",
+          "BGM/音效素材只能在 Mini App mode 下作为 `src/vaults/<folder>` 顶层音频文件提交，不能隐藏自动播放；必须提供用户可见的静音/暂停控制和不可用 fallback，并等待人工审核。",
           "不要把 Mini App 当成任意网页容器；direct wallet API、iframe、eval、未声明 endpoint 和未声明固定合约目标仍然会被阻断。",
           "Mini App 允许在支持范围内申请更宽的外部能力，但这些内容默认需要更严格的人工 review，不能只看 checker 通过就发布。",
           "Mini App 只豁免默认 Vault UI risk-status tag 检查，不豁免 source package、E2E、manifest、i18n 或安全规则。"
@@ -252,15 +252,15 @@
         "目录名只作为目录和预览路由；manifest 里的 artifactId 默认由 vault:scaffold 自动生成。",
         "Vault UI 绑定目标需要在 manifest 中声明 chain 加 factory 地址、chain 加单个 Vault 地址，或 chain 加一个或多个 Token CA；如果某个部署需要 Token CA 列表或固定额外合约目标，只能写在对应 match.bindings[] 里。",
         "尽量避免外部 endpoint、外部资源和固定额外合约目标；特殊情况必须声明并通过 Flap 审查后才能发布。",
-        "Vault 包目录只保留 Component.tsx、manifest.json、VaultABI.ts、i18n.json。",
+        "默认 Vault UI 包目录只保留 Component.tsx、manifest.json、VaultABI.ts、i18n.json；Mini App 可以额外携带经审核的顶层音频文件。",
         "本地预览路由由 vault:scaffold 或 vault:register 注册；除非脚本无法解析 index 文件，否则不要手写注册。",
-        "不要在 Vault 包内新增 helpers、子组件、图片、本地文档或任何其他文件。",
+        "不要在 Vault 包内新增 helpers、子组件、非音频本地资产、本地文档或任何其他文件。",
         "本地预览默认使用安全的 fixture 地址渲染，也可以通过 URL 参数传入真实 runtime 地址。",
         "提交包保留源码，线上 runtime JS 由 Flap Artifact Workbench 构建生成。"
       ],
       "agentGuide": {
         "title": "AI Agent / Skill 使用说明",
-        "description": "Agent 只需要围绕入口文件、四个 Vault 文件和检查结果工作。不要让 Agent 自己扩展目录结构。",
+        "description": "Agent 只需要围绕入口文件、核心 Vault 文件、Mini App 允许的音频资产和检查结果工作。不要让 Agent 自己扩展目录结构。",
         "skillTitle": "必须使用的 Skill",
         "skillName": "flap-vault-ui-generator",
         "skillPath": "skills/flap-vault-ui-generator/SKILL.md",
@@ -308,9 +308,9 @@
           "先读取必须文档和 Skill，再选最接近的 patterns。",
           "如果没有明确指定 UI 风格，默认只能使用 scaffold default surface / 涅槃风格抽象模板；examples 只作为行为参考。",
           "如果是新 Vault 包，factory 模式传入 chain/factory，无 factory 模式传入 chain/Vault 和可选 token；vault:scaffold 会自动生成 artifactId。",
-          "只在四个 Vault 核心文件内实现；不要新增 helpers、子组件、图片、本地文档或样例数据。",
+          "默认只在四个 Vault 核心文件内实现；Mini App 可以新增经审核的顶层音频文件。不要新增 helpers、子组件、图片、本地文档或样例数据。",
           "如果不是 scaffold 创建的包，运行 yarn vault:register {folder-name}，然后预览 /{folder-name}。",
-          "共享能力只用 @/src/sdk 和 @/src/ui；本地相对导入只允许 ./VaultABI。",
+          "共享能力只用 @/src/sdk 和 @/src/ui；默认 Vault UI 本地相对导入只允许 ./VaultABI，Mini App 可以额外静态导入经审核的顶层音频文件。",
           "首次预览使用安全默认地址；测试具体 Vault 时，通过 URL 参数传入 chainId、tokenAddress、vaultAddress 等真实 runtime 地址。",
           "运行 yarn vault:check {folder-name} 后按 agent.nextActions 修到 blocking 为 0，再运行 yarn vault:package {folder-name}。"
         ]
