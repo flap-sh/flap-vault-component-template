@@ -17,8 +17,9 @@ export function MiniAppPreviewFrame({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const tokenDetailHref = readExtraString(context.extraConfig, "tokenDetailHref") ?? "/";
-  const title = lang.preview.miniAppTitle;
-  const tab = lang.preview.miniAppTab;
+  const title = context.manifest.name || lang.preview.miniAppTitle;
+  const modeLabel = lang.preview.miniAppTitle;
+  const tab = title;
   const fullscreenLabel = isFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen;
 
   useEffect(() => {
@@ -64,13 +65,16 @@ export function MiniAppPreviewFrame({ children }: { children: ReactNode }) {
           >
             <ArrowLeft className="h-5 w-5" strokeWidth={1.8} />
           </Link>
-          <h1 className="text-[28px] font-normal uppercase leading-none text-white md:text-[32px]">{title}</h1>
+          <div className="min-w-0">
+            <h1 className="truncate text-[28px] font-normal leading-none text-white md:text-[32px]">{title}</h1>
+            <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#D0FF00]">{modeLabel}</div>
+          </div>
           <span aria-hidden="true" className="mt-5 h-0.5 w-[34px] bg-[#D0FF00]" />
         </div>
 
         <div className="mt-8 border-b border-[#484B51]">
           <div className="relative mx-auto h-[43px] w-full max-w-[1200px] px-3 md:px-6 xl:px-0">
-            <span className="absolute bottom-[11px] left-3 text-[14px] font-semibold uppercase leading-[1.4] text-white md:left-6 xl:left-0">{tab}</span>
+            <span className="absolute bottom-[11px] left-3 text-[14px] font-semibold leading-[1.4] text-white md:left-6 xl:left-0">{tab}</span>
             <span aria-hidden="true" className="absolute bottom-0 left-3 h-[3px] w-[27px] bg-white md:left-6 xl:left-0" />
           </div>
         </div>

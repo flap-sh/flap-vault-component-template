@@ -2,8 +2,10 @@
 
 import type React from "react";
 import type { CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, FileText, FolderCode, Terminal, Zap } from "lucide-react";
+import { useState } from "react";
 import { useLang } from "@/src/i18n/useLang";
 import type { VaultManifest } from "@/src/sdk";
 import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
@@ -45,12 +47,60 @@ const gridStyle: CSSProperties = {
   WebkitMaskImage: "radial-gradient(ellipse 95% 72% at 50% 42%, black 62%, transparent 100%)",
 };
 
+type DocMode = "custom" | "miniApp";
+
+type MiniAppGuideContent = {
+  summary: {
+    kicker: string;
+    title: string;
+    description: string;
+    items: string[];
+  };
+  requirementsTitle: string;
+  requirementsDescription: string;
+  requirements: Array<{
+    title: string;
+    body: string;
+  }>;
+  comparisonTitle: string;
+  comparisonDescription: string;
+  comparisonTopicHeader: string;
+  comparisonCustomHeader: string;
+  comparisonMiniAppHeader: string;
+  comparisonRows: Array<{
+    topic: string;
+    custom: string;
+    miniApp: string;
+  }>;
+  preview: {
+    kicker: string;
+    title: string;
+    description: string;
+    imageAlt: string;
+    caption: string;
+    routeLabel: string;
+    route: string;
+  };
+  workflowTitle: string;
+  workflow: string[];
+  rulesTitle: string;
+  rules: string[];
+  doneTitle: string;
+  doneBody: string;
+};
+
 export default function HomePage() {
   const { lang, languageCode } = useLang();
   const sop = lang.home.sop;
-  const quickStart = sop.quickStart;
+  const [docMode, setDocMode] = useState<DocMode>("custom");
+  const miniApp = sop.miniApp;
+  const quickStart = docMode === "miniApp" ? miniApp.quickStart : sop.quickStart;
   const developerEntry = sop.developerEntry;
   const agentGuide = sop.agentGuide;
+  const intro =
+    docMode === "miniApp"
+      ? { label: miniApp.label, title: miniApp.title, description: miniApp.description }
+      : { label: sop.label, title: sop.title, description: sop.description };
 
   return (
     <VaultRuntimeProvider
@@ -69,16 +119,17 @@ export default function HomePage() {
         <FlapNavbar manifest={homeManifest} />
 
         <main style={{ padding: "56px 0 120px" }}>
-          <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 32px" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 clamp(16px,4vw,32px)" }}>
+            <ModeTabs mode={docMode} onChange={setDocMode} labels={sop.modeTabs} />
 
             {/* ── HERO: 2-col grid ─────────────────────────────────── */}
-            <section style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr", gap: 40, alignItems: "start" }}>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 40, alignItems: "start" }}>
               <div>
                 <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 14px" }}>
                   {quickStart.kicker}
                 </p>
                 <h1 style={{ fontSize: "clamp(32px,3.6vw,42px)", fontWeight: 760, lineHeight: 1.04, letterSpacing: "-0.025em", margin: "0 0 18px", color: TEXT }}>
-                  把一段 prompt 交给你的 Agent，它就能生成受控的 Vault UI。
+                  {quickStart.title}
                 </h1>
                 <p style={{ fontSize: 17, lineHeight: 1.65, color: TEXT2, maxWidth: "56ch" }}>
                   {quickStart.description}
@@ -97,16 +148,18 @@ export default function HomePage() {
             {/* ── SOP intro ────────────────────────────────────────── */}
             <section style={{ marginTop: 72 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 14px" }}>
-                {sop.label}
+                {intro.label}
               </p>
               <h2 style={{ fontSize: "clamp(32px,4vw,42px)", fontWeight: 760, lineHeight: 1.04, letterSpacing: "-0.025em", margin: "0 0 22px", color: TEXT }}>
-                {sop.title}
+                {intro.title}
               </h2>
               <p style={{ fontSize: 17, lineHeight: 1.65, color: TEXT2, maxWidth: "56ch" }}>
-                {sop.description}
+                {intro.description}
               </p>
             </section>
 
+            {docMode === "custom" ? (
+              <>
             {/* ── Developer Entry card ─────────────────────────────── */}
             <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
@@ -123,7 +176,7 @@ export default function HomePage() {
 
               {/* real examples */}
               <SubLabel>{developerEntry.realExamplesLabel}</SubLabel>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginBottom: 14 }}>
                 <Link href="/community-buyback-example" style={btnPrimary}>
                   {developerEntry.openCommunityBuybackExample} <ArrowSpan />
                 </Link>
@@ -136,7 +189,7 @@ export default function HomePage() {
               </p>
 
               <SubLabel muted>{developerEntry.referenceExamplesLabel}</SubLabel>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14, marginBottom: 14 }}>
                 <Link href="/example" style={btnSecondary}>
                   {developerEntry.openPreview} <ArrowSpan />
                 </Link>
@@ -154,7 +207,7 @@ export default function HomePage() {
               <hr style={{ height: 1, background: BORDER, border: 0, margin: "0 0 28px" }} />
 
               {/* 3-col info grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
                 {developerEntry.cards.map((card, i) => {
                   const Icon = entryIcons[i] ?? FileText;
                   return (
@@ -226,7 +279,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28, marginTop: 28, alignItems: "start" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 28, marginTop: 28, alignItems: "start" }}>
                 {/* docs column */}
                 <div>
                   <SubLabel>{agentGuide.docsTitle}</SubLabel>
@@ -258,7 +311,7 @@ export default function HomePage() {
 
                   <div>
                     <SubLabel>{agentGuide.outputsTitle}</SubLabel>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
                       {agentGuide.outputs.map((f) => (
                         <span key={f} style={{ display: "inline-flex", alignItems: "center", fontFamily: MONO, fontSize: 13, color: TEXT2, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px" }}>
                           <strong style={{ color: ACCENT2, fontWeight: 500 }}>{f.replace("src/vaults/", "src/vaults/​")}</strong>
@@ -312,7 +365,7 @@ export default function HomePage() {
                         </div>
                       ) : null}
                       {step.files?.length ? (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10, marginTop: 14 }}>
                           {step.files.map((f) => (
                             <span key={f} style={{ display: "inline-flex", alignItems: "center", fontFamily: MONO, fontSize: 13, color: TEXT2, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px" }}>{f}</span>
                           ))}
@@ -342,7 +395,7 @@ export default function HomePage() {
               <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 24px", color: TEXT }}>
                 交付前逐条对照。
               </h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14 }}>
                 {sop.rules.map((rule, i) => (
                   <div key={rule} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", fontSize: 14, lineHeight: 1.6, color: TEXT2, gridColumn: i === sop.rules.length - 1 && sop.rules.length % 2 !== 0 ? "1 / -1" : undefined }}>
                     <RichText text={rule} />
@@ -354,7 +407,7 @@ export default function HomePage() {
             {/* ── Footer CTA ───────────────────────────────────────── */}
             <section style={{ marginTop: 44 }}>
               <hr style={{ height: 1, background: BORDER, border: 0, margin: "0 0 32px" }} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
                 <Link href="/example" style={btnSecondary}>
                   {developerEntry.openPreview} <ArrowSpan />
                 </Link>
@@ -366,6 +419,10 @@ export default function HomePage() {
                 </Link>
               </div>
             </section>
+              </>
+            ) : (
+              <MiniAppGuide doc={miniApp} />
+            )}
 
           </div>
         </main>
@@ -376,6 +433,207 @@ export default function HomePage() {
 }
 
 /* ── tiny helpers ──────────────────────────────────────────── */
+
+function ModeTabs({
+  mode,
+  onChange,
+  labels,
+}: {
+  mode: DocMode;
+  onChange: (mode: DocMode) => void;
+  labels: {
+    customLabel: string;
+    customDescription: string;
+    miniAppLabel: string;
+    miniAppDescription: string;
+  };
+}) {
+  return (
+    <section style={{ margin: "0 0 36px", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 8 }}>
+        <ModeTabButton active={mode === "custom"} label={labels.customLabel} description={labels.customDescription} onClick={() => onChange("custom")} />
+        <ModeTabButton active={mode === "miniApp"} label={labels.miniAppLabel} description={labels.miniAppDescription} onClick={() => onChange("miniApp")} />
+      </div>
+    </section>
+  );
+}
+
+function ModeTabButton({
+  active,
+  label,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        minHeight: 76,
+        border: `1px solid ${active ? ACCLINE : "transparent"}`,
+        borderRadius: 10,
+        background: active ? ACCSOFT : "transparent",
+        color: TEXT,
+        cursor: "pointer",
+        padding: "14px 16px",
+        textAlign: "left",
+      }}
+    >
+      <span style={{ display: "block", fontSize: 15, fontWeight: 700 }}>{label}</span>
+      <span style={{ display: "block", marginTop: 4, fontSize: 13, lineHeight: 1.5, color: active ? TEXT2 : TEXT3 }}>{description}</span>
+    </button>
+  );
+}
+
+function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
+  return (
+    <>
+      <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
+          {doc.summary.kicker}
+        </p>
+        <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
+          {doc.summary.title}
+        </h3>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, maxWidth: "70ch", margin: "0 0 24px" }}>
+          {doc.summary.description}
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
+          {doc.summary.items.map((item) => (
+            <div key={item} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", fontSize: 14, lineHeight: 1.6, color: TEXT2 }}>
+              <RichText text={item} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
+          MINI APP INPUTS
+        </p>
+        <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
+          {doc.requirementsTitle}
+        </h3>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, maxWidth: "70ch", margin: "0 0 24px" }}>
+          {doc.requirementsDescription}
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14 }}>
+          {doc.requirements.map((item) => (
+            <div key={item.title} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", fontSize: 14, lineHeight: 1.6, color: TEXT2 }}>
+              <div style={{ marginBottom: 8, fontSize: 15, fontWeight: 700, color: TEXT }}>{item.title}</div>
+              <RichText text={item.body} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginTop: 72 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
+          MINI APP / CUSTOM UI
+        </p>
+        <h2 style={{ fontSize: 28, fontWeight: 680, lineHeight: 1.2, margin: "0 0 8px", color: TEXT }}>
+          {doc.comparisonTitle}
+        </h2>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, margin: "0 0 28px", maxWidth: "68ch" }}>
+          {doc.comparisonDescription}
+        </p>
+        <div style={{ overflowX: "auto", border: `1px solid ${BORDER}`, borderRadius: 14, background: PANEL }}>
+          <div style={{ minWidth: 760 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(120px,0.7fr) minmax(220px,1fr) minmax(220px,1fr)", background: PANEL3, borderBottom: `1px solid ${BORDER}`, color: TEXT, fontSize: 13, fontWeight: 700 }}>
+            <CompareCell muted>{doc.comparisonTopicHeader}</CompareCell>
+            <CompareCell>{doc.comparisonCustomHeader}</CompareCell>
+            <CompareCell>{doc.comparisonMiniAppHeader}</CompareCell>
+          </div>
+          {doc.comparisonRows.map((row) => (
+            <div key={row.topic} style={{ display: "grid", gridTemplateColumns: "minmax(120px,0.7fr) minmax(220px,1fr) minmax(220px,1fr)", borderTop: `1px solid ${BORDER}` }}>
+              <CompareCell muted>{row.topic}</CompareCell>
+              <CompareCell><RichText text={row.custom} /></CompareCell>
+              <CompareCell><RichText text={row.miniApp} /></CompareCell>
+            </div>
+          ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
+          {doc.preview.kicker}
+        </p>
+        <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
+          {doc.preview.title}
+        </h3>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, maxWidth: "68ch", margin: "0 0 24px" }}>
+          {doc.preview.description}
+        </p>
+        <div style={{ overflow: "hidden", border: `1px solid ${BORDER}`, borderRadius: 12, background: BG2 }}>
+          <Image
+            src="/docs/mini-app-flap-farm-preview.png"
+            alt={doc.preview.imageAlt}
+            width={1440}
+            height={2824}
+            style={{ display: "block", width: "100%", maxHeight: 620, objectFit: "cover", objectPosition: "top center" }}
+          />
+        </div>
+        <p style={{ fontSize: 13.5, color: TEXT3, margin: "14px 0 0" }}>
+          <strong style={{ color: TEXT2, fontWeight: 600 }}>{doc.preview.routeLabel}: </strong>
+          <code style={{ fontFamily: MONO, color: ACCENT2 }}>{doc.preview.route}</code>
+          {" · "}
+          {doc.preview.caption}
+        </p>
+      </section>
+
+      <section style={{ marginTop: 72, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 18 }}>
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+          <SubLabel>{doc.workflowTitle}</SubLabel>
+          <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 16 }}>
+            {doc.workflow.map((item, i) => (
+              <li key={item} style={{ position: "relative", paddingLeft: 40, fontSize: 14.5, lineHeight: 1.6, color: TEXT2 }}>
+                <span style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderRadius: 7, background: BG2, border: `1px solid ${BORDSTR}`, color: ACCENT2, fontFamily: MONO, fontSize: 12, fontWeight: 600, display: "grid", placeItems: "center" }}>
+                  {i + 1}
+                </span>
+                <RichText text={item} />
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+          <SubLabel>{doc.rulesTitle}</SubLabel>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+            {doc.rules.map((item) => (
+              <li key={item} style={{ position: "relative", paddingLeft: 26, fontSize: 14.5, lineHeight: 1.62, color: TEXT2 }}>
+                <span style={{ position: "absolute", left: 6, top: 9, width: 7, height: 7, borderRadius: "50%", border: `2px solid ${ACCENT}`, display: "inline-block" }} />
+                <RichText text={item} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section style={{ marginTop: 44 }}>
+        <div style={{ display: "flex", gap: 14, borderRadius: 10, padding: "16px 18px", background: "rgba(54,211,153,0.07)", border: "1px solid rgba(54,211,153,0.2)", color: TEXT2, fontSize: 14, lineHeight: 1.6 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={OK} strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}><path d="M20 6 9 17l-5-5"/></svg>
+          <div>
+            <strong style={{ color: TEXT, fontWeight: 600 }}>{doc.doneTitle} · </strong>
+            {doc.doneBody}
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function CompareCell({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
+  return (
+    <div style={{ padding: "15px 16px", color: muted ? TEXT3 : TEXT2, fontSize: 13.5, lineHeight: 1.6, wordBreak: "break-word", borderLeft: muted ? 0 : `1px solid ${BORDER}` }}>
+      {children}
+    </div>
+  );
+}
 
 function SubLabel({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
   return (
