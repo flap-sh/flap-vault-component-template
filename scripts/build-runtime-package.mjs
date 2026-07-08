@@ -36,6 +36,10 @@ async function main() {
   });
 
   const rootPackage = await readJson(path.join(ROOT, "package.json"));
+  const gitHead = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  }).trim();
   await mkdir(OUT_DIR, { recursive: true });
   await Promise.all([ensureUseClient("sdk.js"), ensureUseClient("ui.js")]);
 
@@ -43,6 +47,7 @@ async function main() {
   const packageManifest = {
     name: PACKAGE_NAME,
     version: rootPackage.version,
+    gitHead,
     description: "Shared runtime surface for Flap Vault UI hosts, Workbench preview, and custom Vault components.",
     type: "module",
     sideEffects: false,
