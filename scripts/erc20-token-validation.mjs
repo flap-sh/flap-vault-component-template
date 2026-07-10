@@ -4,6 +4,7 @@ import { bsc, bscTestnet } from "viem/chains";
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 export const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 export const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
+const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663]);
 const DEFAULT_RPC_URLS = {
   56: ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
   97: ["https://data-seed-prebsc-1-s1.binance.org:8545", "https://bsc-testnet-rpc.publicnode.com"],
@@ -213,7 +214,7 @@ export async function collectManifestErc20TokenIssues(manifest, { file = "manife
 export async function collectE2EReportErc20TokenIssues(report, { file = "qa/e2e-report.json", folderName } = {}) {
   const chainId = report?.binding?.chainId;
   const tokenAddress = normalizeTokenAddress(report?.binding?.tokenAddress);
-  if ((chainId !== 56 && chainId !== 97) || !tokenAddress) return [];
+  if (!SUPPORTED_E2E_CHAIN_IDS.has(chainId) || !tokenAddress) return [];
   if (!hasRequiredTestTokenSuffix(tokenAddress)) {
     return [
       tokenContractIssue(
@@ -226,7 +227,7 @@ export async function collectE2EReportErc20TokenIssues(report, { file = "qa/e2e-
           chainId,
           tokenAddress,
           requiredSuffix: REQUIRED_TEST_TOKEN_SUFFIX,
-          fixHint: `Use a real deployed BNB Chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun yarn vault:e2e ${folderName ?? "<folder-name>"}, then regenerate the source package.`,
+          fixHint: `Use a real deployed supported-chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun yarn vault:e2e ${folderName ?? "<folder-name>"}, then regenerate the source package.`,
         },
       ),
     ];

@@ -29,6 +29,15 @@ const taxVaultHostChains: Record<number, TaxVaultHostChainConfig> = {
     hostChainSlug: "bnb-testnet",
     ipfsGateway: "https://magenta-naval-penguin-822.mypinata.cloud",
   },
+  4663: {
+    portal: "0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09",
+    taxTokenHelperAddress: "0xb10bD2672aE63735d677164A54B573a016f0203C",
+    vaultPortal: "0xe9F7AB7DE8FB8756acbB6a1cd13316a43308197B",
+    wrappedNativeTokenAddress: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+    giftVaultFactory: "0xe6ca297D1d963b6F00d5b216986123CAeB883AF6",
+    hostChainSlug: "robinhood",
+    ipfsGateway: "https://flap.mypinata.cloud",
+  },
 };
 
 export function getTaxVaultHostChainConfig(chainId: number) {
