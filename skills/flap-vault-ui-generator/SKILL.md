@@ -69,7 +69,7 @@ yarn vault:package {folder-name}
 yarn vault:verify-package dist/{folder-name}.zip
 ```
 
-Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DOM/layout/state checking, not AI image judgment. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the command returns `vault-e2e/playwright-browser-missing`.
+Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DOM/layout/state checking, not AI image judgment. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the command returns `vault-e2e/playwright-browser-missing`. As its first step, `vault:package` fetches the official template and fast-forwards a checkout that is only behind `origin/main`, preserving non-conflicting local Vault work; conflicts and ahead/diverged branches stop without discarding changes.
 
 ## Implementation Rules
 

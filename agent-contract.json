@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 36,
+  "version": 37,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -152,6 +152,7 @@
     "preview": "yarn dev",
     "check": "yarn vault:check {folder-name}",
     "checkSelftest": "yarn vault:check:selftest",
+    "freshnessSelftest": "yarn template:freshness:selftest",
     "e2e": "yarn vault:e2e {folder-name}",
     "package": "yarn vault:package {folder-name}",
     "verifyPackage": "yarn vault:verify-package dist/{folder-name}.zip",

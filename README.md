@@ -183,7 +183,7 @@ yarn vault:package flapixel-example
 yarn vault:verify-package dist/flapixel-example.zip
 ```
 
-The package command runs `vault:check`, verifies the current `dist/e2e/<folder-name>/qa-report.json`, and enforces the same official git freshness check before writing a zip. The zip is created under `dist/` only after blocking issues pass and E2E proof is current.
+The package command first fetches the official template ref. If the checkout is only behind `origin/main`, it automatically fast-forwards while preserving non-conflicting local Vault work, then launches the latest package script. Conflicting local changes and ahead/diverged checkouts stop with machine-readable freshness errors; local work is never discarded. The latest script runs `vault:check`, verifies the current `dist/e2e/<folder-name>/qa-report.json`, and writes the zip under `dist/` only after blocking issues pass and E2E proof is current.
 The command output includes `sourcePackagePath` and `sourcePackageAbsolutePath` so the generated zip location is explicit.
 Submit only the zip produced by `yarn vault:package <folder-name>`. The package script writes a format-version `5` `flap-vault-package.json` marker, npm latest `@flapsdk/vault-runtime` `gitHead` provenance, source/schema/E2E file hashes, optional Mini App audio file hashes, `qa/e2e-report.json`, and an `e2e` summary into the zip; Flap Artifact Workbench should reject manually assembled zips without this marker, proof, or matching hashes.
 `dist/` is ignored by git. Generate source zips locally or in CI; do not commit generated packages to the template repo.

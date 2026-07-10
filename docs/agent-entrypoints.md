@@ -45,7 +45,7 @@ Then act:
 11. Use `yarn vault:register <folder-name>` when the four core Vault files already exist. Mini App mode may also include reviewed top-level audio files directly under `src/vaults/<folder-name>`.
 12. Run `yarn vault:check <folder-name>` and fix all blocking issues from `agent.nextActions`.
 13. Run `yarn vault:e2e <folder-name>` and require a passing `dist/e2e/<folder-name>/qa-report.json` bound to current source hashes and a manifest-declared real `7777`/`8888`-suffix test token. On first local runs, especially Windows, install Chromium with `yarn playwright install chromium` if the JSON error code is `vault-e2e/playwright-browser-missing`.
-14. Run `yarn vault:package <folder-name>` only after blocking issues are zero and E2E passes.
+14. Run `yarn vault:package <folder-name>` only after blocking issues are zero and E2E passes. Its first step fetches the official template and fast-forwards a checkout that is only behind `origin/main`; conflicts and ahead/diverged branches stop without discarding local work.
 15. Run `yarn vault:verify-package dist/<folder-name>.zip` before handoff.
 16. Produce a done report using the fields in `agent-contract.json` `doneReport`.
 

@@ -239,7 +239,7 @@ export async function assertNpmPackageFresh({ folderName } = {}) {
   };
 }
 
-export function assertTemplateGitFresh({ folderName } = {}) {
+export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) {
   if (!gitSucceeds(["rev-parse", "--is-inside-work-tree"])) {
     failFreshness({
       code: "template-freshness/not-git-repo",
@@ -286,6 +286,51 @@ export function assertTemplateGitFresh({ folderName } = {}) {
   const isAhead = gitSucceeds(["merge-base", "--is-ancestor", official, head]);
   const isBehind = gitSucceeds(["merge-base", "--is-ancestor", head, official]);
   const status = isBehind ? "behind" : isAhead ? "ahead" : "diverged";
+
+  if (status === "behind" && autoUpdate) {
+    try {
+      git(["merge", "--ff-only", OFFICIAL_REF]);
+    } catch (error) {
+      failFreshness({
+        code: "template-freshness/auto-update-failed",
+        message: `This flap-vault-ui-template checkout is behind ${OFFICIAL_REF}, but it could not be updated automatically without overwriting local work.`,
+        fixHint: "Resolve or temporarily move the conflicting local changes, then rerun yarn vault:package <folder-name>. Do not discard Vault source work.",
+        folderName,
+        extra: {
+          head,
+          official,
+          status,
+          detail: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+
+    const updatedHead = git(["rev-parse", "HEAD"]);
+    if (updatedHead !== official) {
+      failFreshness({
+        code: "template-freshness/auto-update-incomplete",
+        message: `The automatic update did not move this checkout exactly to ${OFFICIAL_REF}.`,
+        fixHint: "Inspect the checkout state, update it to the latest origin/main without discarding Vault source work, then rerun yarn vault:package <folder-name>.",
+        folderName,
+        extra: {
+          previousHead: head,
+          head: updatedHead,
+          official,
+          status,
+        },
+      });
+    }
+
+    return {
+      ok: true,
+      officialRef: OFFICIAL_REF,
+      status: "updated",
+      previousHead: head,
+      head: updatedHead,
+      official,
+    };
+  }
+
   const code = `template-freshness/${status}`;
   const message =
     status === "behind"
@@ -311,9 +356,9 @@ export function assertTemplateGitFresh({ folderName } = {}) {
   });
 }
 
-export async function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true } = {}) {
+export async function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true, autoUpdate = false } = {}) {
   const checks = {};
-  if (includeGit) checks.git = assertTemplateGitFresh({ folderName });
+  if (includeGit) checks.git = assertTemplateGitFresh({ folderName, autoUpdate });
   if (includeNpm) checks.npm = await assertNpmPackageFresh({ folderName });
   return { ok: true, checks };
 }
@@ -325,9 +370,13 @@ function cliOptions(argv) {
     folderName,
     includeGit: !flags.has("--npm-only") && !flags.has("--no-git"),
     includeNpm: !flags.has("--git-only") && !flags.has("--no-npm"),
+    autoUpdate: flags.has("--sync"),
+    quiet: flags.has("--quiet"),
   };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log(JSON.stringify(await assertTemplateFresh(cliOptions(process.argv.slice(2))), null, 2));
+  const options = cliOptions(process.argv.slice(2));
+  const result = await assertTemplateFresh(options);
+  if (!options.quiet) console.log(JSON.stringify(result, null, 2));
 }
