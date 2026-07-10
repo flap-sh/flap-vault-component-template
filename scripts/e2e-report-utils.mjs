@@ -20,6 +20,7 @@ export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
+const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663]);
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
   ["0x2000000000000000000000000000000000000002", "template token placeholder"],
@@ -155,17 +156,17 @@ export function selectE2EBinding(manifest, overrides = {}) {
       vaultAddress: bindingVault(binding, overrides),
       factoryAddress: bindingFactory(binding, overrides),
     }))
-    .filter((item) => item.chainId === 97 || item.chainId === 56);
+    .filter((item) => SUPPORTED_E2E_CHAIN_IDS.has(item.chainId));
 
   const selected = candidates.find((item) => item.tokenAddress);
   if (selected) {
     return {
       ...selected,
-      tokenPolicy: selected.chainId === 97 ? "testnet" : "mainnet-fallback",
+      tokenPolicy: selected.chainId === 97 ? "testnet" : selected.chainId === 4663 ? "robinhood-mainnet" : "mainnet-fallback",
     };
   }
 
-  const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet or BNB mainnet";
+  const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet, BNB mainnet, or Robinhood Chain";
   throw new Error(
     `vault:e2e requires a real non-placeholder test token ending in ${REQUIRED_TEST_TOKEN_SUFFIX} for ${chainLabel}. Declare it in match.bindings[].tokenAddresses, or pass --token only for local self-test.`,
   );
@@ -243,20 +244,20 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   }
 
   const binding = report.binding ?? {};
-  if ((binding.chainId !== 97 && binding.chainId !== 56) || !normalizeAddress(binding.tokenAddress)) {
-    addIssue("e2e-report/missing-test-token", "E2E report must bind to a BNB chain token used for package testing.");
+  if (!SUPPORTED_E2E_CHAIN_IDS.has(binding.chainId) || !normalizeAddress(binding.tokenAddress)) {
+    addIssue("e2e-report/missing-test-token", "E2E report must bind to a supported-chain token used for package testing.");
   } else if (placeholderAddressLabel(binding.tokenAddress)) {
     addIssue("e2e-report/placeholder-test-token", "E2E report tokenAddress uses a reserved template placeholder instead of a real deployed token contract.", {
       field: "binding.tokenAddress",
       tokenAddress: binding.tokenAddress,
-      fixHint: `Use a real deployed BNB Chain token address, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+      fixHint: `Use a real deployed supported-chain token address, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
   } else if (!validTestToken(binding.tokenAddress)) {
     addIssue("e2e-report/invalid-test-token-suffix", `E2E report tokenAddress must end in ${REQUIRED_TEST_TOKEN_SUFFIX}.`, {
       field: "binding.tokenAddress",
       tokenAddress: binding.tokenAddress,
       requiredSuffix: REQUIRED_TEST_TOKEN_SUFFIX,
-      fixHint: `Use a real deployed BNB Chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+      fixHint: `Use a real deployed supported-chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
   }
   if (binding.chainId === 97 && binding.tokenPolicy !== "testnet") {
@@ -264,6 +265,9 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   }
   if (binding.chainId === 56 && binding.tokenPolicy !== "mainnet-fallback") {
     addIssue("e2e-report/token-policy-mismatch", "chainId 56 E2E reports must use tokenPolicy=mainnet-fallback.");
+  }
+  if (binding.chainId === 4663 && binding.tokenPolicy !== "robinhood-mainnet") {
+    addIssue("e2e-report/token-policy-mismatch", "chainId 4663 E2E reports must use tokenPolicy=robinhood-mainnet.");
   }
   const manifestTokens = manifestTokenAddresses(manifest);
   const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();

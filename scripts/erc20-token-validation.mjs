@@ -7,6 +7,7 @@ export const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or
 const DEFAULT_RPC_URLS = {
   56: ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
   97: ["https://data-seed-prebsc-1-s1.binance.org:8545", "https://bsc-testnet-rpc.publicnode.com"],
+  4663: ["https://rpc.mainnet.chain.robinhood.com"],
 };
 const CHAIN_BY_ID = {
   56: bsc,

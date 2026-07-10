@@ -466,6 +466,16 @@ export default function SelftestVault(_props: VaultComponentProps) {
   );
   passed.push("vault:e2e selection accepts 8888 test tokens");
 
+  const robinhoodToken = "0x4663000000000000000000000000000000007777";
+  const robinhoodBinding = selectE2EBinding({
+    match: {
+      bindings: [{ chainId: 4663, factoryAddress: FACTORY, tokenAddresses: [robinhoodToken] }],
+    },
+  });
+  assert.equal(robinhoodBinding.tokenAddress, robinhoodToken);
+  assert.equal(robinhoodBinding.tokenPolicy, "robinhood-mainnet");
+  passed.push("vault:e2e selection accepts Robinhood mainnet test tokens");
+
   const invalidErc20TokenSlug = `${FIXTURE_PREFIX}-invalid-erc20-token`;
   createdFolderNames.push(invalidErc20TokenSlug);
   execFileSync(process.execPath, ["scripts/vault-scaffold.mjs", invalidErc20TokenSlug, "--chain", "56", "--factory", FACTORY, "--token", TOKEN, "--locales", "en"], {
