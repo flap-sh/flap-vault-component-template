@@ -277,6 +277,7 @@ const FIX_HINTS = {
   "forbidden-api/script": "Do not inject scripts inside a Vault component.",
   "forbidden-api/dangerously-set-inner-html": "Render structured React content instead of raw HTML.",
   "forbidden-api/remote-import": "Remove runtime remote imports. Use only approved local package imports.",
+  "forbidden-api/clipboard": "Do not access the clipboard or trigger programmatic copy from a Vault component. Render the value only; the host owns copy actions.",
   "forbidden-api/browser-global-escape": "Use explicit Flap SDK/runtime APIs instead of computed browser-global access.",
   "forbidden-api/browser-network": "Use Flap SDK/readOracle, or a static absolute HTTPS fetch target declared in manifest.endpoints.",
   "forbidden-api/browser-storage": "Use local React state or Flap-provided runtime state instead of browser storage APIs.",
@@ -873,11 +874,14 @@ function collectBrowserGlobalMemberIssues(content, file) {
     const globalName = match[1];
     const memberName = match[2];
     if (isAllowedBrowserGlobalMember(globalName, memberName)) continue;
+    const isClipboard = globalName === "navigator" && memberName === "clipboard";
     issues.push(
       issue(
         BLOCKING,
-        "forbidden-api/browser-global-escape",
-        `${globalName}.${memberName} access is not allowed inside Vault components. Use Flap SDK/runtime APIs instead.`,
+        isClipboard ? "forbidden-api/clipboard" : "forbidden-api/browser-global-escape",
+        isClipboard
+          ? "Clipboard access and programmatic copy are not allowed inside Vault components. Render the value only; the host owns copy actions."
+          : `${globalName}.${memberName} access is not allowed inside Vault components. Use Flap SDK/runtime APIs instead.`,
         { file, line: lineForIndex(content, match.index ?? -1) },
       ),
     );
@@ -2427,6 +2431,53 @@ function collectStaticStringVarMap(sourceFile) {
   return map;
 }
 
+function getStaticBrowserMemberPath(node, varMap, browserAliases = new Map()) {
+  if (!node) return null;
+  const current = unwrapTsExpression(node);
+  if (ts.isIdentifier(current)) {
+    if (BROWSER_GLOBAL_ROOTS.has(current.text)) return [current.text];
+    return browserAliases.get(current.text) ?? null;
+  }
+  if (ts.isConditionalExpression(current)) {
+    return getStaticBrowserMemberPath(current.whenTrue, varMap, browserAliases) ?? getStaticBrowserMemberPath(current.whenFalse, varMap, browserAliases);
+  }
+  if (ts.isPropertyAccessExpression(current)) {
+    const parentPath = getStaticBrowserMemberPath(current.expression, varMap, browserAliases);
+    return parentPath ? [...parentPath, current.name.text] : null;
+  }
+  if (ts.isElementAccessExpression(current)) {
+    const parentPath = getStaticBrowserMemberPath(current.expression, varMap, browserAliases);
+    const key = foldTsStaticString(current.argumentExpression, varMap);
+    return parentPath && key !== null ? [...parentPath, key] : null;
+  }
+  return null;
+}
+
+function collectStaticBrowserAliases(sourceFile, varMap) {
+  const aliases = new Map();
+  for (let pass = 0; pass < 4; pass += 1) {
+    let changed = false;
+    const visit = (node) => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && !aliases.has(node.name.text)) {
+        const path = getStaticBrowserMemberPath(node.initializer, varMap, aliases);
+        if (path) {
+          aliases.set(node.name.text, path);
+          changed = true;
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+    if (!changed) break;
+  }
+  return aliases;
+}
+
+function isClipboardMemberPath(memberPath) {
+  const navigatorIndex = memberPath?.indexOf("navigator") ?? -1;
+  return navigatorIndex >= 0 && memberPath[navigatorIndex + 1] === "clipboard";
+}
+
 // Inspect a fully resolved string value for a hardcoded address, unsafe scheme,
 // or undeclared external URL. Shared by the AST composite-string scan and the
 // i18n.json value scan so obfuscated payloads are caught wherever they resolve.
@@ -2475,6 +2526,7 @@ function collectAstSecurityIssues(content, file, ctx) {
     return issues;
   }
   const varMap = collectStaticStringVarMap(sourceFile);
+  const browserAliases = collectStaticBrowserAliases(sourceFile, varMap);
   const seen = new Set();
   const add = (ruleId, message, node) => {
     const line = lineForIndex(content, tsNodeStart(node, sourceFile));
@@ -2485,6 +2537,13 @@ function collectAstSecurityIssues(content, file, ctx) {
   };
 
   const visit = (node) => {
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      const memberPath = getStaticBrowserMemberPath(node, varMap, browserAliases);
+      if (isClipboardMemberPath(memberPath)) {
+        add("forbidden-api/clipboard", "Clipboard access and programmatic copy are not allowed inside Vault components, including aliased or computed browser-global access.", node);
+      }
+    }
+
     if (ts.isIdentifier(node) && isValueReferenceIdentifier(node)) {
       if (node.text === "eval") {
         add("forbidden-api/eval", "eval is not allowed inside Vault components, including aliased or indirect (0, eval) usage.", node);
@@ -2521,6 +2580,15 @@ function collectAstSecurityIssues(content, file, ctx) {
 
     if (ts.isCallExpression(node)) {
       const callee = unwrapTsExpression(node.expression);
+      const calleePath = getStaticBrowserMemberPath(callee, varMap, browserAliases);
+      if (
+        calleePath?.length >= 2 &&
+        calleePath[calleePath.length - 2] === "document" &&
+        calleePath[calleePath.length - 1] === "execCommand" &&
+        foldTsStaticString(node.arguments[0], varMap)?.toLowerCase() === "copy"
+      ) {
+        add("forbidden-api/clipboard", "document.execCommand(\"copy\") is not allowed inside Vault components.", node);
+      }
       let calleeName = null;
       if (ts.isIdentifier(callee)) {
         calleeName = callee.text;
@@ -3378,6 +3446,9 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\.\s*insertAdjacentHTML\s*\(/, "forbidden-api/script", "HTML injection APIs are not allowed inside Vault components."],
       [/dangerouslySetInnerHTML/, "forbidden-api/dangerously-set-inner-html", "dangerouslySetInnerHTML needs explicit review and is blocked by default."],
       [/import\s*\(\s*["'`]https?:\/\//, "forbidden-api/remote-import", "Runtime remote import is not allowed inside Vault components."],
+      [/\bnavigator\s*(?:\?\.|\.)\s*clipboard\b/, "forbidden-api/clipboard", "Clipboard access and programmatic copy are not allowed inside Vault components."],
+      [/\bdocument\s*(?:\?\.|\.)\s*execCommand\s*\(\s*["'`]copy["'`]/i, "forbidden-api/clipboard", "document.execCommand(\"copy\") is not allowed inside Vault components."],
+      [/\bClipboardItem\b/, "forbidden-api/clipboard", "ClipboardItem is not allowed inside Vault components."],
       [/\b(?:window|globalThis|global|self|navigator|document)\s*\[[^\]\n]+\]/, "forbidden-api/browser-global-escape", "Computed browser global access is not allowed inside Vault components."],
       [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|global|self|navigator|document)\b(?!\s*[.[\]])/, "forbidden-api/browser-global-escape", "Aliasing browser globals is not allowed inside Vault components."],
       [/\{\s*[^}\n]+\}\s*=\s*(?:window|globalThis|global|self|navigator|document)\b/, "forbidden-api/browser-global-escape", "Destructuring browser globals is not allowed inside Vault components."],
@@ -3434,9 +3505,9 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\{\s*postMessage\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/cross-context-messaging", "Destructuring postMessage from browser globals is not allowed inside Vault components."],
       [/\baddEventListener\s*\(\s*["'`]message["'`]/, "forbidden-api/cross-context-messaging", "Listening to postMessage events is not allowed inside Vault components."],
       [/\b(?:window|globalThis|self)\.onmessage\s*=/, "forbidden-api/cross-context-messaging", "Listening to postMessage events is not allowed inside Vault components."],
-      [/\bnavigator\.(?:clipboard|geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Browser permission APIs are not allowed inside Vault components."],
-      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*navigator\.(?:clipboard|geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Aliasing browser permission APIs is not allowed inside Vault components."],
-      [/\{\s*(?:clipboard|geolocation|mediaDevices|permissions)\b[^}]*\}\s*=\s*navigator\b/, "forbidden-api/browser-permission", "Destructuring browser permission APIs from navigator is not allowed inside Vault components."],
+      [/\bnavigator\.(?:geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Browser permission APIs are not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*navigator\.(?:geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Aliasing browser permission APIs is not allowed inside Vault components."],
+      [/\{\s*(?:geolocation|mediaDevices|permissions)\b[^}]*\}\s*=\s*navigator\b/, "forbidden-api/browser-permission", "Destructuring browser permission APIs from navigator is not allowed inside Vault components."],
       [/\bNotification\.(?:requestPermission|permission)\b|\bnew\s+Notification\s*\(/, "forbidden-api/browser-permission", "Notification APIs are not allowed inside Vault components."],
       [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|self)\.)?Notification\b/, "forbidden-api/browser-permission", "Aliasing Notification is not allowed inside Vault components."],
       [/\{\s*Notification\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-permission", "Destructuring Notification from browser globals is not allowed inside Vault components."],

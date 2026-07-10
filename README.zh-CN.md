@@ -346,6 +346,7 @@ Vault folder 是严格 source package 边界，只能包含：
 - 未声明的外部 URL、endpoint、external frame 或外部资源
 - dynamic、relative、HTTP、credentialed、aliased、destructured 或 computed browser-global `fetch(...)` target
 - browser storage、navigation、worker、cross-context messaging（包括 postMessage listener）和 permission API
+- 所有剪贴板访问或程序化复制路径，包括 `navigator.clipboard`、`document.execCommand("copy")`、别名和 computed browser-global access
 - `XMLHttpRequest`、`WebSocket`、`EventSource`、`navigator.sendBeacon`、`new Image()` 等直接 browser network / media API
 - 任意站外导航或 phishing-sensitive 外部跳转
 - 隐藏交易 target

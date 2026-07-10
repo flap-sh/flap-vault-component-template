@@ -1374,6 +1374,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   new Worker("worker.js");
   new BroadcastChannel("x");
   void navigator.clipboard;
+  void navigator.geolocation;
   void fetchRef;
   return <div>{i18n.t("title")}</div>;
 }
@@ -1386,7 +1387,25 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertRule("browser navigation APIs are blocked", browserEscapeCheck, "forbidden-api/browser-navigation", "blocking");
   assertRule("browser worker APIs are blocked", browserEscapeCheck, "forbidden-api/browser-worker", "blocking");
   assertRule("cross-context messaging APIs are blocked", browserEscapeCheck, "forbidden-api/cross-context-messaging", "blocking");
+  assertRule("clipboard APIs are blocked", browserEscapeCheck, "forbidden-api/clipboard", "blocking");
   assertRule("browser permission APIs are blocked", browserEscapeCheck, "forbidden-api/browser-permission", "blocking");
+
+  const clipboardBypassSlug = `${FIXTURE_PREFIX}-clipboard-bypass`;
+  writeVault(clipboardBypassSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const nav = typeof window !== "undefined" ? (window as any)["navi" + "gator"] : null;
+  if (nav && nav["clip" + "board"]) void nav["clip" + "board"].writeText("212602366");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("computed clipboard copy bypass is blocked", runVaultCheck(clipboardBypassSlug, { silent: true }), "forbidden-api/clipboard", "blocking");
 
   const explorerWindowOpenSlug = `${FIXTURE_PREFIX}-explorer-window-open`;
   writeVault(explorerWindowOpenSlug, {
