@@ -137,6 +137,20 @@ The folder name is the route and source folder only. Do not use it as the artifa
 
 ## Implementation Rules
 
+### Dynamic modules: staking, auctions, routers, and helpers
+
+Do not treat every secondary contract as an `externalContracts` entry. First determine whether the target is a fixed independent contract or a dynamic module owned/coordinated by the Vault.
+
+| Situation | Required implementation |
+| --- | --- |
+| The address is `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, or another allowed runtime-derived token/NFT/payment address | Call the runtime address through the SDK. |
+| The Vault coordinates a staking pool, auction contract, router, dividend distributor, wrapper, trigger helper, or similar module whose address comes from Vault state | Add UI-facing view methods and public proxy actions to the Vault contract, then call only `context.vaultAddress` from `Component.tsx`. Put only those Vault-facing ABI fragments in `VaultABI.ts`. |
+| The UI must call a truly fixed, independent non-token/non-Vault/non-factory contract | Declare it under the relevant `match.bindings[].externalContracts` entry with `address` and `label`, document the reason and methods for review, and call it only after approval. |
+
+For example, if `vault.stakingAdapter()` or `vault.auction()` returns a module address, the UI must not read that address and then call `stake`, `withdraw`, `claim`, `bid`, or `settle` on the returned contract. The Vault should expose the required read-only state and user actions as Vault methods such as `getStakeInfo`, `stake`, `withdrawStake`, `claimRewards`, `getAuctionState`, `placeBid`, or `settleAuction`; the UI calls those methods at `context.vaultAddress`. Exact method names are contract-specific.
+
+This boundary keeps dynamic implementation details behind the Vault, makes the transaction target reviewable, and prevents `externalContracts` from becoming a bypass. Never expose operator/admin configuration methods such as `setConfig`, `setSwapPath`, or `setSplit` in `Component.tsx`. If the Vault cannot expose a safe user-facing proxy action yet, keep that feature read-only or link to the approved official product surface until the contract is updated.
+
 Use:
 
 - `@/src/sdk` for runtime context, contract reads/writes, oracle reads, notifications, i18n, formatting, and tx errors.

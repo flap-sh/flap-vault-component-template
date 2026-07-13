@@ -410,6 +410,8 @@ Host 会在 custom Vault component 加载前解析 taxinfo / feeinfo preflight d
 
 合约交互应停留在 `context.vaultAddress`、`context.tokenAddress`、`context.factoryAddress`、runtime payment / quote / dividend token 地址、从 Vault reads 派生的 token / NFT 地址，或 `match.bindings[].externalContracts` 声明的固定 target 上。不要让 Vault package 调用无关 router、bridge、aggregator 或其他 app contract。
 
+质押池、拍卖合约、router、分红分发器、wrapper、trigger helper 等动态 Vault 内部模块，不要由 UI 先从 Vault 读取模块地址，再直接调用返回的合约。应由 Vault 合约提供面向 UI 的 view 方法和公开 proxy action，`VaultABI.ts` 只保留这些 Vault-facing 方法，`Component.tsx` 统一通过 `context.vaultAddress` 调用。`match.bindings[].externalContracts` 只用于无法由 runtime Vault / token / factory 边界表示的、真正固定且独立的额外合约；声明只代表进入审核，不能用来绕过动态模块边界。详细判断和质押/拍卖示例见 [Dynamic modules: staking, auctions, routers, and helpers](./docs/ai-agent.md#dynamic-modules-staking-auctions-routers-and-helpers)。
+
 本地相对 import surface 固定：`Component.tsx` 只能 import `./VaultABI`。不要 import `./helpers`、`../VaultABI`、嵌套组件、本地 assets 或其他本地文件。使用 `@/src/sdk` 和 `@/src/ui` 等公开 alias 访问 shared runtime surface。
 
 Shared runtime package 可通过以下命令在 `dist/vault-runtime` 下构建：
