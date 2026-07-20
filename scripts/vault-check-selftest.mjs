@@ -142,7 +142,14 @@ function writePassingE2EReport(folderName, { chainId = 56, tokenAddress = TOKEN,
       tokenAddress,
       ...(vaultAddress ? { vaultAddress } : {}),
       ...(factoryAddress ? { factoryAddress } : {}),
-      tokenPolicy: chainId === 97 ? "testnet" : "mainnet-fallback",
+      tokenPolicy:
+        chainId === 97
+          ? "testnet"
+          : chainId === 4663
+            ? "robinhood-mainnet"
+            : chainId === 46630
+              ? "robinhood-testnet"
+              : "mainnet-fallback",
     },
     viewports: [
       { id: "pc", width: 1440, height: 900 },
@@ -475,6 +482,16 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assert.equal(robinhoodBinding.tokenAddress, robinhoodToken);
   assert.equal(robinhoodBinding.tokenPolicy, "robinhood-mainnet");
   passed.push("vault:e2e selection accepts Robinhood mainnet test tokens");
+
+  const robinhoodTestnetToken = "0x4663000000000000000000000000000000008888";
+  const robinhoodTestnetBinding = selectE2EBinding({
+    match: {
+      bindings: [{ chainId: 46630, tokenAddresses: [robinhoodTestnetToken] }],
+    },
+  });
+  assert.equal(robinhoodTestnetBinding.tokenAddress, robinhoodTestnetToken);
+  assert.equal(robinhoodTestnetBinding.tokenPolicy, "robinhood-testnet");
+  passed.push("vault:e2e selection accepts Robinhood Testnet token-scoped proof");
 
   const invalidErc20TokenSlug = `${FIXTURE_PREFIX}-invalid-erc20-token`;
   createdFolderNames.push(invalidErc20TokenSlug);

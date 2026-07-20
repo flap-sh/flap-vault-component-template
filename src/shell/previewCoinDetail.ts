@@ -9,9 +9,11 @@ export const PREVIEW_TOKEN_IMAGE_URL = "/logo.png";
 
 export function getDefaultVaultPreviewTokenAddress(chainId?: number) {
   if (chainId === 4663) return ROBINHOOD_UI_TEST_TOKEN_ADDRESS;
+  if (chainId === 46630) return undefined;
   return chainId === 97 ? TESTNET_UI_TEST_TOKEN_ADDRESS : MAINNET_UI_TEST_TOKEN_ADDRESS;
 }
 
 export function getDefaultMiniAppPreviewTokenAddress(chainId?: number) {
+  if (chainId === 46630) return undefined;
   return chainId === 97 ? TESTNET_MINI_APP_PREVIEW_TOKEN_ADDRESS : MAINNET_MINI_APP_PREVIEW_TOKEN_ADDRESS;
 }

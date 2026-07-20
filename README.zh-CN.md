@@ -34,7 +34,7 @@
 
 这是开发者在借助 AI 的同时仍然自己掌握 Vault 事实和本地测试的最短安全路径。
 
-1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且 `7777` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。提前提供主网最终真实 factory 地址。
+1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且以 `7777` 或 `8888` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。提前提供主网最终真实 factory 地址。Robinhood 可选主网 `4663` token scope，或使用测试网 `46630` 的真实测试 token；标准 `46630` token 仍待定，详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)。
 2. 将这些输入和本仓库上下文一起交给 AI Agent。如果 AI 不能直接读取仓库，可先生成可粘贴上下文包：
 
 ```bash
@@ -69,7 +69,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的真实可读 `7777` 后缀测试 token；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
+`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的真实可读 `7777`/`8888` 后缀测试 token；支持 Robinhood 主网 `4663` 和测试网 `46630`。标准 `46630` token 仍待定；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
 
 首次运行的本地机器，尤其是 Windows 机器，可能需要先安装一次 Playwright 浏览器：
 

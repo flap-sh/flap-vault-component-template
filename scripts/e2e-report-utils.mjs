@@ -20,7 +20,7 @@ export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
-const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663]);
+const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663, 46630]);
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
   ["0x2000000000000000000000000000000000000002", "template token placeholder"],
@@ -162,11 +162,18 @@ export function selectE2EBinding(manifest, overrides = {}) {
   if (selected) {
     return {
       ...selected,
-      tokenPolicy: selected.chainId === 97 ? "testnet" : selected.chainId === 4663 ? "robinhood-mainnet" : "mainnet-fallback",
+      tokenPolicy:
+        selected.chainId === 97
+          ? "testnet"
+          : selected.chainId === 4663
+            ? "robinhood-mainnet"
+            : selected.chainId === 46630
+              ? "robinhood-testnet"
+              : "mainnet-fallback",
     };
   }
 
-  const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet, BNB mainnet, or Robinhood Chain";
+  const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet, BNB mainnet, Robinhood Chain, or Robinhood Testnet";
   throw new Error(
     `vault:e2e requires a real non-placeholder test token ending in ${REQUIRED_TEST_TOKEN_SUFFIX} for ${chainLabel}. Declare it in match.bindings[].tokenAddresses, or pass --token only for local self-test.`,
   );
@@ -268,6 +275,9 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   }
   if (binding.chainId === 4663 && binding.tokenPolicy !== "robinhood-mainnet") {
     addIssue("e2e-report/token-policy-mismatch", "chainId 4663 E2E reports must use tokenPolicy=robinhood-mainnet.");
+  }
+  if (binding.chainId === 46630 && binding.tokenPolicy !== "robinhood-testnet") {
+    addIssue("e2e-report/token-policy-mismatch", "chainId 46630 E2E reports must use tokenPolicy=robinhood-testnet.");
   }
   const manifestTokens = manifestTokenAddresses(manifest);
   const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();

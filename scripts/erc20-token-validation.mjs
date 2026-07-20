@@ -4,11 +4,12 @@ import { bsc, bscTestnet } from "viem/chains";
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 export const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 export const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
-const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663]);
+const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663, 46630]);
 const DEFAULT_RPC_URLS = {
   56: ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
   97: ["https://data-seed-prebsc-1-s1.binance.org:8545", "https://bsc-testnet-rpc.publicnode.com"],
   4663: ["https://rpc.mainnet.chain.robinhood.com"],
+  46630: ["https://rpc.testnet.chain.robinhood.com/rpc"],
 };
 const CHAIN_BY_ID = {
   56: bsc,
@@ -40,6 +41,8 @@ function chainRpcCandidates(chainId) {
     envValue(`CHAIN_${chainId}_RPC_URL`),
     chainId === 56 ? envValue("BSC_RPC_URL") ?? envValue("BNB_RPC_URL") : undefined,
     chainId === 97 ? envValue("BSC_TESTNET_RPC_URL") ?? envValue("BNB_TESTNET_RPC_URL") : undefined,
+    chainId === 4663 ? envValue("ROBINHOOD_RPC_URL") : undefined,
+    chainId === 46630 ? envValue("ROBINHOOD_TESTNET_RPC_URL") : undefined,
     ...(DEFAULT_RPC_URLS[chainId] ?? []),
   ].filter(Boolean);
 }

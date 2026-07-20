@@ -34,7 +34,7 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 
 This is the shortest safe path for a developer who wants AI help but still owns the Vault facts and local testing.
 
-1. Prepare real inputs: folder name, display name, binding targets, factory address or single Vault address, `caRestrictionMode`, real deployed `7777`/`8888`-suffix manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses. For factory-scoped mainnet launch, collect both the testnet proof binding and the final real mainnet factory address early.
+1. Prepare real inputs: folder name, display name, binding targets, factory address or single Vault address, `caRestrictionMode`, real deployed `7777`/`8888`-suffix manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses. For factory-scoped mainnet launch, collect both the testnet proof binding and the final real mainnet factory address early. Robinhood proof may use token scope on `4663` or a real test token on `46630`; see [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md).
 2. Give those inputs to an AI Agent with this repository context. If the AI cannot read the repo directly, generate a pasteable context pack:
 
 ```bash
@@ -73,7 +73,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
+`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; supported proof chains include Robinhood mainnet `4663` and Robinhood Testnet `46630`. The standard `46630` token is still TBD, and local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 
 First-time local machines, especially Windows machines, may need to install the Playwright browser once:
 
@@ -118,6 +118,7 @@ For BNB Chain preview reads, the template already overrides wagmi's default BSC 
 ```bash
 NEXT_PUBLIC_BSC_RPC_URL=https://your-bsc-rpc.example,https://your-bsc-rpc-backup.example
 NEXT_PUBLIC_BSC_TESTNET_RPC_URL=https://your-bsc-testnet-rpc.example,https://your-bsc-testnet-rpc-backup.example
+NEXT_PUBLIC_ROBINHOOD_TESTNET_RPC_URL=https://rpc.testnet.chain.robinhood.com/rpc
 ```
 
 `.env.local` is optional override-only config. Do not commit it.

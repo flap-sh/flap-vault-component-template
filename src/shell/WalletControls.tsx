@@ -8,7 +8,7 @@ import { bsc, bscTestnet } from "wagmi/chains";
 import { ChevronDown } from "lucide-react";
 import { useLang } from "@/src/i18n/useLang";
 import { useVaultContext } from "@/src/sdk";
-import { robinhoodChain } from "@/src/sdk/robinhoodChain";
+import { robinhoodChain, robinhoodTestnet } from "@/src/sdk/robinhoodChain";
 import { cn } from "@/src/ui/utils";
 import { Ui20FlapMarkIcon, Ui20WalletIcon } from "./Ui20Icons";
 
@@ -26,6 +26,7 @@ export function ChainSelectorButton({ compact = false }: { compact?: boolean }) 
     { id: bsc.id, name: lang.nav.bnbChain, logo: "/bnb.svg" },
     { id: robinhoodChain.id, name: "Robinhood", logo: "/logo.png" },
     { id: bscTestnet.id, name: lang.nav.bnbTestnet, logo: "/bnb.svg" },
+    { id: robinhoodTestnet.id, name: "Robinhood Testnet", logo: "/logo.png" },
   ];
   const currentChain = chains.find((chain) => chain.id === chainId) ?? chains[0];
 

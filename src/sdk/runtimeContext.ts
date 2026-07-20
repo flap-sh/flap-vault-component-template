@@ -7,6 +7,7 @@ export function explorerForChain(chainId: number) {
   if (chainId === 56) return "https://bscscan.com";
   if (chainId === 97) return "https://testnet.bscscan.com";
   if (chainId === 4663) return "https://robinhoodchain.blockscout.com";
+  if (chainId === 46630) return "https://explorer.testnet.chain.robinhood.com";
   return undefined;
 }
 
@@ -14,6 +15,7 @@ export function chainLabelForChain(chainId: number) {
   if (chainId === 56) return "BNB Chain";
   if (chainId === 97) return "BNB Testnet";
   if (chainId === 4663) return "Robinhood Chain";
+  if (chainId === 46630) return "Robinhood Chain Testnet";
   return `Chain ${chainId}`;
 }
 

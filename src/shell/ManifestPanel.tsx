@@ -165,7 +165,7 @@ export function ManifestPanel({
     if (previewFactoryAddress) {
       nextParams.set("factoryAddress", previewFactoryAddress);
     }
-    if (!nextParams.get("tokenAddress") && !nextParams.get("token") && !nextParams.get("ca")) {
+    if (previewTokenAddress && !nextParams.get("tokenAddress") && !nextParams.get("token") && !nextParams.get("ca")) {
       nextParams.set("tokenAddress", previewTokenAddress);
     }
     if (previewVaultAddress) {

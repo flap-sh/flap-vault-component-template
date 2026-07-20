@@ -80,7 +80,12 @@ const FORBIDDEN_IMPORTS = [
   "recharts",
   "viem/accounts",
 ];
-const APPROVED_EXPLORER_ORIGINS = new Set(["https://bscscan.com", "https://testnet.bscscan.com"]);
+const APPROVED_EXPLORER_ORIGINS = new Set([
+  "https://bscscan.com",
+  "https://testnet.bscscan.com",
+  "https://robinhoodchain.blockscout.com",
+  "https://explorer.testnet.chain.robinhood.com",
+]);
 // Registrable domains allowed as user-facing external links (href / window.open /
 // URL literals), but NOT as fetch/data endpoints. Matches the apex and any
 // subdomain over HTTPS without credentials. x.com covers the official Flap/X (Twitter) links.

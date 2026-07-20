@@ -13,7 +13,7 @@ Before asking an Agent to build anything, collect these inputs:
 | Folder name | `my-vault` | Creates `src/vaults/my-vault` and preview route `/my-vault`. |
 | Display name | `My Vault UI` | Written to `manifest.json` for Workbench display. |
 | Binding target | Complete factory case: `chainId 97 + testnet factory 0x...` plus `chainId 56 + final mainnet factory 0x...`; no-factory case: `chainId 56 + vault 0x...` | Controls which runtime Vault can use this UI. Collect the final mainnet factory early to avoid later binding edits. |
-| Test token address | Real deployed `7777`/`8888`-suffix token on testnet when possible | Required for package proof. This is not a production CA restriction in factory mode. |
+| Test token address | Real deployed `7777`/`8888`-suffix token on testnet when possible | Required for package proof. For Robinhood, use token scope on chain `4663` or a real test token on chain `46630`; the standard `46630` token is still TBD and must not be faked. This is not a production CA restriction in factory mode. |
 | CA restriction mode | `none`, `reserved`, or `verified` | Workbench/registry production policy. Do not put production CA policy in `manifest.json`. |
 | Minimal Vault ABI | `function claim()`, `function info(address)` | The UI can only call methods it knows. |
 | Reads and writes | `info`, `deposit`, `claim` | Defines the actual business workflow. |
