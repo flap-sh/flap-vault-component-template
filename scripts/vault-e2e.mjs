@@ -225,6 +225,44 @@ async function startPreviewServer() {
   }
 }
 
+async function verifyPreviewSource(baseUrl, expectedComponentSha256) {
+  const endpoint = new URL("/api/runtime/e2e-source", baseUrl);
+  endpoint.searchParams.set("folderName", folderName);
+  let response;
+  try {
+    response = await fetch(endpoint);
+  } catch (error) {
+    failE2E(
+      "vault-e2e/preview-source-unavailable",
+      `Could not verify the preview source: ${error instanceof Error ? error.message : String(error)}`,
+      "Run E2E against the current template preview server and retry.",
+      { endpoint: endpoint.toString() },
+    );
+  }
+  if (!response.ok) {
+    failE2E(
+      "vault-e2e/preview-source-unavailable",
+      `Preview source verification returned HTTP ${response.status}.`,
+      "Run E2E against the current template preview server and retry.",
+      { endpoint: endpoint.toString() },
+    );
+  }
+  const payload = await response.json();
+  if (payload?.componentSha256 !== expectedComponentSha256) {
+    failE2E(
+      "vault-e2e/preview-source-mismatch",
+      "The preview server Component.tsx hash does not match the source being tested.",
+      "Stop stale preview servers, remove VAULT_E2E_BASE_URL unless it points to this checkout, and rerun yarn vault:e2e <folder-name>.",
+      { expected: expectedComponentSha256, actual: payload?.componentSha256, endpoint: endpoint.toString() },
+    );
+  }
+  return {
+    verified: true,
+    componentSha256: payload.componentSha256,
+    endpoint: "/api/runtime/e2e-source",
+  };
+}
+
 function buildPreviewUrl(baseUrl, binding, phase, wrongNetwork = false) {
   const url = new URL(`/${folderName}`, baseUrl);
   const resolvedPhase = phase === "dex-listed" ? "dex-listed" : "internal-market";
@@ -488,10 +526,12 @@ const sourceFileSha256 = collectSourceHashes(ROOT, folderName);
 const sourceSha256 = sourceSha256FromFileHashes(sourceFileSha256);
 let browser;
 let server;
+let previewSource;
 const checks = [];
 try {
   browser = await launchChromium();
   server = await startPreviewServer();
+  previewSource = await verifyPreviewSource(server.baseUrl, sourceFileSha256[`src/vaults/${folderName}/Component.tsx`]);
   for (const viewport of VIEWPORTS) {
     for (const phase of REQUIRED_PHASES) {
       checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, skipRiskStatus }));
@@ -522,6 +562,7 @@ const report = {
   sourcePackage: `src/vaults/${folderName}`,
   sourceSha256,
   fileSha256: sourceFileSha256,
+  previewSource,
   manifestSha256: sourceFileSha256[`src/vaults/${folderName}/manifest.json`],
   schemaSha256: sourceFileSha256[MANIFEST_SCHEMA_PATH],
   binding: {

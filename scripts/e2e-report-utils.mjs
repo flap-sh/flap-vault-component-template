@@ -244,6 +244,13 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
         actual: report.sourceSha256,
       });
     }
+    const componentPath = `src/vaults/${folderName}/Component.tsx`;
+    if (report.previewSource?.verified !== true || report.previewSource?.componentSha256 !== expectedHashes[componentPath]) {
+      addIssue("e2e-report/preview-source-unverified", "E2E report must prove that the preview server served the uploaded Component.tsx source.", {
+        expected: expectedHashes[componentPath],
+        actual: report.previewSource?.componentSha256,
+      });
+    }
   }
 
   if (typeof report.manifestSha256 !== "string" || report.manifestSha256 !== report.fileSha256?.[`src/vaults/${folderName}/manifest.json`]) {

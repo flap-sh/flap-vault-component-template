@@ -249,6 +249,8 @@ For default Vault UI, risk status still controls visual order: if the image is a
 
 ## Validation Loop
 
+`vault:check` treats every TypeScript/TSX/JavaScript/JSX parse diagnostic as blocking. Fix `source-syntax/invalid-typescript` before E2E or packaging; the checker must never accept a partially recovered AST as buildable source.
+
 All Vault commands are designed for Agent recovery. On failure, parse the JSON output:
 
 - `ok: false`
@@ -316,7 +318,7 @@ The package command prints:
 - `sha256`
 - `bytes`
 
-`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. The E2E proof must use a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; supported proof chains are BNB mainnet `56`, BNB Testnet `97`, Robinhood mainnet `4663`, and Robinhood Testnet `46630`. Local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
+`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. Before browser checks, the runner verifies `/api/runtime/e2e-source` and records preview-source attestation proving that the preview server serves the same `Component.tsx`; stale or unrelated base URLs are rejected. The E2E proof must use a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; supported proof chains are BNB mainnet `56`, BNB Testnet `97`, Robinhood mainnet `4663`, and Robinhood Testnet `46630`. Local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 First-time local machines, especially Windows machines, may need `yarn playwright install chromium` before Chromium can launch. If the browser is missing, `vault:e2e` must emit the JSON code `vault-e2e/playwright-browser-missing` with that fix hint. GitHub Actions uses `npx playwright install --with-deps chromium`.
 Submit only the zip produced by this command. The zip contains format-version `5` `flap-vault-package.json`, `qa/e2e-report.json`, and matching `e2e` summary fields, which identify the package as a script-generated Flap Vault UI source package and record required file hashes, optional Mini App audio file hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker, proof, or matching hashes.
 The package command's first step fetches the official template ref. If local `HEAD` is only behind `origin/main`, it automatically fast-forwards and then launches the latest package script while preserving non-conflicting local Vault work. Conflicting local changes and ahead/diverged checkouts stop with machine-readable freshness errors; local work is never discarded. The package script then runs the full git/npm freshness gate and rejects missing, failed, or stale E2E proof.

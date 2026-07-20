@@ -93,6 +93,11 @@ async function writePackage(name, { templateVersion, runtimePackageVersion, runt
     sourcePackage: sourceBase,
     sourceSha256: sourceSha256FromFileHashes(fileSha256),
     fileSha256,
+    previewSource: {
+      verified: true,
+      componentSha256: fileSha256[`${sourceBase}/Component.tsx`],
+      endpoint: "/api/runtime/e2e-source",
+    },
     manifestSha256: fileSha256[`${sourceBase}/manifest.json`],
     schemaSha256: fileSha256["schemas/manifest.schema.json"],
     binding: {

@@ -135,6 +135,11 @@ function writePassingE2EReport(folderName, { chainId = 56, tokenAddress = TOKEN,
     sourcePackage: `src/vaults/${folderName}`,
     sourceSha256,
     fileSha256,
+    previewSource: {
+      verified: true,
+      componentSha256: fileSha256[`src/vaults/${folderName}/Component.tsx`],
+      endpoint: "/api/runtime/e2e-source",
+    },
     manifestSha256: fileSha256[`src/vaults/${folderName}/manifest.json`],
     schemaSha256: fileSha256[MANIFEST_SCHEMA_PATH],
     binding: {
@@ -228,6 +233,22 @@ try {
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-token-address-list"), false);
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/missing-test-token"), false);
   passed.push("binding-level tokenAddresses reference lists are allowed");
+
+  const invalidSyntaxSlug = `${FIXTURE_PREFIX}-invalid-syntax`;
+  writeVault(invalidSyntaxSlug, {
+    component: componentWithRiskBody(`  return (
+    <div>
+      <StatusBadge>{riskLabel}}</StatusBadge>
+    </div>
+  );`),
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertRule(
+    "invalid TSX syntax is blocked before E2E or packaging",
+    runVaultCheck(invalidSyntaxSlug, { silent: true }),
+    "source-syntax/invalid-typescript",
+    "blocking",
+  );
 
   const standardLayoutSlug = `${FIXTURE_PREFIX}-standard-layout`;
   writeVault(standardLayoutSlug);

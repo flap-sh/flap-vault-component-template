@@ -203,6 +203,7 @@ const FIX_HINTS = {
   "preview-registration/missing-vault-module": "Register the folder name in src/vaults/index.ts with loadComponent, loadManifest, and loadI18n entries.",
   "forbidden-files/disallowed-entry": "Remove environment, dependency, git, or build output files from the Vault package.",
   "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
+  "source-syntax/invalid-typescript": "Fix the reported TypeScript/TSX syntax error before running vault:check, vault:e2e, or vault:package again.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
   "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, displayTitle for Mini App only, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
   "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 8888-token Mini App with match.bindings[].tokenAddresses.',
@@ -1507,6 +1508,29 @@ function foldConcatenatedStringText(expressionText) {
 function createTsSourceFile(file, content) {
   const scriptKind = file.endsWith(".tsx") || file.endsWith(".jsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   return ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
+}
+
+function collectSourceSyntaxIssues(file, content) {
+  const sourceFile = createTsSourceFile(file, content);
+  const seen = new Set();
+  const issues = [];
+  for (const diagnostic of sourceFile.parseDiagnostics) {
+    const start = diagnostic.start ?? 0;
+    const position = sourceFile.getLineAndCharacterOfPosition(start);
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+    const key = `${diagnostic.code}:${start}:${message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    issues.push(
+      issue(BLOCKING, "source-syntax/invalid-typescript", `TypeScript/TSX syntax error TS${diagnostic.code}: ${message}`, {
+        file,
+        line: position.line + 1,
+        column: position.character + 1,
+        diagnosticCode: diagnostic.code,
+      }),
+    );
+  }
+  return issues;
 }
 
 function unwrapTsExpression(node) {
@@ -3412,6 +3436,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
     const content = fs.readFileSync(item.path, "utf8");
+    issues.push(...collectSourceSyntaxIssues(rel, content));
     const scanContent = stripCommentsForScanning(content);
     const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
     const externalLinkRanges = externalLinkUsages.map((usage) => [usage.tagStart, usage.tagEnd]);

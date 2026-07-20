@@ -74,6 +74,8 @@
   },
   "vaultPackage": {
     "rootPattern": "src/vaults/{folder-name}",
+    "sourceSyntaxRule": "Every TypeScript, TSX, JavaScript, and JSX source file in the Vault package must parse without diagnostics. vault:check blocks source-syntax/invalid-typescript before E2E or packaging.",
+    "e2ePreviewSourceRule": "vault:e2e must verify /api/runtime/e2e-source and record preview-source attestation that binds the tested preview server to the current Component.tsx hash. Stale or unrelated base URLs are blocking and their reports cannot be packaged.",
     "folderNameRule": "The Vault folder name is the source folder and preview route. User-facing docs and outputs should call it folder name. Use 3-64 characters of lowercase kebab-case: /^[a-z0-9]+(-[a-z0-9]+)*$/.",
     "previewRegistrationRule": "Local preview uses src/vaults/index.ts as a static module map. vault:scaffold registers the folder automatically. If the four files already exist, run yarn vault:register {folder-name}; do not hand-edit registration unless the script cannot parse the index file.",
     "requiredFiles": ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"],
@@ -348,6 +350,7 @@
     "package/runtime-git-head-missing": { "severity": "blocking", "fixAction": "Publish the runtime package from git so npm exposes gitHead, then rerun yarn vault:package <folder-name>." },
     "performance/refetch-too-fast": { "severity": "blocking", "fixAction": "Use a refetch interval of at least 5000ms unless Flap approves a faster polling path." },
     "preview-registration/missing-vault-module": { "severity": "blocking", "fixAction": "Register the folder name in src/vaults/index.ts with loadComponent, loadManifest, and loadI18n entries." },
+    "source-syntax/invalid-typescript": { "severity": "blocking", "fixAction": "Fix the reported TypeScript/TSX syntax error before running vault:check, vault:e2e, or vault:package again." },
     "preview-registration/register-failed": { "severity": "blocking", "fixAction": "Fix src/vaults/index.ts so it matches the expected vaultModules shape, then rerun yarn vault:register <folder-name>." },
     "preview-registration/unregister-failed": { "severity": "blocking", "fixAction": "Fix src/vaults/index.ts so it matches the expected vaultModules shape, then rerun yarn vault:register <folder-name> --remove." },
     "preview-smoke-real/failed": { "severity": "blocking", "fixAction": "Run yarn build, then yarn preview:smoke:real locally. Check the live example routes and server logs." },
