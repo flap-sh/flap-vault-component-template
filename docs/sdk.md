@@ -245,7 +245,7 @@ The preview shell and production host resolve this snapshot with chain-read help
 
 `readErc20TokenMetadata(...)` reads ERC20 `symbol()` / `name()` directly from chain. `loadTokenRuntimeSnapshot(...)` reuses the same public chain-read path as preview: ERC20 metadata plus, on supported chains, `Portal.getTokenV7`, helper tax info, VaultPortal info, and a normalized `host` snapshot. `runHostRuntime(...)` adds the full-host/on-chain/unavailable policy layer on top, and `createLocalHostPresentationFetcher()` is the preview-side adapter that resolves host-owned token presentation through the same-origin runtime proxy.
 
-Robinhood Testnet chain `46630` is supported by these host/runtime helpers starting in `@flapsdk/vault-runtime@0.1.23`. Its host config uses the flap.sh `robinhood-testnet` slug plus the deployed Portal, tax helper, VaultPortal, wrapped native token, explorer, and network label. This live host-state support does not provide or fabricate the separate manifest/E2E proof token while that standard token remains TBD.
+Robinhood Testnet chain `46630` is supported by these host/runtime helpers starting in `@flapsdk/vault-runtime@0.1.23`. Its host config uses the flap.sh `robinhood-testnet` slug plus the deployed Portal, tax helper, VaultPortal, wrapped native token, explorer, and network label. Standard Robinhood manifest/E2E proof tokens are listed in `docs/robinhood-testnet.md`.
 
 For action gating, import the stage helper from the SDK:
 

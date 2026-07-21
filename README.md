@@ -73,7 +73,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; supported proof chains include Robinhood mainnet `4663` and Robinhood Testnet `46630`. The standard `46630` token is still TBD, and local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
+`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; supported proof chains include Robinhood mainnet `4663` and Robinhood Testnet `46630`. Standard Robinhood proof tokens are listed in [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md), and local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 
 First-time local machines, especially Windows machines, may need to install the Playwright browser once:
 

@@ -78,7 +78,7 @@
               "chainId": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "EVM chain ID, for example 56 for BNB Chain mainnet, 97 for BNB Chain testnet, 4663 for Robinhood Chain, or 46630 for Robinhood Chain Testnet. Robinhood Testnet proof still requires a real deployed 7777/8888 token; its standard token address is TBD."
+                "description": "EVM chain ID, for example 56 for BNB Chain mainnet, 97 for BNB Chain testnet, 4663 for Robinhood Chain, or 46630 for Robinhood Chain Testnet. Robinhood proof requires a real deployed 7777/8888 token; standard Robinhood proof tokens are documented in docs/robinhood-testnet.md."
               },
               "factoryAddress": {
                 "$ref": "#/$defs/nonZeroAddress",

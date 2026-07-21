@@ -422,7 +422,7 @@
         "required": true,
         "minItems": 1,
         "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}(?:7777|8888)$" },
-        "description": "Real deployed ERC20 tokens ending in 7777 or 8888 used only for local preview, vault:check, vault:e2e, and Workbench package proof. These values are written under match.bindings[].tokenAddresses and do not by themselves restrict production CA. Robinhood may use a token-scoped chain 4663 token or a chain 46630 testnet proof token; the chain 46630 standard token address remains pending until a real deployment is supplied."
+        "description": "Real deployed ERC20 tokens ending in 7777 or 8888 used only for local preview, vault:check, vault:e2e, and Workbench package proof. These values are written under match.bindings[].tokenAddresses and do not by themselves restrict production CA. Robinhood may use a token-scoped chain 4663 token or a chain 46630 testnet proof token; standard Robinhood proof tokens are documented in docs/robinhood-testnet.md."
       },
       "productionFactoryAddress": {
         "type": "string",

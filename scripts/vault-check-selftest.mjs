@@ -494,7 +494,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   );
   passed.push("vault:e2e selection accepts 8888 test tokens");
 
-  const robinhoodToken = "0x4663000000000000000000000000000000007777";
+  const robinhoodToken = "0xdb1b738d084dc482eb94f3697dd452862e6c7777";
   const robinhoodBinding = selectE2EBinding({
     match: {
       bindings: [{ chainId: 4663, factoryAddress: FACTORY, tokenAddresses: [robinhoodToken] }],
@@ -504,7 +504,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assert.equal(robinhoodBinding.tokenPolicy, "robinhood-mainnet");
   passed.push("vault:e2e selection accepts Robinhood mainnet test tokens");
 
-  const robinhoodTestnetToken = "0x4663000000000000000000000000000000008888";
+  const robinhoodTestnetToken = "0x15ce0f69e0323aba1de95ff0c53a1a3ccf2d7777";
   const robinhoodTestnetBinding = selectE2EBinding({
     match: {
       bindings: [{ chainId: 46630, tokenAddresses: [robinhoodTestnetToken] }],

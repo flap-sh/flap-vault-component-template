@@ -41,7 +41,7 @@ Then act:
 7. Collect all required inputs using `docs/agent-intake-template.md` before generating.
 8. Use `yarn` as the package manager.
 9. Use `yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory` for new factory-scoped Vault packages that will launch on mainnet, or `--vault 0x... --token 0x...` for no-factory packages. The `--token` value must be a real deployed ERC20 test token ending in `7777` or `8888`; collect the final real mainnet factory binding early. In factory mode `tokenAddresses` is not the production CA restriction.
-   For Robinhood, use either a real token-scoped binding on chain `4663` or a real Robinhood Testnet proof token on chain `46630`. The standard `46630` token is still TBD, so agents must not invent a placeholder address.
+   For Robinhood, use either a real token-scoped binding on chain `4663` or a real Robinhood Testnet proof token on chain `46630`. Standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`; agents must not invent placeholder addresses.
 10. Ask for `caRestrictionMode`: `none` means production does not restrict CA, `reserved` locks a future CA but cannot publish/route, and `verified` is applied only by Workbench/registry after validation. Do not write production CA restriction into public manifest fields.
 11. Use `yarn vault:register <folder-name>` when the four core Vault files already exist. Mini App mode may also include reviewed top-level audio files directly under `src/vaults/<folder-name>`.
 12. Run `yarn vault:check <folder-name>` and fix all blocking issues from `agent.nextActions`.
