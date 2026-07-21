@@ -16,7 +16,9 @@
     "wrongNetwork": "Wrong network",
     "current": "Current",
     "bnbChain": "BNB Chain",
-    "bnbTestnet": "BNB Testnet"
+    "bnbTestnet": "BNB Testnet",
+    "robinhoodChain": "Robinhood Chain",
+    "robinhoodTestnet": "Robinhood Testnet"
   },
   "home": {
     "sop": {

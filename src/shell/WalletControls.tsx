@@ -24,9 +24,9 @@ export function ChainSelectorButton({ compact = false }: { compact?: boolean }) 
   const { switchChain, isPending } = useSwitchChain();
   const chains = [
     { id: bsc.id, name: lang.nav.bnbChain, logo: "/bnb.svg" },
-    { id: robinhoodChain.id, name: "Robinhood", logo: "/logo.png" },
+    { id: robinhoodChain.id, name: lang.nav.robinhoodChain, logo: "/robinhood.png" },
     { id: bscTestnet.id, name: lang.nav.bnbTestnet, logo: "/bnb.svg" },
-    { id: robinhoodTestnet.id, name: "Robinhood Testnet", logo: "/logo.png" },
+    { id: robinhoodTestnet.id, name: lang.nav.robinhoodTestnet, logo: "/robinhood.png" },
   ];
   const currentChain = chains.find((chain) => chain.id === chainId) ?? chains[0];
 

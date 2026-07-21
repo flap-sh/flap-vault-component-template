@@ -16,7 +16,9 @@
     "wrongNetwork": "網絡錯誤",
     "current": "當前",
     "bnbChain": "BNB Chain",
-    "bnbTestnet": "BNB Testnet"
+    "bnbTestnet": "BNB Testnet",
+    "robinhoodChain": "Robinhood 链",
+    "robinhoodTestnet": "Robinhood 测试网"
   },
   "home": {
     "sop": {

@@ -3,9 +3,12 @@
 Robinhood Testnet is accepted as a Vault UI preview and E2E proof chain with:
 
 - chain ID: `46630`
+- flap.sh slug: `robinhood-testnet`
 - RPC: `https://rpc.testnet.chain.robinhood.com/rpc`
 - explorer: `https://explorer.testnet.chain.robinhood.com`
 - E2E token policy: `robinhood-testnet`
+
+The local wallet chain selector exposes both Robinhood mainnet and Robinhood Testnet. Both entries use the same `public/robinhood.png` chain logo copied from flap.sh; the Flap application mark in `public/logo.png` is not a chain logo.
 
 Robinhood packages have two valid proof paths:
 
