@@ -1,6 +1,6 @@
 {
   "name": "flap-vault-ui-template",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "private": true,
   "license": "MIT",
   "packageManager": "yarn@1.22.22",

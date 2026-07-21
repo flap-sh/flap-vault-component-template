@@ -38,6 +38,14 @@ const taxVaultHostChains: Record<number, TaxVaultHostChainConfig> = {
     hostChainSlug: "robinhood",
     ipfsGateway: "https://flap.mypinata.cloud",
   },
+  46630: {
+    portal: "0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09",
+    taxTokenHelperAddress: "0xb10bD2672aE63735d677164A54B573a016f0203C",
+    vaultPortal: "0xe9F7AB7DE8FB8756acbB6a1cd13316a43308197B",
+    wrappedNativeTokenAddress: "0x7943e237c7F95DA44E0301572D358911207852Fa",
+    hostChainSlug: "robinhood-testnet",
+    ipfsGateway: "https://flap.mypinata.cloud",
+  },
 };
 
 export function getTaxVaultHostChainConfig(chainId: number) {

@@ -10,6 +10,8 @@ Robinhood Testnet is accepted as a Vault UI preview and E2E proof chain with:
 
 The local wallet chain selector exposes both Robinhood mainnet and Robinhood Testnet. Both entries use the same `public/robinhood.png` chain logo copied from flap.sh; the Flap application mark in `public/logo.png` is not a chain logo.
 
+Starting with `@flapsdk/vault-runtime@0.1.23`, chain `46630` is a full host-runtime chain: it resolves the Robinhood Testnet explorer and network label, uses the `robinhood-testnet` flap.sh presentation slug, and reads live token lifecycle/tax state through the deployed Portal, tax helper, and VaultPortal contracts. The standard E2E token remains a separate fail-closed proof requirement and is still TBD.
+
 Robinhood packages have two valid proof paths:
 
 1. Token scope on Robinhood mainnet (`4663`): declare the real deployed `7777`/`8888` token under `match.bindings[].tokenAddresses`. It is both the runtime binding and the E2E proof token.

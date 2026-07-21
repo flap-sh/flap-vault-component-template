@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -62,6 +62,27 @@ async function main() {
 
   if (!uiSource.startsWith('"use client";')) {
     throw new Error("ui.js must keep the use client directive.");
+  }
+
+  const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
+  const robinhoodTestnet = hostModule.getTaxVaultHostChainConfig?.(46630);
+  const expectedRobinhoodTestnet = {
+    portal: "0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09",
+    taxTokenHelperAddress: "0xb10bD2672aE63735d677164A54B573a016f0203C",
+    vaultPortal: "0xe9F7AB7DE8FB8756acbB6a1cd13316a43308197B",
+    wrappedNativeTokenAddress: "0x7943e237c7F95DA44E0301572D358911207852Fa",
+    hostChainSlug: "robinhood-testnet",
+    ipfsGateway: "https://flap.mypinata.cloud",
+  };
+
+  if (JSON.stringify(robinhoodTestnet) !== JSON.stringify(expectedRobinhoodTestnet)) {
+    throw new Error(`Robinhood Testnet runtime config mismatch: ${JSON.stringify(robinhoodTestnet)}.`);
+  }
+  if (hostModule.explorerForChain?.(46630) !== "https://explorer.testnet.chain.robinhood.com") {
+    throw new Error("Robinhood Testnet explorer mapping is missing from the runtime host export.");
+  }
+  if (hostModule.chainLabelForChain?.(46630) !== "Robinhood Chain Testnet") {
+    throw new Error("Robinhood Testnet chain label is missing from the runtime host export.");
   }
 
   const packPreview = JSON.parse(

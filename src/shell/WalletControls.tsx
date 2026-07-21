@@ -42,7 +42,7 @@ export function ChainSelectorButton({ compact = false }: { compact?: boolean }) 
         onClick={() => setOpen((value) => !value)}
         disabled={isPending}
       >
-        <Image src={currentChain.logo} alt={currentChain.name} width={20} height={20} className="h-5 w-5 shrink-0" unoptimized />
+        <Image src={currentChain.logo} alt={currentChain.name} width={20} height={20} className="h-5 w-5 shrink-0 rounded-full" unoptimized />
         <span className={cn("font-normal leading-[1.4] uppercase", compact ? "hidden" : "hidden text-[14px] md:inline")}>{currentChain.name}</span>
         <ChevronDown className={cn("text-white", compact ? "block h-3.5 w-3.5" : "hidden h-3 w-3 md:block")} />
       </button>
@@ -65,7 +65,7 @@ export function ChainSelectorButton({ compact = false }: { compact?: boolean }) 
                 }}
               >
                 <span className={cn("absolute left-0 top-0 hidden h-full w-0.5 bg-[#D0FF00] group-hover:block", isActive && "block")} />
-                <Image src={chain.logo} alt={chain.name} width={20} height={20} className="h-5 w-5 shrink-0" unoptimized />
+                <Image src={chain.logo} alt={chain.name} width={20} height={20} className="h-5 w-5 shrink-0 rounded-full" unoptimized />
                 <span className="font-normal">{chain.name}</span>
                 {isActive ? <span className="ml-auto text-xs text-[#D0FF00]">{lang.nav.current}</span> : null}
               </button>
