@@ -1805,6 +1805,37 @@ export default function SelftestVault(_props: VaultComponentProps) {
   );
   passed.push("ExternalLink destinations are listed for Workbench human review as non-blocking info items");
 
+  const externalLinkI18nSlug = `${FIXTURE_PREFIX}-external-link-i18n`;
+  writeVault(externalLinkI18nSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ExternalLink } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <ExternalLink url={i18n.t("telegramUrl")}>{i18n.t("title")}</ExternalLink>;
+}
+`,
+    i18n: {
+      en: { title: "Selftest", telegramUrl: "https://t.me/huaerjie8888", unusedUrl: "https://undeclared.example/resource" },
+      zh: { title: "Selftest", telegramUrl: "https://t.me/huaerjie8888", unusedUrl: "https://undeclared.example/resource" },
+    },
+  });
+  const externalLinkI18nCheck = runVaultCheck(externalLinkI18nSlug, { silent: true });
+  assert.equal(
+    externalLinkI18nCheck.issues.some((item) => item.ruleId === "endpoint-policy/undeclared-url" && item.message.includes("huaerjie8888")),
+    false,
+    "ExternalLink destination stored in i18n must not be treated as an endpoint",
+  );
+  assert.equal(
+    externalLinkI18nCheck.issues.some((item) => item.ruleId === "endpoint-policy/undeclared-url" && item.message.includes("undeclared.example")),
+    true,
+    "unreferenced i18n URLs must remain blocked",
+  );
+  passed.push("ExternalLink destinations stored in i18n are not treated as undeclared endpoints");
+
   const externalLinkDynamicSlug = `${FIXTURE_PREFIX}-external-link-dynamic`;
   writeVault(externalLinkDynamicSlug, {
     component: `"use client";

@@ -1241,6 +1241,18 @@ function collectExternalLinkUsages(content, file) {
   return usages;
 }
 
+function collectExternalLinkI18nKeys(usages) {
+  const keys = new Set();
+  for (const usage of usages) {
+    if (!usage.urlExpression) continue;
+    const translationCallRegex = /(?:\bi18n\s*\.\s*)?\bt\s*\(\s*(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+    for (const match of usage.urlExpression.matchAll(translationCallRegex)) {
+      if (match[2]) keys.add(match[2]);
+    }
+  }
+  return keys;
+}
+
 function isIndexWithinRanges(index, ranges = []) {
   return ranges.some(([start, end]) => index >= start && index < end);
 }
@@ -3391,15 +3403,16 @@ function checkI18n(i18n, manifestLocales) {
 // i18n.json string values are consumable by the component (href, src, tx target)
 // but were previously never security-scanned. Treat them as a source surface:
 // reject embedded unsafe schemes, hardcoded addresses, and undeclared URLs.
-function collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractPolicy) {
+function collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractPolicy, externalLinkKeys = new Set()) {
   const issues = [];
   if (!i18n || typeof i18n !== "object") return issues;
   const ctx = { declaredUrls, declaredFrames, contractPolicy };
   const seen = new Set();
-  const walk = (value) => {
+  const walk = (value, resourceKey = null) => {
     if (typeof value === "string") {
       const finding = scanResolvedStringForResources(value, ctx);
       if (finding) {
+        if (finding.ruleId === "endpoint-policy/undeclared-url" && externalLinkKeys.has(resourceKey)) return;
         const key = `${finding.ruleId}:${value}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -3411,11 +3424,11 @@ function collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractP
       return;
     }
     if (Array.isArray(value)) {
-      for (const entry of value) walk(entry);
+      for (const entry of value) walk(entry, resourceKey);
       return;
     }
     if (value && typeof value === "object") {
-      for (const entry of Object.values(value)) walk(entry);
+      for (const [key, entry] of Object.entries(value)) walk(entry, key);
     }
   };
   walk(i18n);
@@ -3431,8 +3444,15 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const contractPolicy = collectManifestContractPolicy(manifest);
   const abiFunctionOutputCounts = collectAbiFunctionOutputCounts(vaultDir);
   const oracleProvisionDetails = getRuntimeOracleProvisionDetails();
-  issues.push(...collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractPolicy));
   const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
+  const externalLinkI18nKeys = new Set();
+  for (const item of sourceFiles) {
+    const content = stripCommentsForScanning(fs.readFileSync(item.path, "utf8"));
+    for (const key of collectExternalLinkI18nKeys(collectExternalLinkUsages(content, path.relative(ROOT, item.path)))) {
+      externalLinkI18nKeys.add(key);
+    }
+  }
+  issues.push(...collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractPolicy, externalLinkI18nKeys));
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
     const content = fs.readFileSync(item.path, "utf8");
