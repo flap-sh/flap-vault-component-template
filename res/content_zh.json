@@ -111,6 +111,7 @@
             "外部能力、资源、链接、frame、endpoint 和固定合约目标可以在允许范围内申请，但必须进入更严格的人工 review。"
           ]
         },
+        "requirementsKicker": "Mini App 输入",
         "requirementsTitle": "Mini App 需要额外补充这些创作输入。",
         "requirementsDescription": "这些不是默认 Vault UI 的必填项。默认 Vault UI 还是围绕 Vault 业务流程；Mini App 如果要做更像小程序的体验，就要把这些能力提前说清楚，方便模板限制和人工审核。",
         "requirements": [
@@ -135,6 +136,7 @@
             "body": "SDK 是一组小 function / hook 的组合，不是让开发者重新造 SDK。需求里要写清楚要用哪些 `@/src/sdk` 能力、primary reads/writes、refetch points、wallet/network 状态和 fallback；不要新增 SDK-like wrapper。"
           }
         ],
+        "comparisonKicker": "Mini App / 定制 UI",
         "comparisonTitle": "Mini App 和定制 Vault UI 的主要差异。",
         "comparisonDescription": "默认仍展示定制 UI；Mini App 是另一个模式。它不是无限制网页容器，而是在同一套 controlled source package 上换了绑定方式、预览壳、外部能力边界和审核策略。",
         "comparisonTopicHeader": "对照项",
@@ -249,6 +251,7 @@
         "doneBody": "manifest.mode=mini-app、token-only 8888 binding、符合当前 8888 无税模式 / U 池子测试阶段范围、根布局全高、vault:check blocking=0、E2E 覆盖 PC/iPad/H5 与 phase/wrong-network 状态，并通过 package + verify-package；如果使用更宽的外部能力，还必须完成对应人工 review。"
       },
       "scopeTitle": "开发范围",
+      "scopeDescription": "在模板提供的组件结构内完成 Vault UI 定制。",
       "scopeItems": [
         "请在模板提供的组件结构内完成 Vault UI 定制。",
         "目录名只作为目录和预览路由；manifest 里的 artifactId 默认由 vault:scaffold 自动生成。",
@@ -261,6 +264,7 @@
         "提交包保留源码，线上 runtime JS 由 Flap Artifact Workbench 构建生成。"
       ],
       "agentGuide": {
+        "kicker": "AI Agent / Skill",
         "title": "AI Agent / Skill 使用说明",
         "description": "Agent 只需要围绕入口文件、核心 Vault 文件、Mini App 允许的音频资产和检查结果工作。不要让 Agent 自己扩展目录结构。",
         "skillTitle": "必须使用的 Skill",
@@ -317,6 +321,9 @@
           "运行 yarn vault:check {folder-name} 后按 agent.nextActions 修到 blocking 为 0，再运行 yarn vault:package {folder-name}。"
         ]
       },
+      "stepsLabel": "流程",
+      "stepsTitle": "七步完成一个 Vault UI。",
+      "stepsDescription": "从安装依赖到打包给 Artifact Workbench，按顺序执行即可。",
       "steps": [
         {
           "title": "安装依赖",
@@ -390,6 +397,7 @@
         }
       ],
       "rulesTitle": "提交要求",
+      "rulesDescription": "交付前逐条对照。",
       "rules": [
         "目录名和路由必须是 3-64 个字符的全小写中划线格式。",
         "预览注册只是本地 wiring；如果 scaffold 没有注册目录，用 yarn vault:register {folder-name}。",

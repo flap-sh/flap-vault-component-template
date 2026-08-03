@@ -111,6 +111,7 @@
             "External capabilities, resources, links, frames, endpoints, and fixed contract targets can be requested within the allowed range, but they must go through stricter human review."
           ]
         },
+        "requirementsKicker": "Mini App Inputs",
         "requirementsTitle": "Mini App needs these extra creative inputs.",
         "requirementsDescription": "These are not required for the default Vault UI. The default Vault UI stays focused on Vault business workflows; when Mini App needs a small-app-like experience, describe these capabilities early so the template can constrain them and reviewers can inspect them.",
         "requirements": [
@@ -135,6 +136,7 @@
             "body": "The SDK is a set of small functions and hooks, not something developers should rebuild. Requirements should name the needed `@/src/sdk` capabilities, primary reads/writes, refetch points, wallet/network states, and fallback behavior; do not create an SDK-like wrapper."
           }
         ],
+        "comparisonKicker": "Mini App / Custom UI",
         "comparisonTitle": "Main Differences Between Mini App and Custom Vault UI.",
         "comparisonDescription": "Custom UI remains the default view. Mini App is a separate mode: not an unlimited webpage container, but the same controlled source package with a different binding mode, preview shell, external-capability boundary, and review strategy.",
         "comparisonTopicHeader": "Topic",
@@ -249,6 +251,7 @@
         "doneBody": "manifest.mode=mini-app, token-only 8888 binding, current 8888 no-tax / U-pool test-stage scope, full-height root layout, vault:check blocking=0, E2E covers PC/iPad/H5 plus phase/wrong-network states, and package + verify-package both pass. If broader external capabilities are used, the matching human review must also be complete."
       },
       "scopeTitle": "Development Scope",
+      "scopeDescription": "Customize the Vault UI within the component structure provided by the template.",
       "scopeItems": [
         "Build the Vault UI inside the component structure provided by this template.",
         "Use the folder name only for the folder and preview route; vault:scaffold generates the manifest artifactId automatically.",
@@ -261,6 +264,7 @@
         "Submission packages keep source files; production runtime JS is built by the Flap Artifact Workbench."
       ],
       "agentGuide": {
+        "kicker": "AI Agent / Skill",
         "title": "AI Agent / Skill Usage",
         "description": "Agents should work only around the entry files, core Vault files, allowed Mini App audio assets, and check output. Do not let the Agent expand the folder structure.",
         "skillTitle": "Required Skill",
@@ -317,6 +321,9 @@
           "Run yarn vault:check {folder-name} and follow agent.nextActions until blocking issues are zero, then run yarn vault:package {folder-name}."
         ]
       },
+      "stepsLabel": "Workflow",
+      "stepsTitle": "Complete one Vault UI in seven steps.",
+      "stepsDescription": "Follow these steps in order, from installing dependencies to packaging for Artifact Workbench.",
       "steps": [
         {
           "title": "Install dependencies",
@@ -390,6 +397,7 @@
         }
       ],
       "rulesTitle": "Submission Requirements",
+      "rulesDescription": "Check each item before delivery.",
       "rules": [
         "Use a 3-64 character lowercase kebab-case folder name for folder and route.",
         "Preview registration is local wiring only; use yarn vault:register {folder-name} when scaffold did not register the folder.",

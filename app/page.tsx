@@ -63,6 +63,8 @@ function writeDocMode(mode: DocMode) {
 }
 
 type MiniAppGuideContent = {
+  requirementsKicker: string;
+  comparisonKicker: string;
   summary: {
     kicker: string;
     title: string;
@@ -264,7 +266,7 @@ export default function HomePage() {
                 {sop.scopeTitle}
               </p>
               <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 24px", color: TEXT }}>
-                在模板提供的组件结构内完成 Vault UI 定制。
+                {sop.scopeDescription}
               </h3>
               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
                 {sop.scopeItems.map((item) => (
@@ -279,7 +281,7 @@ export default function HomePage() {
             {/* ── Agent guide card ─────────────────────────────────── */}
             <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
-                AI Agent / Skill
+                {agentGuide.kicker}
               </p>
               <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
                 {agentGuide.title}
@@ -361,13 +363,13 @@ export default function HomePage() {
             {/* ── 7 Steps ──────────────────────────────────────────── */}
             <section style={{ marginTop: 72 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
-                流程
+                {sop.stepsLabel}
               </p>
               <h2 style={{ fontSize: 28, fontWeight: 680, lineHeight: 1.2, margin: "0 0 8px", color: TEXT }}>
-                七步完成一个 Vault UI。
+                {sop.stepsTitle}
               </h2>
               <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, margin: "0 0 28px" }}>
-                从安装依赖到打包给 Artifact Workbench，按顺序执行即可。
+                {sop.stepsDescription}
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -411,10 +413,10 @@ export default function HomePage() {
             {/* ── Submission requirements ──────────────────────────── */}
             <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 24px" }}>
-                提交要求
+                {sop.rulesTitle}
               </p>
               <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 24px", color: TEXT }}>
-                交付前逐条对照。
+                {sop.rulesDescription}
               </h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14 }}>
                 {sop.rules.map((rule, i) => (
@@ -535,7 +537,7 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
 
       <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
-          MINI APP INPUTS
+          {doc.requirementsKicker}
         </p>
         <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
           {doc.requirementsTitle}
@@ -555,7 +557,7 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
 
       <section style={{ marginTop: 72 }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
-          MINI APP / CUSTOM UI
+          {doc.comparisonKicker}
         </p>
         <h2 style={{ fontSize: 28, fontWeight: 680, lineHeight: 1.2, margin: "0 0 8px", color: TEXT }}>
           {doc.comparisonTitle}
