@@ -53,7 +53,7 @@ chainId + tokenAddress
 8. Pick the closest pattern.
 9. Select the closest public-safe snippet from `docs/ui-pattern-snippets.md` for section order, transaction state, and empty/error states.
 10. For a new package, prefer `yarn vault:scaffold {folder-name} --name "..." --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales ...` for factory mode with mainnet launch intent, or `yarn vault:scaffold {folder-name} --name "..." --chain 56 --vault 0x... --token 0x... --locales ...` for no-factory mode before implementation.
-11. Implement package files only under `src/vaults/{folder-name}`. Default Vault UI must not create auxiliary files, helpers, local modules, assets, or nested folders. The sole 3D exception is a token-scoped 8888 Mini App with `capabilities: ["three-r3f-v1"]`; it may use only recursively statically reachable profile-approved files and the four pinned 3D packages. Read `docs/mini-app-3d.md`, follow `flap-skies-showcase` for experience quality, and follow `three-r3f-example` for the compact technical fixture.
+11. Implement package files only under `src/vaults/{folder-name}`. Default Vault UI must not create auxiliary files, helpers, local modules, assets, or nested folders. The sole 3D exception is a token-scoped 8888 Mini App with `capabilities: ["three-r3f-v1"]`; it may use only recursively statically reachable profile-approved files and the four pinned 3D packages. Read `docs/mini-app-3d.md`, follow `flap-skies-showcase` for experience quality, `flap-gamefi-arena` for keyboard/touch GameFi interaction, and `three-r3f-example` for the compact technical fixture.
 12. Generate:
    - `src/vaults/{folder-name}/Component.tsx`
    - `src/vaults/{folder-name}/manifest.json`

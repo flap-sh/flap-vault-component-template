@@ -91,6 +91,10 @@ type MiniAppGuideContent = {
     skiesTitle: string;
     skiesDescription: string;
     skiesCta: string;
+    gameBadge: string;
+    gameTitle: string;
+    gameDescription: string;
+    gameCta: string;
     technicalBadge: string;
     technicalTitle: string;
     technicalDescription: string;
@@ -575,6 +579,30 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 18 }}>
+          <article data-testid="flap-gamefi-arena-preview-card" style={{ overflow: "hidden", background: PANEL, border: "1px solid rgba(139,98,255,0.46)", borderRadius: 14, boxShadow: "0 18px 70px rgba(139,98,255,0.15)" }}>
+            <div style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "#050711" }}>
+              <Image
+                src="/docs/flap-gamefi-arena-preview.jpg"
+                alt={doc.examples.gameTitle}
+                width={2056}
+                height={1032}
+                style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 58%", transform: "scale(1.03)" }}
+              />
+              <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 58%,rgba(4,5,17,0.82) 100%)" }} />
+              <span style={{ position: "absolute", left: 18, bottom: 14, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(145,246,255,0.28)", background: "rgba(5,7,17,0.66)", color: "#9ff9ff", fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", backdropFilter: "blur(8px)" }}>Interactive GameFi · Flap Showcase Only</span>
+            </div>
+            <div style={{ padding: 24 }}>
+              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(139,98,255,0.12)", border: "1px solid rgba(139,98,255,0.35)", color: "#b69cff", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                {doc.examples.gameBadge}
+              </span>
+              <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.gameTitle}</h3>
+              <p style={{ margin: "0 0 18px", color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.gameDescription}</p>
+              <Link href="/flap-gamefi-arena" style={btnPrimary}>
+                {doc.examples.gameCta} <ArrowSpan />
+              </Link>
+            </div>
+          </article>
+
           <article data-testid="flap-farm-guide-card" style={{ overflow: "hidden", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
             <div style={{ height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: BG2 }}>
               <Image src="/docs/mini-app-flap-farm-preview.png" alt={doc.preview.imageAlt} width={1440} height={2824} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />

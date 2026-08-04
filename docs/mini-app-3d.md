@@ -4,10 +4,13 @@ Flap supports standard 3D experiences only for token-scoped 8888 Mini Apps throu
 
 ## Live examples
 
+- `http://localhost:3230/flap-gamefi-arena` — playable GameFi-style energy arena with keyboard/touch movement, boost, collectible cores, score/progress, completion/restart states, Flap logo, and the `Play the curve. Shape the world.` slogan. It is an original code-built adaptation of the movement and spatial-interaction ideas demonstrated by the official Three.js `games_fps` example; it does not copy that example's assets.
 - `http://localhost:3230/flap-skies-showcase` — polished Flap-branded showcase with the visible `Flap Showcase Only` mark.
 - `http://localhost:3230/three-r3f-example` — compact technical fixture covering the complete build and validation path.
-- The public Template Mini App tab links both previews prominently: `https://flap-vault-component-template.vercel.app/?tab=mini-app`.
+- The public Template Mini App tab links all three 3D previews prominently: `https://flap-vault-component-template.vercel.app/?tab=mini-app`.
 - Flap Farm remains on that page as the original non-3D Mini App shell and interaction guide.
+
+Choose the example by purpose: start with `flap-gamefi-arena` for interactive gameplay patterns, use `flap-skies-showcase` for visual polish, and use `three-r3f-example` for the smallest capability-integration fixture.
 
 ## Capability matrix
 

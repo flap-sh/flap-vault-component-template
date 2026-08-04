@@ -45,7 +45,7 @@ Mini App mode is token-address-bound. A manifest with `mode: "mini-app"` must pr
 
 ### Versioned 3D capability
 
-The complete developer-facing support matrix, limits, two live previews, and proof checklist are maintained in `docs/mini-app-3d.md`.
+The complete developer-facing support matrix, limits, three live 3D previews, and proof checklist are maintained in `docs/mini-app-3d.md`.
 
 Full 3D is opt-in and Mini App-only:
 

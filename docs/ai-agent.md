@@ -40,7 +40,7 @@ The contract is intentionally small:
 - Implement only the Vault-specific business UI for that package. Do not expand a Vault task into preview shell/header work unless the user explicitly asks for shell work.
 - Keep the default Vault folder limited to exactly four core files. Mini App mode may additionally include reviewed top-level audio files.
 - Keep default Vault rules unchanged. Only a token-scoped 8888 Mini App declaring `capabilities: ["three-r3f-v1"]` may use recursive static TS/TSX, shader, model, texture, environment, font, or controlled decoder assets. Start from `src/vaults/three-r3f-example`, keep every file statically reachable, and expose `data-flap-3d-state` plus `data-flap-3d-renderer`.
-- Read `docs/mini-app-3d.md` for the full package/API/asset/fallback/limit matrix. Use `flap-skies-showcase` as the experience-quality reference and `three-r3f-example` as the minimal technical integration reference.
+- Read `docs/mini-app-3d.md` for the full package/API/asset/fallback/limit matrix. Use `flap-skies-showcase` as the experience-quality reference, `flap-gamefi-arena` as the keyboard/touch gameplay reference, and `three-r3f-example` as the minimal technical integration reference.
 - Register the Vault folder name in `src/vaults/index.ts` so local preview works.
 - Use `yarn vault:register {folder-name}` when the core files already exist and scaffold did not create the package.
 - Run checks before packaging.

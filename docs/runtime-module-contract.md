@@ -2,7 +2,7 @@
 
 ## Mini App 3D assets
 
-See `docs/mini-app-3d.md` for the complete capability matrix and the `flap-skies-showcase` / `three-r3f-example` live reference routes.
+See `docs/mini-app-3d.md` for the complete capability matrix and the `flap-skies-showcase` / `flap-gamefi-arena` / `three-r3f-example` live reference routes.
 
 `three-r3f-v1` source packages build to the same five required runtime roots plus a metadata-declared `assets/**` set. Every asset path is content addressed, carries MIME, byte size, and SHA-256 in `metadata.json`, and is resolved relative to `import.meta.url`. Hosts must load, cache, validate, and publish exactly this list; directory scanning is not part of the contract.
 

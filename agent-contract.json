@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 40,
+  "version": 41,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -27,7 +27,7 @@
   "miniAppCapabilities": {
     "profileConfig": "config/mini-app-capability-profiles.json",
     "documentation": "docs/mini-app-3d.md",
-    "liveExamples": ["/flap-skies-showcase", "/three-r3f-example"],
+    "liveExamples": ["/flap-gamefi-arena", "/flap-skies-showcase", "/three-r3f-example"],
     "manifestField": "capabilities",
     "profiles": {
       "three-r3f-v1": {
