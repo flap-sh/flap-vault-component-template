@@ -43,6 +43,52 @@ final result: passed
 
 ---
 
+# Mini App example gallery design QA
+
+- Source visual truth: `/var/folders/p7/w7_k9cvx7nd6hl1b24tvgpt00000gn/T/codex-clipboard-19c8ca2f-1e5c-45b7-8f6a-3b339708fb61.png`
+- Implementation screenshot: `dist/design-qa/mini-app-gallery-desktop-zh.png`
+- Viewport: 1440 x 1000 CSS px, desktop, Chinese Mini App tab
+- Source pixels: 2592 x 2164
+- Implementation pixels: 1440 x 1000 at device scale 1
+- Density normalization: both images were opened together at original resolution; the comparison focused on the same Mini App example-gallery region rather than browser chrome or surrounding sections.
+- State: four preview cards visible with the capability strip and every primary CTA.
+
+## Full-view comparison evidence
+
+The source shows three cards on the first row, the technical card orphaned on a second row, the Farm card without a button, and long paragraphs that make the card purposes slow to scan. The implementation keeps the same Flap surface, imagery, colors, capability strip, badges, and button treatment while presenting all four cards in one desktop row. Flap Farm is now first, every card has an aligned primary CTA, and the section introduction explains the progression from the lightweight shell to playable 3D and the developer reference.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Flap families, weights, and token colors are preserved. The heading and summary are shorter, card titles use a consistent 19 px hierarchy, and body copy uses 13.5 px / 1.65 line height without truncation.
+- Spacing and layout rhythm: the desktop grid resolves to four equal 240.5 px tracks with 18 px gaps; the 1024 px breakpoint resolves to two equal 471 px tracks; mobile resolves to one 358 px track. All four cards are equal-height within each breakpoint and have bottom-aligned buttons.
+- Colors and visual tokens: existing dark panels, blue CTA gradient, green Farm badge, violet GameFi badge, and blue 3D badges are preserved with no new competing color system.
+- Image quality and asset fidelity: the three existing preview captures and existing technical fixture art retain their intended crops. Desktop image height is reduced to 180 px so all four previews remain legible in one row without dominating the copy.
+- Copy and content: English and Chinese now identify the recommended starting point, playable GameFi example, branded 3D world, and developer reference in plain language. The Farm route text is replaced by an explicit action button.
+
+## Focused-region evidence
+
+No extra crop was required because the 1440 x 1000 implementation screenshot keeps all four badges, titles, complete descriptions, and CTA labels readable in a single view. DOM inspection independently confirmed all four CTA labels and destinations.
+
+## Interaction and responsive evidence
+
+- The Farm button was activated in the in-app browser and navigated to `/flap-farm-vault`.
+- Desktop layout: four columns, no horizontal overflow.
+- 1024 px layout: two columns by two rows, no horizontal overflow.
+- 390 px layout: one card per row, no horizontal overflow.
+- Browser logs contain no errors; the remaining messages are existing local-development warnings.
+
+## Comparison history
+
+The first implementation pass achieved the requested order and responsive grid but the English Farm and technical CTA labels wrapped at the 240.5 px desktop card width. Both labels were shortened, then the English and Chinese galleries were recaptured and rechecked. No actionable P0/P1/P2 issue remains.
+
+## Findings
+
+No actionable P0/P1/P2 differences remain. The implementation intentionally improves the source layout rather than preserving the orphaned fourth card or Farm route label.
+
+final result: passed
+
+---
+
 # Flap Energy Arena design QA
 
 - Source visual truth: `dist/design-qa/threejs-games-fps-reference.jpg`

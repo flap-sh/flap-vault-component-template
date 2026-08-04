@@ -86,7 +86,7 @@ type MiniAppGuideContent = {
     farmBadge: string;
     farmTitle: string;
     farmDescription: string;
-    farmRouteLabel: string;
+    farmCta: string;
     skiesBadge: string;
     skiesTitle: string;
     skiesDescription: string;
@@ -578,9 +578,23 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 18 }}>
-          <article data-testid="flap-gamefi-arena-preview-card" style={{ overflow: "hidden", background: PANEL, border: "1px solid rgba(139,98,255,0.46)", borderRadius: 14, boxShadow: "0 18px 70px rgba(139,98,255,0.15)" }}>
-            <div style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "#050711" }}>
+        <div data-testid="mini-app-example-grid" className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-4">
+          <article data-testid="flap-farm-guide-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
+            <div className="h-[210px] md:h-[220px] xl:h-[180px]" style={{ overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: BG2 }}>
+              <Image src="/docs/mini-app-flap-farm-preview.png" alt={doc.preview.imageAlt} width={1440} height={2824} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
+            </div>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: 20 }}>
+              <span style={{ alignSelf: "flex-start", display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(54,211,153,0.09)", border: "1px solid rgba(54,211,153,0.22)", color: OK, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>{doc.examples.farmBadge}</span>
+              <h3 style={{ margin: "13px 0 8px", color: TEXT, fontSize: 19, lineHeight: 1.3 }}>{doc.examples.farmTitle}</h3>
+              <p style={{ flex: 1, margin: "0 0 18px", color: TEXT2, fontSize: 13.5, lineHeight: 1.65 }}>{doc.examples.farmDescription}</p>
+              <Link href={doc.preview.route} style={{ ...btnPrimary, width: "100%" }}>
+                {doc.examples.farmCta} <ArrowSpan />
+              </Link>
+            </div>
+          </article>
+
+          <article data-testid="flap-gamefi-arena-preview-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: "1px solid rgba(139,98,255,0.46)", borderRadius: 14, boxShadow: "0 18px 70px rgba(139,98,255,0.15)" }}>
+            <div className="h-[210px] md:h-[220px] xl:h-[180px]" style={{ position: "relative", overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "#050711" }}>
               <Image
                 src="/docs/flap-gamefi-arena-preview.jpg"
                 alt={doc.examples.gameTitle}
@@ -589,34 +603,22 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
                 style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 58%", transform: "scale(1.03)" }}
               />
               <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 58%,rgba(4,5,17,0.82) 100%)" }} />
-              <span style={{ position: "absolute", left: 18, bottom: 14, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(145,246,255,0.28)", background: "rgba(5,7,17,0.66)", color: "#9ff9ff", fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", backdropFilter: "blur(8px)" }}>Interactive GameFi · Flap Showcase Only</span>
+              <span style={{ position: "absolute", left: 14, right: 14, bottom: 12, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(145,246,255,0.28)", background: "rgba(5,7,17,0.66)", color: "#9ff9ff", fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.09em", textAlign: "center", textTransform: "uppercase", backdropFilter: "blur(8px)" }}>Interactive GameFi · Flap Showcase Only</span>
             </div>
-            <div style={{ padding: 24 }}>
-              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(139,98,255,0.12)", border: "1px solid rgba(139,98,255,0.35)", color: "#b69cff", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: 20 }}>
+              <span style={{ alignSelf: "flex-start", display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(139,98,255,0.12)", border: "1px solid rgba(139,98,255,0.35)", color: "#b69cff", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 {doc.examples.gameBadge}
               </span>
-              <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.gameTitle}</h3>
-              <p style={{ margin: "0 0 18px", color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.gameDescription}</p>
-              <Link href="/flap-gamefi-arena" style={btnPrimary}>
+              <h3 style={{ margin: "13px 0 8px", color: TEXT, fontSize: 19, lineHeight: 1.3 }}>{doc.examples.gameTitle}</h3>
+              <p style={{ flex: 1, margin: "0 0 18px", color: TEXT2, fontSize: 13.5, lineHeight: 1.65 }}>{doc.examples.gameDescription}</p>
+              <Link href="/flap-gamefi-arena" style={{ ...btnPrimary, width: "100%" }}>
                 {doc.examples.gameCta} <ArrowSpan />
               </Link>
             </div>
           </article>
 
-          <article data-testid="flap-farm-guide-card" style={{ overflow: "hidden", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
-            <div style={{ height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: BG2 }}>
-              <Image src="/docs/mini-app-flap-farm-preview.png" alt={doc.preview.imageAlt} width={1440} height={2824} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
-            </div>
-            <div style={{ padding: 24 }}>
-              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(54,211,153,0.09)", border: "1px solid rgba(54,211,153,0.22)", color: OK, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>{doc.examples.farmBadge}</span>
-              <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.farmTitle}</h3>
-              <p style={{ margin: 0, color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.farmDescription}</p>
-              <div style={{ marginTop: 18, fontFamily: MONO, fontSize: 12.5, color: TEXT3 }}>{doc.examples.farmRouteLabel}: <span style={{ color: ACCENT2 }}>{doc.preview.route}</span></div>
-            </div>
-          </article>
-
-          <article data-testid="flap-skies-preview-card" style={{ overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(77,141,255,0.12)" }}>
-            <div style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "#050718" }}>
+          <article data-testid="flap-skies-preview-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(77,141,255,0.12)" }}>
+            <div className="h-[210px] md:h-[220px] xl:h-[180px]" style={{ position: "relative", overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "#050718" }}>
               <Image
                 src="/docs/flap-skies-preview.jpg"
                 alt={doc.examples.skiesTitle}
@@ -625,34 +627,34 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
                 style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 48%", transform: "scale(1.045)" }}
               />
               <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 64%,rgba(3,5,18,0.76) 100%)" }} />
-              <span style={{ position: "absolute", left: 18, bottom: 14, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.22)", background: "rgba(5,7,24,0.62)", color: "rgba(255,255,255,0.9)", fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", backdropFilter: "blur(8px)" }}>Flap Showcase Only</span>
+              <span style={{ position: "absolute", left: 14, bottom: 12, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.22)", background: "rgba(5,7,24,0.62)", color: "rgba(255,255,255,0.9)", fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", backdropFilter: "blur(8px)" }}>Flap Showcase Only</span>
             </div>
-            <div style={{ padding: 24 }}>
-              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: 20 }}>
+              <span style={{ alignSelf: "flex-start", display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 {doc.examples.skiesBadge}
               </span>
-              <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.skiesTitle}</h3>
-              <p style={{ margin: "0 0 18px", color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.skiesDescription}</p>
-              <Link href="/flap-skies-showcase" style={btnPrimary}>
+              <h3 style={{ margin: "13px 0 8px", color: TEXT, fontSize: 19, lineHeight: 1.3 }}>{doc.examples.skiesTitle}</h3>
+              <p style={{ flex: 1, margin: "0 0 18px", color: TEXT2, fontSize: 13.5, lineHeight: 1.65 }}>{doc.examples.skiesDescription}</p>
+              <Link href="/flap-skies-showcase" style={{ ...btnPrimary, width: "100%" }}>
                 {doc.examples.skiesCta} <ArrowSpan />
               </Link>
             </div>
           </article>
 
-          <article data-testid="three-r3f-preview-card" style={{ overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(120,93,255,0.10)" }}>
-            <div aria-hidden="true" style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "linear-gradient(145deg,#090b1f 0%,#16133b 55%,#071b2b 100%)" }}>
+          <article data-testid="three-r3f-preview-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(120,93,255,0.10)" }}>
+            <div aria-hidden="true" className="h-[210px] md:h-[220px] xl:h-[180px]" style={{ position: "relative", overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "linear-gradient(145deg,#090b1f 0%,#16133b 55%,#071b2b 100%)" }}>
               <div style={{ position: "absolute", inset: 0, opacity: 0.55, backgroundImage: "linear-gradient(rgba(119,117,255,0.28) 1px,transparent 1px),linear-gradient(90deg,rgba(119,117,255,0.28) 1px,transparent 1px)", backgroundSize: "28px 28px", transform: "perspective(340px) rotateX(58deg) scale(1.55) translateY(42px)" }} />
               <div style={{ position: "absolute", left: "22%", top: "27%", width: 94, height: 94, borderRadius: 24, transform: "rotate(28deg)", background: "linear-gradient(135deg,#b38cff,#4d8dff)", boxShadow: "0 18px 65px rgba(117,105,255,0.48)" }} />
               <div style={{ position: "absolute", right: "20%", top: "36%", width: 88, height: 88, borderRadius: "50%", background: "radial-gradient(circle at 32% 28%,#b9fff2,#3cc9bd 30%,#156377 72%,#09293d)", boxShadow: "0 18px 65px rgba(57,207,198,0.36)" }} />
-              <span style={{ position: "absolute", left: 18, bottom: 16, color: "rgba(255,255,255,0.78)", fontFamily: MONO, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Capability Fixture · three-r3f-v1</span>
+              <span style={{ position: "absolute", left: 14, right: 14, bottom: 14, color: "rgba(255,255,255,0.78)", fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.09em", textAlign: "center", textTransform: "uppercase" }}>Capability Fixture · three-r3f-v1</span>
             </div>
-            <div style={{ padding: 24 }}>
-              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: 20 }}>
+              <span style={{ alignSelf: "flex-start", display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 {doc.examples.technicalBadge}
               </span>
-              <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.technicalTitle}</h3>
-              <p style={{ margin: "0 0 18px", color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.technicalDescription}</p>
-              <Link href="/three-r3f-example" style={btnPrimary}>
+              <h3 style={{ margin: "13px 0 8px", color: TEXT, fontSize: 19, lineHeight: 1.3 }}>{doc.examples.technicalTitle}</h3>
+              <p style={{ flex: 1, margin: "0 0 18px", color: TEXT2, fontSize: 13.5, lineHeight: 1.65 }}>{doc.examples.technicalDescription}</p>
+              <Link href="/three-r3f-example" style={{ ...btnPrimary, width: "100%" }}>
                 {doc.examples.technicalCta} <ArrowSpan />
               </Link>
             </div>
