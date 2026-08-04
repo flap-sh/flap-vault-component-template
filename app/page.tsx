@@ -12,7 +12,6 @@ import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
 import { FlapNavbar } from "@/src/shell/FlapNavbar";
 import exampleManifest from "@/src/vaults/example/manifest.json";
 import exampleI18n from "@/src/vaults/example/i18n.json";
-import flapLogo from "@/src/vaults/flap-skies-showcase/assets/flap-logo.png";
 
 const homeManifest = exampleManifest as VaultManifest;
 const homeI18n = exampleI18n as Record<string, Record<string, string>>;
@@ -589,11 +588,16 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
           </article>
 
           <article data-testid="flap-skies-preview-card" style={{ overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(77,141,255,0.12)" }}>
-            <div aria-hidden="true" style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "radial-gradient(circle at 50% 48%, rgba(101,174,255,0.52) 0 13%, rgba(38,109,207,0.26) 14% 27%, transparent 28%), radial-gradient(circle at 52% 42%, #1d456d 0 23%, #0b1c32 24% 38%, transparent 39%), linear-gradient(155deg,#020816 0%,#071a32 52%,#18223a 100%)" }}>
-              <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.75) 0 1px,transparent 1.5px)", backgroundSize: "31px 31px", opacity: 0.34 }} />
-              <div style={{ position: "absolute", left: "50%", top: "50%", width: 154, height: 154, transform: "translate(-50%,-50%) rotate(-8deg)", borderRadius: "50%", border: "1px solid rgba(126,196,255,0.65)", boxShadow: "0 0 48px rgba(77,141,255,0.44), inset -24px -28px 44px rgba(0,0,0,0.55)", background: "radial-gradient(circle at 35% 30%,#83d4ff 0 8%,#2d82ca 9% 42%,#174272 60%,#0b203c 100%)" }} />
-              <Image src={flapLogo} alt="" width={52} height={52} style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 52, height: 52, objectFit: "contain", filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))" }} />
-              <span style={{ position: "absolute", left: 18, bottom: 16, color: "rgba(255,255,255,0.78)", fontFamily: MONO, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Flap Showcase Only</span>
+            <div style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "#050718" }}>
+              <Image
+                src="/docs/flap-skies-preview.jpg"
+                alt={doc.examples.skiesTitle}
+                width={1800}
+                height={1269}
+                style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 48%", transform: "scale(1.045)" }}
+              />
+              <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 64%,rgba(3,5,18,0.76) 100%)" }} />
+              <span style={{ position: "absolute", left: 18, bottom: 14, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.22)", background: "rgba(5,7,24,0.62)", color: "rgba(255,255,255,0.9)", fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", backdropFilter: "blur(8px)" }}>Flap Showcase Only</span>
             </div>
             <div style={{ padding: 24 }}>
               <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
