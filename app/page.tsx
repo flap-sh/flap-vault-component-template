@@ -12,6 +12,7 @@ import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
 import { FlapNavbar } from "@/src/shell/FlapNavbar";
 import exampleManifest from "@/src/vaults/example/manifest.json";
 import exampleI18n from "@/src/vaults/example/i18n.json";
+import flapLogo from "@/src/vaults/flap-skies-showcase/assets/flap-logo.png";
 
 const homeManifest = exampleManifest as VaultManifest;
 const homeI18n = exampleI18n as Record<string, Record<string, string>>;
@@ -77,6 +78,22 @@ type MiniAppGuideContent = {
     title: string;
     body: string;
   }>;
+  examples: {
+    kicker: string;
+    title: string;
+    description: string;
+    farmBadge: string;
+    farmTitle: string;
+    farmDescription: string;
+    farmRouteLabel: string;
+    skiesBadge: string;
+    skiesTitle: string;
+    skiesDescription: string;
+    skiesCta: string;
+    technicalLabel: string;
+    technicalDescription: string;
+    technicalCta: string;
+  };
   comparisonTitle: string;
   comparisonDescription: string;
   comparisonTopicHeader: string;
@@ -535,6 +552,71 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
         </div>
       </section>
 
+      <section data-testid="mini-app-example-gallery" style={{ marginTop: 72 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
+          {doc.examples.kicker}
+        </p>
+        <h2 style={{ fontSize: 28, fontWeight: 680, lineHeight: 1.2, margin: "0 0 8px", color: TEXT }}>
+          {doc.examples.title}
+        </h2>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, margin: "0 0 28px", maxWidth: "72ch" }}>
+          {doc.examples.description}
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 18 }}>
+          <article style={{ overflow: "hidden", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
+            <div style={{ height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: BG2 }}>
+              <Image
+                src="/docs/mini-app-flap-farm-preview.png"
+                alt={doc.preview.imageAlt}
+                width={1440}
+                height={2824}
+                style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}
+              />
+            </div>
+            <div style={{ padding: 24 }}>
+              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(54,211,153,0.09)", border: "1px solid rgba(54,211,153,0.22)", color: OK, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                {doc.examples.farmBadge}
+              </span>
+              <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.farmTitle}</h3>
+              <p style={{ margin: 0, color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.farmDescription}</p>
+              <div style={{ marginTop: 18, fontFamily: MONO, fontSize: 12.5, color: TEXT3 }}>
+                {doc.examples.farmRouteLabel}: <span style={{ color: ACCENT2 }}>{doc.preview.route}</span>
+              </div>
+            </div>
+          </article>
+
+          <article style={{ overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(77,141,255,0.12)" }}>
+            <div aria-hidden="true" style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "radial-gradient(circle at 50% 48%, rgba(101,174,255,0.52) 0 13%, rgba(38,109,207,0.26) 14% 27%, transparent 28%), radial-gradient(circle at 52% 42%, #1d456d 0 23%, #0b1c32 24% 38%, transparent 39%), linear-gradient(155deg,#020816 0%,#071a32 52%,#18223a 100%)" }}>
+              <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.75) 0 1px,transparent 1.5px)", backgroundSize: "31px 31px", opacity: 0.34 }} />
+              <div style={{ position: "absolute", left: "50%", top: "50%", width: 154, height: 154, transform: "translate(-50%,-50%) rotate(-8deg)", borderRadius: "50%", border: "1px solid rgba(126,196,255,0.65)", boxShadow: "0 0 48px rgba(77,141,255,0.44), inset -24px -28px 44px rgba(0,0,0,0.55)", background: "radial-gradient(circle at 35% 30%,#83d4ff 0 8%,#2d82ca 9% 42%,#174272 60%,#0b203c 100%)" }} />
+              <Image src={flapLogo} alt="" width={52} height={52} style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 52, height: 52, objectFit: "contain", filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))" }} />
+              <span style={{ position: "absolute", left: 18, bottom: 16, color: "rgba(255,255,255,0.78)", fontFamily: MONO, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Flap Showcase Only</span>
+            </div>
+            <div style={{ padding: 24 }}>
+              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                {doc.examples.skiesBadge}
+              </span>
+              <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.skiesTitle}</h3>
+              <p style={{ margin: "0 0 18px", color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.skiesDescription}</p>
+              <Link href="/flap-skies-showcase" style={btnPrimary}>
+                {doc.examples.skiesCta} <ArrowSpan />
+              </Link>
+            </div>
+          </article>
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16, marginTop: 18, padding: "18px 20px", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 12 }}>
+          <div>
+            <div style={{ color: TEXT, fontSize: 14.5, fontWeight: 700 }}>{doc.examples.technicalLabel}</div>
+            <div style={{ marginTop: 3, color: TEXT3, fontSize: 13.5 }}>{doc.examples.technicalDescription}</div>
+          </div>
+          <Link href="/three-r3f-example" style={{ ...btnSecondary, minWidth: 220 }}>
+            {doc.examples.technicalCta} <ArrowSpan />
+          </Link>
+        </div>
+      </section>
+
       <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
           {doc.requirementsKicker}
@@ -581,33 +663,6 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
           ))}
           </div>
         </div>
-      </section>
-
-      <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
-        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
-          {doc.preview.kicker}
-        </p>
-        <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
-          {doc.preview.title}
-        </h3>
-        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, maxWidth: "68ch", margin: "0 0 24px" }}>
-          {doc.preview.description}
-        </p>
-        <div style={{ overflow: "hidden", border: `1px solid ${BORDER}`, borderRadius: 12, background: BG2 }}>
-          <Image
-            src="/docs/mini-app-flap-farm-preview.png"
-            alt={doc.preview.imageAlt}
-            width={1440}
-            height={2824}
-            style={{ display: "block", width: "100%", maxHeight: 620, objectFit: "cover", objectPosition: "top center" }}
-          />
-        </div>
-        <p style={{ fontSize: 13.5, color: TEXT3, margin: "14px 0 0" }}>
-          <strong style={{ color: TEXT2, fontWeight: 600 }}>{doc.preview.routeLabel}: </strong>
-          <code style={{ fontFamily: MONO, color: ACCENT2 }}>{doc.preview.route}</code>
-          {" · "}
-          {doc.preview.caption}
-        </p>
       </section>
 
       <section style={{ marginTop: 72, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 18 }}>

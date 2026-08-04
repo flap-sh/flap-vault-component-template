@@ -136,6 +136,22 @@
             "body": "SDK 是一组小 function / hook 的组合，不是让开发者重新造 SDK。需求里要写清楚要用哪些 `@/src/sdk` 能力、primary reads/writes、refetch points、wallet/network 状态和 fallback；不要新增 SDK-like wrapper。"
           }
         ],
+        "examples": {
+          "kicker": "Mini App 示例",
+          "title": "两种视觉方向并列保留，作为接入指引。",
+          "description": "蝴蝶农场继续作为轻量 Mini App 壳、交互和宿主接入参考；Flap Skies 展示标准 Three/R3F 能力，包括代码几何、运行时 Canvas 纹理、Shader、后处理、响应式降级和 Flap 自有展示。项目按目标体验选择最接近的示例，不会扩大默认 Vault UI 的权限边界。",
+          "farmBadge": "原有指引",
+          "farmTitle": "蝴蝶农场",
+          "farmDescription": "原有 Mini App 参考继续保留，用于说明紧凑玩法、全屏布局以及 host/manifest 接入方式。",
+          "farmRouteLabel": "归档预览路由",
+          "skiesBadge": "3D 展示",
+          "skiesTitle": "Flap Skies",
+          "skiesDescription": "Flap 自有品牌的原创 3D 世界，借鉴公开微缩世界 Demo 的直观表达，完整运行在 three-r3f-v1 档案内，不发起网络请求，也不加载远程资源。",
+          "skiesCta": "打开 3D 展示",
+          "technicalLabel": "需要更小的能力测试夹具？",
+          "technicalDescription": "技术版 Three/R3F 示例单独覆盖嵌套组件、Shader、本地字体/模型/纹理、运行时 Canvas 纹理和后处理。",
+          "technicalCta": "打开技术示例"
+        },
         "comparisonKicker": "Mini App / 定制 UI",
         "comparisonTitle": "Mini App 和定制 Vault UI 的主要差异。",
         "comparisonDescription": "默认仍展示定制 UI；Mini App 是另一个模式。它不是无限制网页容器，而是在同一套 controlled source package 上换了绑定方式、预览壳、外部能力边界和审核策略。",
