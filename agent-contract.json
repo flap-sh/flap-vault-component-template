@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 39,
+  "version": 40,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
       "agent-contract.json",
       "AGENTS.md",
       "docs/ai-agent.md",
+      "docs/mini-app-3d.md",
       "docs/agent-entrypoints.md",
       "docs/ui-pattern-snippets.md",
       "skills/flap-vault-ui-generator/SKILL.md"
@@ -25,6 +26,8 @@
   "packageManager": "yarn",
   "miniAppCapabilities": {
     "profileConfig": "config/mini-app-capability-profiles.json",
+    "documentation": "docs/mini-app-3d.md",
+    "liveExamples": ["/flap-skies-showcase", "/three-r3f-example"],
     "manifestField": "capabilities",
     "profiles": {
       "three-r3f-v1": {
@@ -129,7 +132,7 @@
     "recharts"
   ],
   "manifest": {
-    "allowedTopLevelFields": ["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"],
+    "allowedTopLevelFields": ["artifactId", "name", "displayTitle", "match", "i18n", "mode", "capabilities", "layout", "endpoints", "externalFrames"],
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],

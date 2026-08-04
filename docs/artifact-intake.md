@@ -8,6 +8,8 @@ Use `Artifact Workbench` as the platform name. It is the internal Flap workbench
 
 Current packages use source format 6 and E2E report v2. Workbench keeps a transition reader for legacy format 5 packages that do not declare `capabilities`; any package declaring `three-r3f-v1` must be format 6 and include the exact capability profile contract. Format 6 hashes every recursively reachable source and asset file, normalizing text line endings while hashing binary resources byte-for-byte.
 
+For the complete `three-r3f-v1` authoring, browser API, asset, fallback, limit, example, and E2E matrix, read `docs/mini-app-3d.md`. The two live references are `flap-skies-showcase` and `three-r3f-example`.
+
 There are two different outputs:
 
 - `yarn vault:package <folder-name>` creates a source package for the Flap Artifact Workbench. Default Vault UI remains the strict four-file package. Mini Apps may additionally include reviewed top-level audio, and a Mini App declaring `three-r3f-v1` may include only recursively statically reachable source, shader, model, texture, environment, font, and controlled decoder files under the same folder. The zip also includes the manifest schema, capability profile contract, workbench metadata, script-generated package marker, and `qa/e2e-report.json`.

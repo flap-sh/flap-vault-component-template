@@ -138,8 +138,10 @@
         ],
         "examples": {
           "kicker": "Mini App Examples",
-          "title": "Two visual directions, kept side by side as implementation guides.",
-          "description": "Flap Farm remains the lightweight Mini App shell and interaction reference. Flap Skies adds the standard Three/R3F capability path with code-built geometry, runtime canvas textures, shaders, postprocessing, responsive fallback, and Flap-owned presentation. Choose the example closest to the intended experience; neither expands the default Vault UI permission boundary.",
+          "title": "3D Mini Apps are supported — open either live preview.",
+          "description": "Flap Skies is the polished Flap-branded showcase; Three/R3F Example is the compact implementation fixture. Both are first-class three-r3f-v1 previews. Flap Farm remains below as the original lightweight Mini App shell guide.",
+          "capabilityLabel": "Supported 3D capability · three-r3f-v1",
+          "capabilityFeatures": ["Three r185", "React Three Fiber", "Drei", "Postprocessing", "WebGL2", "Shaders", "Runtime 2D Canvas textures", "Responsive 2D/static fallback"],
           "farmBadge": "Existing guide",
           "farmTitle": "Flap Farm",
           "farmDescription": "The original Mini App reference stays available as the compact shell, fullscreen layout, and host/manifest integration guide.",
@@ -148,7 +150,8 @@
           "skiesTitle": "Flap Skies",
           "skiesDescription": "An original Flap-branded 3D world inspired by the clarity of public miniature-world demos, built entirely inside the three-r3f-v1 profile without network calls or remote assets.",
           "skiesCta": "Open the 3D showcase",
-          "technicalLabel": "Need a smaller capability fixture?",
+          "technicalBadge": "3D technical preview",
+          "technicalTitle": "Three/R3F Example",
           "technicalDescription": "The technical Three/R3F example isolates nested components, shaders, local font/model/texture assets, runtime Canvas textures, and postprocessing.",
           "technicalCta": "Open technical example"
         },

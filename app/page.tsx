@@ -82,6 +82,8 @@ type MiniAppGuideContent = {
     kicker: string;
     title: string;
     description: string;
+    capabilityLabel: string;
+    capabilityFeatures: string[];
     farmBadge: string;
     farmTitle: string;
     farmDescription: string;
@@ -90,7 +92,8 @@ type MiniAppGuideContent = {
     skiesTitle: string;
     skiesDescription: string;
     skiesCta: string;
-    technicalLabel: string;
+    technicalBadge: string;
+    technicalTitle: string;
     technicalDescription: string;
     technicalCta: string;
   };
@@ -552,7 +555,7 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
         </div>
       </section>
 
-      <section data-testid="mini-app-example-gallery" style={{ marginTop: 72 }}>
+      <section data-testid="mini-app-example-gallery" style={{ marginTop: 32, padding: "28px 0 0" }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
           {doc.examples.kicker}
         </p>
@@ -563,30 +566,29 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
           {doc.examples.description}
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 18 }}>
-          <article style={{ overflow: "hidden", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 18, padding: "14px 16px", borderRadius: 12, border: `1px solid ${ACCLINE}`, background: ACCSOFT }}>
+          <strong style={{ color: ACCENT2, fontSize: 13.5 }}>{doc.examples.capabilityLabel}</strong>
+          {doc.examples.capabilityFeatures.map((feature) => (
+            <span key={feature} style={{ padding: "4px 8px", borderRadius: 999, border: `1px solid ${BORDER}`, background: BG2, color: TEXT2, fontFamily: MONO, fontSize: 11.5 }}>
+              {feature}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 18 }}>
+          <article data-testid="flap-farm-guide-card" style={{ overflow: "hidden", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
             <div style={{ height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: BG2 }}>
-              <Image
-                src="/docs/mini-app-flap-farm-preview.png"
-                alt={doc.preview.imageAlt}
-                width={1440}
-                height={2824}
-                style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}
-              />
+              <Image src="/docs/mini-app-flap-farm-preview.png" alt={doc.preview.imageAlt} width={1440} height={2824} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
             </div>
             <div style={{ padding: 24 }}>
-              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(54,211,153,0.09)", border: "1px solid rgba(54,211,153,0.22)", color: OK, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                {doc.examples.farmBadge}
-              </span>
+              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(54,211,153,0.09)", border: "1px solid rgba(54,211,153,0.22)", color: OK, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>{doc.examples.farmBadge}</span>
               <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.farmTitle}</h3>
               <p style={{ margin: 0, color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.farmDescription}</p>
-              <div style={{ marginTop: 18, fontFamily: MONO, fontSize: 12.5, color: TEXT3 }}>
-                {doc.examples.farmRouteLabel}: <span style={{ color: ACCENT2 }}>{doc.preview.route}</span>
-              </div>
+              <div style={{ marginTop: 18, fontFamily: MONO, fontSize: 12.5, color: TEXT3 }}>{doc.examples.farmRouteLabel}: <span style={{ color: ACCENT2 }}>{doc.preview.route}</span></div>
             </div>
           </article>
 
-          <article style={{ overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(77,141,255,0.12)" }}>
+          <article data-testid="flap-skies-preview-card" style={{ overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(77,141,255,0.12)" }}>
             <div aria-hidden="true" style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "radial-gradient(circle at 50% 48%, rgba(101,174,255,0.52) 0 13%, rgba(38,109,207,0.26) 14% 27%, transparent 28%), radial-gradient(circle at 52% 42%, #1d456d 0 23%, #0b1c32 24% 38%, transparent 39%), linear-gradient(155deg,#020816 0%,#071a32 52%,#18223a 100%)" }}>
               <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.75) 0 1px,transparent 1.5px)", backgroundSize: "31px 31px", opacity: 0.34 }} />
               <div style={{ position: "absolute", left: "50%", top: "50%", width: 154, height: 154, transform: "translate(-50%,-50%) rotate(-8deg)", borderRadius: "50%", border: "1px solid rgba(126,196,255,0.65)", boxShadow: "0 0 48px rgba(77,141,255,0.44), inset -24px -28px 44px rgba(0,0,0,0.55)", background: "radial-gradient(circle at 35% 30%,#83d4ff 0 8%,#2d82ca 9% 42%,#174272 60%,#0b203c 100%)" }} />
@@ -604,16 +606,25 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
               </Link>
             </div>
           </article>
-        </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16, marginTop: 18, padding: "18px 20px", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 12 }}>
-          <div>
-            <div style={{ color: TEXT, fontSize: 14.5, fontWeight: 700 }}>{doc.examples.technicalLabel}</div>
-            <div style={{ marginTop: 3, color: TEXT3, fontSize: 13.5 }}>{doc.examples.technicalDescription}</div>
-          </div>
-          <Link href="/three-r3f-example" style={{ ...btnSecondary, minWidth: 220 }}>
-            {doc.examples.technicalCta} <ArrowSpan />
-          </Link>
+          <article data-testid="three-r3f-preview-card" style={{ overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(120,93,255,0.10)" }}>
+            <div aria-hidden="true" style={{ position: "relative", height: 260, overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "linear-gradient(145deg,#090b1f 0%,#16133b 55%,#071b2b 100%)" }}>
+              <div style={{ position: "absolute", inset: 0, opacity: 0.55, backgroundImage: "linear-gradient(rgba(119,117,255,0.28) 1px,transparent 1px),linear-gradient(90deg,rgba(119,117,255,0.28) 1px,transparent 1px)", backgroundSize: "28px 28px", transform: "perspective(340px) rotateX(58deg) scale(1.55) translateY(42px)" }} />
+              <div style={{ position: "absolute", left: "22%", top: "27%", width: 94, height: 94, borderRadius: 24, transform: "rotate(28deg)", background: "linear-gradient(135deg,#b38cff,#4d8dff)", boxShadow: "0 18px 65px rgba(117,105,255,0.48)" }} />
+              <div style={{ position: "absolute", right: "20%", top: "36%", width: 88, height: 88, borderRadius: "50%", background: "radial-gradient(circle at 32% 28%,#b9fff2,#3cc9bd 30%,#156377 72%,#09293d)", boxShadow: "0 18px 65px rgba(57,207,198,0.36)" }} />
+              <span style={{ position: "absolute", left: 18, bottom: 16, color: "rgba(255,255,255,0.78)", fontFamily: MONO, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Capability Fixture · three-r3f-v1</span>
+            </div>
+            <div style={{ padding: 24 }}>
+              <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                {doc.examples.technicalBadge}
+              </span>
+              <h3 style={{ margin: "14px 0 8px", color: TEXT, fontSize: 21, lineHeight: 1.25 }}>{doc.examples.technicalTitle}</h3>
+              <p style={{ margin: "0 0 18px", color: TEXT2, fontSize: 14, lineHeight: 1.65 }}>{doc.examples.technicalDescription}</p>
+              <Link href="/three-r3f-example" style={btnPrimary}>
+                {doc.examples.technicalCta} <ArrowSpan />
+              </Link>
+            </div>
+          </article>
         </div>
       </section>
 

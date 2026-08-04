@@ -105,7 +105,7 @@ src/vaults/my-vault/
   i18n.json
 ```
 
-The default Vault folder is strict. Do not add extra source files, nested folders, local assets, README files, or other documents under `src/vaults/my-vault`. The core file set is `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) that are statically imported from `Component.tsx`.
+The default Vault folder is strict. Do not add extra source files, nested folders, local assets, README files, or other documents under `src/vaults/my-vault`. The core file set is `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) that are statically imported from `Component.tsx`. The only recursive source/asset exception is a token-scoped 8888 Mini App declaring `three-r3f-v1`; read `docs/mini-app-3d.md` and use the two live examples before authoring one.
 
 If those four files already exist because an Agent generated them from a manifest first, register the local preview route with:
 
@@ -219,7 +219,7 @@ yarn playwright install chromium
 The missing-browser failure is reported as machine-readable JSON code `vault-e2e/playwright-browser-missing`. CI installs Chromium with `npx playwright install --with-deps chromium`.
 The package command runs `vault:check` first and rejects missing, failed, or stale E2E reports. Send the zip under `dist/` to the Flap Artifact Workbench after it passes.
 The command output prints the generated zip location in `sourcePackagePath` and `sourcePackageAbsolutePath`.
-Do not hand-zip files. `yarn vault:package` writes format `5` `flap-vault-package.json`, `runtimePackageGitHead`, `qa/e2e-report.json`, E2E summary, source hashes, and any Mini App audio hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, proof, provenance, or matching hashes.
+Do not hand-zip files. `yarn vault:package` writes current format `6` `flap-vault-package.json`, `runtimePackageGitHead`, E2E report v2, recursive source/asset hashes, capability profile data, and matching summary fields into the zip. Workbench reads legacy format 5 only without `capabilities`; every `three-r3f-v1` package requires format 6.
 Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, current template/runtime provenance, current manifest schema, expected file list, metadata, and hashes from the Workbench acceptance side. Use `--self-contained` only for historical package inspection, not handoff.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also verify the shared runtime package:

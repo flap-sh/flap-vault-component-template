@@ -16,7 +16,7 @@
 
 这个仓库是一个公开模板，用于构建受控的 Flap Vault UI 组件。
 
-Mini App 的标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。只有 token-scoped 8888 Mini App 才能在 `"mode": "mini-app"` 旁声明 `"capabilities": ["three-r3f-v1"]`。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源，并要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。参考 `docs/manifest.md` 和 `three-r3f-example`。
+Mini App 的标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。只有 token-scoped 8888 Mini App 才能在 `"mode": "mini-app"` 旁声明 `"capabilities": ["three-r3f-v1"]`。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源，并要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；Mini App 页面会明显展示 `flap-skies-showcase` 与 `three-r3f-example` 两个在线 3D 预览，同时保留蝴蝶农场作为原有壳与交互指引。
 
 它不是自由网站容器。Vault UI 组件必须运行在 Flap 控制的运行时边界内：
 
