@@ -10,6 +10,8 @@ import {
   collectSourceHashes,
   E2E_REPORT_PACKAGE_PATH,
   findE2EReportPath,
+  MINI_APP_CAPABILITY_CONFIG_PATH,
+  readPackageFileBuffer,
   sourcePackagePaths,
   summarizeE2EReportForMarker,
   validateE2EReportObject,
@@ -18,7 +20,7 @@ import { runVaultCheckWithTokenContracts } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 5;
+const PACKAGE_FORMAT_VERSION = 6;
 const PACKAGE_TOOL = "yarn vault:package";
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const TEMPLATE_NAME = "flap-vault-ui-template";
@@ -121,13 +123,6 @@ const output = fs.createWriteStream(outFile);
 const archive = archiver("zip", { zlib: { level: 9 } });
 
 archive.pipe(output);
-archive.directory(vaultDir, `src/vaults/${folderName}`, (entry) => {
-  const blocked = [".env", ".env.local", "node_modules", ".git", ".vercel", "package-lock.json", "pnpm-lock.yaml"];
-  if (blocked.some((part) => entry.name.includes(part))) return false;
-  return entry;
-});
-archive.file(path.join(ROOT, "schemas", "manifest.schema.json"), { name: "schemas/manifest.schema.json" });
-
 const packagedAt = new Date().toISOString();
 const sourceFiles = sourcePackagePaths(ROOT, folderName);
 const sourceFileHashes = collectSourceHashes(ROOT, folderName);
@@ -135,6 +130,12 @@ const schemaPath = "schemas/manifest.schema.json";
 const e2eReportSha256 = crypto.createHash("sha256").update(e2eReportRaw).digest("hex");
 const checkSummary = summarizeCheck(result.issues);
 const e2eSummary = summarizeE2EReportForMarker(e2eReport);
+
+for (const sourceFile of sourceFiles) {
+  archive.append(readPackageFileBuffer(path.join(ROOT, sourceFile)), { name: sourceFile });
+}
+archive.append(readPackageFileBuffer(path.join(ROOT, schemaPath)), { name: schemaPath });
+archive.append(readPackageFileBuffer(path.join(ROOT, MINI_APP_CAPABILITY_CONFIG_PATH)), { name: MINI_APP_CAPABILITY_CONFIG_PATH });
 
 function bindingKeysForEntry(binding) {
   if (binding.factoryAddress) {
@@ -171,6 +172,7 @@ const packageMarker = {
   ...(manifest.displayTitle ? { displayTitle: manifest.displayTitle } : {}),
   sourcePackage: `src/vaults/${folderName}`,
   ...(manifest.mode ? { mode: manifest.mode } : {}),
+  ...(manifest.capabilities ? { capabilities: manifest.capabilities } : {}),
   packagedAt,
   check: {
     passed: checkSummary.blocking === 0,
@@ -201,9 +203,10 @@ const metadata = {
   name: manifest.name,
   ...(manifest.displayTitle ? { displayTitle: manifest.displayTitle } : {}),
   ...(manifest.mode ? { mode: manifest.mode } : {}),
+  ...(manifest.capabilities ? { capabilities: manifest.capabilities } : {}),
   bindingKeys: (manifest.match?.bindings || []).flatMap(bindingKeysForEntry),
   packagedAt,
-  manifestSha256: hashFile(path.join(vaultDir, "manifest.json")),
+  manifestSha256: sourceFileHashes[`src/vaults/${folderName}/manifest.json`],
   sourcePackage: `src/vaults/${folderName}`,
   checkSummary,
   e2e: e2eSummary,

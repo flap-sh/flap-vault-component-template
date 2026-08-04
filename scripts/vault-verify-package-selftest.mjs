@@ -12,6 +12,7 @@ import {
   E2E_REPORT_PACKAGE_PATH,
   E2E_REPORT_TOOL,
   E2E_REPORT_VERSION,
+  MINI_APP_CAPABILITY_CONFIG_PATH,
   REQUIRED_PHASES,
   REQUIRED_VIEWPORTS,
   sourceSha256FromFileHashes,
@@ -63,7 +64,7 @@ async function writeZip(zipPath, entries) {
   });
 }
 
-async function writePackage(name, { templateVersion, runtimePackageVersion, runtimePackageGitHead, schemaBuffer }) {
+async function writePackage(name, { templateVersion, runtimePackageVersion, runtimePackageGitHead, schemaBuffer, capabilityConfigBuffer }) {
   const sourceBase = `src/vaults/${FOLDER_NAME}`;
   const component = Buffer.from('export default function SelftestVault() { return <div>Selftest</div>; }\n', "utf8");
   const manifest = jsonBuffer({
@@ -82,6 +83,7 @@ async function writePackage(name, { templateVersion, runtimePackageVersion, runt
     [`${sourceBase}/VaultABI.ts`]: sha256(abi),
     [`${sourceBase}/i18n.json`]: sha256(i18n),
     "schemas/manifest.schema.json": sha256(schemaBuffer),
+    [MINI_APP_CAPABILITY_CONFIG_PATH]: sha256(capabilityConfigBuffer),
   };
   const e2eReport = {
     kind: E2E_REPORT_KIND,
@@ -128,7 +130,7 @@ async function writePackage(name, { templateVersion, runtimePackageVersion, runt
   const e2eRaw = jsonBuffer(e2eReport);
   const marker = {
     kind: "flap-vault-ui-source-package",
-    formatVersion: 5,
+    formatVersion: 6,
     generatedBy: "yarn vault:package",
     generator: "flap-vault-ui-template",
     templateName: "flap-vault-ui-template",
@@ -177,6 +179,7 @@ async function writePackage(name, { templateVersion, runtimePackageVersion, runt
     "package-metadata.json": jsonBuffer(metadata),
     [E2E_REPORT_PACKAGE_PATH]: e2eRaw,
     "schemas/manifest.schema.json": schemaBuffer,
+    [MINI_APP_CAPABILITY_CONFIG_PATH]: capabilityConfigBuffer,
     [`${sourceBase}/Component.tsx`]: component,
     [`${sourceBase}/manifest.json`]: manifest,
     [`${sourceBase}/VaultABI.ts`]: abi,
@@ -192,12 +195,14 @@ try {
   const currentGitHead = freshness.checks?.npm?.latestGitHead;
   assert.ok(currentGitHead, "npm latest gitHead is required for verifier selftest");
   const currentSchema = fs.readFileSync(path.join(ROOT, "schemas", "manifest.schema.json"));
+  const currentCapabilityConfig = fs.readFileSync(path.join(ROOT, MINI_APP_CAPABILITY_CONFIG_PATH));
 
   const currentZip = await writePackage("current", {
     templateVersion: currentVersion,
     runtimePackageVersion: currentVersion,
     runtimePackageGitHead: currentGitHead,
     schemaBuffer: currentSchema,
+    capabilityConfigBuffer: currentCapabilityConfig,
   });
   const currentResult = runVerifier([currentZip]);
   assert.equal(currentResult.status, 0, currentResult.stderr || currentResult.stdout);
@@ -207,6 +212,7 @@ try {
     runtimePackageVersion: "0.1.11",
     runtimePackageGitHead: currentGitHead,
     schemaBuffer: currentSchema,
+    capabilityConfigBuffer: currentCapabilityConfig,
   });
   const oldVersionResult = runVerifier([oldVersionZip]);
   assert.notEqual(oldVersionResult.status, 0);
@@ -218,6 +224,7 @@ try {
     runtimePackageVersion: currentVersion,
     runtimePackageGitHead: currentGitHead,
     schemaBuffer: Buffer.concat([currentSchema, Buffer.from("\n")]),
+    capabilityConfigBuffer: currentCapabilityConfig,
   });
   const staleSchemaResult = runVerifier([staleSchemaZip]);
   assert.notEqual(staleSchemaResult.status, 0);

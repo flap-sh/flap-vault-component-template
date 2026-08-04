@@ -75,10 +75,10 @@ Run `yarn vault:check:selftest` after changing checker rules, the Agent contract
 
 Run `yarn vault:verify-package dist/{folder-name}.zip` after packaging. It checks:
 
-- `flap-vault-package.json` exists (format version `4`)
+- `flap-vault-package.json` exists (current format version `6`; legacy format 5 is Workbench-readable only without `capabilities`)
 - package kind and format version match the supported Workbench intake contract
 - marker generator, sourcePackage, and check summary match the script-generated package
-- the zip contains the four Vault files, manifest schema, package metadata, package marker, and the `qa/e2e-report.json` E2E proof
+- the zip contains the four core Vault files, manifest schema, capability profile contract, package metadata, package marker, E2E report v2, and every recursively reachable source/asset listed by format 6
 - duplicate zip entries and central/local header filename mismatches are rejected
 - metadata matches the marker
 - source file, schema, and E2E report SHA-256 hashes match

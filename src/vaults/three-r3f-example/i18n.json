@@ -1,0 +1,18 @@
+{
+  "en": {
+    "title": "Three R3F capability example",
+    "subtitle": "A local-only scene with deterministic fallback and reduced-motion behavior.",
+    "fallback": "3D acceleration is unavailable. The Mini App is using its 2D fallback.",
+    "error": "The 3D context was lost. Reload the Mini App to retry.",
+    "canvasLabel": "Animated three-dimensional capability example",
+    "wrongNetwork": "Wrong network. Switch the wallet chain before using contract actions."
+  },
+  "zh": {
+    "title": "Three R3F 能力示例",
+    "subtitle": "仅使用本地资源，并提供确定性降级与减少动态效果支持。",
+    "fallback": "当前设备无法使用 3D 加速，Mini App 已切换到二维降级界面。",
+    "error": "三维上下文已丢失，请重新载入 Mini App 后重试。",
+    "canvasLabel": "三维动态能力示例",
+    "wrongNetwork": "钱包网络不正确，请先切换到目标链再使用合约操作。"
+  }
+}

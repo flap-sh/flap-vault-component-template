@@ -22,6 +22,13 @@
       "else": {
         "not": { "required": ["displayTitle"] }
       }
+    },
+    {
+      "if": { "required": ["capabilities"] },
+      "then": {
+        "required": ["mode"],
+        "properties": { "mode": { "const": "mini-app" } }
+      }
     }
   ],
   "properties": {
@@ -38,6 +45,13 @@
       "type": "string",
       "enum": ["mini-app"],
       "description": "Optional artifact mode. Omit for the default Vault UI. Use mini-app only for token-scoped 8888-token Mini App artifacts. Mini App mode is bound to match.bindings[].tokenAddresses ending in 8888 and skips the Vault risk-status tag requirement."
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["three-r3f-v1"] },
+      "description": "Optional versioned Mini App capability profiles. three-r3f-v1 enables the controlled Three.js/R3F multi-file and local-asset boundary. Capabilities are not allowed for default Vault UI artifacts."
     },
     "match": {
       "type": "object",

@@ -1,5 +1,11 @@
 # Runtime Module Contract
 
+## Mini App 3D assets
+
+`three-r3f-v1` source packages build to the same five required runtime roots plus a metadata-declared `assets/**` set. Every asset path is content addressed, carries MIME, byte size, and SHA-256 in `metadata.json`, and is resolved relative to `import.meta.url`. Hosts must load, cache, validate, and publish exactly this list; directory scanning is not part of the contract.
+
+The SDK exports `resolveMiniApp3DAssetUrl(...)` and `resolveMiniApp3DDecoderUrls(...)` so loaders can obtain artifact-relative asset and Draco/KTX2 decoder locations without network fallbacks. These helpers enter the public runtime only after the corresponding `@flapsdk/vault-runtime` patch is published and the Workbench pin is updated.
+
 This document defines how a custom Vault UI source package connects to the shared runtime that powers local preview, Artifact Workbench preview/build, and the final `flap.sh` host.
 
 The goal is one stable component contract across all surfaces. Developers should not need one import style for local preview, a second one for Workbench, and a third one for production.

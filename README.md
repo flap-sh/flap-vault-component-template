@@ -16,6 +16,8 @@
 
 This repository is a public starter for building private custom Flap Vault UI components.
 
+Mini App 3D uses the versioned `three-r3f-v1` profile. Declare `"capabilities": ["three-r3f-v1"]` only beside `"mode": "mini-app"` on a token-scoped 8888 artifact. The profile pins the supported Three/R3F packages, permits recursively statically reachable local source/shader/3D assets, requires deterministic renderer state/fallback attributes, and keeps network, wallet, storage, navigation, workers, remote assets, and arbitrary npm packages blocked. See `docs/manifest.md` and `three-r3f-example`.
+
 It is not a free-form website container. A Vault UI component must run inside Flap's controlled runtime boundary:
 
 - Flap SDK for chain, wallet, contract read/write, oracle, i18n, notifications, formatting, and tx errors.
@@ -55,7 +57,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddr
 
 Replace placeholder addresses with real deployment addresses before running these commands.
 
-4. Edit only the four package files under `src/vaults/my-vault`: `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
+4. For a default Vault UI, edit only the four package files under `src/vaults/my-vault`: `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. A `three-r3f-v1` Mini App may instead add only recursively statically reachable files allowed by that capability profile.
    Keep the scaffolded default business card structure unless the Vault needs a different pattern. When no UI style is specified, use the scaffold default / NiePan-style abstract template; built-in examples are behavior references, not the default visual style.
    For icons, use `lucide-react` first and choose icons from the official Lucide icon library: `https://lucide.dev/icons/`.
 5. Preview the route and test the actual workflow:
@@ -73,7 +75,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` runs the V1 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; supported proof chains include Robinhood mainnet `4663` and Robinhood Testnet `46630`. Standard Robinhood proof tokens are listed in [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md), and local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
+`vault:e2e` runs the v2 deterministic Playwright gate on PC / iPad / H5 for real/default, internal-market, DEX-listed, and wrong-network states. It checks DOM/layout/state rules directly and does not depend on AI image judgment. It must bind to a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; supported proof chains include Robinhood mainnet `4663` and Robinhood Testnet `46630`. Standard Robinhood proof tokens are listed in [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md), and local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 
 First-time local machines, especially Windows machines, may need to install the Playwright browser once:
 
@@ -186,7 +188,7 @@ yarn vault:verify-package dist/flapixel-example.zip
 
 The package command first fetches the official template ref. If the checkout is only behind `origin/main`, it automatically fast-forwards while preserving non-conflicting local Vault work, then launches the latest package script. Conflicting local changes and ahead/diverged checkouts stop with machine-readable freshness errors; local work is never discarded. The latest script runs `vault:check`, verifies the current `dist/e2e/<folder-name>/qa-report.json`, and writes the zip under `dist/` only after blocking issues pass and E2E proof is current.
 The command output includes `sourcePackagePath` and `sourcePackageAbsolutePath` so the generated zip location is explicit.
-Submit only the zip produced by `yarn vault:package <folder-name>`. The package script writes a format-version `5` `flap-vault-package.json` marker, npm latest `@flapsdk/vault-runtime` `gitHead` provenance, source/schema/E2E file hashes, optional Mini App audio file hashes, `qa/e2e-report.json`, and an `e2e` summary into the zip; Flap Artifact Workbench should reject manually assembled zips without this marker, proof, or matching hashes.
+Submit only the zip produced by `yarn vault:package <folder-name>`. The package script writes a format-version `6` `flap-vault-package.json` marker, npm latest `@flapsdk/vault-runtime` `gitHead` provenance, recursive source/schema/E2E file hashes, optional Mini App audio and capability-profile asset hashes, `qa/e2e-report.json`, and an `e2e` summary into the zip; Flap Artifact Workbench should reject manually assembled zips without this marker, proof, profile contract, or matching hashes. Workbench may read legacy format 5 only when `capabilities` is absent.
 `dist/` is ignored by git. Generate source zips locally or in CI; do not commit generated packages to the template repo.
 `yarn vault:verify-package <zip>` validates the package from the Workbench side by checking the marker, current template/runtime provenance, current manifest schema, file list, metadata, E2E proof, and SHA-256 hashes. Use `--self-contained` only when inspecting an old package without enforcing current-template compatibility.
 CI-generated zips are uploaded as short-lived GitHub Actions artifacts for validation evidence only. They are not submitted to Artifact Workbench unless a human or release workflow explicitly hands off a verified zip and records its `sha256`.
@@ -252,7 +254,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddr
 
 Replace placeholder addresses with real deployment addresses before running the command. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses so a source package with a fake factory or Vault cannot enter Workbench publish by accident.
 
-This creates the default strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes real `7777`/`8888`-suffix token(s) under `match.bindings[].tokenAddresses` when token proof or no-factory token scoping is needed. In factory mode, those token addresses are not production CA restrictions; Flap Workbench/registry owns final publish routing through `caRestrictionMode`. Mini App packages still use the same four core files, may additionally include reviewed top-level audio files directly under `src/vaults/<folder-name>`, and must provide `displayTitle.zh` plus `displayTitle.en` separate from the Workbench `name`.
+This creates the default strict four-file Vault package, generates a stable `artifactId`, registers the folder name in `src/vaults/index.ts`, and writes real `7777`/`8888`-suffix token(s) under `match.bindings[].tokenAddresses` when token proof or no-factory token scoping is needed. In factory mode, those token addresses are not production CA restrictions; Flap Workbench/registry owns final publish routing through `caRestrictionMode`. Mini App packages may additionally include reviewed top-level audio files and must provide `displayTitle.zh` plus `displayTitle.en`. Only a Mini App declaring `three-r3f-v1` may recursively include statically reachable profile-approved source, shaders, and local 3D assets; those packages use source format 6 and E2E report v2.
 
 If the four Vault files already exist because they were generated from a manifest first, register only the local preview mapping:
 
@@ -470,7 +472,7 @@ yarn preview:smoke:real
 yarn ci
 ```
 
-`yarn vault:e2e <folder-name>` writes `dist/e2e/<folder-name>/qa-report.json` plus screenshots/traces. It proves the V1 rendered layout/state gate passed for the source hash; it does not prove that a future wallet write transaction was initiated by a developer's local UI. A local tx hash or wallet trace can prove the transaction exists and targets the expected token/Vault, but strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner. `yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, the package marker in `packageMarkerFile`, and the npm runtime provenance in `runtimePackageGitHead`.
+`yarn vault:e2e <folder-name>` writes `dist/e2e/<folder-name>/qa-report.json` plus screenshots/traces. It proves the v2 rendered layout/state gate passed for the source hash; it does not prove that a future wallet write transaction was initiated by a developer's local UI. A local tx hash or wallet trace can prove the transaction exists and targets the expected token/Vault, but strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner. `yarn vault:package <folder-name>` prints the generated source zip path in `sourcePackagePath` and `sourcePackageAbsolutePath`, the package marker in `packageMarkerFile`, and the npm runtime provenance in `runtimePackageGitHead`.
 
 ## License
 

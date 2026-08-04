@@ -1,13 +1,19 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  MINI_APP_CAPABILITY_CONFIG_PATH,
+  capabilityFileExtensions,
+  manifestCapabilityIds,
+} from "./mini-app-capabilities.mjs";
 
 export const E2E_REPORT_KIND = "flap-vault-ui-e2e-report";
-export const E2E_REPORT_VERSION = 1;
+export const E2E_REPORT_VERSION = 2;
 export const E2E_REPORT_PACKAGE_PATH = "qa/e2e-report.json";
 export const E2E_REPORT_TOOL = "yarn vault:e2e";
 export const E2E_DIST_DIR = "dist/e2e";
 export const MANIFEST_SCHEMA_PATH = "schemas/manifest.schema.json";
+export { MINI_APP_CAPABILITY_CONFIG_PATH };
 export const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 export const MINI_APP_MODE = "mini-app";
 export const MINI_APP_AUDIO_ASSET_EXTENSIONS = [".mp3", ".wav", ".ogg", ".m4a", ".aac"];
@@ -16,6 +22,7 @@ export const MINI_APP_AUDIO_MAX_BYTES = 5 * 1024 * 1024;
 export const MINI_APP_AUDIO_TOTAL_MAX_BYTES = 12 * 1024 * 1024;
 export const REQUIRED_VIEWPORTS = ["pc", "ipad", "h5"];
 export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
+const PACKAGE_TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".json", ".glsl", ".vert", ".frag", ".gltf"]);
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
@@ -33,6 +40,16 @@ export function sha256Buffer(buffer) {
 
 export function sha256File(filePath) {
   return sha256Buffer(fs.readFileSync(filePath));
+}
+
+export function normalizePackageTextBuffer(buffer) {
+  return Buffer.from(buffer.toString("utf8").replace(/\r\n?/g, "\n"), "utf8");
+}
+
+export function readPackageFileBuffer(filePath) {
+  return PACKAGE_TEXT_EXTENSIONS.has(path.extname(filePath).toLowerCase())
+    ? normalizePackageTextBuffer(fs.readFileSync(filePath))
+    : fs.readFileSync(filePath);
 }
 
 export function normalizeAddress(value) {
@@ -57,17 +74,16 @@ export function isMiniAppAudioAssetName(name) {
   return MINI_APP_AUDIO_ASSET_RE.test(name);
 }
 
-function readManifestMode(root, folderName) {
+function readManifest(root, folderName) {
   try {
-    const manifest = JSON.parse(fs.readFileSync(path.join(root, "src", "vaults", folderName, "manifest.json"), "utf8"));
-    return manifest?.mode;
+    return JSON.parse(fs.readFileSync(path.join(root, "src", "vaults", folderName, "manifest.json"), "utf8"));
   } catch {
-    return undefined;
+    return {};
   }
 }
 
 export function collectMiniAppAudioAssetPaths(root, folderName) {
-  if (readManifestMode(root, folderName) !== MINI_APP_MODE) return [];
+  if (readManifest(root, folderName)?.mode !== MINI_APP_MODE) return [];
   const vaultDir = path.join(root, "src", "vaults", folderName);
   try {
     return fs
@@ -80,16 +96,37 @@ export function collectMiniAppAudioAssetPaths(root, folderName) {
   }
 }
 
+function walkFiles(dir, files = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkFiles(fullPath, files);
+    else if (entry.isFile()) files.push(fullPath);
+  }
+  return files;
+}
+
+export function collectCapabilitySourcePaths(root, folderName) {
+  const manifest = readManifest(root, folderName);
+  if (manifest?.mode !== MINI_APP_MODE || manifestCapabilityIds(manifest).length === 0) return [];
+  const vaultDir = path.join(root, "src", "vaults", folderName);
+  const extensions = capabilityFileExtensions(manifest, root);
+  return walkFiles(vaultDir)
+    .filter((filePath) => extensions.has(path.extname(filePath).toLowerCase()))
+    .map((filePath) => path.relative(root, filePath).split(path.sep).join("/"))
+    .sort();
+}
+
 export function sourcePackagePaths(root, folderName) {
-  return [...requiredSourcePaths(folderName), ...collectMiniAppAudioAssetPaths(root, folderName)];
+  return [...new Set([...requiredSourcePaths(folderName), ...collectMiniAppAudioAssetPaths(root, folderName), ...collectCapabilitySourcePaths(root, folderName)])].sort();
 }
 
 export function collectSourceHashes(root, folderName) {
   const hashes = {};
   for (const filePath of sourcePackagePaths(root, folderName)) {
-    hashes[filePath] = sha256File(path.join(root, filePath));
+    hashes[filePath] = sha256Buffer(readPackageFileBuffer(path.join(root, filePath)));
   }
-  hashes[MANIFEST_SCHEMA_PATH] = sha256File(path.join(root, MANIFEST_SCHEMA_PATH));
+  hashes[MANIFEST_SCHEMA_PATH] = sha256Buffer(readPackageFileBuffer(path.join(root, MANIFEST_SCHEMA_PATH)));
+  hashes[MINI_APP_CAPABILITY_CONFIG_PATH] = sha256Buffer(readPackageFileBuffer(path.join(root, MINI_APP_CAPABILITY_CONFIG_PATH)));
   return hashes;
 }
 

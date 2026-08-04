@@ -43,6 +43,19 @@ Every binding-scoped `tokenAddresses` entry must be a real deployed ERC20 token 
 
 Mini App mode is token-address-bound. A manifest with `mode: "mini-app"` must provide a no-factory token-scoped `match.bindings[].tokenAddresses` entry ending in `8888`; factory and Vault bindings are invalid for Mini App artifacts.
 
+### Versioned 3D capability
+
+Full 3D is opt-in and Mini App-only:
+
+```json
+{
+  "mode": "mini-app",
+  "capabilities": ["three-r3f-v1"]
+}
+```
+
+`three-r3f-v1` pins `three@0.185.1`, `@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, and `@react-three/postprocessing@2.19.1`. It permits package-local recursive static imports for TS/TSX, shaders, models, textures, HDR/EXR, fonts, and controlled decoder WASM. Every auxiliary file must be reachable from `Component.tsx`/`VaultABI.ts`; dynamic import, parent traversal, symlinks, unreferenced files, remote URLs, CDN decoders, and extra npm packages remain blocked. Three r185 is WebGL2-first, so WebGL2 failure must enter a clear WebGL1, 2D, or static fallback rather than promising identical WebGL1 rendering.
+
 Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the Vault-scoped binding target and `tokenAddresses` can be the token-scoped binding target.
 
 If the UI must call a fixed contract address that is not the runtime token, runtime Vault, runtime factory, or binding-scoped token/Vault reference, declare it only inside the relevant binding as `externalContracts`. This is a review declaration, not a preview/runtime match rule.

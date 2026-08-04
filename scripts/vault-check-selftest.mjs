@@ -380,6 +380,36 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertNoRule("mini-app mode accepts static imports for top-level audio assets", miniAppAudioAssetCheck, "imports-and-dependencies/disallowed-relative-import", "blocking");
   assertRule("mini-app audio assets are surfaced for human review", miniAppAudioAssetCheck, "manual-review/mini-app-audio-asset", "warning");
 
+  const defaultThreeSlug = `${FIXTURE_PREFIX}-default-three`;
+  writeVault(defaultThreeSlug, { component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ return <Canvas />; }\n` });
+  assertRule("default Vault UI blocks Three imports", runVaultCheck(defaultThreeSlug, { silent: true }), "imports-and-dependencies/unreviewed-import", "blocking");
+
+  const miniAppThreeWithoutCapabilitySlug = `${FIXTURE_PREFIX}-mini-three-no-cap`;
+  writeVault(miniAppThreeWithoutCapabilitySlug, {
+    component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ return <div className="min-h-screen"><Canvas /></div>; }\n`,
+    manifest: baseManifest({ mode: "mini-app", displayTitle: { zh: "三维自测", en: "3D Selftest" }, match: { bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }] } }),
+  });
+  assertRule("Mini App without capability blocks Three imports", runVaultCheck(miniAppThreeWithoutCapabilitySlug, { silent: true }), "imports-and-dependencies/unreviewed-import", "blocking");
+
+  const miniAppThreeSlug = `${FIXTURE_PREFIX}-mini-three`;
+  writeVault(miniAppThreeSlug, {
+    component: `import { Canvas } from "@react-three/fiber";\nimport { Scene } from "./scene/Scene";\nexport default function SelftestVault(){ return <div className="min-h-screen" data-flap-3d-state="ready" data-flap-3d-renderer="webgl2"><Canvas><Scene /></Canvas></div>; }\n`,
+    manifest: baseManifest({ mode: "mini-app", capabilities: ["three-r3f-v1"], displayTitle: { zh: "三维自测", en: "3D Selftest" }, match: { bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }] } }),
+  });
+  const threeVaultDir = path.join(ROOT, "src", "vaults", miniAppThreeSlug);
+  fs.mkdirSync(path.join(threeVaultDir, "scene"), { recursive: true });
+  fs.mkdirSync(path.join(threeVaultDir, "shaders"), { recursive: true });
+  fs.mkdirSync(path.join(threeVaultDir, "assets"), { recursive: true });
+  fs.writeFileSync(path.join(threeVaultDir, "scene", "Scene.tsx"), `import { OrbitControls } from "@react-three/drei";\nimport { EffectComposer } from "@react-three/postprocessing";\nimport { Color } from "three";\nimport shader from "../shaders/test.frag";\nimport fontUrl from "../assets/local.ttf";\nexport function Scene(){ return <><mesh data-shader={shader} data-font={fontUrl} data-color={new Color().getHex()} /><OrbitControls /><EffectComposer /></>; }\n`);
+  fs.writeFileSync(path.join(threeVaultDir, "shaders", "test.frag"), "void main(){ gl_FragColor = vec4(1.0); }\n");
+  fs.writeFileSync(path.join(threeVaultDir, "assets", "local.ttf"), "fixture-font");
+  const miniAppThreeCheck = runVaultCheck(miniAppThreeSlug, { silent: true });
+  assert.equal(miniAppThreeCheck.issues.filter((item) => item.severity === "blocking" && item.ruleId !== "preview-registration/missing-vault-module").length, 0, JSON.stringify(miniAppThreeCheck, null, 2));
+  passed.push("three-r3f-v1 allows nested TSX, shader, font, and standard packages");
+  assertRule("three-r3f-v1 emits manual review metadata", miniAppThreeCheck, "manual-review/mini-app-3d", "warning");
+  fs.writeFileSync(path.join(threeVaultDir, "assets", "unused.png"), "unused");
+  assertRule("three-r3f-v1 blocks unreferenced resources", runVaultCheck(miniAppThreeSlug, { silent: true }), "capability-assets/unreferenced-file", "blocking");
+
   const non7777TestTokenSlug = `${FIXTURE_PREFIX}-non-allowed-suffix-test-token`;
   writeVault(non7777TestTokenSlug, {
     manifest: baseManifest({
@@ -2950,6 +2980,31 @@ export default function SelftestVault(_props: VaultComponentProps) {
     },
   );
   passed.push("scaffold accepts one manifest test token for multiple bindings");
+
+  const threeScaffold = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        "scripts/vault-scaffold.mjs",
+        `${FIXTURE_PREFIX}-three-scaffold`,
+        "--capability",
+        "three-r3f-v1",
+        "--chain",
+        "56",
+        "--token",
+        "0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888",
+        "--display-title-zh",
+        "三维自测",
+        "--display-title-en",
+        "3D Selftest",
+        "--dry-run",
+      ],
+      { cwd: ROOT, encoding: "utf8" },
+    ),
+  );
+  assert.equal(threeScaffold.ok, true);
+  assert.equal(threeScaffold.dryRun, true);
+  passed.push("scaffold supports token-scoped three-r3f-v1 Mini Apps");
 
   const crlfRegisterSlug = `${FIXTURE_PREFIX}-crlf-register`;
   writeVault(crlfRegisterSlug);

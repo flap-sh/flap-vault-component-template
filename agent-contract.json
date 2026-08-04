@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 38,
+  "version": 39,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -23,6 +23,24 @@
     "index": "docs/agent-entrypoints.md"
   },
   "packageManager": "yarn",
+  "miniAppCapabilities": {
+    "profileConfig": "config/mini-app-capability-profiles.json",
+    "manifestField": "capabilities",
+    "profiles": {
+      "three-r3f-v1": {
+        "mode": "mini-app",
+        "sourcePackageFormat": 6,
+        "e2eReportVersion": 2,
+        "dependencies": {
+          "three": "0.185.1",
+          "@react-three/fiber": "8.18.0",
+          "@react-three/drei": "9.122.0",
+          "@react-three/postprocessing": "2.19.1"
+        },
+        "rules": "Allows recursively statically reachable TS/TSX, shader, and reviewed local 3D assets only inside a token-scoped 8888 Mini App. No arbitrary npm packages, remote resources, network, storage, navigation, wallet, worker, or contract-target expansion. WebGL2 failure must fall back explicitly to webgl1, 2d, or static UI."
+      }
+    }
+  },
   "uiPatternReference": {
     "path": "docs/ui-pattern-snippets.md",
     "rule": "Read before implementing Component.tsx. Use snippets as sanitized layout and state-flow references only; do not copy private Flap source code, private names, addresses, endpoints, or constants."
@@ -559,14 +577,15 @@
     "requiredMarkerFile": "flap-vault-package.json",
     "requiredE2EReportFile": "qa/e2e-report.json",
     "packageKind": "flap-vault-ui-source-package",
-    "formatVersion": 5,
+    "formatVersion": 6,
+    "legacyWorkbenchAcceptedFormatVersion": 5,
     "generatedBy": "yarn vault:package",
     "verifyCommand": "yarn vault:verify-package dist/{folder-name}.zip",
     "historicalVerifyCommand": "yarn vault:verify-package dist/{folder-name}.zip --self-contained",
     "acceptanceRule": "Flap Artifact Workbench should reject manually assembled zips, zips missing the marker, zips missing qa/e2e-report.json, failed or stale E2E proofs, zips with duplicate entries, zips with mismatched hashes, unexpected entries, stale template/runtime provenance, stale manifest schema, missing runtimePackageGitHead provenance, and zips with an unsupported package kind or format version. The --self-contained verifier mode is only for historical package inspection.",
     "markerSchema": {
       "kind": "flap-vault-ui-source-package",
-      "formatVersion": 5,
+      "formatVersion": 6,
       "generatedBy": "yarn vault:package",
       "generator": "flap-vault-ui-template",
       "artifactId": "vaultui_<folder-name>_<26-char ULID>",
@@ -616,7 +635,7 @@
   },
   "e2ePolicy": {
     "supportedProofChains": { "56": "mainnet-fallback", "97": "testnet", "4663": "robinhood-mainnet", "46630": "robinhood-testnet" },
-    "v1": "yarn vault:e2e is a deterministic Playwright gate for DOM rendering, responsive layout, phase states, wrong-network states, and source-hash-bound proof. It must not depend on AI image judgment.",
+    "v2": "yarn vault:e2e is a deterministic Playwright gate for DOM rendering, responsive layout, phase states, wrong-network states, and recursive source/asset-hash-bound proof. It must not depend on AI image judgment.",
     "localInstall": "First-time local and Windows environments may need yarn playwright install chromium before vault:e2e can launch Chromium. Missing-browser failures must be emitted as machine-readable JSON.",
     "writeUiOrigin": "A local tx hash, wallet trace, or report can prove that a transaction exists and targets the expected token/Vault, but it cannot cryptographically prove that the transaction was initiated by the developer's local UI. Strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner that replays the source package and verifies the tx by RPC."
   },
@@ -639,7 +658,7 @@
     "default Vault UI contract risk status appears within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block",
     "default Vault UI has no Low risk / 低风险 label or reassuring low-risk copy unless selected from host riskLevel === 1",
     "write-capable flows preview a wrong-network state and render a switch-network path instead of sending writes on the wrong chain",
-    "Default Vault folder contains only the four core files; Mini App folder contains the four core files plus only reviewed top-level audio assets when needed",
+    "Default Vault folder contains only the four core files; Mini App may add reviewed top-level audio, and only three-r3f-v1 may add recursively statically reachable profile-approved source and 3D assets",
     "Component.tsx follows a public-safe pattern from docs/ui-pattern-snippets.md",
     "action availability stage is decided and reflected in visible enabled/disabled states",
     "all Component.tsx user-facing copy is in i18n.json, with no hardcoded locale text, countdown units, preview fallback names, labels, notices, or button text in Component.tsx",

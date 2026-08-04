@@ -92,7 +92,7 @@ Build a controlled Flap Vault UI for:
 - empty/error states:
 - preview URL addresses:
 
-Use the four core files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, do not call private token metadata APIs, do not add external navigation, and do not add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`. For Mini App BGM/sound effects only, you may place reviewed lowercase top-level audio files under src/vaults/{folder-name} and statically import them from Component.tsx.
+Use the four core files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, call private token metadata APIs, add external navigation, or add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`. Mini Apps may add reviewed top-level audio. Only a token-scoped 8888 Mini App declaring `three-r3f-v1` may recursively add profile-approved source, shaders, and local 3D assets; use `yarn vault:scaffold {folder-name} --capability three-r3f-v1 ...` and keep every file statically reachable from `Component.tsx`.
 
 If I do not explicitly request a UI style, use the scaffold default surface / NiePan-style abstract template as the only visual default. Use built-in examples for behavior only, not visual styling.
 

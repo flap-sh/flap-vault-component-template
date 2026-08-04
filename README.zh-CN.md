@@ -16,6 +16,8 @@
 
 这个仓库是一个公开模板，用于构建受控的 Flap Vault UI 组件。
 
+Mini App 的标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。只有 token-scoped 8888 Mini App 才能在 `"mode": "mini-app"` 旁声明 `"capabilities": ["three-r3f-v1"]`。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源，并要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。参考 `docs/manifest.md` 和 `three-r3f-example`。
+
 它不是自由网站容器。Vault UI 组件必须运行在 Flap 控制的运行时边界内：
 
 - Flap SDK 负责链、钱包、合约读写、oracle、i18n、通知、格式化和交易错误处理。
@@ -69,7 +71,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的真实可读 `7777`/`8888` 后缀测试 token；支持 Robinhood 主网 `4663` 和测试网 `46630`。标准 Robinhood proof token 详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
+`vault:e2e` 会用确定性的 v2 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的真实可读 `7777`/`8888` 后缀测试 token；支持 Robinhood 主网 `4663` 和测试网 `46630`。标准 Robinhood proof token 详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
 
 首次运行的本地机器，尤其是 Windows 机器，可能需要先安装一次 Playwright 浏览器：
 
@@ -176,7 +178,7 @@ yarn vault:verify-package dist/flapixel-example.zip
 
 `vault:package` 的第一步会拉取官方模板引用。若本地仅落后于 `origin/main`，命令会在保留不冲突 Vault 修改的前提下自动 fast-forward，然后启动最新的打包脚本；若本地修改与上游冲突，或分支处于 ahead/diverged 状态，则输出机器可读的 freshness 错误并停止，绝不会丢弃本地工作。最新打包脚本随后运行 `vault:check`、校验当前 `dist/e2e/<folder-name>/qa-report.json`，并仅在 blocking issue 全部通过且 E2E 证明未过期后把 zip 写入 `dist/`。
 命令输出会包含 `sourcePackagePath` 和 `sourcePackageAbsolutePath`，用于明确生成 zip 的位置。
-只提交 `yarn vault:package <folder-name>` 生成的 zip。该脚本会写入 format-version `5` 的 `flap-vault-package.json` marker、npm latest `@flapsdk/vault-runtime` 的 `gitHead` provenance、source/schema/E2E 文件 hash、可选 Mini App 音频文件 hash、`qa/e2e-report.json` 和 `e2e` 摘要；Flap Artifact Workbench 应拒绝没有 marker、没有证明或 hash 不匹配的手工 zip。
+只提交 `yarn vault:package <folder-name>` 生成的 zip。该脚本会写入 format-version `6` 的 `flap-vault-package.json` marker、npm latest `@flapsdk/vault-runtime` 的 `gitHead` provenance、递归 source/schema/E2E 文件 hash、可选 Mini App 音频与 capability profile 资源 hash、`qa/e2e-report.json` 和 `e2e` 摘要；Flap Artifact Workbench 应拒绝没有 marker、证明、profile contract 或 hash 不匹配的手工 zip。Workbench 仅在没有 `capabilities` 时兼容旧 format 5。
 `dist/` 被 git 忽略。请在本地或 CI 生成 source zip，不要把生成包提交到模板仓库。
 `yarn vault:verify-package <zip>` 从 Workbench 侧验证 marker、文件列表、metadata 和 SHA-256 hash。
 
@@ -446,7 +448,7 @@ yarn preview:smoke:real
 yarn ci
 ```
 
-`yarn vault:e2e <folder-name>` 会写入 `dist/e2e/<folder-name>/qa-report.json` 以及 screenshots/traces。它证明当前 source hash 的 V1 渲染布局/状态门禁通过；它不证明未来某笔钱包写交易一定由开发者本地 UI 发起。本地 tx hash 或钱包 trace 只能证明交易存在并打到预期 token/Vault；强 write-UI 发起保证需要由平台控制的 Playwright + 钱包 runner 复跑。`yarn vault:package <folder-name>` 会输出生成的 source zip 路径 `sourcePackagePath` / `sourcePackageAbsolutePath`、package marker `packageMarkerFile` 和 npm runtime provenance `runtimePackageGitHead`。
+`yarn vault:e2e <folder-name>` 会写入 `dist/e2e/<folder-name>/qa-report.json` 以及 screenshots/traces。它证明当前递归 source/asset hash 的 v2 渲染布局/状态门禁通过；它不证明未来某笔钱包写交易一定由开发者本地 UI 发起。本地 tx hash 或钱包 trace 只能证明交易存在并打到预期 token/Vault；强 write-UI 发起保证需要由平台控制的 Playwright + 钱包 runner 复跑。`yarn vault:package <folder-name>` 会输出生成的 source zip 路径 `sourcePackagePath` / `sourcePackageAbsolutePath`、package marker `packageMarkerFile` 和 npm runtime provenance `runtimePackageGitHead`。
 
 ## 许可证
 

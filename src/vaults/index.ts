@@ -39,6 +39,18 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./flapixel-example/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./flapixel-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
+  "three-r3f-example": {
+    folderName: "three-r3f-example",
+    loadComponent: () => import("./three-r3f-example/Component"),
+    loadManifest: () => import("./three-r3f-example/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./three-r3f-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
+  "flap-skies-showcase": {
+    folderName: "flap-skies-showcase",
+    loadComponent: () => import("./flap-skies-showcase/Component"),
+    loadManifest: () => import("./flap-skies-showcase/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./flap-skies-showcase/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
 };
 
 export function getVaultFolderNames() {

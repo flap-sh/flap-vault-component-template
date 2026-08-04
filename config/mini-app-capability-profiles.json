@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "three-r3f-v1": {
+      "mode": "mini-app",
+      "description": "Controlled Three.js and React Three Fiber runtime for full-height Mini Apps.",
+      "dependencies": {
+        "three": "0.185.1",
+        "@react-three/fiber": "8.18.0",
+        "@react-three/drei": "9.122.0",
+        "@react-three/postprocessing": "2.19.1"
+      },
+      "allowedImports": [
+        "three",
+        "three/addons/*",
+        "@react-three/fiber",
+        "@react-three/drei",
+        "@react-three/postprocessing"
+      ],
+      "sourceExtensions": [".ts", ".tsx"],
+      "shaderExtensions": [".glsl", ".vert", ".frag"],
+      "assetExtensions": [
+        ".glb",
+        ".gltf",
+        ".bin",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+        ".avif",
+        ".ktx2",
+        ".basis",
+        ".hdr",
+        ".exr",
+        ".ttf",
+        ".otf",
+        ".woff",
+        ".woff2",
+        ".wasm"
+      ],
+      "fontExtensions": [".ttf", ".otf", ".woff", ".woff2"],
+      "safeBrowserMembers": {
+        "window": [
+          "requestAnimationFrame",
+          "cancelAnimationFrame",
+          "devicePixelRatio",
+          "matchMedia",
+          "screen"
+        ],
+        "document": ["createElement", "fonts"],
+        "navigator": ["hardwareConcurrency", "deviceMemory"]
+      },
+      "limits": {
+        "maxFiles": 200,
+        "maxCompressedBytes": 26214400,
+        "maxUncompressedBytes": 67108864,
+        "maxAssetBytes": 33554432,
+        "maxAssetTotalBytes": 62914560,
+        "maxFontBytes": 2097152,
+        "maxFontTotalBytes": 4194304
+      }
+    }
+  }
+}

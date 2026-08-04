@@ -8,14 +8,16 @@ import { failAgent } from "./agent-error.mjs";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
   E2E_REPORT_PACKAGE_PATH,
+  MINI_APP_CAPABILITY_CONFIG_PATH,
   isMiniAppAudioAssetName,
   summarizeE2EReportForMarker,
   validateE2EReportObject,
 } from "./e2e-report-utils.mjs";
+import { capabilityFileExtensions, manifestCapabilityIds } from "./mini-app-capabilities.mjs";
 import { collectE2EReportErc20TokenIssues, collectManifestErc20TokenIssues } from "./erc20-token-validation.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 5;
+const PACKAGE_FORMAT_VERSION = 6;
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const PACKAGE_METADATA_FILE = "package-metadata.json";
 const SCHEMA_FILE = "schemas/manifest.schema.json";
@@ -176,10 +178,12 @@ function readJsonEntry(entries, entryName) {
   }
 }
 
-function expectedSourceFiles(folderName, names, isMiniApp) {
+function expectedSourceFiles(folderName, names, manifest) {
   const required = REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`);
-  if (!isMiniApp) return required;
+  if (manifest?.mode !== MINI_APP_MODE) return required;
   const prefix = `src/vaults/${folderName}/`;
+  const capabilityExtensions = capabilityFileExtensions(manifest, process.cwd());
+  const hasCapabilities = manifestCapabilityIds(manifest).length > 0;
   const audioFiles = names
     .filter((name) => {
       if (!name.startsWith(prefix)) return false;
@@ -187,7 +191,10 @@ function expectedSourceFiles(folderName, names, isMiniApp) {
       return isMiniAppAudioAssetName(localName);
     })
     .sort();
-  return [...required, ...audioFiles];
+  const capabilityFiles = hasCapabilities
+    ? names.filter((name) => name.startsWith(prefix) && capabilityExtensions.has(path.extname(name).toLowerCase()))
+    : [];
+  return [...new Set([...required, ...audioFiles, ...capabilityFiles])].sort();
 }
 
 function readCurrentPackageVersion() {
@@ -284,14 +291,16 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
   if (!issues.length) {
     const manifestPath = `src/vaults/${folderName}/manifest.json`;
     const manifest = entries.has(manifestPath) ? readJsonEntry(entries, manifestPath) : undefined;
-    const sourceFiles = expectedSourceFiles(folderName, names, manifest?.mode === MINI_APP_MODE);
-    const expectedFiles = new Set([PACKAGE_MARKER_FILE, PACKAGE_METADATA_FILE, SCHEMA_FILE, E2E_REPORT_PACKAGE_PATH, ...sourceFiles]);
+    const sourceFiles = expectedSourceFiles(folderName, names, manifest);
+    const expectedFiles = new Set([PACKAGE_MARKER_FILE, PACKAGE_METADATA_FILE, SCHEMA_FILE, MINI_APP_CAPABILITY_CONFIG_PATH, E2E_REPORT_PACKAGE_PATH, ...sourceFiles]);
     if (!selfContained) {
       const currentVersion = readCurrentPackageVersion();
       const freshness = await assertTemplateFresh({ folderName });
       const currentRuntimeGitHead = freshness.checks?.npm?.latestGitHead;
       const currentSchemaSha256 = sha256(fs.readFileSync(path.join(process.cwd(), SCHEMA_FILE)));
       const packageSchemaSha256 = entries.has(SCHEMA_FILE) ? sha256(entries.get(SCHEMA_FILE)) : undefined;
+      const currentCapabilitySha256 = sha256(fs.readFileSync(path.join(process.cwd(), MINI_APP_CAPABILITY_CONFIG_PATH)));
+      const packageCapabilitySha256 = entries.has(MINI_APP_CAPABILITY_CONFIG_PATH) ? sha256(entries.get(MINI_APP_CAPABILITY_CONFIG_PATH)) : undefined;
 
       if (marker.templateVersion !== currentVersion) {
         issues.push(
@@ -333,6 +342,16 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
           ),
         );
       }
+      if (packageCapabilitySha256 && packageCapabilitySha256 !== currentCapabilitySha256) {
+        issues.push(
+          jsonIssue(
+            "package-verify/capability-profile-not-current",
+            "Packaged Mini App capability profiles do not match the current template contract.",
+            "Regenerate the source package with the current template; do not edit capability profile files inside the zip.",
+            { file: MINI_APP_CAPABILITY_CONFIG_PATH, expected: currentCapabilitySha256, actual: packageCapabilitySha256 },
+          ),
+        );
+      }
     }
 
     if (marker.sourcePackage !== `src/vaults/${folderName}`) {
@@ -364,7 +383,7 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
       );
     }
 
-    const filesToHash = [...sourceFiles, SCHEMA_FILE, E2E_REPORT_PACKAGE_PATH];
+    const filesToHash = [...sourceFiles, SCHEMA_FILE, MINI_APP_CAPABILITY_CONFIG_PATH, E2E_REPORT_PACKAGE_PATH];
     for (const file of filesToHash) {
       if (!entries.has(file)) continue;
       const expectedHash = marker.fileSha256?.[file];
@@ -381,6 +400,9 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
       if ((marker.mode ?? undefined) !== (manifest.mode ?? undefined)) {
         issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker mode does not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
       }
+      if (JSON.stringify(marker.capabilities ?? null) !== JSON.stringify(manifest.capabilities ?? null)) {
+        issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker capabilities do not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
+      }
       if (JSON.stringify(marker.displayTitle ?? null) !== JSON.stringify(manifest.displayTitle ?? null)) {
         issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker displayTitle does not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
       }
@@ -395,7 +417,7 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
     if (entries.has(E2E_REPORT_PACKAGE_PATH)) {
       e2eReport = readJsonEntry(entries, E2E_REPORT_PACKAGE_PATH);
       const expectedE2EFileHashes = Object.fromEntries(
-        [...sourceFiles, SCHEMA_FILE].filter((file) => entries.has(file)).map((file) => [file, sha256(entries.get(file))]),
+        [...sourceFiles, SCHEMA_FILE, MINI_APP_CAPABILITY_CONFIG_PATH].filter((file) => entries.has(file)).map((file) => [file, sha256(entries.get(file))]),
       );
       validateE2EReportObject(e2eReport, {
         folderName,
@@ -432,6 +454,7 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
         metadata.runtimePackageGitHead !== marker.runtimePackageGitHead ||
         metadata.runtimeContractVersion !== marker.runtimeContractVersion ||
         (metadata.mode ?? undefined) !== (marker.mode ?? undefined) ||
+        JSON.stringify(metadata.capabilities ?? null) !== JSON.stringify(marker.capabilities ?? null) ||
         JSON.stringify(metadata.displayTitle ?? null) !== JSON.stringify(marker.displayTitle ?? null) ||
         JSON.stringify(metadata.e2e) !== JSON.stringify(marker.e2e)
       ) {

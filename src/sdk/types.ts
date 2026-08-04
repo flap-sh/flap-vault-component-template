@@ -208,6 +208,7 @@ export interface ManifestExternalContract {
 
 export type VaultManifestLayout = "fullscreen";
 export type VaultManifestMode = "mini-app";
+export type VaultManifestCapability = "three-r3f-v1";
 export interface VaultManifestDisplayTitle {
   zh: string;
   en: string;
@@ -221,6 +222,7 @@ export interface VaultManifest {
     bindings: ManifestBindingEntry[];
   };
   mode?: VaultManifestMode;
+  capabilities?: VaultManifestCapability[];
   layout?: VaultManifestLayout;
   endpoints?: EndpointPolicy;
   i18n: string[];

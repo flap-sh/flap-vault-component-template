@@ -17,6 +17,7 @@ const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
 ]);
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const ARTIFACT_ID_RE = /^vaultui_([a-z0-9]+(?:-[a-z0-9]+)*)_([0-9A-HJKMNPQRSTVWXYZ]{26})$/;
+const THREE_R3F_CAPABILITY = "three-r3f-v1";
 
 function fail(message, { code = "cli/scaffold-error", fixHint = "Read agent.nextActions and rerun the command after fixing the input.", nextActions, ...extra } = {}) {
   failAgent({ code, message, fixHint, nextActions, extra });
@@ -311,6 +312,55 @@ export default function ${componentName}(_props: VaultComponentProps) {
 `;
 }
 
+function threeR3FComponentSource(componentName) {
+  return `"use client";
+
+import { Canvas } from "@react-three/fiber";
+import { useEffect, useState } from "react";
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+type Renderer = "webgl2" | "webgl1" | "2d";
+type RenderState = "loading" | "ready" | "fallback" | "error";
+
+export default function ${componentName}(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const [renderer, setRenderer] = useState<Renderer>("webgl2");
+  const [renderState, setRenderState] = useState<RenderState>("loading");
+
+  useEffect(() => {
+    const probe = document.createElement("canvas");
+    if (!probe.getContext("webgl2")) {
+      setRenderer("2d");
+      setRenderState("fallback");
+    }
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white" data-flap-3d-state={renderState} data-flap-3d-renderer={renderer}>
+      <header className="px-5 py-6">
+        <h1 className="text-xl font-semibold">{i18n.t("title")}</h1>
+        <p className="mt-1 text-sm text-slate-300">{i18n.t("subtitle")}</p>
+      </header>
+      <main className="h-[70vh] min-h-[420px]">
+        {renderer === "webgl2" ? (
+          <Canvas camera={{ position: [0, 0, 4], fov: 48 }} onCreated={() => setRenderState("ready")}>
+            <ambientLight intensity={1.5} />
+            <mesh rotation={[0.45, 0.6, 0]}>
+              <boxGeometry args={[1.8, 1.8, 1.8]} />
+              <meshStandardMaterial color="#8b5cf6" />
+            </mesh>
+          </Canvas>
+        ) : (
+          <div className="grid h-full place-items-center px-6 text-center text-slate-300">{i18n.t("subtitle")}</div>
+        )}
+      </main>
+    </div>
+  );
+}
+`;
+}
+
 function abiSource() {
   return `export const vaultAbi = [] as const;
 `;
@@ -387,7 +437,7 @@ function i18nSource(locales, name) {
   return `${JSON.stringify(payload, null, 2)}\n`;
 }
 
-function manifestSource({ artifactId, name, bindings, locales }) {
+function manifestSource({ artifactId, name, bindings, locales, capability, displayTitle }) {
   const matchBindings = bindings.map((binding) => {
     const entry = { chainId: binding.chainId };
     if (binding.factoryAddress) entry.factoryAddress = binding.factoryAddress;
@@ -396,7 +446,15 @@ function manifestSource({ artifactId, name, bindings, locales }) {
     return entry;
   });
   const match = { bindings: matchBindings };
-  return `${JSON.stringify({ artifactId, name, match, i18n: locales }, null, 2)}\n`;
+  const manifest = { artifactId, name };
+  if (capability) {
+    manifest.displayTitle = displayTitle;
+    manifest.mode = "mini-app";
+    manifest.capabilities = [capability];
+  }
+  manifest.match = match;
+  manifest.i18n = locales;
+  return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
 async function main() {
@@ -430,6 +488,13 @@ async function main() {
   const tokenValues = collectValues(parsed, ["token", "tokens"]);
   const vaultValues = collectValues(parsed, ["vault", "vaults"]);
   const locales = unique(collectValues(parsed, ["locale", "locales"], ["en", "zh"]));
+  const capabilities = unique(collectValues(parsed, ["capability", "capabilities"]));
+  const capability = capabilities[0];
+  const isThreeR3F = capability === THREE_R3F_CAPABILITY;
+  const displayTitle = {
+    zh: typeof parsed["display-title-zh"] === "string" ? parsed["display-title-zh"].trim() : name,
+    en: typeof parsed["display-title-en"] === "string" ? parsed["display-title-en"].trim() : name,
+  };
 
   if (!name) {
     fail("--name must not be empty.", {
@@ -438,6 +503,19 @@ async function main() {
     });
   }
   validateArtifactId(artifactId, folderName);
+  if (capabilities.length > 1 || (capability && !isThreeR3F)) {
+    fail(`Unsupported --capability value: ${capabilities.join(", ") || "<missing>"}.`, {
+      code: "manifest-schema/unknown-capability",
+      fixHint: `Use --capability ${THREE_R3F_CAPABILITY}, or omit --capability for a default Vault UI.`,
+      capabilities,
+    });
+  }
+  if (isThreeR3F && (!displayTitle.zh || !displayTitle.en)) {
+    fail("3D Mini App display titles must be non-empty in both languages.", {
+      code: "manifest-schema/mini-app-display-title",
+      fixHint: "Pass --display-title-zh and --display-title-en, or keep the generated name defaults.",
+    });
+  }
   if (!chainValues.length || chainValues.some((chainId) => !Number.isInteger(chainId) || chainId <= 0)) {
     fail("--chain must be a positive integer chain ID, for example --chain 56.", {
       code: "manifest-binding/invalid-chain-ids",
@@ -447,10 +525,22 @@ async function main() {
   }
   const usingFactoryMode = factoryValues.length > 0;
   const usingVaultMode = factoryValues.length === 0 && vaultValues.length > 0;
-  if (!usingFactoryMode && !usingVaultMode) {
+  if (!isThreeR3F && !usingFactoryMode && !usingVaultMode) {
     fail("Each binding needs either --factory or --vault.", {
       code: "manifest-binding/missing-binding-target",
       fixHint: "Pass --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory for factory-scoped UI with mainnet launch intent, or --chain 56 --vault 0x... --token 0x... for single-Vault UI.",
+    });
+  }
+  if (isThreeR3F && (usingFactoryMode || usingVaultMode || factoryValues.length || vaultValues.length)) {
+    fail("three-r3f-v1 scaffolds only token-scoped Mini Apps.", {
+      code: "manifest-binding/mini-app-token-only",
+      fixHint: `Remove --factory and --vault; use --capability ${THREE_R3F_CAPABILITY} --chain 56 --token 0x...8888.`,
+    });
+  }
+  if (isThreeR3F && tokenValues.length !== chainValues.length) {
+    fail("Each 3D Mini App chain must have exactly one token binding.", {
+      code: "manifest-binding/chain-token-count-mismatch",
+      fixHint: "Pair every --chain with one real deployed --token ending in 8888.",
     });
   }
   if (usingFactoryMode && chainValues.length !== factoryValues.length) {
@@ -548,6 +638,12 @@ async function main() {
       });
     }
   }
+  if (isThreeR3F && tokenValues.some((address) => !address.toLowerCase().endsWith("8888"))) {
+    fail("three-r3f-v1 Mini Apps require token addresses ending in 8888.", {
+      code: "manifest-binding/mini-app-token-suffix",
+      fixHint: "Use a real deployed ERC20 token address ending in 8888 for every Mini App binding.",
+    });
+  }
   if (!locales.length || locales.some((locale) => locale.length < 2)) {
     fail("--locales must contain at least one locale.", {
       code: "i18n-policy/manifest-locales",
@@ -596,8 +692,8 @@ async function main() {
   const pascalName = pascalCase(folderName);
   const componentName = pascalName.endsWith("Vault") ? pascalName : `${pascalName}Vault`;
   const files = [
-    ["Component.tsx", componentSource(componentName)],
-    ["manifest.json", manifestSource({ artifactId, name, bindings, locales })],
+    ["Component.tsx", isThreeR3F ? threeR3FComponentSource(componentName) : componentSource(componentName)],
+    ["manifest.json", manifestSource({ artifactId, name, bindings, locales, capability, displayTitle })],
     ["VaultABI.ts", abiSource()],
     ["i18n.json", i18nSource(locales, name)],
   ];

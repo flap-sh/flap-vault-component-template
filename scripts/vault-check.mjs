@@ -11,6 +11,15 @@ import {
   isMiniAppAudioAssetName,
 } from "./e2e-report-utils.mjs";
 import { collectManifestErc20TokenIssues, hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX } from "./erc20-token-validation.mjs";
+import {
+  THREE_R3F_PROFILE_ID,
+  capabilityFileExtensions,
+  hasThreeR3FCapability,
+  isCapabilityImportAllowed,
+  loadMiniAppCapabilityConfig,
+  manifestCapabilityIds,
+  threeR3FProfile,
+} from "./mini-app-capabilities.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
@@ -28,7 +37,7 @@ const FORBIDDEN_NAMES = new Set(["node_modules", ".git", ".vercel", ".env", ".en
 const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const ALLOWED_VAULT_FILES = new Set(REQUIRED_FILES);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
@@ -809,11 +818,11 @@ function isMiniAppAudioImportSpec(spec) {
   return !localName.includes("/") && isMiniAppAudioAssetName(localName);
 }
 
-function readManifestModeForStructure(vaultDir) {
+function readManifestForStructure(vaultDir) {
   try {
-    return readJson(path.join(vaultDir, "manifest.json"))?.mode;
+    return readJson(path.join(vaultDir, "manifest.json"));
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -869,17 +878,19 @@ function isApprovedNavigationUrl(url) {
   return isApprovedExternalLinkUrl(url);
 }
 
-function isAllowedBrowserGlobalMember(globalName, memberName) {
-  return ALLOWED_BROWSER_GLOBAL_MEMBERS.get(globalName)?.has(memberName) ?? false;
+function isAllowedBrowserGlobalMember(globalName, memberName, manifest) {
+  if (ALLOWED_BROWSER_GLOBAL_MEMBERS.get(globalName)?.has(memberName)) return true;
+  if (!hasThreeR3FCapability(manifest)) return false;
+  return (threeR3FProfile(ROOT).safeBrowserMembers?.[globalName] || []).includes(memberName);
 }
 
-function collectBrowserGlobalMemberIssues(content, file) {
+function collectBrowserGlobalMemberIssues(content, file, manifest) {
   const issues = [];
   const memberRegex = /\b(window|globalThis|global|self|navigator|document)\s*(?:\?\.|\.)\s*([A-Za-z_$][\w$]*)/g;
   for (const match of content.matchAll(memberRegex)) {
     const globalName = match[1];
     const memberName = match[2];
-    if (isAllowedBrowserGlobalMember(globalName, memberName)) continue;
+    if (isAllowedBrowserGlobalMember(globalName, memberName, manifest)) continue;
     const isClipboard = globalName === "navigator" && memberName === "clipboard";
     issues.push(
       issue(
@@ -2684,8 +2695,17 @@ function collectAstSecurityIssues(content, file, ctx) {
 
 function checkStructure(vaultDir) {
   const issues = [];
-  const isMiniApp = readManifestModeForStructure(vaultDir) === MINI_APP_MODE;
+  const manifest = readManifestForStructure(vaultDir);
+  const isMiniApp = manifest?.mode === MINI_APP_MODE;
+  const has3D = isMiniApp && hasThreeR3FCapability(manifest);
+  const profile = has3D ? threeR3FProfile(ROOT) : null;
+  const allowedCapabilityExtensions = has3D ? capabilityFileExtensions(manifest, ROOT) : new Set();
+  const fontExtensions = new Set(profile?.fontExtensions || []);
   let miniAppAudioBytes = 0;
+  let capabilityAssetBytes = 0;
+  let capabilityFontBytes = 0;
+  let capabilityFileCount = 0;
+  const caseFoldedPaths = new Map();
   for (const file of REQUIRED_FILES) {
     if (!fs.existsSync(path.join(vaultDir, file))) {
       issues.push(issue(BLOCKING, "package-structure/missing-required-file", `Missing ${file}.`, { file }));
@@ -2694,11 +2714,28 @@ function checkStructure(vaultDir) {
   for (const item of walk(vaultDir)) {
     const rel = path.relative(ROOT, item.path);
     const relToVault = path.relative(vaultDir, item.path);
+    const portableRel = relToVault.split(path.sep).join("/");
+    const folded = portableRel.toLowerCase();
+    if (caseFoldedPaths.has(folded) && caseFoldedPaths.get(folded) !== portableRel) {
+      issues.push(issue(BLOCKING, "package-structure/case-conflict", `Paths ${caseFoldedPaths.get(folded)} and ${portableRel} differ only by case.`, { file: rel }));
+    } else {
+      caseFoldedPaths.set(folded, portableRel);
+    }
     if (item.isSymlink) {
       issues.push(issue(BLOCKING, "forbidden-files/symlink", `Symlink ${item.name} is not allowed inside a Vault package.`, { file: rel }));
       continue;
     }
-    if (item.isDirectory || relToVault.includes(path.sep)) {
+    if (FORBIDDEN_NAMES.has(item.name) || item.name.startsWith(".")) {
+      issues.push(issue(BLOCKING, "forbidden-files/disallowed-entry", `Forbidden or hidden entry ${portableRel} found.`, { file: rel }));
+      continue;
+    }
+    if (item.isDirectory) {
+      if (!has3D) {
+        issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may not contain nested folders. Move ${relToVault} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
+      }
+      continue;
+    }
+    if (relToVault.includes(path.sep) && !has3D) {
       issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may not contain nested folders or nested files. Move ${relToVault} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
       continue;
     }
@@ -2709,6 +2746,10 @@ function checkStructure(vaultDir) {
         continue;
       }
       if (isMiniApp && isAudioExtension) {
+        if (relToVault.includes(path.sep)) {
+          issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Mini App audio asset ${portableRel} must remain top-level.`, { file: rel }));
+          continue;
+        }
         if (!isMiniAppAudioAssetName(item.name)) {
           issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Mini App audio asset ${item.name} must be a top-level lowercase file with an allowed extension.`, { file: rel }));
           continue;
@@ -2728,15 +2769,40 @@ function checkStructure(vaultDir) {
         );
         continue;
       }
+      const extension = path.extname(item.name).toLowerCase();
+      if (has3D && allowedCapabilityExtensions.has(extension)) {
+        const bytes = fs.statSync(item.path).size;
+        capabilityFileCount += 1;
+        if (!profile.sourceExtensions.includes(extension) && !profile.shaderExtensions.includes(extension)) {
+          capabilityAssetBytes += bytes;
+          if (bytes > profile.limits.maxAssetBytes) {
+            issues.push(issue(BLOCKING, "capability-assets/asset-too-large", `${portableRel} is ${bytes} bytes and exceeds the ${profile.limits.maxAssetBytes} byte per-resource limit.`, { file: rel, bytes, maxBytes: profile.limits.maxAssetBytes }));
+          }
+          if (fontExtensions.has(extension)) {
+            capabilityFontBytes += bytes;
+            if (bytes > profile.limits.maxFontBytes) {
+              issues.push(issue(BLOCKING, "capability-assets/font-too-large", `${portableRel} is ${bytes} bytes and exceeds the ${profile.limits.maxFontBytes} byte per-font limit.`, { file: rel, bytes, maxBytes: profile.limits.maxFontBytes }));
+            }
+            issues.push(issue(WARNING, "manual-review/mini-app-3d-font", `Local font ${portableRel} requires source and license review.`, { file: rel, asset: portableRel, bytes }));
+          }
+        }
+        continue;
+      }
       issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may contain only ${REQUIRED_FILES.join(", ")}${isMiniApp ? " plus reviewed top-level audio assets" : ""}. Move ${item.name} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
       continue;
-    }
-    if (FORBIDDEN_NAMES.has(item.name)) {
-      issues.push(issue(BLOCKING, "forbidden-files/disallowed-entry", `Forbidden entry ${item.name} found.`, { file: rel }));
     }
     if (!item.isDirectory && item.name.match(/\.(png|jpe?g|gif|webp|svg)$/i)) {
       issues.push(issue(BLOCKING, "media/local-asset", `Local media asset ${item.name} is not part of the Vault package. Keep media controlled by Flap Artifact Workbench/runtime policy.`, { file: rel }));
     }
+  }
+  if (has3D && capabilityFileCount + REQUIRED_FILES.length > profile.limits.maxFiles) {
+    issues.push(issue(BLOCKING, "capability-assets/too-many-files", `3D Mini App has ${capabilityFileCount + REQUIRED_FILES.length} files; the ${THREE_R3F_PROFILE_ID} limit is ${profile.limits.maxFiles}.`, { file: `src/vaults/${path.basename(vaultDir)}` }));
+  }
+  if (has3D && capabilityAssetBytes > profile.limits.maxAssetTotalBytes) {
+    issues.push(issue(BLOCKING, "capability-assets/assets-too-large", `3D assets total ${capabilityAssetBytes} bytes and exceed ${profile.limits.maxAssetTotalBytes} bytes.`, { file: `src/vaults/${path.basename(vaultDir)}` }));
+  }
+  if (has3D && capabilityFontBytes > profile.limits.maxFontTotalBytes) {
+    issues.push(issue(BLOCKING, "capability-assets/fonts-too-large", `Fonts total ${capabilityFontBytes} bytes and exceed ${profile.limits.maxFontTotalBytes} bytes.`, { file: `src/vaults/${path.basename(vaultDir)}` }));
   }
   if (miniAppAudioBytes > MINI_APP_AUDIO_TOTAL_MAX_BYTES) {
     issues.push(
@@ -3032,6 +3098,7 @@ function checkExternalFrames(value) {
 function checkManifest(manifest, folderName) {
   const issues = [];
   const isMiniAppMode = manifest?.mode === MINI_APP_MODE;
+  const capabilities = manifestCapabilityIds(manifest);
   for (const key of Object.keys(manifest || {})) {
     if (!ALLOWED_MANIFEST_KEYS.has(key)) {
       const ruleId = key === "restrictTokenAddresses" || key === "tokenAddresses" || key === "caPolicy" ? "manifest-binding/ca-policy-not-in-manifest" : "manifest-schema/disallowed-field";
@@ -3039,7 +3106,7 @@ function checkManifest(manifest, folderName) {
         issue(
           BLOCKING,
           ruleId,
-          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, Mini App-only displayTitle, match, i18n, optional mode, layout, endpoints, and externalFrames.`,
+          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, Mini App-only displayTitle and capabilities, match, i18n, optional mode, layout, endpoints, and externalFrames.`,
           { field: key },
         ),
       );
@@ -3089,6 +3156,31 @@ function checkManifest(manifest, folderName) {
         { field: "mode", mode: manifest.mode },
       ),
     );
+  }
+  if (manifest.capabilities !== undefined) {
+    const knownProfiles = loadMiniAppCapabilityConfig(ROOT).profiles || {};
+    if (!Array.isArray(manifest.capabilities) || manifest.capabilities.length === 0 || manifest.capabilities.some((value) => typeof value !== "string" || !value.trim())) {
+      issues.push(issue(BLOCKING, "manifest-schema/invalid-capabilities", "manifest.capabilities must be a non-empty array of capability profile ids.", { field: "capabilities" }));
+    } else {
+      if (!isMiniAppMode) {
+        issues.push(issue(BLOCKING, "manifest-schema/capabilities-mini-app-only", "manifest.capabilities is allowed only when manifest.mode is mini-app.", { field: "capabilities" }));
+      }
+      if (new Set(capabilities).size !== capabilities.length) {
+        issues.push(issue(BLOCKING, "manifest-schema/duplicate-capability", "manifest.capabilities must not contain duplicates.", { field: "capabilities" }));
+      }
+      for (const capability of capabilities) {
+        if (!knownProfiles[capability]) {
+          issues.push(issue(BLOCKING, "manifest-schema/unknown-capability", `Unknown Mini App capability profile ${capability}.`, { field: "capabilities", capability }));
+        }
+      }
+      if (hasThreeR3FCapability(manifest)) {
+        issues.push(issue(WARNING, "manual-review/mini-app-3d", `${THREE_R3F_PROFILE_ID} enables reviewed local 3D source and assets. Review performance tiers, asset provenance, fallback behavior, and external request logs before publish.`, {
+          field: "capabilities",
+          capability: THREE_R3F_PROFILE_ID,
+          dependencies: threeR3FProfile(ROOT).dependencies,
+        }));
+      }
+    }
   }
   if (manifest.layout !== undefined) {
     if (manifest.layout !== FULLSCREEN_LAYOUT) {
@@ -3435,6 +3527,98 @@ function collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractP
   return issues;
 }
 
+function collectStaticImportSpecs(content) {
+  const specs = [];
+  const importRegex = /(?:\b(?:import|export)\s+(?:[^"'`]*?\s+from\s+)?|\bimport\s*)["'`]([^"'`]+)["'`]/g;
+  for (const match of stripCommentsForScanning(content).matchAll(importRegex)) specs.push(match[1]);
+  return specs;
+}
+
+function resolveCapabilityRelativeImport(vaultDir, importerPath, spec, extensions) {
+  if (!spec.startsWith("./") && !spec.startsWith("../")) return null;
+  if (spec.includes("?") || spec.includes("#") || path.isAbsolute(spec)) return null;
+  const absoluteBase = path.resolve(path.dirname(importerPath), spec);
+  const rel = path.relative(vaultDir, absoluteBase);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  const candidates = [absoluteBase];
+  if (!path.extname(absoluteBase)) {
+    for (const extension of extensions) candidates.push(`${absoluteBase}${extension}`);
+    for (const extension of extensions) candidates.push(path.join(absoluteBase, `index${extension}`));
+  }
+  return candidates.find((candidate) => fs.existsSync(candidate) && fs.lstatSync(candidate).isFile()) || null;
+}
+
+function collectGltfLocalUris(gltfPath, vaultDir, issues) {
+  let gltf;
+  try {
+    gltf = JSON.parse(fs.readFileSync(gltfPath, "utf8"));
+  } catch (error) {
+    issues.push(issue(BLOCKING, "capability-assets/invalid-gltf", `Cannot parse ${path.relative(vaultDir, gltfPath)}: ${error.message}.`, { file: path.relative(ROOT, gltfPath) }));
+    return [];
+  }
+  const uris = [...(gltf.buffers || []), ...(gltf.images || [])].map((entry) => entry?.uri).filter((uri) => typeof uri === "string");
+  const resolved = [];
+  for (const uri of uris) {
+    if (/^(?:[a-z]+:|\/\/|\/)/i.test(uri) || uri.includes("?") || uri.includes("#") || uri.split(/[\\/]/).includes("..")) {
+      issues.push(issue(BLOCKING, "capability-assets/remote-or-escaping-gltf-uri", `GLTF URI ${uri} must reference a local file inside the Mini App package.`, { file: path.relative(ROOT, gltfPath) }));
+      continue;
+    }
+    const target = path.resolve(path.dirname(gltfPath), uri);
+    const rel = path.relative(vaultDir, target);
+    if (rel.startsWith("..") || path.isAbsolute(rel) || !fs.existsSync(target) || !fs.lstatSync(target).isFile()) {
+      issues.push(issue(BLOCKING, "capability-assets/missing-gltf-resource", `GLTF URI ${uri} does not resolve to a package file.`, { file: path.relative(ROOT, gltfPath) }));
+      continue;
+    }
+    resolved.push(target);
+  }
+  return resolved;
+}
+
+function collectCapabilityImportGraphIssues(vaultDir, manifest) {
+  if (!hasThreeR3FCapability(manifest)) return [];
+  const issues = [];
+  const extensions = capabilityFileExtensions(manifest, ROOT);
+  const sourceExtensions = new Set(threeR3FProfile(ROOT).sourceExtensions);
+  const allFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink).map((item) => item.path);
+  const capabilityFiles = new Set(allFiles.filter((file) => extensions.has(path.extname(file).toLowerCase())));
+  const roots = [path.join(vaultDir, "Component.tsx"), path.join(vaultDir, "VaultABI.ts")].filter((file) => fs.existsSync(file));
+  const reachable = new Set(roots);
+  const queue = [...roots];
+  while (queue.length) {
+    const current = queue.shift();
+    const extension = path.extname(current).toLowerCase();
+    if (extension === ".gltf") {
+      for (const target of collectGltfLocalUris(current, vaultDir, issues)) {
+        if (!reachable.has(target)) {
+          reachable.add(target);
+          queue.push(target);
+        }
+      }
+      continue;
+    }
+    if (!sourceExtensions.has(extension)) continue;
+    const content = fs.readFileSync(current, "utf8");
+    for (const spec of collectStaticImportSpecs(content)) {
+      if (!spec.startsWith(".") && !spec.startsWith("/")) continue;
+      const target = resolveCapabilityRelativeImport(vaultDir, current, spec, extensions);
+      if (!target) {
+        issues.push(issue(BLOCKING, "imports-and-dependencies/unresolved-or-escaping-import", `Static import ${spec} from ${path.relative(vaultDir, current)} is missing, escapes the package, or has an unsupported extension.`, { file: path.relative(ROOT, current) }));
+        continue;
+      }
+      if (!reachable.has(target)) {
+        reachable.add(target);
+        queue.push(target);
+      }
+    }
+  }
+  for (const file of capabilityFiles) {
+    if (!reachable.has(file)) {
+      issues.push(issue(BLOCKING, "capability-assets/unreferenced-file", `${path.relative(vaultDir, file)} is not statically reachable from Component.tsx or VaultABI.ts.`, { file: path.relative(ROOT, file) }));
+    }
+  }
+  return issues;
+}
+
 function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
   const requiresRiskStatus = manifest?.mode !== MINI_APP_MODE;
@@ -3444,6 +3628,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const contractPolicy = collectManifestContractPolicy(manifest);
   const abiFunctionOutputCounts = collectAbiFunctionOutputCounts(vaultDir);
   const oracleProvisionDetails = getRuntimeOracleProvisionDetails();
+  issues.push(...collectCapabilityImportGraphIssues(vaultDir, manifest));
   const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
   const externalLinkI18nKeys = new Set();
   for (const item of sourceFiles) {
@@ -3471,6 +3656,13 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           { file: rel },
         ),
       );
+    }
+    if (hasThreeR3FCapability(manifest) && item.name === "Component.tsx") {
+      for (const attribute of ["data-flap-3d-state", "data-flap-3d-renderer"]) {
+        if (!content.includes(attribute)) {
+          issues.push(issue(BLOCKING, "mini-app-3d/missing-deterministic-state", `3D Mini App root must expose ${attribute} for host and E2E observability.`, { file: rel, attribute }));
+        }
+      }
     }
     const checks = [
       [/\b(?:window|globalThis|global|self)\.(?:ethereum|web3|solana|BinanceChain|tronWeb|coinbaseWalletExtension|okxwallet|trustwallet)\b/, "forbidden-api/direct-window-ethereum", "Direct injected wallet provider access is not allowed."],
@@ -3568,7 +3760,15 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         issues.push(issue(BLOCKING, ruleId, message, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
-    issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel));
+    if (hasThreeR3FCapability(manifest)) {
+      const createElementRegex = /\bdocument\s*(?:\?\.|\.)\s*createElement\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
+      for (const match of scanContent.matchAll(createElementRegex)) {
+        if (match[1].toLowerCase() !== "canvas") {
+          issues.push(issue(BLOCKING, "forbidden-api/browser-dom-creation", `3D Mini Apps may use document.createElement only for canvas, not ${match[1]}.`, { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
+        }
+      }
+    }
+    issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel, manifest));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
     issues.push(...collectAstSecurityIssues(content, rel, { declaredUrls, declaredFrames, contractPolicy, externalLinkUrlSourceRanges: externalLinkAllowedRanges }));
     if (item.name === "Component.tsx") {
@@ -3579,17 +3779,19 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     for (const match of scanContent.matchAll(importRegex)) {
       const spec = match[1] || match[2];
       if (spec.startsWith("./") || spec.startsWith("../")) {
-        const isMiniAppAudioImport = manifest?.mode === MINI_APP_MODE && isMiniAppAudioImportSpec(spec) && fs.existsSync(path.join(vaultDir, spec.slice(2)));
-        if (!isMiniAppAudioImport && !ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
+        const importerDir = path.dirname(item.path);
+        const isMiniAppAudioImport = manifest?.mode === MINI_APP_MODE && isMiniAppAudioImportSpec(spec) && fs.existsSync(path.join(importerDir, spec));
+        const isCapabilityRelativeImport = hasThreeR3FCapability(manifest) && Boolean(resolveCapabilityRelativeImport(vaultDir, item.path, spec, capabilityFileExtensions(manifest, ROOT)));
+        if (!isMiniAppAudioImport && !isCapabilityRelativeImport && !ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
           issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI may be imported from a default Vault package. Mini App mode may also import top-level reviewed audio assets. ${spec} is not allowed.`, { file: rel }));
         }
       } else if (FORBIDDEN_IMPORTS.some((blocked) => spec === blocked || spec.startsWith(`${blocked}/`))) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/forbidden-import", `Forbidden import ${spec}. Use Flap SDK/UI primitives instead.`, { file: rel }));
       } else if (sharedRuntimeImportRoot(spec)) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/deep-shared-runtime-import", `Deep import ${spec} is not allowed. Import from the shared ${sharedRuntimeImportRoot(spec)} barrel instead.`, { file: rel }));
-      } else if (/sdk/i.test(spec) && !isAllowedPackageImport(spec)) {
+      } else if (/sdk/i.test(spec) && !isAllowedPackageImport(spec) && !isCapabilityImportAllowed(spec, manifest, ROOT)) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/external-sdk-package", `External SDK-style import ${spec} is not allowed. Use the shared @/src/sdk and @/src/ui surfaces only.`, { file: rel }));
-      } else if (!isAllowedPackageImport(spec)) {
+      } else if (!isAllowedPackageImport(spec) && !isCapabilityImportAllowed(spec, manifest, ROOT)) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/unreviewed-import", `Import ${spec} is not in the approved allowlist.`, { file: rel }));
       }
     }
@@ -4030,7 +4232,26 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames, externalLinks, fullscreenLayouts, miniAppAudioAssets };
+  const miniApp3D = issues
+    .filter((item) => item.ruleId === "manual-review/mini-app-3d")
+    .map((item) => ({
+      capability: item.capability,
+      dependencies: item.dependencies,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  const miniApp3DFonts = issues
+    .filter((item) => item.ruleId === "manual-review/mini-app-3d-font")
+    .map((item) => ({
+      asset: item.asset,
+      bytes: item.bytes,
+      file: item.file,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  return { externalEndpoints, oracles, externalFrames, externalLinks, fullscreenLayouts, miniAppAudioAssets, miniApp3D, miniApp3DFonts };
 }
 
 function buildCheckReport(folderName, issues) {
@@ -4055,6 +4276,7 @@ function buildCheckReport(folderName, issues) {
       verdict: blocking > 0 ? "fix-blocking" : warning > 0 ? "review-warnings" : "package-ready",
       nextActions: buildAgentNextActions(issues),
       allowedVaultFiles: REQUIRED_FILES,
+      capabilityProfiles: loadMiniAppCapabilityConfig(ROOT).profiles,
       allowedMiniAppAudioExtensions: MINI_APP_AUDIO_ASSET_EXTENSIONS,
       allowedLocalRelativeImports: [...ALLOWED_RELATIVE_IMPORTS],
       packageCommand: folderName ? `yarn vault:package ${folderName}` : "yarn vault:package <folder-name>",

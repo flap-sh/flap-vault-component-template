@@ -49,7 +49,7 @@ Examples:
 
 The Flap Artifact Workbench should reject unsupported future versions and should explicitly decide whether to keep accepting older versions. Do not silently accept unknown package kinds or unknown format versions.
 
-Current source packages use format version `5`, which requires `qa/e2e-report.json`, marker/metadata `e2e` summary fields, source-hash-bound E2E proof before Workbench upload, and source hashes for any packaged Mini App audio assets.
+Current source packages use format version `6` and E2E report v2. Format 6 hashes all recursively packaged source and assets, carries the machine-readable capability profile contract, and requires matching marker/metadata E2E summaries. Workbench may keep reading legacy format 5 only when `capabilities` is absent; every `three-r3f-v1` package must use format 6.
 
 ## Runtime Contract Version
 
