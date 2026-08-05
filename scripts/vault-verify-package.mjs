@@ -10,6 +10,7 @@ import {
   E2E_REPORT_PACKAGE_PATH,
   MINI_APP_CAPABILITY_CONFIG_PATH,
   isMiniAppAudioAssetName,
+  readPackageFileBuffer,
   summarizeE2EReportForMarker,
   validateE2EReportObject,
 } from "./e2e-report-utils.mjs";
@@ -297,9 +298,9 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
       const currentVersion = readCurrentPackageVersion();
       const freshness = await assertTemplateFresh({ folderName });
       const currentRuntimeGitHead = freshness.checks?.npm?.latestGitHead;
-      const currentSchemaSha256 = sha256(fs.readFileSync(path.join(process.cwd(), SCHEMA_FILE)));
+      const currentSchemaSha256 = sha256(readPackageFileBuffer(path.join(process.cwd(), SCHEMA_FILE)));
       const packageSchemaSha256 = entries.has(SCHEMA_FILE) ? sha256(entries.get(SCHEMA_FILE)) : undefined;
-      const currentCapabilitySha256 = sha256(fs.readFileSync(path.join(process.cwd(), MINI_APP_CAPABILITY_CONFIG_PATH)));
+      const currentCapabilitySha256 = sha256(readPackageFileBuffer(path.join(process.cwd(), MINI_APP_CAPABILITY_CONFIG_PATH)));
       const packageCapabilitySha256 = entries.has(MINI_APP_CAPABILITY_CONFIG_PATH) ? sha256(entries.get(MINI_APP_CAPABILITY_CONFIG_PATH)) : undefined;
 
       if (marker.templateVersion !== currentVersion) {

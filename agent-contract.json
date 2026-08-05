@@ -40,7 +40,7 @@
           "@react-three/drei": "9.122.0",
           "@react-three/postprocessing": "2.19.1"
         },
-        "rules": "Allows recursively statically reachable TS/TSX, shader, and reviewed local 3D assets only inside a token-scoped 8888 Mini App. No arbitrary npm packages, remote resources, network, storage, navigation, wallet, worker, or contract-target expansion. WebGL2 failure must fall back explicitly to webgl1, 2d, or static UI."
+        "rules": "Allows recursively statically reachable TS/TSX, shader, and reviewed local 3D assets only inside a token-scoped 8888 Mini App. Every local source and asset must use a static import reachable from Component.tsx; string paths passed directly to loaders do not count. No arbitrary npm packages, remote resources, network, storage, navigation, wallet, worker, or contract-target expansion. WebGL2 failure must fall back explicitly to webgl1, 2d, or static UI."
       }
     }
   },

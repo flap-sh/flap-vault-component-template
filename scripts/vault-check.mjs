@@ -14,8 +14,8 @@ import { collectManifestErc20TokenIssues, hasRequiredTestTokenSuffix, REQUIRED_T
 import {
   THREE_R3F_PROFILE_ID,
   capabilityFileExtensions,
-  hasThreeR3FCapability,
   isCapabilityImportAllowed,
+  isThreeR3FMiniApp,
   loadMiniAppCapabilityConfig,
   manifestCapabilityIds,
   threeR3FProfile,
@@ -880,7 +880,7 @@ function isApprovedNavigationUrl(url) {
 
 function isAllowedBrowserGlobalMember(globalName, memberName, manifest) {
   if (ALLOWED_BROWSER_GLOBAL_MEMBERS.get(globalName)?.has(memberName)) return true;
-  if (!hasThreeR3FCapability(manifest)) return false;
+  if (!isThreeR3FMiniApp(manifest)) return false;
   return (threeR3FProfile(ROOT).safeBrowserMembers?.[globalName] || []).includes(memberName);
 }
 
@@ -2697,7 +2697,7 @@ function checkStructure(vaultDir) {
   const issues = [];
   const manifest = readManifestForStructure(vaultDir);
   const isMiniApp = manifest?.mode === MINI_APP_MODE;
-  const has3D = isMiniApp && hasThreeR3FCapability(manifest);
+  const has3D = isThreeR3FMiniApp(manifest);
   const profile = has3D ? threeR3FProfile(ROOT) : null;
   const allowedCapabilityExtensions = has3D ? capabilityFileExtensions(manifest, ROOT) : new Set();
   const fontExtensions = new Set(profile?.fontExtensions || []);
@@ -3173,7 +3173,7 @@ function checkManifest(manifest, folderName) {
           issues.push(issue(BLOCKING, "manifest-schema/unknown-capability", `Unknown Mini App capability profile ${capability}.`, { field: "capabilities", capability }));
         }
       }
-      if (hasThreeR3FCapability(manifest)) {
+      if (isThreeR3FMiniApp(manifest)) {
         issues.push(issue(WARNING, "manual-review/mini-app-3d", `${THREE_R3F_PROFILE_ID} enables reviewed local 3D source and assets. Review performance tiers, asset provenance, fallback behavior, and external request logs before publish.`, {
           field: "capabilities",
           capability: THREE_R3F_PROFILE_ID,
@@ -3575,7 +3575,7 @@ function collectGltfLocalUris(gltfPath, vaultDir, issues) {
 }
 
 function collectCapabilityImportGraphIssues(vaultDir, manifest) {
-  if (!hasThreeR3FCapability(manifest)) return [];
+  if (!isThreeR3FMiniApp(manifest)) return [];
   const issues = [];
   const extensions = capabilityFileExtensions(manifest, ROOT);
   const sourceExtensions = new Set(threeR3FProfile(ROOT).sourceExtensions);
@@ -3657,7 +3657,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    if (hasThreeR3FCapability(manifest) && item.name === "Component.tsx") {
+    if (isThreeR3FMiniApp(manifest) && item.name === "Component.tsx") {
       for (const attribute of ["data-flap-3d-state", "data-flap-3d-renderer"]) {
         if (!content.includes(attribute)) {
           issues.push(issue(BLOCKING, "mini-app-3d/missing-deterministic-state", `3D Mini App root must expose ${attribute} for host and E2E observability.`, { file: rel, attribute }));
@@ -3760,7 +3760,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         issues.push(issue(BLOCKING, ruleId, message, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
-    if (hasThreeR3FCapability(manifest)) {
+    if (isThreeR3FMiniApp(manifest)) {
       const createElementRegex = /\bdocument\s*(?:\?\.|\.)\s*createElement\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
       for (const match of scanContent.matchAll(createElementRegex)) {
         if (match[1].toLowerCase() !== "canvas") {
@@ -3781,7 +3781,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       if (spec.startsWith("./") || spec.startsWith("../")) {
         const importerDir = path.dirname(item.path);
         const isMiniAppAudioImport = manifest?.mode === MINI_APP_MODE && isMiniAppAudioImportSpec(spec) && fs.existsSync(path.join(importerDir, spec));
-        const isCapabilityRelativeImport = hasThreeR3FCapability(manifest) && Boolean(resolveCapabilityRelativeImport(vaultDir, item.path, spec, capabilityFileExtensions(manifest, ROOT)));
+        const isCapabilityRelativeImport = isThreeR3FMiniApp(manifest) && Boolean(resolveCapabilityRelativeImport(vaultDir, item.path, spec, capabilityFileExtensions(manifest, ROOT)));
         if (!isMiniAppAudioImport && !isCapabilityRelativeImport && !ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
           issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI may be imported from a default Vault package. Mini App mode may also import top-level reviewed audio assets. ${spec} is not allowed.`, { file: rel }));
         }

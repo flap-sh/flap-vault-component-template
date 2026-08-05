@@ -385,6 +385,16 @@ export default function SelftestVault(_props: VaultComponentProps) {
   writeVault(defaultThreeSlug, { component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ return <Canvas />; }\n` });
   assertRule("default Vault UI blocks Three imports", runVaultCheck(defaultThreeSlug, { silent: true }), "imports-and-dependencies/unreviewed-import", "blocking");
 
+  const defaultThreeWithCapabilitySlug = `${FIXTURE_PREFIX}-default-three-cap`;
+  writeVault(defaultThreeWithCapabilitySlug, {
+    component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ const cores = navigator.hardwareConcurrency; return <Canvas data-cores={cores} />; }\n`,
+    manifest: baseManifest({ capabilities: ["three-r3f-v1"] }),
+  });
+  const defaultThreeWithCapabilityCheck = runVaultCheck(defaultThreeWithCapabilitySlug, { silent: true });
+  assertRule("default Vault UI cannot declare 3D capability", defaultThreeWithCapabilityCheck, "manifest-schema/capabilities-mini-app-only", "blocking");
+  assertRule("default Vault UI capability declaration does not allow Three imports", defaultThreeWithCapabilityCheck, "imports-and-dependencies/unreviewed-import", "blocking");
+  assertRule("default Vault UI capability declaration does not allow 3D browser APIs", defaultThreeWithCapabilityCheck, "forbidden-api/browser-global-escape", "blocking");
+
   const miniAppThreeWithoutCapabilitySlug = `${FIXTURE_PREFIX}-mini-three-no-cap`;
   writeVault(miniAppThreeWithoutCapabilitySlug, {
     component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ return <div className="min-h-screen"><Canvas /></div>; }\n`,

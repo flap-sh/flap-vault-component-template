@@ -13,6 +13,7 @@ export function manifestCapabilityIds(manifest) {
 }
 
 export function capabilityProfilesForManifest(manifest, root = process.cwd()) {
+  if (manifest?.mode !== "mini-app") return [];
   const config = loadMiniAppCapabilityConfig(root);
   return manifestCapabilityIds(manifest)
     .map((id) => ({ id, profile: config.profiles?.[id] }))
@@ -21,6 +22,10 @@ export function capabilityProfilesForManifest(manifest, root = process.cwd()) {
 
 export function hasThreeR3FCapability(manifest) {
   return manifestCapabilityIds(manifest).includes(THREE_R3F_PROFILE_ID);
+}
+
+export function isThreeR3FMiniApp(manifest) {
+  return manifest?.mode === "mini-app" && hasThreeR3FCapability(manifest);
 }
 
 export function matchesCapabilityImport(spec, allowedImport) {

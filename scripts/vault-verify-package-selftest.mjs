@@ -15,6 +15,8 @@ import {
   MINI_APP_CAPABILITY_CONFIG_PATH,
   REQUIRED_PHASES,
   REQUIRED_VIEWPORTS,
+  normalizePackageTextBuffer,
+  readPackageFileBuffer,
   sourceSha256FromFileHashes,
   summarizeE2EReportForMarker,
 } from "./e2e-report-utils.mjs";
@@ -194,8 +196,12 @@ try {
   const currentVersion = rootPackage.version;
   const currentGitHead = freshness.checks?.npm?.latestGitHead;
   assert.ok(currentGitHead, "npm latest gitHead is required for verifier selftest");
-  const currentSchema = fs.readFileSync(path.join(ROOT, "schemas", "manifest.schema.json"));
-  const currentCapabilityConfig = fs.readFileSync(path.join(ROOT, MINI_APP_CAPABILITY_CONFIG_PATH));
+  const currentSchema = readPackageFileBuffer(path.join(ROOT, "schemas", "manifest.schema.json"));
+  const currentCapabilityConfig = readPackageFileBuffer(path.join(ROOT, MINI_APP_CAPABILITY_CONFIG_PATH));
+  const schemaCrlf = Buffer.from(currentSchema.toString("utf8").replace(/\n/g, "\r\n"), "utf8");
+  const capabilityCrlf = Buffer.from(currentCapabilityConfig.toString("utf8").replace(/\n/g, "\r\n"), "utf8");
+  assert.equal(sha256(normalizePackageTextBuffer(schemaCrlf)), sha256(currentSchema));
+  assert.equal(sha256(normalizePackageTextBuffer(capabilityCrlf)), sha256(currentCapabilityConfig));
 
   const currentZip = await writePackage("current", {
     templateVersion: currentVersion,
@@ -230,6 +236,18 @@ try {
   assert.notEqual(staleSchemaResult.status, 0);
   assert.equal(parseFailure(staleSchemaResult.stderr).code, "package-verify/schema-not-current");
   assert.equal(runVerifier([staleSchemaZip, "--self-contained"]).status, 0);
+
+  const staleCapabilityZip = await writePackage("stale-capability", {
+    templateVersion: currentVersion,
+    runtimePackageVersion: currentVersion,
+    runtimePackageGitHead: currentGitHead,
+    schemaBuffer: currentSchema,
+    capabilityConfigBuffer: Buffer.concat([currentCapabilityConfig, Buffer.from("\n")]),
+  });
+  const staleCapabilityResult = runVerifier([staleCapabilityZip]);
+  assert.notEqual(staleCapabilityResult.status, 0);
+  assert.equal(parseFailure(staleCapabilityResult.stderr).code, "package-verify/capability-profile-not-current");
+  assert.equal(runVerifier([staleCapabilityZip, "--self-contained"]).status, 0);
 
   console.log(JSON.stringify({ ok: true, message: "vault:verify-package selftest passed" }, null, 2));
 } finally {

@@ -4,11 +4,6 @@ declare module "*.frag" { const source: string; export default source; }
 declare module "*.glb" { const url: string; export default url; }
 declare module "*.gltf" { const url: string; export default url; }
 declare module "*.bin" { const url: string; export default url; }
-declare module "*.png" { const url: string; export default url; }
-declare module "*.jpg" { const url: string; export default url; }
-declare module "*.jpeg" { const url: string; export default url; }
-declare module "*.webp" { const url: string; export default url; }
-declare module "*.avif" { const url: string; export default url; }
 declare module "*.ktx2" { const url: string; export default url; }
 declare module "*.basis" { const url: string; export default url; }
 declare module "*.hdr" { const url: string; export default url; }

@@ -34,6 +34,30 @@ The capability does not allow arbitrary npm packages, dynamic imports, path esca
 
 Three r185 is WebGL2-first. `webgl1` is an explicit low-spec fallback state, not a promise that the WebGL2 scene renders unchanged. A controlled WebGL1 implementation, 2D canvas renderer, or clear static fallback is valid.
 
+## Static asset imports
+
+Every local source and asset must be reachable from `Component.tsx` through static imports. Passing a relative string directly to a Three/Drei loader does not add the file to the validated import graph and is blocked as `capability-assets/unreferenced-file`.
+
+```tsx
+import { useGLTF } from "@react-three/drei";
+import modelUrl from "./assets/model.glb";
+
+export function Model() {
+  const model = useGLTF(modelUrl);
+  return <primitive object={model.scene} />;
+}
+```
+
+Do not use `useGLTF("./assets/model.glb")`. The same rule applies to textures, fonts, environments, shaders, and decoder resources.
+
+Raster image imports have two host shapes: Next preview exposes `StaticImageData`, while the Workbench artifact emits a URL string. Normalize once before passing a raster asset to Three or a DOM image:
+
+```tsx
+import textureAsset from "./assets/texture.png";
+
+const textureUrl = typeof textureAsset === "string" ? textureAsset : textureAsset.src;
+```
+
 ## Profile limits
 
 - Up to 200 source/package files.
