@@ -387,13 +387,42 @@ export default function SelftestVault(_props: VaultComponentProps) {
 
   const defaultThreeWithCapabilitySlug = `${FIXTURE_PREFIX}-default-three-cap`;
   writeVault(defaultThreeWithCapabilitySlug, {
-    component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ const cores = navigator.hardwareConcurrency; return <Canvas data-cores={cores} />; }\n`,
+    component: `import { Canvas } from "@react-three/fiber";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+export default function SelftestVault(){
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel = riskLevel === 1 ? i18n.t("risk.low") : i18n.t("risk.missing");
+  const cores = navigator.hardwareConcurrency;
+  return <div data-flap-3d-state="ready" data-flap-3d-renderer="webgl2"><StatusBadge>{riskLabel}</StatusBadge>{riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}<Canvas data-cores={cores} /></div>;
+}
+`,
     manifest: baseManifest({ capabilities: ["three-r3f-v1"] }),
+    i18n: { en: { "risk.low": "Low risk", "risk.missing": "Risk status missing" } },
   });
   const defaultThreeWithCapabilityCheck = runVaultCheck(defaultThreeWithCapabilitySlug, { silent: true });
-  assertRule("default Vault UI cannot declare 3D capability", defaultThreeWithCapabilityCheck, "manifest-schema/capabilities-mini-app-only", "blocking");
-  assertRule("default Vault UI capability declaration does not allow Three imports", defaultThreeWithCapabilityCheck, "imports-and-dependencies/unreviewed-import", "blocking");
-  assertRule("default Vault UI capability declaration does not allow 3D browser APIs", defaultThreeWithCapabilityCheck, "forbidden-api/browser-global-escape", "blocking");
+  assertNoRule("7777 Vault UI capability allows Three imports", defaultThreeWithCapabilityCheck, "imports-and-dependencies/unreviewed-import", "blocking");
+  assertNoRule("7777 Vault UI capability allows reviewed 3D browser APIs", defaultThreeWithCapabilityCheck, "forbidden-api/browser-global-escape", "blocking");
+  assertNoRule("7777 Vault UI capability keeps host risk integration", defaultThreeWithCapabilityCheck, "risk-status/missing-host-risk-state", "blocking");
+  assertRule("7777 Vault UI capability emits its own manual review", defaultThreeWithCapabilityCheck, "manual-review/vault-ui-3d", "warning");
+  assert.equal(defaultThreeWithCapabilityCheck.review.vaultUI3D.length, 1);
+
+  const mixedThreeTokenSlug = `${FIXTURE_PREFIX}-mixed-three-token`;
+  writeVault(mixedThreeTokenSlug, {
+    component: componentWithRiskBody(`  return <div data-flap-3d-state="ready" data-flap-3d-renderer="webgl2"><StatusBadge>{riskLabel}</StatusBadge>{riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}</div>;`),
+    manifest: baseManifest({ capabilities: ["three-r3f-v1"], match: { bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [TOKEN, TOKEN_8888] }] } }),
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertRule("7777 Vault UI 3D blocks mixed 7777 and 8888 proof tokens", runVaultCheck(mixedThreeTokenSlug, { silent: true }), "manifest-binding/invalid-vault-ui-3d-token", "blocking");
+
+  const vaultThreeMissingRiskSlug = `${FIXTURE_PREFIX}-vault-three-missing-risk`;
+  writeVault(vaultThreeMissingRiskSlug, {
+    component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ return <div data-flap-3d-state="ready" data-flap-3d-renderer="webgl2"><Canvas /></div>; }\n`,
+    manifest: baseManifest({ capabilities: ["three-r3f-v1"] }),
+  });
+  assertRule("7777 Vault UI 3D still requires host risk status", runVaultCheck(vaultThreeMissingRiskSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
 
   const miniAppThreeWithoutCapabilitySlug = `${FIXTURE_PREFIX}-mini-three-no-cap`;
   writeVault(miniAppThreeWithoutCapabilitySlug, {
@@ -3033,6 +3062,35 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assert.equal(threeScaffold.ok, true);
   assert.equal(threeScaffold.dryRun, true);
   passed.push("scaffold supports token-scoped three-r3f-v1 Mini Apps");
+
+  const vaultThreeScaffoldSlug = `${FIXTURE_PREFIX}-vault-three-scaffold`;
+  createdFolderNames.push(vaultThreeScaffoldSlug);
+  execFileSync(
+    process.execPath,
+    [
+      "scripts/vault-scaffold.mjs",
+      vaultThreeScaffoldSlug,
+      "--capability",
+      "three-r3f-v1",
+      "--chain",
+      "56",
+      "--factory",
+      FACTORY,
+      "--token",
+      SECOND_TOKEN,
+      "--locales",
+      "en",
+    ],
+    { cwd: ROOT, stdio: "pipe" },
+  );
+  const vaultThreeManifest = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "vaults", vaultThreeScaffoldSlug, "manifest.json"), "utf8"));
+  const vaultThreeComponent = fs.readFileSync(path.join(ROOT, "src", "vaults", vaultThreeScaffoldSlug, "Component.tsx"), "utf8");
+  assert.equal(vaultThreeManifest.mode, undefined);
+  assert.equal(vaultThreeManifest.displayTitle, undefined);
+  assert.equal(vaultThreeManifest.match.bindings[0].factoryAddress, FACTORY);
+  assert.ok(vaultThreeComponent.includes("readTaxVaultHostContext"));
+  assertRule("scaffolded 7777 three-r3f-v1 Vault UI passes checker", runVaultCheck(vaultThreeScaffoldSlug, { silent: true }), "manual-review/vault-ui-3d", "warning");
+  passed.push("scaffold supports factory-scoped 7777 three-r3f-v1 Vault UI without Mini App fields");
 
   const crlfRegisterSlug = `${FIXTURE_PREFIX}-crlf-register`;
   writeVault(crlfRegisterSlug);

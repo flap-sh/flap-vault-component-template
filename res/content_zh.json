@@ -137,10 +137,10 @@
           }
         ],
         "examples": {
-          "kicker": "Mini App 示例",
-          "title": "从轻量壳到可玩 3D，四个 Mini App 示例直接体验。",
-          "description": "先从蝴蝶农场了解 Mini App 的基础结构，再体验两个完整 3D 作品和一个面向开发者的能力示例。三个 3D Demo 均使用同一套标准 three-r3f-v1 档案。",
-          "capabilityLabel": "已支持 3D 能力 · three-r3f-v1",
+          "kicker": "通用 3D 示例",
+          "title": "7777 Vault UI 与 8888 Mini App 现已支持同等的受控 3D 能力。",
+          "description": "这里集中展示蝴蝶农场、Flap 能量竞技场、Flap Skies，以及面向开发者的 7777 Vault UI 技术示例。三个 3D Demo 在两种 surface 上共用同一套标准 three-r3f-v1 档案。",
+          "capabilityLabel": "已支持 3D · 7777 Vault UI + 8888 Mini App · three-r3f-v1",
           "capabilityFeatures": ["Three r185", "React Three Fiber", "Drei", "后处理", "WebGL2", "Shader", "运行时 2D Canvas 纹理", "响应式 2D/静态降级"],
           "farmBadge": "推荐起点",
           "farmTitle": "蝴蝶农场",
@@ -154,9 +154,9 @@
           "gameTitle": "Flap 能量竞技场",
           "gameDescription": "可以直接上手的 GameFi Demo：用键盘或触屏移动，收集七枚能量核心，使用加速并完成一局挑战。",
           "gameCta": "试玩能量竞技场",
-          "technicalBadge": "开发者参考",
+          "technicalBadge": "7777 Vault UI",
           "technicalTitle": "Three/R3F Example",
-          "technicalDescription": "面向开发者的精简实现，集中展示嵌套组件、Shader、本地资源、运行时 Canvas 纹理和后处理。",
+          "technicalDescription": "默认 7777 Vault UI 技术实现，展示 3D 大视觉前的宿主风险状态，以及嵌套组件、Shader、本地资源、运行时 Canvas 纹理和后处理。",
           "technicalCta": "查看 3D 示例"
         },
         "comparisonKicker": "Mini App / 定制 UI",

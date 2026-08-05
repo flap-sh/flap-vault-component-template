@@ -15,7 +15,9 @@ import {
   THREE_R3F_PROFILE_ID,
   capabilityFileExtensions,
   isCapabilityImportAllowed,
+  isThreeR3FArtifact,
   isThreeR3FMiniApp,
+  isThreeR3FVaultUI,
   loadMiniAppCapabilityConfig,
   manifestCapabilityIds,
   threeR3FProfile,
@@ -43,6 +45,7 @@ const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultA
 const FULLSCREEN_LAYOUT = "fullscreen";
 const MINI_APP_MODE = "mini-app";
 const MINI_APP_TOKEN_SUFFIX = "8888";
+const VAULT_UI_3D_TOKEN_SUFFIX = "7777";
 const CJK_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/u;
 const LATIN_RE = /[A-Za-z]/u;
 const MINI_APP_FULL_HEIGHT_CLASS_RE = /(?:^|[\s"'`{])(?:min-h-(?:screen|dvh|svh|lvh|full|\[100(?:vh|dvh|svh|lvh|%)\])|h-(?:screen|dvh|svh|lvh|full|\[100(?:vh|dvh|svh|lvh|%)\]))(?=$|[\s"'`}])/;
@@ -241,6 +244,7 @@ const FIX_HINTS = {
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
   "manifest-binding/invalid-mini-app-binding": "Mini App mode is token-address-bound. Use only token-scoped 8888 tokenAddresses; omit factoryAddress and vaultAddresses.",
   "manifest-binding/invalid-mini-app-token": "Mini App mode must provide the bound token address as an 8888-suffix tokenAddresses entry. Omit mode for default Vault UI packages.",
+  "manifest-binding/invalid-vault-ui-3d-token": "A mode-less three-r3f-v1 Vault UI must declare only 7777-suffix proof tokens. Remove 8888 tokens or use the existing token-scoped Mini App contract.",
   "mini-app-layout/missing-full-height-root": "Add min-h-[100vh], min-h-screen, min-h-full, or h-full to the outermost returned Mini App layout element.",
   "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 or 8888 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
   "manifest-binding/invalid-test-token-suffix": "Use a real deployed ERC20 test token address ending in 7777 or 8888. Non-7777/8888 tokenAddresses are not accepted as package proof.",
@@ -880,7 +884,7 @@ function isApprovedNavigationUrl(url) {
 
 function isAllowedBrowserGlobalMember(globalName, memberName, manifest) {
   if (ALLOWED_BROWSER_GLOBAL_MEMBERS.get(globalName)?.has(memberName)) return true;
-  if (!isThreeR3FMiniApp(manifest)) return false;
+  if (!isThreeR3FArtifact(manifest)) return false;
   return (threeR3FProfile(ROOT).safeBrowserMembers?.[globalName] || []).includes(memberName);
 }
 
@@ -2697,7 +2701,7 @@ function checkStructure(vaultDir) {
   const issues = [];
   const manifest = readManifestForStructure(vaultDir);
   const isMiniApp = manifest?.mode === MINI_APP_MODE;
-  const has3D = isThreeR3FMiniApp(manifest);
+  const has3D = isThreeR3FArtifact(manifest);
   const profile = has3D ? threeR3FProfile(ROOT) : null;
   const allowedCapabilityExtensions = has3D ? capabilityFileExtensions(manifest, ROOT) : new Set();
   const fontExtensions = new Set(profile?.fontExtensions || []);
@@ -3162,9 +3166,6 @@ function checkManifest(manifest, folderName) {
     if (!Array.isArray(manifest.capabilities) || manifest.capabilities.length === 0 || manifest.capabilities.some((value) => typeof value !== "string" || !value.trim())) {
       issues.push(issue(BLOCKING, "manifest-schema/invalid-capabilities", "manifest.capabilities must be a non-empty array of capability profile ids.", { field: "capabilities" }));
     } else {
-      if (!isMiniAppMode) {
-        issues.push(issue(BLOCKING, "manifest-schema/capabilities-mini-app-only", "manifest.capabilities is allowed only when manifest.mode is mini-app.", { field: "capabilities" }));
-      }
       if (new Set(capabilities).size !== capabilities.length) {
         issues.push(issue(BLOCKING, "manifest-schema/duplicate-capability", "manifest.capabilities must not contain duplicates.", { field: "capabilities" }));
       }
@@ -3175,6 +3176,12 @@ function checkManifest(manifest, folderName) {
       }
       if (isThreeR3FMiniApp(manifest)) {
         issues.push(issue(WARNING, "manual-review/mini-app-3d", `${THREE_R3F_PROFILE_ID} enables reviewed local 3D source and assets. Review performance tiers, asset provenance, fallback behavior, and external request logs before publish.`, {
+          field: "capabilities",
+          capability: THREE_R3F_PROFILE_ID,
+          dependencies: threeR3FProfile(ROOT).dependencies,
+        }));
+      } else if (isThreeR3FVaultUI(manifest)) {
+        issues.push(issue(WARNING, "manual-review/vault-ui-3d", `${THREE_R3F_PROFILE_ID} enables reviewed local 3D source and assets for a 7777 Vault UI. Review performance tiers, asset provenance, fallback behavior, risk-status placement, and external request logs before publish.`, {
           field: "capabilities",
           capability: THREE_R3F_PROFILE_ID,
           dependencies: threeR3FProfile(ROOT).dependencies,
@@ -3246,6 +3253,7 @@ function checkManifest(manifest, folderName) {
       const seenBindingKeys = new Map();
       const manifestTestTokenFields = [];
       const miniAppTokenFields = [];
+      const vaultUI3DTokenFields = [];
       const factoryFieldsByChain = new Map();
       const noFactoryFieldsByChain = new Map();
       for (const [index, bindingEntry] of manifest.match.bindings.entries()) {
@@ -3350,6 +3358,16 @@ function checkManifest(manifest, folderName) {
                 manifestTestTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
                 if (addr.toLowerCase().endsWith(MINI_APP_TOKEN_SUFFIX)) {
                   miniAppTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
+                  if (isThreeR3FVaultUI(manifest)) {
+                    issues.push(
+                      issue(
+                        BLOCKING,
+                        "manifest-binding/invalid-vault-ui-3d-token",
+                        `${field}.tokenAddresses[${addressIndex}] must end in ${VAULT_UI_3D_TOKEN_SUFFIX} for a mode-less ${THREE_R3F_PROFILE_ID} Vault UI: ${addr}.`,
+                        { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffix: VAULT_UI_3D_TOKEN_SUFFIX },
+                      ),
+                    );
+                  }
                 } else if (isMiniAppMode) {
                   issues.push(
                     issue(
@@ -3359,6 +3377,8 @@ function checkManifest(manifest, folderName) {
                       { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffix: MINI_APP_TOKEN_SUFFIX },
                     ),
                   );
+                } else if (isThreeR3FVaultUI(manifest)) {
+                  vaultUI3DTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
                 }
               }
             }
@@ -3414,6 +3434,16 @@ function checkManifest(manifest, folderName) {
             "manifest-binding/invalid-mini-app-token",
             `manifest.mode=mini-app requires at least one token-scoped tokenAddresses entry ending in ${MINI_APP_TOKEN_SUFFIX} because Mini App routing is tied to the token address.`,
             { field: "match.bindings[].tokenAddresses", requiredSuffix: MINI_APP_TOKEN_SUFFIX },
+          ),
+        );
+      }
+      if (isThreeR3FVaultUI(manifest) && vaultUI3DTokenFields.length === 0) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "manifest-binding/invalid-vault-ui-3d-token",
+            `A mode-less ${THREE_R3F_PROFILE_ID} Vault UI requires at least one tokenAddresses proof entry ending in ${VAULT_UI_3D_TOKEN_SUFFIX}.`,
+            { field: "match.bindings[].tokenAddresses", requiredSuffix: VAULT_UI_3D_TOKEN_SUFFIX },
           ),
         );
       }
@@ -3575,7 +3605,7 @@ function collectGltfLocalUris(gltfPath, vaultDir, issues) {
 }
 
 function collectCapabilityImportGraphIssues(vaultDir, manifest) {
-  if (!isThreeR3FMiniApp(manifest)) return [];
+  if (!isThreeR3FArtifact(manifest)) return [];
   const issues = [];
   const extensions = capabilityFileExtensions(manifest, ROOT);
   const sourceExtensions = new Set(threeR3FProfile(ROOT).sourceExtensions);
@@ -3657,10 +3687,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    if (isThreeR3FMiniApp(manifest) && item.name === "Component.tsx") {
+    if (isThreeR3FArtifact(manifest) && item.name === "Component.tsx") {
       for (const attribute of ["data-flap-3d-state", "data-flap-3d-renderer"]) {
         if (!content.includes(attribute)) {
-          issues.push(issue(BLOCKING, "mini-app-3d/missing-deterministic-state", `3D Mini App root must expose ${attribute} for host and E2E observability.`, { file: rel, attribute }));
+          issues.push(issue(BLOCKING, "three-r3f/missing-deterministic-state", `3D artifact root must expose ${attribute} for host and E2E observability.`, { file: rel, attribute }));
         }
       }
     }
@@ -3760,7 +3790,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         issues.push(issue(BLOCKING, ruleId, message, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
-    if (isThreeR3FMiniApp(manifest)) {
+    if (isThreeR3FArtifact(manifest)) {
       const createElementRegex = /\bdocument\s*(?:\?\.|\.)\s*createElement\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
       for (const match of scanContent.matchAll(createElementRegex)) {
         if (match[1].toLowerCase() !== "canvas") {
@@ -3781,7 +3811,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       if (spec.startsWith("./") || spec.startsWith("../")) {
         const importerDir = path.dirname(item.path);
         const isMiniAppAudioImport = manifest?.mode === MINI_APP_MODE && isMiniAppAudioImportSpec(spec) && fs.existsSync(path.join(importerDir, spec));
-        const isCapabilityRelativeImport = isThreeR3FMiniApp(manifest) && Boolean(resolveCapabilityRelativeImport(vaultDir, item.path, spec, capabilityFileExtensions(manifest, ROOT)));
+        const isCapabilityRelativeImport = isThreeR3FArtifact(manifest) && Boolean(resolveCapabilityRelativeImport(vaultDir, item.path, spec, capabilityFileExtensions(manifest, ROOT)));
         if (!isMiniAppAudioImport && !isCapabilityRelativeImport && !ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
           issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI may be imported from a default Vault package. Mini App mode may also import top-level reviewed audio assets. ${spec} is not allowed.`, { file: rel }));
         }
@@ -4240,6 +4270,14 @@ function collectManualReview(issues) {
       severity: item.severity,
       ruleId: item.ruleId,
     }));
+  const vaultUI3D = issues
+    .filter((item) => item.ruleId === "manual-review/vault-ui-3d")
+    .map((item) => ({
+      capability: item.capability,
+      dependencies: item.dependencies,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
 
   const miniApp3DFonts = issues
     .filter((item) => item.ruleId === "manual-review/mini-app-3d-font")
@@ -4251,7 +4289,7 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames, externalLinks, fullscreenLayouts, miniAppAudioAssets, miniApp3D, miniApp3DFonts };
+  return { externalEndpoints, oracles, externalFrames, externalLinks, fullscreenLayouts, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
 }
 
 function buildCheckReport(folderName, issues) {

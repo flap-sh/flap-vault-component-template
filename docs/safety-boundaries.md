@@ -44,7 +44,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 
 ### Versioned Mini App 3D exception
 
-Only a token-scoped 8888 Mini App declaring `capabilities: ["three-r3f-v1"]` may use the pinned Three/R3F imports, recursively reachable local TS/TSX modules, shaders, models, textures, environments, fonts, and controlled decoder WASM described by `config/mini-app-capability-profiles.json`. This exception does not permit arbitrary npm packages, remote assets, CDN decoder paths, network, storage, navigation, permissions, wallet APIs, workers, DOM queries, or new contract targets. Drei loaders must receive artifact-relative decoder/resource URLs instead of falling back to Google or another CDN.
+A mode-less 7777 Vault UI or token-scoped 8888 Mini App declaring `capabilities: ["three-r3f-v1"]` may use the pinned Three/R3F imports, recursively reachable local TS/TSX modules, shaders, models, textures, environments, fonts, and controlled decoder WASM described by `config/mini-app-capability-profiles.json`. The 7777 surface keeps default risk-status, shell, audio, layout, and displayTitle restrictions; mixed 7777/8888 artifacts are blocked. This exception does not permit arbitrary npm packages, remote assets, CDN decoder paths, network, storage, navigation, permissions, wallet APIs, workers, DOM queries, or new contract targets. Drei loaders must receive artifact-relative decoder/resource URLs instead of falling back to Google or another CDN.
 
 Three r185 is WebGL2-first. `webgl1` in `data-flap-3d-renderer` is an explicit low-spec fallback contract, not a promise that the r185 scene renders unchanged; a controlled WebGL1 implementation, 2D canvas, or static fallback is acceptable when WebGL2 is unavailable.
 

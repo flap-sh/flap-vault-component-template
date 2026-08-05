@@ -13,7 +13,7 @@ export function manifestCapabilityIds(manifest) {
 }
 
 export function capabilityProfilesForManifest(manifest, root = process.cwd()) {
-  if (manifest?.mode !== "mini-app") return [];
+  if (!isThreeR3FArtifact(manifest)) return [];
   const config = loadMiniAppCapabilityConfig(root);
   return manifestCapabilityIds(manifest)
     .map((id) => ({ id, profile: config.profiles?.[id] }))
@@ -26,6 +26,14 @@ export function hasThreeR3FCapability(manifest) {
 
 export function isThreeR3FMiniApp(manifest) {
   return manifest?.mode === "mini-app" && hasThreeR3FCapability(manifest);
+}
+
+export function isThreeR3FVaultUI(manifest) {
+  return manifest?.mode === undefined && hasThreeR3FCapability(manifest);
+}
+
+export function isThreeR3FArtifact(manifest) {
+  return isThreeR3FMiniApp(manifest) || isThreeR3FVaultUI(manifest);
 }
 
 export function matchesCapabilityImport(spec, allowedImport) {

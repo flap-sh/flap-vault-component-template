@@ -166,6 +166,7 @@ export default function HomePage() {
 
         <main style={{ padding: "56px 0 120px" }}>
           <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 clamp(16px,4vw,32px)" }}>
+            <MiniAppGuide doc={miniApp} galleryOnly />
             <ModeTabs mode={docMode} onChange={setDocMode} labels={sop.modeTabs} />
 
             {/* ── HERO: 2-col grid ─────────────────────────────────── */}
@@ -467,7 +468,7 @@ export default function HomePage() {
             </section>
               </>
             ) : (
-              <MiniAppGuide doc={miniApp} />
+              <MiniAppGuide doc={miniApp} hideGallery />
             )}
 
           </div>
@@ -536,10 +537,10 @@ function ModeTabButton({
   );
 }
 
-function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
+function MiniAppGuide({ doc, galleryOnly = false, hideGallery = false }: { doc: MiniAppGuideContent; galleryOnly?: boolean; hideGallery?: boolean }) {
   return (
     <>
-      <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+      {!galleryOnly ? <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
           {doc.summary.kicker}
         </p>
@@ -556,9 +557,9 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
             </div>
           ))}
         </div>
-      </section>
+      </section> : null}
 
-      <section data-testid="mini-app-example-gallery" style={{ marginTop: 32, padding: "28px 0 0" }}>
+      {!hideGallery ? <section data-testid="mini-app-example-gallery" style={{ marginTop: 0, padding: "28px 0 52px" }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
           {doc.examples.kicker}
         </p>
@@ -660,8 +661,9 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
             </div>
           </article>
         </div>
-      </section>
+      </section> : null}
 
+      {!galleryOnly ? <>
       <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
           {doc.requirementsKicker}
@@ -746,6 +748,7 @@ function MiniAppGuide({ doc }: { doc: MiniAppGuideContent }) {
           </div>
         </div>
       </section>
+      </> : null}
     </>
   );
 }

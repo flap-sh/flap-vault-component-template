@@ -2,17 +2,31 @@
   "en": {
     "title": "Three R3F capability example",
     "subtitle": "A local-only scene with deterministic fallback and reduced-motion behavior.",
-    "fallback": "3D acceleration is unavailable. The Mini App is using its 2D fallback.",
-    "error": "The 3D context was lost. Reload the Mini App to retry.",
+    "fallback": "3D acceleration is unavailable. The Vault UI is using its 2D fallback.",
+    "error": "The 3D context was lost. Reload the Vault UI to retry.",
     "canvasLabel": "Animated three-dimensional capability example",
-    "wrongNetwork": "Wrong network. Switch the wallet chain before using contract actions."
+    "wrongNetwork": "Wrong network. Switch the wallet chain before using contract actions.",
+    "risk.low": "Low risk",
+    "risk.lowMedium": "Low-medium risk",
+    "risk.medium": "Medium risk",
+    "risk.high": "High risk",
+    "risk.unverified": "Unverified",
+    "risk.missing": "Risk status missing",
+    "risk.missingDescription": "The host contract risk status is unavailable. Risk-status integration is required before delivery."
   },
   "zh": {
     "title": "Three R3F 能力示例",
     "subtitle": "仅使用本地资源，并提供确定性降级与减少动态效果支持。",
-    "fallback": "当前设备无法使用 3D 加速，Mini App 已切换到二维降级界面。",
-    "error": "三维上下文已丢失，请重新载入 Mini App 后重试。",
+    "fallback": "当前设备无法使用 3D 加速，Vault UI 已切换到二维降级界面。",
+    "error": "三维上下文已丢失，请重新载入 Vault UI 后重试。",
     "canvasLabel": "三维动态能力示例",
-    "wrongNetwork": "钱包网络不正确，请先切换到目标链再使用合约操作。"
+    "wrongNetwork": "钱包网络不正确，请先切换到目标链再使用合约操作。",
+    "risk.low": "低风险",
+    "risk.lowMedium": "中低风险",
+    "risk.medium": "中风险",
+    "risk.high": "高风险",
+    "risk.unverified": "未验证",
+    "risk.missing": "缺少风险状态",
+    "risk.missingDescription": "宿主未提供当前合约风险状态；交付前必须完成风险状态接入。"
   }
 }

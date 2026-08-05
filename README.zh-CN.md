@@ -1,6 +1,6 @@
 # Flap Vault UI Template
 
-`three-r3f-v1` Mini App 如果没有项目测试 token，可以省略 `--token`；脚手架会按所选支持链自动使用 Flap 已部署的标准 `8888` 预览 token。它只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验；禁止使用零地址变体或跳过校验。
+`three-r3f-v1` 支持两种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI，以及 token-scoped `8888` Mini App。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
 
 [English](./README.md)
 
@@ -18,7 +18,7 @@
 
 这个仓库是一个公开模板，用于构建受控的 Flap Vault UI 组件。
 
-Mini App 的标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。只有 token-scoped 8888 Mini App 才能在 `"mode": "mini-app"` 旁声明 `"capabilities": ["three-r3f-v1"]`。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源；每个本地文件都必须从 `Component.tsx` 依赖图静态导入，直接把相对路径字符串传给 loader 不会被计入。档案同时要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；Mini App 页面会依次展示可玩的 `flap-gamefi-arena`、`flap-skies-showcase` 与 `three-r3f-example` 三个在线 3D 预览，同时保留蝴蝶农场作为原有壳与交互指引。
+标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。7777 Vault UI 可使用 factory、单 Vault 或 token binding，但必须保持默认 Vault 壳并在 3D 大视觉前展示宿主风险状态；8888 Mini App 继续使用 token-only binding、双语 `displayTitle` 和完整 Mini App 规则。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源；每个本地文件都必须从 `Component.tsx` 依赖图静态导入，直接把相对路径字符串传给 loader 不会被计入。档案同时要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；首页公共示例区会展示蝴蝶农场、能量竞技场、Flap Skies 和 7777 `three-r3f-example`。
 
 它不是自由网站容器。Vault UI 组件必须运行在 Flap 控制的运行时边界内：
 

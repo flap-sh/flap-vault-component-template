@@ -36,7 +36,7 @@ VaultABI.ts
 i18n.json
 ```
 
-No helpers, nested components, local docs, sample data, or extra folders are allowed inside the default Vault package. Default Vault UI cannot include local assets. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) for BGM or sound effects. The only recursive source/asset exception is a token-scoped 8888 Mini App declaring `three-r3f-v1`; its complete supported surface and limits live in `docs/mini-app-3d.md`.
+No helpers, nested components, local docs, sample data, or extra folders are allowed inside the default Vault package. Default Vault UI cannot include local assets unless a mode-less 7777 artifact declares `three-r3f-v1`. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) for BGM or sound effects. The recursive source/asset exception supports either a 7777 Vault UI or token-scoped 8888 Mini App declaring `three-r3f-v1`; its complete supported surface and limits live in `docs/mini-app-3d.md`.
 
 ### Shell vs Vault Boundary
 

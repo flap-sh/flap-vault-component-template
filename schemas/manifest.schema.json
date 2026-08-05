@@ -22,13 +22,6 @@
       "else": {
         "not": { "required": ["displayTitle"] }
       }
-    },
-    {
-      "if": { "required": ["capabilities"] },
-      "then": {
-        "required": ["mode"],
-        "properties": { "mode": { "const": "mini-app" } }
-      }
     }
   ],
   "properties": {
@@ -51,7 +44,7 @@
       "minItems": 1,
       "uniqueItems": true,
       "items": { "type": "string", "enum": ["three-r3f-v1"] },
-      "description": "Optional versioned Mini App capability profiles. three-r3f-v1 enables the controlled Three.js/R3F multi-file and local-asset boundary. Capabilities are not allowed for default Vault UI artifacts."
+      "description": "Optional versioned capability profiles. three-r3f-v1 enables the same controlled Three.js/R3F multi-file and local-asset boundary for mode-less 7777 Vault UI and token-scoped 8888 Mini App artifacts."
     },
     "match": {
       "type": "object",

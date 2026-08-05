@@ -1,6 +1,8 @@
-# Mini App 3D capability
+# 7777 Vault UI and 8888 Mini App 3D capability
 
-Flap supports standard 3D experiences only for token-scoped 8888 Mini Apps through the versioned `three-r3f-v1` capability. It is opt-in and does not expand the default Vault UI permission boundary.
+Flap supports standard 3D experiences through the versioned `three-r3f-v1` capability on two explicit surfaces: a mode-less 7777 Vault UI, or a token-scoped 8888 Mini App. It is opt-in and does not widen any unrelated Vault UI permission.
+
+A 7777 3D Vault UI may use factory, single-Vault, or token bindings, must declare at least one real deployed 7777 proof token, and must keep every declared proof token on the 7777 suffix. It remains in the default Vault shell, must show host-derived contract risk status before the 3D visual, cannot add Mini App audio, and must omit `displayTitle` and `mode`. An 8888 3D Mini App keeps the existing token-only binding, bilingual `displayTitle`, full-height root, audio review, and risk-status exemption. Mixed 7777/8888 3D artifacts are blocked.
 
 ## Live examples
 
@@ -16,7 +18,7 @@ Choose the example by purpose: start with `flap-gamefi-arena` for interactive ga
 
 | Area | `three-r3f-v1` support |
 | --- | --- |
-| Eligibility | `manifest.mode: "mini-app"`, token-only binding, real deployed ERC20 ending in `8888`, and `capabilities: ["three-r3f-v1"]` |
+| Eligibility | Either mode omitted with only real deployed `7777` proof tokens and factory/Vault/token bindings, or `manifest.mode: "mini-app"` with token-only real deployed `8888` bindings; both declare `capabilities: ["three-r3f-v1"]` |
 | Missing project test token | Omit `--token` during scaffold to use Flap's deployed standard Mini App preview token for the selected supported chain. It is preview/E2E proof only, not the project's production CA restriction. |
 | Pinned packages | `three@0.185.1`, `@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, `@react-three/postprocessing@2.19.1` |
 | Source | Recursive, statically reachable `.ts` and `.tsx` inside the current Vault folder |

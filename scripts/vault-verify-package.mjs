@@ -14,7 +14,7 @@ import {
   summarizeE2EReportForMarker,
   validateE2EReportObject,
 } from "./e2e-report-utils.mjs";
-import { capabilityFileExtensions, manifestCapabilityIds } from "./mini-app-capabilities.mjs";
+import { capabilityFileExtensions, isThreeR3FArtifact, manifestCapabilityIds } from "./mini-app-capabilities.mjs";
 import { collectE2EReportErc20TokenIssues, collectManifestErc20TokenIssues } from "./erc20-token-validation.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
@@ -181,17 +181,18 @@ function readJsonEntry(entries, entryName) {
 
 function expectedSourceFiles(folderName, names, manifest) {
   const required = REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`);
-  if (manifest?.mode !== MINI_APP_MODE) return required;
   const prefix = `src/vaults/${folderName}/`;
   const capabilityExtensions = capabilityFileExtensions(manifest, process.cwd());
-  const hasCapabilities = manifestCapabilityIds(manifest).length > 0;
-  const audioFiles = names
-    .filter((name) => {
-      if (!name.startsWith(prefix)) return false;
-      const localName = name.slice(prefix.length);
-      return isMiniAppAudioAssetName(localName);
-    })
-    .sort();
+  const hasCapabilities = isThreeR3FArtifact(manifest) && manifestCapabilityIds(manifest).length > 0;
+  const audioFiles = manifest?.mode === MINI_APP_MODE
+    ? names
+        .filter((name) => {
+          if (!name.startsWith(prefix)) return false;
+          const localName = name.slice(prefix.length);
+          return isMiniAppAudioAssetName(localName);
+        })
+        .sort()
+    : [];
   const capabilityFiles = hasCapabilities
     ? names.filter((name) => name.startsWith(prefix) && capabilityExtensions.has(path.extname(name).toLowerCase()))
     : [];

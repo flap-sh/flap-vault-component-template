@@ -1,12 +1,10 @@
 {
   "artifactId": "vaultui_three-r3f-example_01K9V9Z0P0AAAAAAAAAAAAAAAA",
   "name": "Three R3F Capability Example",
-  "displayTitle": { "zh": "三维能力示例", "en": "3D Capability Example" },
-  "mode": "mini-app",
   "capabilities": ["three-r3f-v1"],
   "match": {
     "bindings": [
-      { "chainId": 56, "tokenAddresses": ["0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888"] }
+      { "chainId": 56, "tokenAddresses": ["0x6BcC641D1eF33c4d7A2C9536a3E0356F77Ff7777"] }
     ]
   },
   "i18n": ["en", "zh"]

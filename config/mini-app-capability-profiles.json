@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "profiles": {
     "three-r3f-v1": {
-      "mode": "mini-app",
-      "description": "Controlled Three.js and React Three Fiber runtime for full-height Mini Apps.",
+      "surfaces": ["vault-ui-7777", "mini-app-8888"],
+      "description": "Controlled Three.js and React Three Fiber runtime for 7777 Vault UI and 8888 Mini App surfaces.",
       "dependencies": {
         "three": "0.185.1",
         "@react-three/fiber": "8.18.0",

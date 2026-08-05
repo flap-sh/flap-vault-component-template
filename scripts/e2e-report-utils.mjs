@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   MINI_APP_CAPABILITY_CONFIG_PATH,
   capabilityFileExtensions,
+  isThreeR3FArtifact,
   manifestCapabilityIds,
 } from "./mini-app-capabilities.mjs";
 
@@ -107,7 +108,7 @@ function walkFiles(dir, files = []) {
 
 export function collectCapabilitySourcePaths(root, folderName) {
   const manifest = readManifest(root, folderName);
-  if (manifest?.mode !== MINI_APP_MODE || manifestCapabilityIds(manifest).length === 0) return [];
+  if (!isThreeR3FArtifact(manifest) || manifestCapabilityIds(manifest).length === 0) return [];
   const vaultDir = path.join(root, "src", "vaults", folderName);
   const extensions = capabilityFileExtensions(manifest, root);
   return walkFiles(vaultDir)

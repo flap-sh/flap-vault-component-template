@@ -312,21 +312,36 @@ export default function ${componentName}(_props: VaultComponentProps) {
 `;
 }
 
-function threeR3FComponentSource(componentName) {
+function threeR3FComponentSource(componentName, { vaultUI = false } = {}) {
   return `"use client";
 
 import { Canvas } from "@react-three/fiber";
 import { useEffect, useState } from "react";
 import type { VaultComponentProps } from "@/src/sdk";
-import { useFlapSdk } from "@/src/sdk";
+import { ${vaultUI ? "readTaxVaultHostContext, " : ""}useFlapSdk } from "@/src/sdk";
 
 type Renderer = "webgl2" | "webgl1" | "2d";
 type RenderState = "loading" | "ready" | "fallback" | "error";
 
 export default function ${componentName}(_props: VaultComponentProps) {
-  const { i18n } = useFlapSdk();
+  const { ${vaultUI ? "context, " : ""}i18n } = useFlapSdk();
   const [renderer, setRenderer] = useState<Renderer>("webgl2");
   const [renderState, setRenderState] = useState<RenderState>("loading");
+${vaultUI ? `  const host = readTaxVaultHostContext(context.host);
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel =
+    riskLevel === 1
+      ? i18n.t("states.riskLow")
+      : riskLevel === 2
+        ? i18n.t("states.riskLowMedium")
+        : riskLevel === 3
+          ? i18n.t("states.riskMedium")
+          : riskLevel === 4
+            ? i18n.t("states.riskHigh")
+            : riskLevel === 0
+              ? i18n.t("states.riskUnverified")
+              : i18n.t("states.riskMissing");
+` : ""}
 
   useEffect(() => {
     const probe = document.createElement("canvas");
@@ -337,11 +352,15 @@ export default function ${componentName}(_props: VaultComponentProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white" data-flap-3d-state={renderState} data-flap-3d-renderer={renderer}>
+    <div className="${vaultUI ? "w-full space-y-3" : "min-h-screen"} bg-slate-950 text-white" data-flap-3d-state={renderState} data-flap-3d-renderer={renderer}>
       <header className="px-5 py-6">
         <h1 className="text-xl font-semibold">{i18n.t("title")}</h1>
         <p className="mt-1 text-sm text-slate-300">{i18n.t("subtitle")}</p>
-      </header>
+${vaultUI ? `        <div className={\`mt-3 rounded-lg border px-3 py-2 text-sm \${riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "border-red-400/40 bg-red-500/10 text-red-100" : "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"}\`}>
+          {riskLabel}
+        </div>
+        {riskLevel === null ? <div className="mt-2 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-100">{i18n.t("notices.riskMissing")}</div> : null}
+` : ""}      </header>
       <main className="h-[70vh] min-h-[420px]">
         {renderer === "webgl2" ? (
           <Canvas camera={{ position: [0, 0, 4], fov: 48 }} onCreated={() => setRenderState("ready")}>
@@ -437,7 +456,7 @@ function i18nSource(locales, name) {
   return `${JSON.stringify(payload, null, 2)}\n`;
 }
 
-function manifestSource({ artifactId, name, bindings, locales, capability, displayTitle }) {
+function manifestSource({ artifactId, name, bindings, locales, capability, displayTitle, miniApp3D }) {
   const matchBindings = bindings.map((binding) => {
     const entry = { chainId: binding.chainId };
     if (binding.factoryAddress) entry.factoryAddress = binding.factoryAddress;
@@ -448,8 +467,10 @@ function manifestSource({ artifactId, name, bindings, locales, capability, displ
   const match = { bindings: matchBindings };
   const manifest = { artifactId, name };
   if (capability) {
-    manifest.displayTitle = displayTitle;
-    manifest.mode = "mini-app";
+    if (miniApp3D) {
+      manifest.displayTitle = displayTitle;
+      manifest.mode = "mini-app";
+    }
     manifest.capabilities = [capability];
   }
   manifest.match = match;
@@ -491,6 +512,8 @@ async function main() {
   const capabilities = unique(collectValues(parsed, ["capability", "capabilities"]));
   const capability = capabilities[0];
   const isThreeR3F = capability === THREE_R3F_CAPABILITY;
+  const isThreeR3FVaultUI = isThreeR3F && requestedTokenValues.length > 0 && requestedTokenValues.every((address) => address.toLowerCase().endsWith("7777"));
+  const isThreeR3FMiniApp = isThreeR3F && !isThreeR3FVaultUI;
   const tokenValues = requestedTokenValues.length
     ? requestedTokenValues
     : isThreeR3F
@@ -515,7 +538,7 @@ async function main() {
       capabilities,
     });
   }
-  if (isThreeR3F && (!displayTitle.zh || !displayTitle.en)) {
+  if (isThreeR3FMiniApp && (!displayTitle.zh || !displayTitle.en)) {
     fail("3D Mini App display titles must be non-empty in both languages.", {
       code: "manifest-schema/mini-app-display-title",
       fixHint: "Pass --display-title-zh and --display-title-en, or keep the generated name defaults.",
@@ -536,13 +559,13 @@ async function main() {
       fixHint: "Pass --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory for factory-scoped UI with mainnet launch intent, or --chain 56 --vault 0x... --token 0x... for single-Vault UI.",
     });
   }
-  if (isThreeR3F && (usingFactoryMode || usingVaultMode || factoryValues.length || vaultValues.length)) {
-    fail("three-r3f-v1 scaffolds only token-scoped Mini Apps.", {
+  if (isThreeR3FMiniApp && (usingFactoryMode || usingVaultMode || factoryValues.length || vaultValues.length)) {
+    fail("three-r3f-v1 Mini Apps are token-scoped and cannot use factory or Vault bindings.", {
       code: "manifest-binding/mini-app-token-only",
       fixHint: `Remove --factory and --vault; use --capability ${THREE_R3F_CAPABILITY} --chain 56 --token 0x...8888.`,
     });
   }
-  if (isThreeR3F && tokenValues.length !== chainValues.length) {
+  if (isThreeR3FMiniApp && tokenValues.length !== chainValues.length) {
     fail("Each 3D Mini App chain must have exactly one supported preview token binding.", {
       code: "manifest-binding/chain-token-count-mismatch",
       fixHint: "Use a supported Mini App preview chain (56, 97, 4663, or 46630), or pair every --chain with one real deployed --token ending in 8888.",
@@ -643,10 +666,22 @@ async function main() {
       });
     }
   }
-  if (isThreeR3F && tokenValues.some((address) => !address.toLowerCase().endsWith("8888"))) {
+  if (isThreeR3F && tokenValues.some((address) => address.toLowerCase().endsWith("7777")) && tokenValues.some((address) => address.toLowerCase().endsWith("8888"))) {
+    fail("three-r3f-v1 artifacts cannot mix 7777 Vault UI and 8888 Mini App proof tokens.", {
+      code: "manifest-binding/mixed-3d-token-suffix",
+      fixHint: "Use only 7777 tokens for a mode-less Vault UI, or only 8888 tokens for a token-scoped Mini App.",
+    });
+  }
+  if (isThreeR3FMiniApp && tokenValues.some((address) => !address.toLowerCase().endsWith("8888"))) {
     fail("three-r3f-v1 Mini Apps require token addresses ending in 8888.", {
       code: "manifest-binding/mini-app-token-suffix",
       fixHint: "Use a real deployed ERC20 token address ending in 8888 for every Mini App binding.",
+    });
+  }
+  if (isThreeR3FVaultUI && tokenValues.some((address) => !address.toLowerCase().endsWith("7777"))) {
+    fail("three-r3f-v1 Vault UIs require token addresses ending in 7777.", {
+      code: "manifest-binding/vault-ui-3d-token-suffix",
+      fixHint: "Use a real deployed ERC20 token address ending in 7777 for every 3D Vault UI proof token.",
     });
   }
   if (!locales.length || locales.some((locale) => locale.length < 2)) {
@@ -697,8 +732,8 @@ async function main() {
   const pascalName = pascalCase(folderName);
   const componentName = pascalName.endsWith("Vault") ? pascalName : `${pascalName}Vault`;
   const files = [
-    ["Component.tsx", isThreeR3F ? threeR3FComponentSource(componentName) : componentSource(componentName)],
-    ["manifest.json", manifestSource({ artifactId, name, bindings, locales, capability, displayTitle })],
+    ["Component.tsx", isThreeR3F ? threeR3FComponentSource(componentName, { vaultUI: isThreeR3FVaultUI }) : componentSource(componentName)],
+    ["manifest.json", manifestSource({ artifactId, name, bindings, locales, capability, displayTitle, miniApp3D: isThreeR3FMiniApp })],
     ["VaultABI.ts", abiSource()],
     ["i18n.json", i18nSource(locales, name)],
   ];
