@@ -13,7 +13,6 @@ export function manifestCapabilityIds(manifest) {
 }
 
 export function capabilityProfilesForManifest(manifest, root = process.cwd()) {
-  if (!isThreeR3FArtifact(manifest)) return [];
   const config = loadMiniAppCapabilityConfig(root);
   return manifestCapabilityIds(manifest)
     .map((id) => ({ id, profile: config.profiles?.[id] }))
