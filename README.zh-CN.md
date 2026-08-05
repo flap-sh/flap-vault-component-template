@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+`three-r3f-v1` Mini App 如果没有项目测试 token，可以省略 `--token`；脚手架会按所选支持链自动使用 Flap 已部署的标准 `8888` 预览 token。它只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验；禁止使用零地址变体或跳过校验。
+
 [English](./README.md)
 
 ## 目录

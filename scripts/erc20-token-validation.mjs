@@ -4,6 +4,12 @@ import { bsc, bscTestnet } from "viem/chains";
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 export const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 export const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
+export const STANDARD_MINI_APP_PREVIEW_TOKENS = new Map([
+  [56, "0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888"],
+  [97, "0x2865d202f0378df0f23c855a0b09b61721918888"],
+  [4663, "0x10b90dd1d5a999c2ff9c034d13be55a7ba788888"],
+  [46630, "0xbd2e243911c9cded8b2637f90439cb5777988888"],
+]);
 const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663, 46630]);
 const DEFAULT_RPC_URLS = {
   56: ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
@@ -32,6 +38,10 @@ export function normalizeTokenAddress(value) {
 export function hasRequiredTestTokenSuffix(value) {
   const address = normalizeTokenAddress(value)?.toLowerCase();
   return Boolean(address && REQUIRED_TEST_TOKEN_SUFFIXES.some((suffix) => address.endsWith(suffix)));
+}
+
+export function standardMiniAppPreviewToken(chainId) {
+  return STANDARD_MINI_APP_PREVIEW_TOKENS.get(chainId);
 }
 
 function chainRpcCandidates(chainId) {

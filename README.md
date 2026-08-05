@@ -18,6 +18,8 @@ This repository is a public starter for building private custom Flap Vault UI co
 
 Mini App 3D uses the versioned `three-r3f-v1` profile. Declare `"capabilities": ["three-r3f-v1"]` only beside `"mode": "mini-app"` on a token-scoped 8888 artifact. The profile pins the supported Three/R3F packages, permits recursively statically reachable local source/shader/3D assets, requires deterministic renderer state/fallback attributes, and keeps network, wallet, storage, navigation, workers, remote assets, and arbitrary npm packages blocked. See the complete capability matrix in `docs/mini-app-3d.md`; the Mini App tab prominently leads with the playable `flap-gamefi-arena`, followed by `flap-skies-showcase` and `three-r3f-example`, while retaining Flap Farm as the original shell guide.
 
+For `three-r3f-v1` scaffolds, `--token` is optional when the project has no test token: the scaffold selects Flap's deployed standard `8888` Mini App preview token for the chosen supported chain. It remains the preview/E2E proof token only, not a production CA restriction, and it passes the same deployed-ERC20 validation as an explicitly supplied token.
+
 It is not a free-form website container. A Vault UI component must run inside Flap's controlled runtime boundary:
 
 - Flap SDK for chain, wallet, contract read/write, oracle, i18n, notifications, formatting, and tx errors.

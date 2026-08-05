@@ -17,6 +17,7 @@ Choose the example by purpose: start with `flap-gamefi-arena` for interactive ga
 | Area | `three-r3f-v1` support |
 | --- | --- |
 | Eligibility | `manifest.mode: "mini-app"`, token-only binding, real deployed ERC20 ending in `8888`, and `capabilities: ["three-r3f-v1"]` |
+| Missing project test token | Omit `--token` during scaffold to use Flap's deployed standard Mini App preview token for the selected supported chain. It is preview/E2E proof only, not the project's production CA restriction. |
 | Pinned packages | `three@0.185.1`, `@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, `@react-three/postprocessing@2.19.1` |
 | Source | Recursive, statically reachable `.ts` and `.tsx` inside the current Vault folder |
 | Shaders | `.glsl`, `.vert`, and `.frag`, bundled as text |

@@ -4,7 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { failAgent } from "./agent-error.mjs";
-import { hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX, validateErc20TokenContract } from "./erc20-token-validation.mjs";
+import { hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX, standardMiniAppPreviewToken, validateErc20TokenContract } from "./erc20-token-validation.mjs";
 import { isValidFolderName, registerVault } from "./vault-registration.mjs";
 
 const ROOT = process.cwd();
@@ -485,12 +485,17 @@ async function main() {
   const artifactId = typeof parsed["artifact-id"] === "string" ? parsed["artifact-id"].trim() : createArtifactId(folderName);
   const chainValues = collectValues(parsed, ["chain", "chains"], ["56"]).map((value) => Number(value));
   const factoryValues = collectValues(parsed, ["factory", "factories"]);
-  const tokenValues = collectValues(parsed, ["token", "tokens"]);
+  const requestedTokenValues = collectValues(parsed, ["token", "tokens"]);
   const vaultValues = collectValues(parsed, ["vault", "vaults"]);
   const locales = unique(collectValues(parsed, ["locale", "locales"], ["en", "zh"]));
   const capabilities = unique(collectValues(parsed, ["capability", "capabilities"]));
   const capability = capabilities[0];
   const isThreeR3F = capability === THREE_R3F_CAPABILITY;
+  const tokenValues = requestedTokenValues.length
+    ? requestedTokenValues
+    : isThreeR3F
+      ? chainValues.map((chainId) => standardMiniAppPreviewToken(chainId)).filter(Boolean)
+      : [];
   const displayTitle = {
     zh: typeof parsed["display-title-zh"] === "string" ? parsed["display-title-zh"].trim() : name,
     en: typeof parsed["display-title-en"] === "string" ? parsed["display-title-en"].trim() : name,
@@ -538,9 +543,9 @@ async function main() {
     });
   }
   if (isThreeR3F && tokenValues.length !== chainValues.length) {
-    fail("Each 3D Mini App chain must have exactly one token binding.", {
+    fail("Each 3D Mini App chain must have exactly one supported preview token binding.", {
       code: "manifest-binding/chain-token-count-mismatch",
-      fixHint: "Pair every --chain with one real deployed --token ending in 8888.",
+      fixHint: "Use a supported Mini App preview chain (56, 97, 4663, or 46630), or pair every --chain with one real deployed --token ending in 8888.",
     });
   }
   if (usingFactoryMode && chainValues.length !== factoryValues.length) {

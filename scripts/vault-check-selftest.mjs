@@ -24,6 +24,7 @@ const FACTORY = "0xc3e4ee8f3c616d16297fafcb9daab122d31efa9e";
 const PLACEHOLDER_FACTORY = "0x1000000000000000000000000000000000000001";
 const PLACEHOLDER_TOKEN = "0x2000000000000000000000000000000000000002";
 const NON_ERC20_TOKEN = "0x2000000000000000000000000000000000007777";
+const STANDARD_MINI_APP_PREVIEW_TOKEN = "0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888";
 const NON_7777_TOKEN = "0x55d398326f99059fF775485246999027B3197955";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TOKEN = "0x286184b2660a2822671a33f24c4517f593947777";
@@ -523,6 +524,12 @@ export default function SelftestVault(_props: VaultComponentProps) {
     TOKEN_8888,
   );
   passed.push("vault:e2e selection accepts 8888 test tokens");
+
+  assert.equal(
+    selectE2EBinding(baseManifest({ mode: "mini-app", match: { bindings: [{ chainId: 56, tokenAddresses: [STANDARD_MINI_APP_PREVIEW_TOKEN] }] } })).tokenAddress,
+    STANDARD_MINI_APP_PREVIEW_TOKEN,
+  );
+  passed.push("vault:e2e uses the deployed standard Mini App preview token from the manifest");
 
   const robinhoodToken = "0xdb1b738d084dc482eb94f3697dd452862e6c7777";
   const robinhoodBinding = selectE2EBinding({
@@ -2953,6 +2960,17 @@ export default function SelftestVault(_props: VaultComponentProps) {
     }),
   );
   passed.push("scaffold rejects undeployed ERC20 token input");
+
+  const defaultMiniAppTokenScaffoldSlug = `${FIXTURE_PREFIX}-default-mini-app-token`;
+  createdFolderNames.push(defaultMiniAppTokenScaffoldSlug);
+  execFileSync(
+    process.execPath,
+    ["scripts/vault-scaffold.mjs", defaultMiniAppTokenScaffoldSlug, "--chain", "56", "--capability", "three-r3f-v1", "--locales", "en"],
+    { cwd: ROOT, stdio: "pipe" },
+  );
+  const defaultMiniAppManifest = JSON.parse(fs.readFileSync(path.join(VAULTS_ROOT, defaultMiniAppTokenScaffoldSlug, "manifest.json"), "utf8"));
+  assert.equal(defaultMiniAppManifest.match.bindings[0].tokenAddresses[0], STANDARD_MINI_APP_PREVIEW_TOKEN);
+  passed.push("Mini App scaffold defaults to the deployed standard preview token when --token is omitted");
 
   const partialTokenScaffoldSlug = `${FIXTURE_PREFIX}-partial-token-scaffold`;
   createdFolderNames.push(partialTokenScaffoldSlug);

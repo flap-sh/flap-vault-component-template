@@ -43,6 +43,8 @@ Every binding-scoped `tokenAddresses` entry must be a real deployed ERC20 token 
 
 Mini App mode is token-address-bound. A manifest with `mode: "mini-app"` must provide a no-factory token-scoped `match.bindings[].tokenAddresses` entry ending in `8888`; factory and Vault bindings are invalid for Mini App artifacts.
 
+When a Mini App project has no supplied test token, use Flap's deployed standard Mini App preview token for that chain (BNB mainnet: `0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888`). This address is the preview/E2E proof binding, not the project's production CA restriction. It must pass the normal deployed-ERC20 checks; zero-like placeholders and validation exemptions are invalid.
+
 ### Versioned 3D capability
 
 The complete developer-facing support matrix, limits, three live 3D previews, and proof checklist are maintained in `docs/mini-app-3d.md`.
