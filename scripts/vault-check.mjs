@@ -10,7 +10,7 @@ import {
   MINI_APP_AUDIO_TOTAL_MAX_BYTES,
   isMiniAppAudioAssetName,
 } from "./e2e-report-utils.mjs";
-import { collectManifestErc20TokenIssues, hasRequiredTestTokenSuffix, isMiniAppPlaceholderToken, MINI_APP_PLACEHOLDER_TOKEN_ADDRESS, REQUIRED_TEST_TOKEN_SUFFIX } from "./erc20-token-validation.mjs";
+import { collectManifestErc20TokenIssues, hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX } from "./erc20-token-validation.mjs";
 import {
   THREE_R3F_PROFILE_ID,
   capabilityFileExtensions,
@@ -3348,16 +3348,6 @@ function checkManifest(manifest, folderName) {
                 );
               } else {
                 manifestTestTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
-                if (isMiniAppPlaceholderToken(addr) && !isMiniAppMode) {
-                  issues.push(
-                    issue(
-                      BLOCKING,
-                      "manifest-binding/mini-app-placeholder-outside-mini-app",
-                      `${field}.tokenAddresses[${addressIndex}] uses the reserved Mini App placeholder ${MINI_APP_PLACEHOLDER_TOKEN_ADDRESS}, which is allowed only when manifest.mode is mini-app.`,
-                      { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr },
-                    ),
-                  );
-                }
                 if (addr.toLowerCase().endsWith(MINI_APP_TOKEN_SUFFIX)) {
                   miniAppTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
                 } else if (isMiniAppMode) {

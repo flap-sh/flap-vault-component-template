@@ -1,7 +1,5 @@
 # AI Agent Implementation Guide
 
-Mini App placeholder exception: a Mini App without a real token must keep `match.bindings[].tokenAddresses` and use exactly `0x0000000000000000000000000000000000008888`. Do not probe this standard placeholder as ERC20. The exception is invalid outside `mode: "mini-app"`.
-
 This repository is designed for AI agents that generate controlled Flap Vault UI source packages.
 
 Use this guide as the stable entry point before editing files.

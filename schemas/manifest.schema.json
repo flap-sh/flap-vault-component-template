@@ -44,20 +44,20 @@
     "mode": {
       "type": "string",
       "enum": ["mini-app"],
-      "description": "Optional artifact mode. Omit for the default Vault UI. Mini App bindings use tokenAddresses ending in 8888; when no real token exists use 0x0000000000000000000000000000000000008888. Mini App mode skips the Vault risk-status tag requirement."
+      "description": "Optional artifact mode. Omit for the default Vault UI. Use mini-app only for token-scoped 8888-token Mini App artifacts. Mini App mode is bound to match.bindings[].tokenAddresses ending in 8888 and skips the Vault risk-status tag requirement."
     },
     "capabilities": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
       "items": { "type": "string", "enum": ["three-r3f-v1"] },
-      "description": "Versioned Mini App capability profiles. three-r3f-v1 enables only the platform-pinned Three/R3F dependency and local 3D asset contract."
+      "description": "Optional versioned Mini App capability profiles. three-r3f-v1 enables the controlled Three.js/R3F multi-file and local-asset boundary. Capabilities are not allowed for default Vault UI artifacts."
     },
     "match": {
       "type": "object",
       "required": ["bindings"],
       "additionalProperties": false,
-      "description": "Developer-facing registry binding intent. Ordinary Vault tokenAddresses must be real deployed 7777/8888 ERC20 tokens. Mini App mode may use 0x0000000000000000000000000000000000008888 when no real token exists.",
+      "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more no-factory tokenAddresses entries. Any tokenAddresses entry, including entries on factory bindings, must end in 7777 or 8888 and be a real deployed ERC20 token. Factory-mode tokenAddresses are not production CA restrictions.",
       "properties": {
         "bindings": {
           "type": "array",
@@ -104,7 +104,7 @@
               },
               "tokenAddresses": {
                 "$ref": "#/$defs/testTokenAddressArray",
-                "description": "Binding-scoped token list. Ordinary Vault UI entries must be real deployed ERC20 tokens ending in 7777 or 8888. Mini App mode may use 0x0000000000000000000000000000000000008888 when no real token exists."
+                "description": "Binding-scoped token list for package proof or no-factory token scoping. Every entry, including factory-mode entries, must be a real deployed ERC20 token address ending in 7777 or 8888. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",

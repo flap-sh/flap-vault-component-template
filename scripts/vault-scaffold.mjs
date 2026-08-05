@@ -4,7 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { failAgent } from "./agent-error.mjs";
-import { hasRequiredTestTokenSuffix, isMiniAppPlaceholderToken, MINI_APP_PLACEHOLDER_TOKEN_ADDRESS, REQUIRED_TEST_TOKEN_SUFFIX, validateErc20TokenContract } from "./erc20-token-validation.mjs";
+import { hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX, validateErc20TokenContract } from "./erc20-token-validation.mjs";
 import { isValidFolderName, registerVault } from "./vault-registration.mjs";
 
 const ROOT = process.cwd();
@@ -485,13 +485,12 @@ async function main() {
   const artifactId = typeof parsed["artifact-id"] === "string" ? parsed["artifact-id"].trim() : createArtifactId(folderName);
   const chainValues = collectValues(parsed, ["chain", "chains"], ["56"]).map((value) => Number(value));
   const factoryValues = collectValues(parsed, ["factory", "factories"]);
-  const requestedTokenValues = collectValues(parsed, ["token", "tokens"]);
+  const tokenValues = collectValues(parsed, ["token", "tokens"]);
   const vaultValues = collectValues(parsed, ["vault", "vaults"]);
   const locales = unique(collectValues(parsed, ["locale", "locales"], ["en", "zh"]));
   const capabilities = unique(collectValues(parsed, ["capability", "capabilities"]));
   const capability = capabilities[0];
   const isThreeR3F = capability === THREE_R3F_CAPABILITY;
-  const tokenValues = requestedTokenValues.length ? requestedTokenValues : isThreeR3F ? chainValues.map(() => MINI_APP_PLACEHOLDER_TOKEN_ADDRESS) : [];
   const displayTitle = {
     zh: typeof parsed["display-title-zh"] === "string" ? parsed["display-title-zh"].trim() : name,
     en: typeof parsed["display-title-en"] === "string" ? parsed["display-title-en"].trim() : name,
@@ -654,7 +653,6 @@ async function main() {
   }
 
   for (const [index, tokenAddress] of tokenValues.entries()) {
-    if (isThreeR3F && isMiniAppPlaceholderToken(tokenAddress)) continue;
     const chainId = chainValues[index];
     const result = await validateErc20TokenContract(chainId, tokenAddress);
     if (!result.ok) {
