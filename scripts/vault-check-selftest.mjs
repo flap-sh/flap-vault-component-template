@@ -2968,7 +2968,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
     ["scripts/vault-scaffold.mjs", defaultMiniAppTokenScaffoldSlug, "--chain", "56", "--capability", "three-r3f-v1", "--locales", "en"],
     { cwd: ROOT, stdio: "pipe" },
   );
-  const defaultMiniAppManifest = JSON.parse(fs.readFileSync(path.join(VAULTS_ROOT, defaultMiniAppTokenScaffoldSlug, "manifest.json"), "utf8"));
+  const defaultMiniAppManifest = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "vaults", defaultMiniAppTokenScaffoldSlug, "manifest.json"), "utf8"));
   assert.equal(defaultMiniAppManifest.match.bindings[0].tokenAddresses[0], STANDARD_MINI_APP_PREVIEW_TOKEN);
   passed.push("Mini App scaffold defaults to the deployed standard preview token when --token is omitted");
 
