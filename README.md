@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+> Mini App placeholder exception: when a Mini App has no real token, keep the token-only manifest shape and use `0x0000000000000000000000000000000000008888`. This applies only to `mode: "mini-app"`; ordinary Vault UI token proof still requires a real deployed ERC20.
+
 [简体中文](./README.zh-CN.md)
 
 ## Table of Contents

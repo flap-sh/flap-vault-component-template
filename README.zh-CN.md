@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+> Mini App 占位例外：Mini App 没有真实 token 时，manifest 仍保留 token-only 结构，并使用 `0x0000000000000000000000000000000000008888`。该例外只适用于 `mode: "mini-app"`；普通 Vault UI 仍必须使用真实部署的 ERC20 完成证明。
+
 [English](./README.md)
 
 ## 目录

@@ -4,6 +4,7 @@ import { bsc, bscTestnet } from "viem/chains";
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 export const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 export const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
+export const MINI_APP_PLACEHOLDER_TOKEN_ADDRESS = "0x0000000000000000000000000000000000008888";
 const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663, 46630]);
 const DEFAULT_RPC_URLS = {
   56: ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
@@ -32,6 +33,10 @@ export function normalizeTokenAddress(value) {
 export function hasRequiredTestTokenSuffix(value) {
   const address = normalizeTokenAddress(value)?.toLowerCase();
   return Boolean(address && REQUIRED_TEST_TOKEN_SUFFIXES.some((suffix) => address.endsWith(suffix)));
+}
+
+export function isMiniAppPlaceholderToken(value) {
+  return normalizeTokenAddress(value)?.toLowerCase() === MINI_APP_PLACEHOLDER_TOKEN_ADDRESS;
 }
 
 function chainRpcCandidates(chainId) {
@@ -170,6 +175,7 @@ export async function collectManifestErc20TokenIssues(manifest, { file = "manife
     for (const [tokenIndex, tokenAddress] of binding.tokenAddresses.entries()) {
       const normalizedAddress = normalizeTokenAddress(tokenAddress);
       if (!normalizedAddress) continue;
+      if (manifest?.mode === "mini-app" && isMiniAppPlaceholderToken(normalizedAddress)) continue;
       const field = `match.bindings[${bindingIndex}].tokenAddresses[${tokenIndex}]`;
       if (!hasRequiredTestTokenSuffix(normalizedAddress)) {
         issues.push(

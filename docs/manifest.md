@@ -1,5 +1,7 @@
 # Manifest
 
+Mini App placeholder exception: when no real token exists, `mode: "mini-app"` may use exactly `0x0000000000000000000000000000000000008888` in `match.bindings[].tokenAddresses`. All ordinary Vault UI token entries still require deployed ERC20 proof.
+
 `manifest.json` is intentionally small. It is only the developer-facing match and review boundary, not the place to configure Flap internal runtime behavior.
 
 ## Folder Name And Artifact ID

@@ -23,6 +23,7 @@ const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
 const FACTORY = "0xc3e4ee8f3c616d16297fafcb9daab122d31efa9e";
 const PLACEHOLDER_FACTORY = "0x1000000000000000000000000000000000000001";
 const PLACEHOLDER_TOKEN = "0x2000000000000000000000000000000000000002";
+const MINI_APP_PLACEHOLDER_TOKEN = "0x0000000000000000000000000000000000008888";
 const NON_ERC20_TOKEN = "0x2000000000000000000000000000000000007777";
 const NON_7777_TOKEN = "0x55d398326f99059fF775485246999027B3197955";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -523,6 +524,21 @@ export default function SelftestVault(_props: VaultComponentProps) {
     TOKEN_8888,
   );
   passed.push("vault:e2e selection accepts 8888 test tokens");
+
+  const placeholderMiniAppSlug = `${FIXTURE_PREFIX}-mini-app-placeholder`;
+  writeVault(placeholderMiniAppSlug, {
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "占位应用", en: "Placeholder App" },
+      match: { bindings: [{ chainId: 56, tokenAddresses: [MINI_APP_PLACEHOLDER_TOKEN] }] },
+    }),
+    component: `"use client";\nexport default function Component() { return <div className="min-h-screen">Mini App</div>; }\n`,
+  });
+  const placeholderMiniAppResult = runVaultCheck(placeholderMiniAppSlug, { silent: true });
+  assert.equal(placeholderMiniAppResult.issues.some((item) => ["manifest-binding/invalid-erc20-token", "manifest-binding/missing-test-token"].includes(item.ruleId)), false);
+  passed.push("mini-app mode accepts the standard placeholder token without ERC20 validation");
+  assert.equal(selectE2EBinding(baseManifest({ mode: "mini-app", match: { bindings: [{ chainId: 56, tokenAddresses: [MINI_APP_PLACEHOLDER_TOKEN] }] } })).tokenAddress, TOKEN);
+  passed.push("vault:e2e uses the fixed host test token for placeholder-bound Mini Apps");
 
   const robinhoodToken = "0xdb1b738d084dc482eb94f3697dd452862e6c7777";
   const robinhoodBinding = selectE2EBinding({

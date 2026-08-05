@@ -22,13 +22,21 @@ export const MINI_APP_AUDIO_MAX_BYTES = 5 * 1024 * 1024;
 export const MINI_APP_AUDIO_TOTAL_MAX_BYTES = 12 * 1024 * 1024;
 export const REQUIRED_VIEWPORTS = ["pc", "ipad", "h5"];
 export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
+export const MINI_APP_PLACEHOLDER_TOKEN_ADDRESS = "0x0000000000000000000000000000000000008888";
 const PACKAGE_TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".json", ".glsl", ".vert", ".frag", ".gltf"]);
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
 const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663, 46630]);
+const DEFAULT_E2E_TOKEN_ADDRESSES = new Map([
+  [56, "0x286184b2660a2822671a33f24c4517f593947777"],
+  [97, "0xf8ac72e7adefbce6ff22d9a9238512933e247777"],
+  [4663, "0x10b90dd1d5a999c2ff9c034d13be55a7ba788888"],
+  [46630, "0xbd2e243911c9cded8b2637f90439cb5777988888"],
+]);
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
+  [MINI_APP_PLACEHOLDER_TOKEN_ADDRESS, "standard Mini App token placeholder"],
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
   ["0x2000000000000000000000000000000000000002", "template token placeholder"],
   ["0x2000000000000000000000000000000000000005", "template token placeholder"],
@@ -181,6 +189,12 @@ function manifestTokenAddresses(manifest) {
     .map((address) => address.toLowerCase());
 }
 
+function usesMiniAppPlaceholder(manifest) {
+  return manifest?.mode === MINI_APP_MODE && (manifest?.match?.bindings ?? []).some((binding) =>
+    (binding?.tokenAddresses ?? []).some((address) => address?.toLowerCase?.() === MINI_APP_PLACEHOLDER_TOKEN_ADDRESS),
+  );
+}
+
 export function selectE2EBinding(manifest, overrides = {}) {
   const bindings = Array.isArray(manifest?.match?.bindings) ? manifest.match.bindings : [];
   const requestedChainId = Number.isInteger(overrides.chainId) ? overrides.chainId : undefined;
@@ -194,6 +208,15 @@ export function selectE2EBinding(manifest, overrides = {}) {
       factoryAddress: bindingFactory(binding, overrides),
     }))
     .filter((item) => SUPPORTED_E2E_CHAIN_IDS.has(item.chainId));
+
+  if (manifest?.mode === MINI_APP_MODE) {
+    for (const item of candidates) {
+      const hasPlaceholder = item.binding?.tokenAddresses?.some(
+        (address) => address?.toLowerCase?.() === MINI_APP_PLACEHOLDER_TOKEN_ADDRESS,
+      );
+      if (hasPlaceholder && !item.tokenAddress) item.tokenAddress = validTestToken(overrides.token) ?? DEFAULT_E2E_TOKEN_ADDRESSES.get(item.chainId);
+    }
+  }
 
   const selected = candidates.find((item) => item.tokenAddress);
   if (selected) {
@@ -325,12 +348,12 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   }
   const manifestTokens = manifestTokenAddresses(manifest);
   const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();
-  if (manifestTokens.length === 0) {
+  if (manifestTokens.length === 0 && !usesMiniAppPlaceholder(manifest)) {
     addIssue("e2e-report/missing-manifest-test-token", `Manifest must declare at least one real non-placeholder tokenAddresses entry ending in ${REQUIRED_TEST_TOKEN_SUFFIX} for Workbench/E2E test coverage.`, {
       field: "match.bindings[].tokenAddresses",
       fixHint: `Add a real deployed token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX} under at least one manifest match.bindings[].tokenAddresses entry, run ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
-  } else if (tokenAddress && !manifestTokens.includes(tokenAddress)) {
+  } else if (tokenAddress && manifestTokens.length > 0 && !manifestTokens.includes(tokenAddress)) {
     addIssue("e2e-report/token-address-mismatch", "E2E report tokenAddress must match a manifest tokenAddresses entry.", {
       fixHint: `Run ${E2E_REPORT_TOOL} ${folderName} with a manifest-declared token address, then regenerate the source package.`,
     });
