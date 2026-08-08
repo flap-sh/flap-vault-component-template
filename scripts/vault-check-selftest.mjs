@@ -842,6 +842,31 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("endpoint declaration does not allow unsafe prefix matches", runVaultCheck(endpointPrefixSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
 
+  const declaredNonFetchUrlSlug = `${FIXTURE_PREFIX}-endpoint-non-fetch`;
+  writeVault(declaredNonFetchUrlSlug, {
+    manifest: baseManifest({
+      endpoints: "https://api.example.com/proof",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const ordinaryUrl = "https://api.example.com/proof";
+  void ordinaryUrl;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule(
+    "manifest endpoints do not authorize URL literals outside direct static fetch arguments",
+    runVaultCheck(declaredNonFetchUrlSlug, { silent: true }),
+    "endpoint-policy/undeclared-url",
+    "blocking",
+  );
+
   const commentedUrlSlug = `${FIXTURE_PREFIX}-commented-url`;
   writeVault(commentedUrlSlug, {
     component: `"use client";
@@ -948,6 +973,134 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("direct Flap gateway image URLs remain blocked", runVaultCheck(directIpfsImageUrlSlug, { silent: true }), "media-policy/remote-media", "blocking");
 
+  const declaredRemoteImageConstantSlug = `${FIXTURE_PREFIX}-remote-image-constant`;
+  writeVault(declaredRemoteImageConstantSlug, {
+    manifest: baseManifest({
+      endpoints: "https://images.example.com/banner.png",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+const remoteUrlConstant = "https://images.example.com/banner.png";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <img src={remoteUrlConstant} alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  const declaredRemoteImageConstantCheck = runVaultCheck(declaredRemoteImageConstantSlug, { silent: true });
+  assertRule(
+    "native img src resolves a declared remote URL const and blocks it as remote media",
+    declaredRemoteImageConstantCheck,
+    "media-policy/remote-media",
+    "blocking",
+  );
+  assertRule(
+    "manifest endpoints do not authorize a remote img URL const",
+    declaredRemoteImageConstantCheck,
+    "endpoint-policy/undeclared-url",
+    "blocking",
+  );
+
+  const declaredRemoteImageAliasSlug = `${FIXTURE_PREFIX}-remote-image-alias`;
+  writeVault(declaredRemoteImageAliasSlug, {
+    manifest: baseManifest({
+      endpoints: "https://images.example.com/aliased.png",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+const originalImageUrl = "https://images.example.com/aliased.png";
+const firstAlias = originalImageUrl;
+const secondAlias = firstAlias;
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <img src={secondAlias} alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  assertRule(
+    "native img src resolves const alias chains and blocks remote media",
+    runVaultCheck(declaredRemoteImageAliasSlug, { silent: true }),
+    "media-policy/remote-media",
+    "blocking",
+  );
+
+  const hostImageAliasSlug = `${FIXTURE_PREFIX}-host-image-alias`;
+  writeVault(hostImageAliasSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault({ context }: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const hostImageUrl = context.tokenImageUrl;
+  const hostImageAlias = hostImageUrl;
+  return (
+    <div>
+      <img src={hostImageAlias} alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  assertNoRule(
+    "host-provided token image aliases are not mistaken for static remote media",
+    runVaultCheck(hostImageAliasSlug, { silent: true }),
+    "media-policy/remote-media",
+    "blocking",
+  );
+  assertNoRule(
+    "host-provided token image aliases do not create undeclared URL findings",
+    runVaultCheck(hostImageAliasSlug, { silent: true }),
+    "endpoint-policy/undeclared-url",
+    "blocking",
+  );
+
+  const shadowedImageSlug = `${FIXTURE_PREFIX}-host-image-shadow`;
+  writeVault(shadowedImageSlug, {
+    manifest: baseManifest({
+      endpoints: "https://images.example.com/outer.png",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+const imageUrl = "https://images.example.com/outer.png";
+
+export default function SelftestVault({ context }: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const renderImage = (imageUrl: string | undefined) => <img src={imageUrl} alt="" />;
+  return <div>{renderImage(context.tokenImageUrl)}{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule(
+    "nearer parameter shadowing prevents an outer remote const from being attributed to img src",
+    runVaultCheck(shadowedImageSlug, { silent: true }),
+    "media-policy/remote-media",
+    "blocking",
+  );
+
   const externalResourceSlug = `${FIXTURE_PREFIX}-external`;
   writeVault(externalResourceSlug, {
     component: `"use client";
@@ -1000,6 +1153,28 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
   });
   assertRule("dynamic fetch targets are blocked", runVaultCheck(dynamicFetchSlug, { silent: true }), "endpoint-policy/direct-fetch", "blocking");
+
+  const shadowedFetchSlug = `${FIXTURE_PREFIX}-shadowed-fetch`;
+  writeVault(shadowedFetchSlug, {
+    manifest: baseManifest({
+      endpoints: "https://api.example.com/proof",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const run = (fetch: (url: string) => unknown) => fetch("https://api.example.com/proof");
+  void run;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  const shadowedFetchCheck = runVaultCheck(shadowedFetchSlug, { silent: true });
+  assertRule("a local binding named fetch is not authorized as global static fetch", shadowedFetchCheck, "endpoint-policy/direct-fetch", "blocking");
+  assertRule("a shadowed fetch argument is not exempt from generic URL policy", shadowedFetchCheck, "endpoint-policy/undeclared-url", "blocking");
 
   // Obfuscation-resistance: each of these previously bypassed the line-regex layer.
   const obfBody = (statements) => `"use client";
@@ -1128,11 +1303,14 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   const declaredFetchCheck = runVaultCheck(declaredFetchSlug, { silent: true });
   assert.equal(declaredFetchCheck.issues.some((item) => item.ruleId === "endpoint-policy/direct-fetch"), false);
+  assertNoRule("declared static fetch URL is exempt only at the fetch argument", declaredFetchCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertRule("declared static HTTPS fetch remains a manual-review warning", declaredFetchCheck, "manual-review/external-endpoint", "warning");
   assert.ok(
     declaredFetchCheck.review?.externalEndpoints?.some((item) => item.source === "fetch" && item.url === "https://api.example.com/proof/details?symbol=QQQ&window=1d" && item.queryParams?.symbol === "QQQ"),
     "declared fetch review output includes exact URL and query params",
   );
   passed.push("declared static HTTPS fetch child paths are allowed for review");
+  passed.push("declared static fetch URL is exempt only at the fetch argument");
   passed.push("declared fetch review output includes exact URL and query params");
 
   const validFrameSlug = `${FIXTURE_PREFIX}-valid-frame`;

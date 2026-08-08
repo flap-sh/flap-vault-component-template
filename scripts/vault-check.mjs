@@ -265,7 +265,7 @@ const FIX_HINTS = {
   "endpoint-policy/invalid-endpoint-declaration": "Endpoint declarations must be valid absolute HTTPS URL strings only.",
   "endpoint-policy/https-required": "Use an HTTPS endpoint URL string, or remove the endpoint.",
   "endpoint-policy/no-credentials": "Remove username/password credentials from endpoint URLs. Workbench endpoint declarations must be bearerless HTTPS URLs.",
-  "endpoint-policy/undeclared-url": "Remove the URL or declare a non-oracle https endpoint in manifest.endpoints for review.",
+  "endpoint-policy/undeclared-url": "Remove the URL. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets; use approved runtime media, ExternalLink, or a reviewed externalFrame for other URL uses.",
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
   "endpoint-policy/direct-fetch": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
@@ -483,7 +483,7 @@ function normalizeManifestExternalFrames(externalFrames) {
   return null;
 }
 
-function collectDeclaredUrls(manifest) {
+function collectDeclaredFetchUrls(manifest) {
   const urls = new Set();
   const normalized = normalizeManifestEndpoints(manifest.endpoints);
   if (!normalized) return urls;
@@ -1167,8 +1167,8 @@ function collectHardcodedVisibleCopyIssues(content, file) {
   return issues;
 }
 
-function isAllowlistedExternalUrl(url, declaredUrls, declaredFrames = new Map()) {
-  return isDeclaredUrl(url, declaredUrls) || isDeclaredExternalFrameUrl(url, declaredFrames) || isApprovedExternalLinkUrl(url) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
+function isAllowlistedExternalUrl(url, declaredFrames = new Map()) {
+  return isDeclaredExternalFrameUrl(url, declaredFrames) || isApprovedExternalLinkUrl(url) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
 }
 
 function isAllowedIpfsImageGatewayUrl(url) {
@@ -1184,24 +1184,192 @@ function isAllowedIpfsImageGatewayUrl(url) {
   );
 }
 
+function collectLexicalBindings(sourceFile) {
+  const bindings = new Map();
+
+  function addBinding(name, node, scope, initializer = null, isConst = false) {
+    if (!name || !scope) return;
+    const entries = bindings.get(name) ?? [];
+    entries.push({ node, scope, initializer, isConst });
+    bindings.set(name, entries);
+  }
+
+  function bindingNames(name) {
+    if (ts.isIdentifier(name)) return [name.text];
+    if (!ts.isObjectBindingPattern(name) && !ts.isArrayBindingPattern(name)) return [];
+    const names = [];
+    for (const element of name.elements) {
+      if (!ts.isBindingElement(element)) continue;
+      names.push(...bindingNames(element.name));
+    }
+    return names;
+  }
+
+  function nearestScope(node, variableFlags = null) {
+    let current = node.parent;
+    if (variableFlags !== null && !(variableFlags & ts.NodeFlags.BlockScoped)) {
+      while (current && !ts.isFunctionLike(current) && !ts.isSourceFile(current)) current = current.parent;
+      return current ?? sourceFile;
+    }
+    while (
+      current &&
+      !ts.isBlock(current) &&
+      !ts.isSourceFile(current) &&
+      !ts.isModuleBlock(current) &&
+      !ts.isCaseBlock(current) &&
+      !ts.isForStatement(current) &&
+      !ts.isForInStatement(current) &&
+      !ts.isForOfStatement(current) &&
+      !ts.isFunctionLike(current) &&
+      !ts.isCatchClause(current)
+    ) {
+      current = current.parent;
+    }
+    return current ?? sourceFile;
+  }
+
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node)) {
+      const declarationList = ts.isVariableDeclarationList(node.parent) ? node.parent : null;
+      const flags = declarationList?.flags ?? ts.NodeFlags.None;
+      const scope = nearestScope(node, flags);
+      const names = bindingNames(node.name);
+      for (const name of names) {
+        addBinding(name, node, scope, ts.isIdentifier(node.name) ? node.initializer ?? null : null, Boolean(flags & ts.NodeFlags.Const));
+      }
+    } else if (ts.isParameter(node)) {
+      const scope = nearestScope(node);
+      for (const name of bindingNames(node.name)) addBinding(name, node, scope);
+    } else if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
+      addBinding(node.name.text, node, nearestScope(node));
+    } else if (ts.isImportClause(node)) {
+      if (node.name) addBinding(node.name.text, node, sourceFile);
+    } else if (ts.isImportSpecifier(node) || ts.isNamespaceImport(node) || ts.isImportEqualsDeclaration(node)) {
+      addBinding(node.name.text, node, sourceFile);
+    } else if (ts.isCatchClause(node) && node.variableDeclaration) {
+      for (const name of bindingNames(node.variableDeclaration.name)) addBinding(name, node.variableDeclaration, node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return bindings;
+}
+
+function resolveVisibleLexicalBinding(identifier, sourceFile, bindings) {
+  const candidates = bindings.get(identifier.text) ?? [];
+  const referenceStart = tsNodeStart(identifier, sourceFile);
+  const visible = candidates.filter(({ scope }) => {
+    const scopeStart = scope.getStart(sourceFile);
+    return scopeStart <= referenceStart && referenceStart < scope.end;
+  });
+  if (visible.length === 0) return null;
+  visible.sort((left, right) => {
+    const leftSpan = left.scope.end - left.scope.getStart(sourceFile);
+    const rightSpan = right.scope.end - right.scope.getStart(sourceFile);
+    if (leftSpan !== rightSpan) return leftSpan - rightSpan;
+    return tsNodeStart(right.node, sourceFile) - tsNodeStart(left.node, sourceFile);
+  });
+  const nearest = visible[0];
+  const nearestScope = nearest.scope;
+  if (visible.some((candidate, index) => index > 0 && candidate.scope === nearestScope)) return null;
+  return nearest;
+}
+
+function resolveLexicalStaticString(expression, sourceFile, bindings, seen = new Set()) {
+  if (!expression) return null;
+  const current = unwrapTsExpression(expression);
+  if (ts.isStringLiteral(current) || ts.isNoSubstitutionTemplateLiteral(current)) return current.text;
+  if (ts.isIdentifier(current)) {
+    const binding = resolveVisibleLexicalBinding(current, sourceFile, bindings);
+    if (!binding?.isConst || !binding.initializer || seen.has(binding.node)) return null;
+    const nextSeen = new Set(seen);
+    nextSeen.add(binding.node);
+    return resolveLexicalStaticString(binding.initializer, sourceFile, bindings, nextSeen);
+  }
+  if (ts.isTemplateExpression(current)) {
+    let value = current.head.text;
+    for (const span of current.templateSpans) {
+      const resolved = resolveLexicalStaticString(span.expression, sourceFile, bindings, seen);
+      if (resolved === null) return null;
+      value += resolved + span.literal.text;
+    }
+    return value;
+  }
+  if (ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = resolveLexicalStaticString(current.left, sourceFile, bindings, seen);
+    const right = resolveLexicalStaticString(current.right, sourceFile, bindings, seen);
+    return left === null || right === null ? null : left + right;
+  }
+  return null;
+}
+
 function collectStaticImgSrcUrls(content, file) {
   const urls = [];
-  const tagRegex = /<img\b[^>]*>/gi;
-  for (const tagMatch of content.matchAll(tagRegex)) {
-    const tag = tagMatch[0];
-    const tagStart = tagMatch.index ?? 0;
-    const srcRegex = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*(["'`])((?:\\.|(?!\3)[\s\S])*?)\3\s*\})/g;
-    for (const srcMatch of tag.matchAll(srcRegex)) {
-      const url = srcMatch[1] ?? srcMatch[2] ?? srcMatch[4];
-      if (!url) continue;
-      urls.push({
-        url: sanitizeUrlLiteral(url),
-        file,
-        line: lineForIndex(content, tagStart + (srcMatch.index ?? 0)),
-      });
+  const sourceFile = createTsSourceFile(file, content);
+  const bindings = collectLexicalBindings(sourceFile);
+  const visit = (node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      if (jsxTagNameText(node.tagName) === "img") {
+        for (const property of node.attributes.properties) {
+          if (!ts.isJsxAttribute(property) || jsxAttributeNameText(property.name) !== "src") continue;
+          let value = null;
+          const initializer = property.initializer;
+          if (initializer && ts.isStringLiteral(initializer)) {
+            value = initializer.text;
+          } else if (initializer && ts.isJsxExpression(initializer) && initializer.expression) {
+            value = resolveLexicalStaticString(initializer.expression, sourceFile, bindings);
+          }
+          if (!value) continue;
+          urls.push({
+            url: sanitizeUrlLiteral(value),
+            file,
+            line: lineForIndex(content, tsNodeStart(property, sourceFile)),
+          });
+        }
+      }
     }
-  }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
   return urls;
+}
+
+function collectDirectFetchUsages(content, file, declaredFetchUrls) {
+  const usages = [];
+  const sourceFile = createTsSourceFile(file, content);
+  const bindings = collectLexicalBindings(sourceFile);
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = unwrapTsExpression(node.expression);
+      if (ts.isIdentifier(callee) && callee.text === "fetch") {
+        const isGlobalFetch = !resolveVisibleLexicalBinding(callee, sourceFile, bindings);
+        const target = node.arguments[0] ?? null;
+        const staticTarget = target ? tsStaticStringValue(target) : null;
+        const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
+        const allowed = Boolean(
+          isGlobalFetch &&
+            staticTarget &&
+            parsedTarget &&
+            parsedTarget.protocol === "https:" &&
+            !parsedTarget.username &&
+            !parsedTarget.password &&
+            isDeclaredUrl(staticTarget, declaredFetchUrls),
+        );
+        usages.push({
+          allowed,
+          isGlobalFetch,
+          staticTarget,
+          parsedTarget,
+          file,
+          line: lineForIndex(content, tsNodeStart(node, sourceFile)),
+          targetRange: target ? [tsNodeStart(target, sourceFile), target.end] : null,
+        });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return usages;
 }
 
 function staticJsxStringAttribute(tag, attributeName) {
@@ -2559,10 +2727,10 @@ function scanResolvedStringForResources(value, ctx) {
   const urlMatch = /(?:https?:\/\/|wss?:\/\/|ipfs:\/\/|ar:\/\/)[^\s"'`<>)]+/i.exec(value);
   if (urlMatch) {
     const url = sanitizeUrlLiteral(urlMatch[0]);
-    if (!isAllowlistedExternalUrl(url, ctx.declaredUrls, ctx.declaredFrames)) {
+    if (!isAllowlistedExternalUrl(url, ctx.declaredFrames)) {
       return {
         ruleId: "endpoint-policy/undeclared-url",
-        message: `URL ${url} assembled from string fragments is not declared in manifest endpoints or externalFrames. Undeclared endpoints and external resources are rejected.`,
+        message: `URL ${url} assembled from string fragments is not an approved non-fetch resource. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets.`,
       };
     }
   }
@@ -3525,10 +3693,10 @@ function checkI18n(i18n, manifestLocales) {
 // i18n.json string values are consumable by the component (href, src, tx target)
 // but were previously never security-scanned. Treat them as a source surface:
 // reject embedded unsafe schemes, hardcoded addresses, and undeclared URLs.
-function collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractPolicy, externalLinkKeys = new Set()) {
+function collectI18nResourceIssues(i18n, declaredFrames, contractPolicy, externalLinkKeys = new Set()) {
   const issues = [];
   if (!i18n || typeof i18n !== "object") return issues;
-  const ctx = { declaredUrls, declaredFrames, contractPolicy };
+  const ctx = { declaredFrames, contractPolicy };
   const seen = new Set();
   const walk = (value, resourceKey = null) => {
     if (typeof value === "string") {
@@ -3653,7 +3821,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
   const requiresRiskStatus = manifest?.mode !== MINI_APP_MODE;
   const folderName = path.basename(vaultDir);
-  const declaredUrls = collectDeclaredUrls(manifest);
+  const declaredFetchUrls = collectDeclaredFetchUrls(manifest);
   const declaredFrames = collectDeclaredFrames(manifest);
   const contractPolicy = collectManifestContractPolicy(manifest);
   const abiFunctionOutputCounts = collectAbiFunctionOutputCounts(vaultDir);
@@ -3667,12 +3835,14 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       externalLinkI18nKeys.add(key);
     }
   }
-  issues.push(...collectI18nResourceIssues(i18n, declaredUrls, declaredFrames, contractPolicy, externalLinkI18nKeys));
+  issues.push(...collectI18nResourceIssues(i18n, declaredFrames, contractPolicy, externalLinkI18nKeys));
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
     const content = fs.readFileSync(item.path, "utf8");
     issues.push(...collectSourceSyntaxIssues(rel, content));
     const scanContent = stripCommentsForScanning(content);
+    const directFetchUsages = collectDirectFetchUsages(content, rel, declaredFetchUrls);
+    const allowedDirectFetchTargetRanges = directFetchUsages.filter((usage) => usage.allowed && usage.targetRange).map((usage) => usage.targetRange);
     const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
     const externalLinkRanges = externalLinkUsages.map((usage) => [usage.tagStart, usage.tagEnd]);
     const externalLinkUrlSourceRanges = collectExternalLinkUrlSourceRanges(content, rel, externalLinkUsages);
@@ -3800,7 +3970,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel, manifest));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
-    issues.push(...collectAstSecurityIssues(content, rel, { declaredUrls, declaredFrames, contractPolicy, externalLinkUrlSourceRanges: externalLinkAllowedRanges }));
+    issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: externalLinkAllowedRanges }));
     if (item.name === "Component.tsx") {
       issues.push(...collectHardcodedVisibleCopyIssues(content, rel));
       issues.push(...collectInlineSvgIssues(content, rel));
@@ -3919,30 +4089,26 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    const fetchCallRegex = /\bfetch\s*\(\s*([^,\n)]*)/g;
-    for (const match of scanContent.matchAll(fetchCallRegex)) {
-      const rawTarget = match[1]?.trim() ?? "";
-      const staticTarget = staticStringLiteral(rawTarget);
-      const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
-      if (!staticTarget || !parsedTarget || parsedTarget.protocol !== "https:" || parsedTarget.username || parsedTarget.password || !isDeclaredUrl(staticTarget, declaredUrls)) {
+    for (const usage of directFetchUsages) {
+      if (!usage.allowed) {
         issues.push(
           issue(
             BLOCKING,
             "endpoint-policy/direct-fetch",
             "fetch() targets inside Vault source must be static absolute HTTPS URLs without credentials and declared in manifest.endpoints for Flap review.",
-            { file: rel, line: lineForIndex(scanContent, match.index ?? -1) },
+            { file: rel, line: usage.line },
           ),
         );
       } else {
         issues.push(
-          issue(WARNING, "manual-review/external-endpoint", `fetch() uses declared external endpoint ${staticTarget}. External endpoint usage requires Flap review approval before publish.`, {
+          issue(WARNING, "manual-review/external-endpoint", `fetch() uses declared external endpoint ${usage.staticTarget}. External endpoint usage requires Flap review approval before publish.`, {
             source: "fetch",
-            url: staticTarget,
-            origin: parsedTarget.origin,
-            pathname: parsedTarget.pathname,
-            queryParams: queryParamsForUrl(staticTarget),
+            url: usage.staticTarget,
+            origin: usage.parsedTarget.origin,
+            pathname: usage.parsedTarget.pathname,
+            queryParams: queryParamsForUrl(usage.staticTarget),
             file: rel,
-            line: lineForIndex(scanContent, match.index ?? -1),
+            line: usage.line,
           }),
         );
       }
@@ -3963,10 +4129,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     for (const match of scanContent.matchAll(externalUrlRegex)) {
-      if (isIndexWithinRanges(match.index, externalLinkAllowedRanges)) continue;
+      if (isIndexWithinRanges(match.index, externalLinkAllowedRanges) || isIndexWithinRanges(match.index, allowedDirectFetchTargetRanges)) continue;
       const url = sanitizeUrlLiteral(match[0]);
-      if (!isAllowlistedExternalUrl(url, declaredUrls, declaredFrames)) {
-        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints or externalFrames. Undeclared endpoints and external resources are rejected. For a user-facing third-party link, use the ExternalLink component from @/src/ui instead.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
+      if (!isAllowlistedExternalUrl(url, declaredFrames)) {
+        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not an approved non-fetch resource. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets. For user-facing navigation, use ExternalLink; for images, use host media or IpfsImage/IpfsBackground.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
     for (const match of scanContent.matchAll(dataUrlRegex)) {
@@ -3996,7 +4162,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote media is not developer-declared in this template. Use Flap-controlled media/runtime policy instead.", { file: rel }));
     }
     for (const imageSrc of staticImgSrcUrls) {
-      if (/^(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(imageSrc.url)) {
+      if (/^(?:https?:\/\/|\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(imageSrc.url)) {
         issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote image sources must use IpfsImage or IpfsBackground with a static cid prop instead of a URL.", imageSrc));
       }
     }
