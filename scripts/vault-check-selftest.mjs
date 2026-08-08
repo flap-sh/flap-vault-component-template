@@ -976,14 +976,14 @@ export default function SelftestVault(_props: VaultComponentProps) {
   const declaredRemoteImageConstantSlug = `${FIXTURE_PREFIX}-remote-image-constant`;
   writeVault(declaredRemoteImageConstantSlug, {
     manifest: baseManifest({
-      endpoints: "https://images.example.com/banner.png",
+      endpoints: "https://h.uguu.se/WBmRbSlN.png",
     }),
     component: `"use client";
 
 import type { VaultComponentProps } from "@/src/sdk";
 import { useFlapSdk } from "@/src/sdk";
 
-const remoteUrlConstant = "https://images.example.com/banner.png";
+const remoteUrlConstant = "https://h.uguu.se/WBmRbSlN.png";
 
 export default function SelftestVault(_props: VaultComponentProps) {
   const { i18n } = useFlapSdk();
