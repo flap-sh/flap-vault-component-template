@@ -918,7 +918,7 @@ import { NftMetadataImage } from "@/src/ui";
 
 export default function SelftestVault(_props: VaultComponentProps) {
   const sdk = useFlapSdk();
-  return <NftMetadataImage sdk={sdk} tokenId={1n} alt={sdk.i18n.t("title")} />;
+  return <NftMetadataImage tokenId={1n} alt={sdk.i18n.t("title")} />;
 }
 `,
   });
@@ -941,7 +941,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
   });
   assertRule(
-    "NftMetadataImage blocks caller-supplied tokenURI and missing SDK mediation",
+    "NftMetadataImage blocks caller-supplied tokenURI and NFT address",
     runVaultCheck(invalidNftMetadataImageSlug, { silent: true }),
     "media-policy/invalid-nft-metadata-image",
     "blocking",
@@ -962,7 +962,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
   });
   assertRule(
-    "NftMetadataImage rejects caller-supplied NFT addresses",
+    "NftMetadataImage rejects caller-supplied SDK and NFT addresses",
     runVaultCheck(invalidNftMetadataAddressSlug, { silent: true }),
     "media-policy/invalid-nft-metadata-image",
     "blocking",

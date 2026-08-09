@@ -1,17 +1,18 @@
 "use client";
 
 import * as React from "react";
-import type { FlapVaultSdk, NftMetadataSnapshot } from "@/src/sdk";
+import { useFlapSdk } from "../sdk/runtimeStore";
+import type { NftMetadataSnapshot } from "../sdk/types";
 import { cn } from "./utils";
 
 export interface NftMetadataImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "alt" | "src" | "srcSet"> {
   alt: string;
-  sdk: Pick<FlapVaultSdk, "readNftMetadata" | "refetchNonce">;
   tokenId: bigint;
   fallback?: React.ReactNode;
 }
 
-export function NftMetadataImage({ alt, sdk, tokenId, fallback = null, className, decoding = "async", loading = "lazy", onError, ...props }: NftMetadataImageProps) {
+export function NftMetadataImage({ alt, tokenId, fallback = null, className, decoding = "async", loading = "lazy", onError, ...props }: NftMetadataImageProps) {
+  const sdk = useFlapSdk();
   const [metadata, setMetadata] = React.useState<NftMetadataSnapshot | null>(null);
   const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
 

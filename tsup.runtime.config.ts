@@ -23,7 +23,9 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   minify: false,
-  splitting: false,
+  // sdk.js and ui.js must share one RuntimeContext instance so controlled UI
+  // primitives can consume the provider without caller-supplied SDK props.
+  splitting: true,
   clean: true,
   target: "es2020",
   outDir: "dist/vault-runtime",

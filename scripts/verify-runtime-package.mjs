@@ -24,6 +24,40 @@ async function readText(filePath) {
   return readFile(filePath, "utf8");
 }
 
+function collectRelativeJsSpecifiers(source) {
+  const specifiers = new Set();
+  const importExportPattern = /(?:\bfrom\s*|\bimport\s*)["'](\.\/.+?\.js)["']/g;
+  for (const match of source.matchAll(importExportPattern)) {
+    specifiers.add(match[1]);
+  }
+  return specifiers;
+}
+
+async function verifySharedRuntimeContext(packageDir, sdkSource, uiSource) {
+  const sdkSpecifiers = collectRelativeJsSpecifiers(sdkSource);
+  const uiSpecifiers = collectRelativeJsSpecifiers(uiSource);
+  const sharedSpecifiers = [...sdkSpecifiers].filter((specifier) => uiSpecifiers.has(specifier));
+  const contextChunks = [];
+
+  for (const specifier of sharedSpecifiers) {
+    const source = await readText(path.resolve(packageDir, specifier));
+    const ownsRuntimeContext = /\bRuntimeContext\s*=\s*(?:React\.)?createContext\s*\(/.test(source);
+    const ownsSdkHook = /\bfunction\s+useFlapSdk\s*\(/.test(source);
+    const ownsNftMetadataImage = /\bfunction\s+NftMetadataImage\s*\(/.test(source);
+    if (ownsRuntimeContext && ownsSdkHook && ownsNftMetadataImage) {
+      contextChunks.push(specifier);
+    }
+  }
+
+  if (contextChunks.length !== 1) {
+    throw new Error(
+      `sdk.js and ui.js must reference exactly one shared runtime chunk that owns RuntimeContext, useFlapSdk, and NftMetadataImage; found ${contextChunks.length}: ${contextChunks.join(", ") || "none"}.`,
+    );
+  }
+
+  return contextChunks[0];
+}
+
 async function expectRejection(task, messagePattern, label) {
   try {
     await task();
@@ -74,6 +108,8 @@ async function main() {
   if (!uiSource.startsWith('"use client";')) {
     throw new Error("ui.js must keep the use client directive.");
   }
+
+  const sharedRuntimeContextChunk = await verifySharedRuntimeContext(packageDir, sdkSource, uiSource);
 
   const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
   const robinhoodTestnet = hostModule.getTaxVaultHostChainConfig?.(46630);
@@ -163,6 +199,7 @@ async function main() {
         packageAbsolutePath: packageDir,
         packageName: manifest.name,
         runtimeContractVersion: runtimeContract.runtimeContractVersion,
+        sharedRuntimeContextChunk,
         exports: EXPECTED_EXPORTS,
         packPreview,
       },

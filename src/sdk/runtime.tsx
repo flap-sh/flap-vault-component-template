@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useBalance, useChainId, useConnect, useDisconnect, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
 import { formatUnits } from "viem";
 import { Alert } from "@/src/ui";
@@ -26,9 +26,11 @@ import type {
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
 import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
+import { RuntimeContext } from "./runtimeStore";
 import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
 
-const RuntimeContext = createContext<FlapVaultSdk | null>(null);
+export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
+
 type ToastLevel = "info" | "success" | "warning" | "error";
 
 interface ToastItem {
@@ -401,22 +403,4 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       </div>
     </RuntimeContext.Provider>
   );
-}
-
-export function useFlapSdk() {
-  const sdk = useContext(RuntimeContext);
-  if (!sdk) throw new Error("useFlapSdk must be used within VaultRuntimeProvider.");
-  return sdk;
-}
-
-export function useVaultContext() {
-  return useFlapSdk().context;
-}
-
-export function useFlapI18n() {
-  return useFlapSdk().i18n;
-}
-
-export function useFlapNotify() {
-  return useFlapSdk().notify;
 }

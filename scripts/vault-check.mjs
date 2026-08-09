@@ -321,7 +321,7 @@ const FIX_HINTS = {
   "media-policy/remote-media": "Remove remote media URLs. Use host-provided token media, controlled IpfsImage cid/path for immutable Vault/NFT images, or CID-only IpfsBackground.",
   "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
   "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
-  "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with sdk, tokenId, and alt. The shared runtime reads Vault.nft() and NFT.tokenURI(tokenId); do not pass ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
+  "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with tokenId and alt plus safe image presentation props. It consumes the shared SDK context internally; do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
   "media-policy/ipfs-image-unavailable": "Use an image CID/path or directory CID/validationPath sample that resolves through an allowed Flap IPFS gateway to an image/* response.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
@@ -1419,8 +1419,8 @@ function isValidIpfsImagePath(imagePath) {
 function collectNftMetadataImageUsageIssues(content, file) {
   const issues = [];
   const tagRegex = /<NftMetadataImage\b[^>]*>/g;
-  const requiredProps = ["sdk", "tokenId", "alt"];
-  const forbiddenProps = ["abi", "nftAddress", "src", "srcSet", "tokenUri", "tokenURI", "endpoint", "imageUrl", "cid", "path", "validationPath"];
+  const requiredProps = ["tokenId", "alt"];
+  const forbiddenProps = ["sdk", "abi", "nftAddress", "src", "srcSet", "tokenUri", "tokenURI", "endpoint", "imageUrl", "cid", "path", "validationPath"];
   for (const tagMatch of content.matchAll(tagRegex)) {
     const tag = tagMatch[0];
     const missingProps = requiredProps.filter((prop) => !new RegExp(`\\b${prop}\\s*=`).test(tag));
@@ -1431,7 +1431,7 @@ function collectNftMetadataImageUsageIssues(content, file) {
         issue(
           BLOCKING,
           "media-policy/invalid-nft-metadata-image",
-          "NftMetadataImage must receive only sdk, tokenId, alt, and safe image presentation props. The shared runtime owns the Vault V2 nft() and NFT tokenURI() ABIs; caller-supplied ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, and spread props are not allowed.",
+          "NftMetadataImage must receive only tokenId, alt, and safe image presentation props. It consumes the shared SDK context internally, and the runtime owns the Vault V2 nft() and NFT tokenURI() ABIs; caller-supplied sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, and spread props are not allowed.",
           {
             file,
             line: lineForIndex(content, tagMatch.index ?? 0),
