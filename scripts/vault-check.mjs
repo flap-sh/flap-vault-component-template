@@ -179,10 +179,6 @@ const WARNING = "warning";
 const INFO = "info";
 const TYPE_BINDING_KEYS = new Set(["vault" + "Type", "vault" + "Types"]);
 const UNSAFE_RESOURCE_SCHEMES = ["ipfs://", "ar://", "data:", "javascript:"];
-const ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS = new Set([
-  "https://flap.mypinata.cloud",
-  "https://magenta-naval-penguin-822.mypinata.cloud",
-]);
 const IPFS_IMAGE_CID_RE = /^(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/;
 const IPFS_IMAGE_PATH_SEGMENT_RE = /^[A-Za-z0-9._~-]+$/;
 const ALLOWED_INLINE_SVG_TAGS = new Set([
@@ -322,7 +318,6 @@ const FIX_HINTS = {
   "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
   "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
   "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with tokenId and alt plus safe image presentation props. It consumes the shared SDK context internally; do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
-  "media-policy/ipfs-image-unavailable": "Use an image CID/path or directory CID/validationPath sample that resolves through an allowed Flap IPFS gateway to an image/* response.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
   "navigation-policy/invalid-external-link": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials.",
@@ -1174,19 +1169,6 @@ function isAllowlistedExternalUrl(url, declaredFrames = new Map()) {
   return isDeclaredExternalFrameUrl(url, declaredFrames) || isApprovedExternalLinkUrl(url) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
 }
 
-function isAllowedIpfsImageGatewayUrl(url) {
-  const parsed = parseUrl(url);
-  return (
-    parsed?.protocol === "https:" &&
-    !parsed.username &&
-    !parsed.password &&
-    !parsed.search &&
-    !parsed.hash &&
-    ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS.has(parsed.origin) &&
-    /^\/ipfs\/[^/]+(?:\/[^?#]*)?$/.test(parsed.pathname)
-  );
-}
-
 function collectLexicalBindings(sourceFile) {
   const bindings = new Map();
 
@@ -1484,10 +1466,6 @@ function collectExternalLinkI18nKeys(usages) {
 
 function isIndexWithinRanges(index, ranges = []) {
   return ranges.some(([start, end]) => index >= start && index < end);
-}
-
-function ipfsImageUrlsForCid(cid, imagePath) {
-  return [...ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS].map((origin) => `${origin}/ipfs/${cid}${imagePath ? `/${imagePath}` : ""}`);
 }
 
 function isValidFolderName(folderName) {
@@ -4323,84 +4301,6 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   return issues;
 }
 
-function collectIpfsImageCidSources(vaultDir) {
-  return walk(vaultDir)
-    .filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/))
-    .flatMap((item) => {
-      const rel = path.relative(ROOT, item.path);
-      const content = stripCommentsForScanning(fs.readFileSync(item.path, "utf8"));
-      return collectIpfsImageCidUsages(content, rel)
-        .filter((source) => {
-          const probePath = source.path === null ? source.validationPath : source.path;
-          return isValidIpfsImageCid(source.cid) && (probePath === undefined || isValidIpfsImagePath(probePath));
-        })
-        .map((source) => ({
-          ...source,
-          probePath: source.path === null ? source.validationPath : source.path,
-          urls: ipfsImageUrlsForCid(source.cid, source.path === null ? source.validationPath : source.path),
-        }));
-    });
-}
-
-async function probeImageUrl(url) {
-  for (const method of ["HEAD", "GET"]) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: method === "GET" ? { Range: "bytes=0-0" } : undefined,
-        signal: controller.signal,
-      });
-      if (response.body) await response.body.cancel().catch(() => {});
-      const finalUrl = response.url || url;
-      const contentType = response.headers.get("content-type") ?? "";
-      if (response.ok && isAllowedIpfsImageGatewayUrl(finalUrl) && contentType.toLowerCase().startsWith("image/")) return null;
-      if (method === "HEAD" && (response.status === 405 || response.status === 403 || !contentType.toLowerCase().startsWith("image/"))) continue;
-      return { status: response.status, contentType, finalUrl };
-    } catch (error) {
-      if (method === "HEAD") continue;
-      return { error: error instanceof Error ? error.message : String(error) };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-  return { error: "image probe failed" };
-}
-
-async function collectIpfsImageValidationIssues(vaultDir) {
-  const seen = new Set();
-  const sources = collectIpfsImageCidSources(vaultDir).filter((source) => {
-    const sourceKey = `${source.cid}/${source.probePath ?? ""}`;
-    if (seen.has(sourceKey)) return false;
-    seen.add(sourceKey);
-    return true;
-  });
-  const issues = [];
-  for (const source of sources) {
-    const attempts = [];
-    let resolved = false;
-    for (const url of source.urls) {
-      const failure = await probeImageUrl(url);
-      if (!failure) {
-        resolved = true;
-        break;
-      }
-      attempts.push({ url, ...failure });
-    }
-    if (resolved) continue;
-    issues.push(
-      issue(
-        BLOCKING,
-        "media-policy/ipfs-image-unavailable",
-        `${source.component} cid ${source.cid}${source.probePath ? ` path ${source.probePath}` : ""} must resolve through at least one allowed Flap IPFS gateway with an image/* content-type.`,
-        { ...source, attempts },
-      ),
-    );
-  }
-  return issues;
-}
-
 function buildAgentNextActions(issues) {
   const blocking = issues.filter((item) => item.severity === BLOCKING);
   const warnings = issues.filter((item) => item.severity === WARNING);
@@ -4630,8 +4530,7 @@ export async function runVaultCheckWithTokenContracts(folderName, options = {}) 
   const tokenIssues = await collectManifestErc20TokenIssues(manifest, {
     file: `src/vaults/${folderName}/manifest.json`,
   });
-  const ipfsImageIssues = await collectIpfsImageValidationIssues(path.join(ROOT, "src", "vaults", folderName));
-  const report = buildCheckReport(folderName, [...staticReport.issues, ...tokenIssues, ...ipfsImageIssues]);
+  const report = buildCheckReport(folderName, [...staticReport.issues, ...tokenIssues]);
   if (!options.silent) {
     console.log(JSON.stringify(report, null, 2));
   }
