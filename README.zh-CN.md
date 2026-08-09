@@ -371,7 +371,7 @@ Vault folder 是严格 source package 边界，只能包含：
 
 自定义不可变图片的路径是：先在 Vault package 外部上传并 pin 图片，再只把真实图片 CID 传给 `<IpfsImage cid="...">`。NFT 图片集合应整体上传为一个 IPFS 目录，然后用 `path={tokenId.toString() + ".png"}` 动态选择目录内图片，并提供一个真实静态样本 `validationPath="1.png"` 供 `vault:check` 验证。如果上传流程返回的是 metadata CID，需要先读取该 metadata JSON，从 `image` 字段里拿图片地址，再去掉 gateway URL 或 `ipfs://` 前缀，只保留图片 CID。不要在包里放 `imageUrl`、完整 gateway URL、metadata CID、CSS `url(...)`、动态 CID 或包含目录穿越/query/hash 的路径。
 
-Vault V2 合约决定的 NFT 图片使用 `<NftMetadataImage tokenId={tokenId} ... />`。这是通用图片方案，组件内部直接读取 `VaultRuntimeProvider`，不需要业务侧传 `sdk`、NFT 地址或 Vault V2 图片 ABI。共享 runtime 内置最小 `Vault.nft()` 与 `NFT.tokenURI(tokenId)` ABI。Component 不读取 `tokenURIBase`、不判断 `.json`、不拼 URL。Mode 0/1 的 data JSON 在共享 runtime 内解析；mode 2 的 IPFS/HTTPS metadata 通过 host resolver，并执行 DNS、公网地址、redirect、timeout、大小、MIME 和 SVG 安全限制。NFT 列表需要分页或只挂载可见 token id。Mint、sell、价格等其他业务函数仍使用项目自己的最小 `VaultABI.ts`。
+Vault V2 合约决定的 NFT 图片使用 `<NftMetadataImage tokenId={tokenId} ... />`。这是通用图片方案，组件内部直接读取 `VaultRuntimeProvider`，不需要业务侧传 `sdk`、NFT 地址或 Vault V2 图片 ABI。共享 runtime 内置最小 `Vault.nft()` 与 `NFT.tokenURI(tokenId)` ABI。Component 不读取 `tokenURIBase`、不判断 `.json`、不拼 URL。Mode 0/1 的 data JSON 在共享 runtime 内解析；mode 2 的 IPFS/HTTPS metadata 通过 host resolver，并将 HTTPS 连接绑定到已验证的公网 DNS 地址，同时执行 redirect、timeout、3,000,000 字节图片上限、MIME 和 SVG 安全限制。合法的 Pinata 专属网关 IPFS URL 会先按 CID/path 改写到 Pinata 公共网关。NFT 列表需要分页或只挂载可见 token id。Mint、sell、价格等其他业务函数仍使用项目自己的最小 `VaultABI.ts`。
 
 Component-owned navigation 应只停留在当前链 explorer。Reviewed non-oracle business-data host 可以声明在 `manifest.endpoints`，但 NFT metadata 必须走 `NftMetadataImage`，不能把 endpoint declaration 当成绕过路径。Internal Oracle endpoint 通常应留在 `sdk.readOracle(...)` 和 host / runtime provisioning 后面，而不是把 raw URL literal 放入 Vault source。
 

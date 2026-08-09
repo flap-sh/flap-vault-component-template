@@ -1,18 +1,18 @@
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
 import { getTaxVaultHostChainConfig } from "./hostRuntimeConfig";
 import { normalizeInlineNftImage, parseInlineNftMetadata, sanitizeNftMetadataRecord } from "./nftMetadata";
+import { assertPublicHttpsUrl, fetchPublicHttps } from "./publicHttpsFetch";
 import type { NftMetadataSnapshot, NftMetadataSource } from "./types";
 
 const DEFAULT_IPFS_GATEWAY = "https://flap.mypinata.cloud";
 const CID_RE = /^(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/;
 const IPFS_PATH_SEGMENT_RE = /^[A-Za-z0-9._~%-]+$/;
 const MAX_REMOTE_METADATA_BYTES = 512 * 1024;
-const MAX_REMOTE_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_REMOTE_IMAGE_BYTES = 3_000_000;
 const MAX_REDIRECTS = 3;
 const REQUEST_TIMEOUT_MS = 8_000;
 const ALLOWED_IMAGE_MEDIA_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml"]);
-const BLOCKED_HOST_SUFFIXES = [".localhost", ".local", ".internal", ".home", ".lan"];
+const PINATA_GATEWAY_SUFFIX = ".mypinata.cloud";
+const PINATA_PUBLIC_GATEWAY = "https://gateway.pinata.cloud";
 
 export interface LoadNftMetadataInput {
   chainId: number;
@@ -30,61 +30,6 @@ interface LimitedResponse {
 function sourceForUri(value: string): NftMetadataSource {
   if (value.trim().startsWith("data:")) return "data-json";
   return /^https:\/\//i.test(value.trim()) ? "https" : "ipfs";
-}
-
-function isBlockedIpv4(address: string) {
-  const octets = address.split(".").map(Number);
-  if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) return true;
-  const [a, b] = octets;
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 192 && b === 0) ||
-    (a === 192 && b === 2) ||
-    (a === 198 && (b === 18 || b === 19 || b === 51)) ||
-    (a === 203 && b === 0) ||
-    a >= 224
-  );
-}
-
-function isBlockedIp(address: string) {
-  const version = isIP(address);
-  if (version === 4) return isBlockedIpv4(address);
-  if (version !== 6) return true;
-  const normalized = address.toLowerCase();
-  if (normalized.startsWith("::ffff:")) return isBlockedIpv4(normalized.slice("::ffff:".length));
-  return (
-    normalized === "::" ||
-    normalized === "::1" ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    /^fe[89ab]/.test(normalized) ||
-    normalized.startsWith("ff") ||
-    normalized.startsWith("2001:db8:")
-  );
-}
-
-async function assertSafeHttpsUrl(url: URL) {
-  if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) {
-    throw new Error("NFT metadata resources must use credential-free HTTPS.");
-  }
-  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
-  if (!hostname || hostname === "localhost" || BLOCKED_HOST_SUFFIXES.some((suffix) => hostname.endsWith(suffix))) {
-    throw new Error("NFT metadata resource host is not allowed.");
-  }
-  if (isIP(hostname)) {
-    if (isBlockedIp(hostname)) throw new Error("NFT metadata resource host is not public.");
-    return;
-  }
-  const addresses = await lookup(hostname, { all: true, verbatim: true });
-  if (!addresses.length || addresses.some((entry) => isBlockedIp(entry.address))) {
-    throw new Error("NFT metadata resource host did not resolve to public addresses.");
-  }
 }
 
 function parseIpfsPath(value: string) {
@@ -109,13 +54,38 @@ function parseIpfsPath(value: string) {
   return [cid, ...segments].join("/");
 }
 
+function configuredIpfsGatewayUrl(ipfsPath: string, chainId: number) {
+  const gateway = (getTaxVaultHostChainConfig(chainId)?.ipfsGateway ?? DEFAULT_IPFS_GATEWAY).replace(/\/+$/, "");
+  return new URL(`${gateway}/ipfs/${ipfsPath}`);
+}
+
+function parsePinataGatewayIpfsPath(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.port ||
+    url.search ||
+    url.hash ||
+    !hostname.endsWith(PINATA_GATEWAY_SUFFIX) ||
+    !url.pathname.startsWith("/ipfs/")
+  ) return null;
+  return parseIpfsPath(url.pathname.slice("/ipfs/".length));
+}
+
 function resolveResourceUrl(value: string, chainId: number, baseUrl?: string) {
   const trimmed = value.trim();
   const ipfsPath = parseIpfsPath(trimmed);
-  if (ipfsPath) {
-    const gateway = (getTaxVaultHostChainConfig(chainId)?.ipfsGateway ?? DEFAULT_IPFS_GATEWAY).replace(/\/+$/, "");
-    return new URL(`${gateway}/ipfs/${ipfsPath}`);
-  }
+  if (ipfsPath) return configuredIpfsGatewayUrl(ipfsPath, chainId);
+  const pinataIpfsPath = parsePinataGatewayIpfsPath(trimmed);
+  if (pinataIpfsPath) return new URL(`${PINATA_PUBLIC_GATEWAY}/ipfs/${pinataIpfsPath}`);
   if (/^https:\/\//i.test(trimmed)) return new URL(trimmed);
   if (baseUrl && !/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return new URL(trimmed, baseUrl);
   throw new Error("NFT metadata resource URI must be data JSON, IPFS, or HTTPS.");
@@ -151,7 +121,7 @@ async function readLimitedBody(response: Response, maxBytes: number) {
 async function fetchLimitedResource(initialUrl: URL, maxBytes: number, fetchImpl: typeof fetch): Promise<LimitedResponse> {
   let url = initialUrl;
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
-    await assertSafeHttpsUrl(url);
+    assertPublicHttpsUrl(url);
     const response = await fetchImpl(url, {
       method: "GET",
       cache: "no-store",
@@ -203,7 +173,7 @@ export async function loadNftMetadata(input: LoadNftMetadataInput): Promise<NftM
   const hasTokenUri = typeof input.tokenUri === "string" && Boolean(input.tokenUri.trim());
   const hasImageUri = typeof input.imageUri === "string" && Boolean(input.imageUri.trim());
   if (hasTokenUri === hasImageUri) throw new Error("Provide exactly one NFT tokenUri or imageUri.");
-  const fetchImpl = input.fetchImpl ?? fetch;
+  const fetchImpl = input.fetchImpl ?? fetchPublicHttps;
 
   if (hasImageUri) {
     const imageUri = input.imageUri!.trim();

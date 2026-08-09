@@ -9,7 +9,7 @@ import type {
 const DEFAULT_NFT_METADATA_ENDPOINT = "/api/runtime/nft-metadata";
 const MAX_TOKEN_URI_LENGTH = 64 * 1024;
 const MAX_INLINE_METADATA_BYTES = 512 * 1024;
-const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_INLINE_IMAGE_BYTES = 3_000_000;
 const MAX_ATTRIBUTES = 100;
 const ALLOWED_IMAGE_MEDIA_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml"]);
 

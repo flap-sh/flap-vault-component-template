@@ -177,6 +177,59 @@ async function main() {
   );
   if (privateFetchCalled) throw new Error("Vault V2 NFT metadata resolver fetched a blocked private-network URL.");
 
+  const requestedUrls = [];
+  const customPinataSnapshot = await serverModule.loadNftMetadata({
+    chainId: 56,
+    tokenUri: "https://tan-calm-firefly-664.mypinata.cloud/ipfs/bafybeibrjbbng32y6qnu4vruloudrbnretvbn2nkpcy2xwgu5fxx2txhva/1.json",
+    fetchImpl: async (input) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.endsWith("/1.json")) {
+        return new Response(JSON.stringify({ image: "1.jpg" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      });
+    },
+  });
+  if (
+    customPinataSnapshot?.imageMediaType !== "image/jpeg" ||
+    requestedUrls.length !== 2 ||
+    requestedUrls.some((url) => !url.startsWith("https://gateway.pinata.cloud/ipfs/"))
+  ) {
+    throw new Error(`Custom Pinata IPFS URLs were not normalized through the controlled gateway: ${JSON.stringify(requestedUrls)}.`);
+  }
+
+  await expectRejection(
+    () => serverModule.loadNftMetadata({
+      chainId: 56,
+      imageUri: "https://images.example/oversized.jpg",
+      fetchImpl: async () => new Response(new Uint8Array(3_000_001), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      }),
+    }),
+    /resource is too large/i,
+    "Oversized NFT image response",
+  );
+
+  const responseBudgetSnapshot = await serverModule.loadNftMetadata({
+    chainId: 56,
+    imageUri: "https://images.example/max.jpg",
+    fetchImpl: async () => new Response(new Uint8Array(3_000_000), {
+      status: 200,
+      headers: { "content-type": "image/jpeg" },
+    }),
+  });
+  const serializedResponseBytes = Buffer.byteLength(JSON.stringify({ data: responseBudgetSnapshot }));
+  if (serializedResponseBytes > 4 * 1024 * 1024 + 128 * 1024) {
+    throw new Error(`Maximum accepted NFT image exceeds the host response budget: ${serializedResponseBytes} bytes.`);
+  }
+
   const packPreview = JSON.parse(
     execFileSync("npm", ["pack", "--json", "--dry-run"], {
       cwd: packageDir,

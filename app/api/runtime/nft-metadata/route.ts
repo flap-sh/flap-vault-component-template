@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadNftMetadata } from "@/src/sdk/server";
+import { RequestBodyTooLargeError, readBoundedRequestBody } from "./requestBody";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_REQUEST_BYTES = 64 * 1024;
+const MAX_RESPONSE_BYTES = 4 * 1024 * 1024 + 128 * 1024;
 
 export async function POST(request: NextRequest) {
-  const rawLength = request.headers.get("content-length");
-  if (rawLength && Number(rawLength) > MAX_REQUEST_BYTES) {
-    return NextResponse.json({ error: "NFT metadata request is too large." }, { status: 413 });
-  }
-  const rawBody = await request.text();
-  if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BYTES) {
-    return NextResponse.json({ error: "NFT metadata request is too large." }, { status: 413 });
+  let rawBody: string;
+  try {
+    rawBody = await readBoundedRequestBody(request, MAX_REQUEST_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ error: "NFT metadata request is too large." }, { status: 413 });
+    }
+    throw error;
   }
 
   let body: unknown;
@@ -32,7 +35,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const data = await loadNftMetadata({ chainId, tokenUri, imageUri });
-    return NextResponse.json({ data }, { headers: { "cache-control": "private, max-age=60" } });
+    const responseBody = JSON.stringify({ data });
+    if (new TextEncoder().encode(responseBody).byteLength > MAX_RESPONSE_BYTES) {
+      return NextResponse.json({ error: "Resolved NFT metadata media is too large." }, { status: 502 });
+    }
+    return new NextResponse(responseBody, {
+      headers: {
+        "cache-control": "private, max-age=60",
+        "content-type": "application/json",
+      },
+    });
   } catch (error) {
     console.error("runtime NFT metadata proxy failed:", error instanceof Error ? error.message : String(error));
     return NextResponse.json({ error: "Failed to resolve NFT metadata media." }, { status: 502 });
