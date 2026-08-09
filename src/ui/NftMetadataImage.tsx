@@ -1,18 +1,17 @@
 "use client";
 
 import * as React from "react";
-import type { Address, FlapVaultSdk, NftMetadataSnapshot } from "@/src/sdk";
+import type { FlapVaultSdk, NftMetadataSnapshot } from "@/src/sdk";
 import { cn } from "./utils";
 
 export interface NftMetadataImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "alt" | "src" | "srcSet"> {
   alt: string;
   sdk: Pick<FlapVaultSdk, "readNftMetadata" | "refetchNonce">;
-  nftAddress: Address;
   tokenId: bigint;
   fallback?: React.ReactNode;
 }
 
-export function NftMetadataImage({ alt, sdk, nftAddress, tokenId, fallback = null, className, decoding = "async", loading = "lazy", onError, ...props }: NftMetadataImageProps) {
+export function NftMetadataImage({ alt, sdk, tokenId, fallback = null, className, decoding = "async", loading = "lazy", onError, ...props }: NftMetadataImageProps) {
   const [metadata, setMetadata] = React.useState<NftMetadataSnapshot | null>(null);
   const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
 
@@ -21,7 +20,7 @@ export function NftMetadataImage({ alt, sdk, nftAddress, tokenId, fallback = nul
     setState("loading");
     setMetadata(null);
     sdk
-      .readNftMetadata({ nftAddress, tokenId })
+      .readNftMetadata({ tokenId })
       .then((nextMetadata) => {
         if (cancelled) return;
         setMetadata(nextMetadata);
@@ -33,7 +32,7 @@ export function NftMetadataImage({ alt, sdk, nftAddress, tokenId, fallback = nul
     return () => {
       cancelled = true;
     };
-  }, [nftAddress, sdk, sdk.refetchNonce, tokenId]);
+  }, [sdk, sdk.refetchNonce, tokenId]);
 
   if (state !== "ready" || !metadata) {
     return <span data-flap-nft-media-state={state} className={cn("block", className)}>{fallback}</span>;

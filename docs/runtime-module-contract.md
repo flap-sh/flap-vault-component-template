@@ -147,7 +147,7 @@ The component should consume:
 - `sdk.readContract(...)`
 - `sdk.writeContract(...)`
 - `sdk.readOracle(...)` when approved/provisioned
-- `sdk.readNftMetadata({ nftAddress, tokenId })` for Vault V2 NFT media selected by `NFT.tokenURI(tokenId)`
+- `sdk.readNftMetadata({ tokenId })` for generic Vault V2 NFT media selected by runtime-owned `Vault.nft()` and `NFT.tokenURI(tokenId)` ABI calls
 
 `sdk.readContract(...)` may include `account` for read-only contract functions whose return value depends on `msg.sender`. Hosts must forward that field to their public client instead of forcing components to use simulation for read-only user-state queries.
 
@@ -243,7 +243,7 @@ The host may implement different adapters behind the scenes:
 
 That shared surface should also own oracle provisioning. Components still call `sdk.readOracle(...)`, but the host/runtime should inject the actual reader through `VaultRuntimeProvider` rather than pushing raw oracle URLs into Vault source. In this template, local preview wires `oracleReader={createLocalOracleReader()}` and serves the request through `/api/runtime/oracle/{oracleId}` backed by server-side runtime defaults.
 
-The same host boundary owns Vault V2 NFT metadata resolution. `NftMetadataImage` calls `sdk.readNftMetadata`, which reads `NFT.tokenURI(tokenId)`. Inline mode 0/1 data JSON is handled inside the runtime. Mode 2 IPFS/HTTPS metadata and external image bytes use `/api/runtime/nft-metadata`, backed by `loadNftMetadata(...)` from the runtime `./server` export. Hosts must provide that route or inject an equivalent `nftMetadataReader` into `VaultRuntimeProvider`; Vault components never receive arbitrary fetch permission. The shared resolver validates public DNS targets and every redirect, limits time and bytes, accepts only approved image MIME types, rejects active/external SVG content, and returns a data image rather than the upstream URL.
+The same host boundary owns Vault V2 NFT metadata resolution. `NftMetadataImage` calls `sdk.readNftMetadata({ tokenId })`; the SDK owns the minimal ABIs, reads `Vault.nft()` from `context.vaultAddress`, caches that address, and then reads `NFT.tokenURI(tokenId)`. Vault source does not provide an ABI or NFT address for this generic path. Inline mode 0/1 data JSON is handled inside the runtime. Mode 2 IPFS/HTTPS metadata and external image bytes use `/api/runtime/nft-metadata`, backed by `loadNftMetadata(...)` from the runtime `./server` export. Hosts must provide that route or inject an equivalent `nftMetadataReader` into `VaultRuntimeProvider`; Vault components never receive arbitrary fetch permission. The shared resolver validates public DNS targets and every redirect, limits time and bytes, accepts only approved image MIME types, rejects active/external SVG content, and returns a data image rather than the upstream URL.
 
 Oracle provider logic belongs in the shared runtime package when it is more than static HTTPS forwarding. Pyth/Hermes-style providers that need path templates, fixed price ids, response transforms into EVM bytes, or publish-time window checks should be exported by `@flapsdk/vault-runtime/server`. Workbench and `flap.sh` should not carry their own copies of those adapters; their route handlers should validate local proxy limits and call the shared runtime helper. This keeps the component contract as `sdk.readOracle(...)` while preventing host-specific oracle behavior drift.
 

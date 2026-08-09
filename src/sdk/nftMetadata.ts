@@ -215,3 +215,13 @@ export const nftTokenUriAbi = [
     outputs: [{ name: "", type: "string" }],
   },
 ] as const;
+
+export const vaultV2NftAbi = [
+  {
+    type: "function",
+    name: "nft",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+] as const;

@@ -205,17 +205,17 @@ The CID must be an image CID or an uploaded collection-directory CID, not a meta
 
 ### Vault V2 NFT metadata
 
-Use `NftMetadataImage` when the Vault supplies the NFT address and the NFT contract owns the final `tokenURI` behavior:
+Use `NftMetadataImage` for the universal Vault V2 image path. The component does not supply an ABI or NFT address:
 
 ```tsx
 import { NftMetadataImage } from "@/src/ui";
 
-<NftMetadataImage sdk={sdk} nftAddress={nftAddress} tokenId={tokenId} alt={i18n.t("media.nftAlt")} />
+<NftMetadataImage sdk={sdk} tokenId={tokenId} alt={i18n.t("media.nftAlt")} />
 ```
 
-The component calls `sdk.readNftMetadata({ nftAddress, tokenId })`. The SDK first reads `NFT.tokenURI(tokenId)` using the standard runtime ABI. Mode 0/1 `data:application/json` metadata is decoded locally; mode 2 IPFS/HTTPS JSON and any external image bytes use the host-owned `/api/runtime/nft-metadata` resolver. The returned `NftMetadataSnapshot` contains sanitized `name`, `description`, up to 100 primitive attributes, `source`, `imageMediaType`, and a validated `imageDataUrl`.
+The component calls `sdk.readNftMetadata({ tokenId })`. The SDK first reads `Vault.nft()` from `context.vaultAddress`, then reads `NFT.tokenURI(tokenId)`, using runtime-owned minimal ABIs for both calls. Mode 0/1 `data:application/json` metadata is decoded locally; mode 2 IPFS/HTTPS JSON and any external image bytes use the host-owned `/api/runtime/nft-metadata` resolver. The returned `NftMetadataSnapshot` contains sanitized `name`, `description`, up to 100 primitive attributes, `source`, `imageMediaType`, and a validated `imageDataUrl`.
 
-Do not call `Vault.tokenURIFor`, inspect `tokenURIBase`, or concatenate `tokenId + ".json"` in UI source. Do not pass tokenURI, endpoint, src, imageUrl, CID/path, or spread props to `NftMetadataImage`. The runtime caches each `chainId + nftAddress + tokenId` read per refetch generation and limits metadata work to six concurrent items; collection UIs must still paginate or mount only their visible token ids.
+Do not add `nft()` or `tokenURI()` to project `VaultABI.ts` only for media, call `Vault.tokenURIFor`, inspect `tokenURIBase`, or concatenate `tokenId + ".json"` in UI source. Do not pass ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, or spread props to `NftMetadataImage`. The runtime caches the Vault NFT address and each `chainId + vaultAddress + tokenId` result per refetch generation, and limits metadata work to six concurrent items; collection UIs must still paginate or mount only their visible token ids.
 
 If an image must be pinned through Flap instead of a personal Pinata gateway, use the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) outside the Vault package. The `https://funcs.flap.sh/api/upload` `create(file, meta)` response `data.create` is the metadata CID used for Portal launch `meta`; read that metadata JSON and extract the `image` field before using `IpfsImage` or `IpfsBackground`. Strip any gateway URL or `ipfs://` prefix before using the value. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic CID. `vault:check` verifies the effective image path as `image/*` through the allowed Flap IPFS gateways.
 

@@ -25,7 +25,8 @@ import type {
 } from "./types";
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
-import { createLocalNftMetadataReader, nftTokenUriAbi } from "./nftMetadata";
+import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
+import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
 
 const RuntimeContext = createContext<FlapVaultSdk | null>(null);
 type ToastLevel = "info" | "success" | "warning" | "error";
@@ -82,6 +83,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
   const nftMetadataCacheRef = useRef<Map<string, Promise<NftMetadataSnapshot>>>(new Map());
+  const vaultNftAddressCacheRef = useRef<Map<string, Promise<Address>>>(new Map());
   const { address: accountAddress, isConnected } = useAccount();
   const connectedChainId = useChainId();
   const { connect, connectors } = useConnect();
@@ -292,13 +294,39 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
   const readNftMetadata = useCallback(
     async (request: NftMetadataReadRequest): Promise<NftMetadataSnapshot> => {
       if (request.tokenId < 0n) throw new Error("NFT tokenId must not be negative.");
-      const cacheKey = `${runtimeContext.chainId}:${request.nftAddress.toLowerCase()}:${request.tokenId.toString()}:${version}`;
+      const vaultAddress = runtimeContext.vaultAddress;
+      if (!isValidAddress(vaultAddress) || vaultAddress.toLowerCase() === ZERO_ADDRESS) {
+        throw new Error("Vault V2 NFT metadata requires a valid runtime Vault address.");
+      }
+      const cacheKey = `${runtimeContext.chainId}:${vaultAddress.toLowerCase()}:${request.tokenId.toString()}:${version}`;
       const cached = nftMetadataCacheRef.current.get(cacheKey);
       if (cached) return cached;
       const pending = limitNftMetadataRead(async () => {
+        const nftAddressCacheKey = `${runtimeContext.chainId}:${vaultAddress.toLowerCase()}:${version}`;
+        let nftAddressPending = vaultNftAddressCacheRef.current.get(nftAddressCacheKey);
+        if (!nftAddressPending) {
+          nftAddressPending = readContract<Address>({
+            contract: "vault",
+            address: vaultAddress,
+            abi: vaultV2NftAbi,
+            functionName: "nft",
+          }).then((nftAddress) => {
+            if (!isValidAddress(nftAddress) || nftAddress.toLowerCase() === ZERO_ADDRESS) {
+              throw new Error("Vault V2 nft() returned an invalid NFT address.");
+            }
+            return nftAddress;
+          });
+          vaultNftAddressCacheRef.current.set(nftAddressCacheKey, nftAddressPending);
+          if (vaultNftAddressCacheRef.current.size > 32) {
+            const oldestNftAddressKey = vaultNftAddressCacheRef.current.keys().next().value;
+            if (oldestNftAddressKey) vaultNftAddressCacheRef.current.delete(oldestNftAddressKey);
+          }
+          nftAddressPending.catch(() => vaultNftAddressCacheRef.current.delete(nftAddressCacheKey));
+        }
+        const nftAddress = await nftAddressPending;
         const tokenUri = await readContract<string>({
           contract: "nft",
-          address: request.nftAddress,
+          address: nftAddress,
           abi: nftTokenUriAbi,
           functionName: "tokenURI",
           args: [request.tokenId],
@@ -307,6 +335,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
         return (nftMetadataReader ?? defaultNftMetadataReader)({
           ...request,
           chainId: runtimeContext.chainId,
+          nftAddress,
           tokenUri: tokenUri.trim(),
           context: runtimeContext,
         });

@@ -918,9 +918,7 @@ import { NftMetadataImage } from "@/src/ui";
 
 export default function SelftestVault(_props: VaultComponentProps) {
   const sdk = useFlapSdk();
-  const vaultNftState = { nftAddress: sdk.context.tokenAddress };
-  const nftAddress = vaultNftState.nftAddress;
-  return <NftMetadataImage sdk={sdk} nftAddress={nftAddress} tokenId={1n} alt={sdk.i18n.t("title")} />;
+  return <NftMetadataImage sdk={sdk} tokenId={1n} alt={sdk.i18n.t("title")} />;
 }
 `,
   });
@@ -949,7 +947,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
     "blocking",
   );
 
-  const invalidNftMetadataAddressSlug = `${FIXTURE_PREFIX}-nft-metadata-runtime-address`;
+  const invalidNftMetadataAddressSlug = `${FIXTURE_PREFIX}-nft-metadata-caller-address`;
   writeVault(invalidNftMetadataAddressSlug, {
     component: `"use client";
 
@@ -964,7 +962,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
   });
   assertRule(
-    "NftMetadataImage rejects obvious runtime token addresses as NFT addresses",
+    "NftMetadataImage rejects caller-supplied NFT addresses",
     runVaultCheck(invalidNftMetadataAddressSlug, { silent: true }),
     "media-policy/invalid-nft-metadata-image",
     "blocking",

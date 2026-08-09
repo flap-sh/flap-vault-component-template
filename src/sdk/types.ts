@@ -291,12 +291,12 @@ export interface NftMetadataSnapshot {
 }
 
 export interface NftMetadataReadRequest {
-  nftAddress: Address;
   tokenId: bigint;
 }
 
 export interface NftMetadataReaderRequest extends NftMetadataReadRequest {
   chainId: number;
+  nftAddress: Address;
   tokenUri: string;
   context: VaultRuntimeContext;
 }
