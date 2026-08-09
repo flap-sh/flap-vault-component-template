@@ -27,7 +27,7 @@
     "vault:check:selftest": "node scripts/vault-check-selftest.mjs",
     "vault:e2e": "node scripts/vault-e2e.mjs",
     "template:freshness:selftest": "node scripts/check-template-fresh-selftest.mjs",
-    "vault:package": "node scripts/check-template-fresh.mjs --sync --git-only --quiet && node scripts/vault-package.mjs",
+    "vault:package": "node scripts/check-template-fresh.mjs --sync --quiet && node scripts/vault-package.mjs",
     "vault:verify-package": "node scripts/vault-verify-package.mjs",
     "vault:verify-package:selftest": "node scripts/vault-verify-package-selftest.mjs"
   },

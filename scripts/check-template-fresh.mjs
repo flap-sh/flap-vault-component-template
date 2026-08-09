@@ -11,6 +11,8 @@ const DEFAULT_OFFICIAL_REF = "origin/main";
 const OFFICIAL_REF = process.env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || DEFAULT_OFFICIAL_REF;
 const DEFAULT_NPM_PACKAGE_NAME = "@flapsdk/vault-runtime";
 const NPM_PACKAGE_NAME = process.env.FLAP_TEMPLATE_NPM_PACKAGE?.trim() || DEFAULT_NPM_PACKAGE_NAME;
+const DEFAULT_NPM_SYNC_ATTEMPTS = 3;
+const DEFAULT_NPM_SYNC_DELAY_MS = 1_000;
 
 function git(args, options = {}) {
   return execFileSync("git", args, {
@@ -118,9 +120,9 @@ function compareSemver(leftVersion, rightVersion) {
   return 0;
 }
 
-async function npmLatestMetadata(folderName) {
+async function npmLatestMetadata(folderName, readLatestMetadata = readNpmLatestPackageMetadata) {
   try {
-    const metadata = await readNpmLatestPackageMetadata(NPM_PACKAGE_NAME);
+    const metadata = await readLatestMetadata(NPM_PACKAGE_NAME);
     return { version: metadata.version ?? "", gitHead: metadata.gitHead };
   } catch (error) {
     failFreshness({
@@ -133,6 +135,31 @@ async function npmLatestMetadata(folderName) {
       },
     });
   }
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function compareLocalPackageWithLatest(folderName, latestVersion) {
+  const rootPackage = readRootPackageJson(folderName);
+  const localVersion = rootPackage.version;
+  const comparison = typeof localVersion === "string" && typeof latestVersion === "string" ? compareSemver(localVersion, latestVersion) : null;
+  return { rootPackage, localVersion, comparison };
+}
+
+async function syncCheckoutToPublishedVersion({ folderName, latestVersion, attempts, delayMs }) {
+  let localState = compareLocalPackageWithLatest(folderName, latestVersion);
+  let gitSync;
+
+  for (let attempt = 0; localState.comparison !== null && localState.comparison < 0 && attempt < attempts; attempt += 1) {
+    if (attempt > 0 && delayMs > 0) await wait(delayMs);
+    const currentGitSync = assertTemplateGitFresh({ folderName, autoUpdate: true });
+    if (!gitSync || currentGitSync.status === "updated") gitSync = currentGitSync;
+    localState = compareLocalPackageWithLatest(folderName, latestVersion);
+  }
+
+  return { ...localState, gitSync };
 }
 
 function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion }) {
@@ -186,12 +213,17 @@ function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion
   });
 }
 
-export async function assertNpmPackageFresh({ folderName } = {}) {
-  const rootPackage = readRootPackageJson(folderName);
-  const localVersion = rootPackage.version;
-  const latestMetadata = await npmLatestMetadata(folderName);
+export async function assertNpmPackageFresh({
+  folderName,
+  autoUpdate = false,
+  readLatestMetadata = readNpmLatestPackageMetadata,
+  syncAttempts = DEFAULT_NPM_SYNC_ATTEMPTS,
+  syncDelayMs = DEFAULT_NPM_SYNC_DELAY_MS,
+} = {}) {
+  const latestMetadata = await npmLatestMetadata(folderName, readLatestMetadata);
   const latestVersion = latestMetadata.version;
-  const comparison = typeof localVersion === "string" && typeof latestVersion === "string" ? compareSemver(localVersion, latestVersion) : null;
+  let { rootPackage, localVersion, comparison } = compareLocalPackageWithLatest(folderName, latestVersion);
+  let gitSync;
 
   if (comparison === null) {
     failFreshness({
@@ -206,17 +238,36 @@ export async function assertNpmPackageFresh({ folderName } = {}) {
     });
   }
 
+  if (comparison < 0 && autoUpdate) {
+    ({ rootPackage, localVersion, comparison, gitSync } = await syncCheckoutToPublishedVersion({
+      folderName,
+      latestVersion,
+      attempts: Math.max(1, syncAttempts),
+      delayMs: Math.max(0, syncDelayMs),
+    }));
+  }
+
   if (comparison < 0) {
+    const officialContainsLatestGitHead = Boolean(
+      latestMetadata.gitHead && gitSucceeds(["merge-base", "--is-ancestor", latestMetadata.gitHead, OFFICIAL_REF]),
+    );
+    const releaseSyncPending = Boolean(latestMetadata.gitHead && !officialContainsLatestGitHead);
     failFreshness({
       code: "template-freshness/npm-outdated",
-      message: `This checkout uses ${rootPackage.name}@${localVersion}, but npm latest ${NPM_PACKAGE_NAME} is ${latestVersion}.`,
-      fixHint: `Update this checkout to ${latestVersion} or newer before running local checks, builds, or packaging.`,
+      message: releaseSyncPending
+        ? `npm latest ${NPM_PACKAGE_NAME}@${latestVersion} was published before its source commit ${latestMetadata.gitHead} became available on ${OFFICIAL_REF}.`
+        : `This checkout uses ${rootPackage.name}@${localVersion}, but npm latest ${NPM_PACKAGE_NAME} is ${latestVersion}.`,
+      fixHint: releaseSyncPending
+        ? `This is an upstream release synchronization issue. Retry after a maintainer pushes ${latestMetadata.gitHead} and version ${latestVersion} to ${OFFICIAL_REF}; do not edit the local version string.`
+        : `Update this checkout to ${latestVersion} or newer before running local checks, builds, or packaging.`,
       folderName,
       extra: {
         localPackageName: rootPackage.name,
         localVersion,
         latestVersion,
         latestGitHead: latestMetadata.gitHead,
+        releaseSyncPending,
+        officialContainsLatestGitHead,
       },
     });
   }
@@ -235,6 +286,7 @@ export async function assertNpmPackageFresh({ folderName } = {}) {
     latestVersion,
     latestGitHead: latestMetadata.gitHead,
     gitHead,
+    ...(gitSync ? { gitSync } : {}),
     status: comparison === 0 ? "up-to-date" : "ahead-of-npm",
   };
 }
@@ -359,7 +411,8 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
 export async function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true, autoUpdate = false } = {}) {
   const checks = {};
   if (includeGit) checks.git = assertTemplateGitFresh({ folderName, autoUpdate });
-  if (includeNpm) checks.npm = await assertNpmPackageFresh({ folderName });
+  if (includeNpm) checks.npm = await assertNpmPackageFresh({ folderName, autoUpdate });
+  if (checks.npm?.gitSync?.status === "updated") checks.git = checks.npm.gitSync;
   return { ok: true, checks };
 }
 
