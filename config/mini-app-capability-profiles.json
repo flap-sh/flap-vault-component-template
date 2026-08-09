@@ -1,14 +1,34 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "currentDependencyRevisions": {
+    "three-r3f-v1": {
+      "id": "react19-r3f9",
+      "hostReact": ">=19 <19.3"
+    }
+  },
+  "acceptedLegacyDependencyRevisions": {
+    "three-r3f-v1": [
+      {
+        "id": "react18-r3f8",
+        "hostReact": "^18.3.1",
+        "dependencies": {
+          "three": "0.185.1",
+          "@react-three/fiber": "8.18.0",
+          "@react-three/drei": "9.122.0",
+          "@react-three/postprocessing": "2.19.1"
+        }
+      }
+    ]
+  },
   "profiles": {
     "three-r3f-v1": {
       "surfaces": ["vault-ui-7777", "mini-app-8888"],
       "description": "Controlled Three.js and React Three Fiber runtime for 7777 Vault UI and 8888 Mini App surfaces.",
       "dependencies": {
         "three": "0.185.1",
-        "@react-three/fiber": "8.18.0",
-        "@react-three/drei": "9.122.0",
-        "@react-three/postprocessing": "2.19.1"
+        "@react-three/fiber": "9.7.0",
+        "@react-three/drei": "10.7.8",
+        "@react-three/postprocessing": "3.0.4"
       },
       "allowedImports": [
         "three",

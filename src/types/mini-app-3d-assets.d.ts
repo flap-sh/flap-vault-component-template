@@ -13,3 +13,8 @@ declare module "*.otf" { const url: string; export default url; }
 declare module "*.woff" { const url: string; export default url; }
 declare module "*.woff2" { const url: string; export default url; }
 declare module "*.wasm" { const url: string; export default url; }
+declare module "*.png" { const asset: string | { src: string }; export default asset; }
+declare module "*.jpg" { const asset: string | { src: string }; export default asset; }
+declare module "*.jpeg" { const asset: string | { src: string }; export default asset; }
+declare module "*.webp" { const asset: string | { src: string }; export default asset; }
+declare module "*.avif" { const asset: string | { src: string }; export default asset; }

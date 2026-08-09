@@ -2,6 +2,8 @@
 
 Flap supports standard 3D experiences through the versioned `three-r3f-v1` capability on two explicit surfaces: a mode-less 7777 Vault UI, or a token-scoped 8888 Mini App. It is opt-in and does not widen any unrelated Vault UI permission.
 
+`three-r3f-v1` is a stable capability and security boundary, not a dependency-major label. Current source authoring and new Workbench builds use the `react19-r3f9` dependency revision. Existing format-6 source packages and already-published artifacts that record the original `react18-r3f8` revision remain supported; they do not need to rename the capability or change product code solely for this migration.
+
 A 7777 3D Vault UI may use factory, single-Vault, or token bindings, must declare at least one real deployed 7777 proof token, and must keep every declared proof token on the 7777 suffix. It remains in the default Vault shell, must show host-derived contract risk status before the 3D visual, cannot add Mini App audio, and must omit `displayTitle` and `mode`. An 8888 3D Mini App keeps the existing token-only binding, bilingual `displayTitle`, full-height root, audio review, and risk-status exemption. Mixed 7777/8888 3D artifacts are blocked.
 
 ## Live examples
@@ -20,7 +22,8 @@ Choose the example by purpose: start with `flap-gamefi-arena` for interactive ga
 | --- | --- |
 | Eligibility | Either mode omitted with only real deployed `7777` proof tokens and factory/Vault/token bindings, or `manifest.mode: "mini-app"` with token-only real deployed `8888` bindings; both declare `capabilities: ["three-r3f-v1"]` |
 | Missing project test token | A 7777 Vault UI must pass an explicit real deployed `--token 0x...7777`. Only the 8888 Mini App path may omit `--token`; scaffold then uses Flap's deployed standard Mini App preview token for the selected supported chain. It is preview/E2E proof only, not the project's production CA restriction. |
-| Pinned packages | `three@0.185.1`, `@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, `@react-three/postprocessing@2.19.1` |
+| Current pinned packages | `react@19.2.8`, `three@0.185.1`, `@react-three/fiber@9.7.0`, `@react-three/drei@10.7.8`, `@react-three/postprocessing@3.0.4` (`react19-r3f9`) |
+| Accepted legacy revision | Existing packages/artifacts with `react@18.3.1`, `three@0.185.1`, `@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, and `@react-three/postprocessing@2.19.1` (`react18-r3f8`) remain valid under the same `three-r3f-v1` capability. |
 | Source | Recursive, statically reachable `.ts` and `.tsx` inside the current Vault folder |
 | Shaders | `.glsl`, `.vert`, and `.frag`, bundled as text |
 | Local assets | GLB/GLTF/BIN models; PNG/JPEG/WebP/AVIF/KTX2/Basis textures; HDR/EXR environments; TTF/OTF/WOFF/WOFF2 fonts; controlled decoder/transcoder WASM |

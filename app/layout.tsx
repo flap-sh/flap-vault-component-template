@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   description: "Build, preview, check, and package controlled Flap Vault UI components.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const languageCookie = cookies().get(LANGUAGE_COOKIE_KEY)?.value;
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
+  const languageCookie = cookieStore.get(LANGUAGE_COOKIE_KEY)?.value;
   const cookieLanguageCode = normalizeLanguageCode(languageCookie);
-  const acceptLanguage = cookieLanguageCode ? null : headers().get("accept-language");
+  const acceptLanguage = cookieLanguageCode ? null : headerStore.get("accept-language");
   const initialLanguageCode = cookieLanguageCode ?? getLanguageCodeFromAcceptLanguage(acceptLanguage);
 
   return (

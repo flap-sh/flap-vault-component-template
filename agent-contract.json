@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 43,
+  "version": 44,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -34,12 +34,26 @@
         "surfaces": ["vault-ui-7777", "mini-app-8888"],
         "sourcePackageFormat": 6,
         "e2eReportVersion": 2,
+        "dependencyRevision": "react19-r3f9",
+        "hostReact": ">=19 <19.3",
         "dependencies": {
           "three": "0.185.1",
-          "@react-three/fiber": "8.18.0",
-          "@react-three/drei": "9.122.0",
-          "@react-three/postprocessing": "2.19.1"
+          "@react-three/fiber": "9.7.0",
+          "@react-three/drei": "10.7.8",
+          "@react-three/postprocessing": "3.0.4"
         },
+        "acceptedLegacyDependencyRevisions": [
+          {
+            "id": "react18-r3f8",
+            "hostReact": "^18.3.1",
+            "dependencies": {
+              "three": "0.185.1",
+              "@react-three/fiber": "8.18.0",
+              "@react-three/drei": "9.122.0",
+              "@react-three/postprocessing": "2.19.1"
+            }
+          }
+        ],
         "rules": "Allows recursively statically reachable TS/TSX, shader, and reviewed local 3D assets for either a mode-less Vault UI whose proof tokens all end in 7777 or a token-scoped 8888 Mini App. The 7777 surface may use factory, single-Vault, or token bindings and must retain host risk status before the 3D visual; it does not inherit Mini App audio, full-height, displayTitle, or risk exemptions. Every local source and asset must use a static import reachable from Component.tsx; string paths passed directly to loaders do not count. Mixed 7777/8888 artifacts are blocked. No arbitrary npm packages, remote resources, network, storage, navigation, wallet, worker, or contract-target expansion. WebGL2 failure must fall back explicitly to webgl1, 2d, or static UI."
       }
     }

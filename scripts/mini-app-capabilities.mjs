@@ -59,3 +59,20 @@ export function capabilityFileExtensions(manifest, root = process.cwd()) {
 export function threeR3FProfile(root = process.cwd()) {
   return loadMiniAppCapabilityConfig(root).profiles[THREE_R3F_PROFILE_ID];
 }
+
+export function threeR3FDependencyRevision(root = process.cwd()) {
+  return loadMiniAppCapabilityConfig(root).currentDependencyRevisions[THREE_R3F_PROFILE_ID];
+}
+
+export function supportedThreeR3FProfiles(root = process.cwd()) {
+  const config = loadMiniAppCapabilityConfig(root);
+  const current = config.profiles[THREE_R3F_PROFILE_ID];
+  const legacy = config.acceptedLegacyDependencyRevisions?.[THREE_R3F_PROFILE_ID] || [];
+  return [
+    current,
+    ...legacy.map((revision) => ({
+      ...current,
+      dependencies: revision.dependencies,
+    })),
+  ];
+}

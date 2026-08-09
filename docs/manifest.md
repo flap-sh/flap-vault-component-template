@@ -49,7 +49,7 @@ When a Mini App project has no supplied test token, use Flap's deployed standard
 
 The complete developer-facing support matrix, limits, three live 3D previews, and proof checklist are maintained in `docs/mini-app-3d.md`.
 
-Full 3D is opt-in and Mini App-only:
+Full 3D is opt-in on either a mode-less 7777 Vault UI or a token-scoped 8888 Mini App:
 
 ```json
 {
@@ -58,7 +58,7 @@ Full 3D is opt-in and Mini App-only:
 }
 ```
 
-`three-r3f-v1` pins `three@0.185.1`, `@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, and `@react-three/postprocessing@2.19.1`. It permits package-local recursive static imports for TS/TSX, shaders, models, textures, HDR/EXR, fonts, and controlled decoder WASM. Every auxiliary file must be reachable from `Component.tsx`/`VaultABI.ts`; dynamic import, parent traversal, symlinks, unreferenced files, remote URLs, CDN decoders, and extra npm packages remain blocked. Three r185 is WebGL2-first, so WebGL2 failure must enter a clear WebGL1, 2D, or static fallback rather than promising identical WebGL1 rendering.
+Current `three-r3f-v1` authoring uses dependency revision `react19-r3f9`: `three@0.185.1`, `@react-three/fiber@9.7.0`, `@react-three/drei@10.7.8`, and `@react-three/postprocessing@3.0.4`. Workbench also accepts existing format-6 packages that record the original `react18-r3f8` pins (`@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, and `@react-three/postprocessing@2.19.1`) under the same capability. It permits package-local recursive static imports for TS/TSX, shaders, models, textures, HDR/EXR, fonts, and controlled decoder WASM. Every auxiliary file must be reachable from `Component.tsx`/`VaultABI.ts`; dynamic import, parent traversal, symlinks, unreferenced files, remote URLs, CDN decoders, and extra npm packages remain blocked. Three r185 is WebGL2-first, so WebGL2 failure must enter a clear WebGL1, 2D, or static fallback rather than promising identical WebGL1 rendering.
 
 Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the Vault-scoped binding target and `tokenAddresses` can be the token-scoped binding target.
 

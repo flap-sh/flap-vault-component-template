@@ -17,6 +17,7 @@ import {
   sourceSha256FromFileHashes,
 } from "./e2e-report-utils.mjs";
 import { runVaultCheck, runVaultCheckWithTokenContracts } from "./vault-check.mjs";
+import { supportedThreeR3FProfiles } from "./mini-app-capabilities.mjs";
 
 const ROOT = process.cwd();
 const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
@@ -195,6 +196,16 @@ function assertNoRule(label, result, ruleId, severity) {
 }
 
 try {
+  const supportedThreeProfiles = supportedThreeR3FProfiles(ROOT);
+  assert.equal(supportedThreeProfiles[0].dependencies["@react-three/fiber"], "9.7.0");
+  assert.equal(
+    supportedThreeProfiles.some(
+      (profile) => profile.dependencies["@react-three/fiber"] === "8.18.0",
+    ),
+    true,
+  );
+  passed.push("three-r3f-v1 keeps current React 19 and accepted legacy React 18 dependency revisions");
+
   const invalidFolderResult = runVaultCheck("../bad", { silent: true });
   assertRule("invalid folder name is reported as JSON-compatible result", invalidFolderResult, "cli/invalid-folder-name", "blocking");
   assert.equal(invalidFolderResult.ok, false);
