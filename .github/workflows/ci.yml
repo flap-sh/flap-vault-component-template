@@ -9,11 +9,18 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      FLAP_TEMPLATE_FRESHNESS_REF: ${{ github.event_name == 'pull_request' && format('origin/pr-{0}-head', github.event.number) || 'origin/main' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Register PR candidate freshness ref
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags origin "+refs/pull/${{ github.event.number }}/head:refs/remotes/origin/pr-${{ github.event.number }}-head"
 
       - name: Setup Node
         uses: actions/setup-node@v4
