@@ -9,6 +9,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Hardcoded EVM addresses in Vault source unless the address is a binding-scoped factory/token/Vault reference or an explicitly declared `match.bindings[].externalContracts` target.
 - SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`.
 - Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. `IpfsImage` may append a safe relative path; dynamic paths require a static `validationPath` sample that resolves to `image/*` through an allowed Flap IPFS gateway.
+- Component-owned NFT metadata resolution. Vault V2 media must use `NftMetadataImage` with `sdk`, a Vault-derived NFT address, and token id; direct `tokenURIBase` concatenation, dynamic metadata fetches, caller-supplied tokenURI/endpoints/src/imageUrl, and arbitrary metadata image rendering are blocked.
 - Host-relative endpoint calls such as `fetch("/api/...")`.
 - Runtime remote import.
 - Dynamic import expression.
@@ -61,6 +62,7 @@ Three r185 is WebGL2-first. `webgl1` in `data-flap-3d-renderer` is an explicit l
 - UI-facing Vault views and public proxy actions called through `context.vaultAddress`, including read-only state helpers and gated resolve/claim/deposit flows. Keep router/wrap/dividend/staking internals behind the Vault contract.
 - Explorer links through `context.explorerBaseUrl`, `AddressLink`, `sdk.openExplorerTx(...)`, or reviewed `window.open` calls that target `context.explorerBaseUrl` address/transaction URLs with `noopener` or `noreferrer`.
 - Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images may use only `IpfsImage` or `IpfsBackground` with a static image/directory CID. Dynamic NFT paths are allowed only on `IpfsImage` with a static validation sample.
+- Vault V2 NFT art through `NftMetadataImage`, which reads `NFT.tokenURI(tokenId)` and returns only runtime-validated media after inline JSON parsing or host-proxied IPFS/HTTPS resolution.
 - One display-only `ReviewedFrame` chart from `@/src/ui` only when the exact static provider URL is declared in `manifest.externalFrames` and approved by Flap review.
 
 Declared non-oracle endpoints are review candidates, not automatic approvals. Avoid them by default. If a special non-oracle endpoint is unavoidable, it must be declared in the manifest and reviewed by Flap before publish. Endpoint URLs must not include username/password credentials. A declaration covers only the exact URL path or child paths on the same origin, never sibling paths or lookalike hosts. Direct `fetch(...)` calls must use static absolute HTTPS targets covered by that declaration. Oracle usage is detected by `vault:check` and provisioned outside the manifest. Anything not declared or provisioned is rejected.

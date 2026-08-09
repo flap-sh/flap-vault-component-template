@@ -426,6 +426,8 @@ Or:
 A declared endpoint enters Flap review; it is not automatically approved and can still be rejected. Undeclared external URLs in Vault source are blocking check issues.
 Endpoint declarations must be valid absolute HTTPS URL strings without username/password credentials. A declaration covers only that URL path or child paths on the same origin; it does not allow sibling paths or lookalike hosts. Direct `fetch(...)` calls must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked. IPFS/Arweave links, WebSocket URLs, embedded data URL media, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, symlinks, and CommonJS `require(...)` are also blocked inside Vault source by default. Full gateway image URLs are blocked in Vault source; immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. Only `IpfsImage` may append a safe relative path, and a dynamic path requires a static `validationPath` image sample.
 
+Vault V2 NFT metadata is not a developer-declared endpoint. Use `NftMetadataImage` with the SDK, a Vault-derived NFT address, and token id. The runtime reads `NFT.tokenURI(tokenId)` and the host-owned resolver handles external IPFS/HTTPS metadata; do not declare or fetch `tokenURIBase` from `Component.tsx`.
+
 ## External Frames
 
 Avoid external frames. If a display-only market chart is unavoidable, declare one entry under `externalFrames` and render it only through one `ReviewedFrame` from `@/src/ui`:

@@ -13,6 +13,9 @@ import type {
   FlapWallet,
   FlapVaultSdk,
   HostRuntimeResult,
+  NftMetadataReader,
+  NftMetadataReadRequest,
+  NftMetadataSnapshot,
   OracleReader,
   SimulateResult,
   TxReceipt,
@@ -22,6 +25,7 @@ import type {
 } from "./types";
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
+import { createLocalNftMetadataReader, nftTokenUriAbi } from "./nftMetadata";
 
 const RuntimeContext = createContext<FlapVaultSdk | null>(null);
 type ToastLevel = "info" | "success" | "warning" | "error";
@@ -40,6 +44,25 @@ interface RuntimeProviderProps {
   hostRuntimeResult?: HostRuntimeResult | null;
   locale?: string;
   oracleReader?: OracleReader;
+  nftMetadataReader?: NftMetadataReader;
+}
+
+const defaultNftMetadataReader = createLocalNftMetadataReader();
+const NFT_METADATA_MAX_CONCURRENCY = 6;
+let activeNftMetadataReads = 0;
+const pendingNftMetadataReads: Array<() => void> = [];
+
+async function limitNftMetadataRead<T>(task: () => Promise<T>): Promise<T> {
+  if (activeNftMetadataReads >= NFT_METADATA_MAX_CONCURRENCY) {
+    await new Promise<void>((resolve) => pendingNftMetadataReads.push(resolve));
+  }
+  activeNftMetadataReads += 1;
+  try {
+    return await task();
+  } finally {
+    activeNftMetadataReads -= 1;
+    pendingNftMetadataReads.shift()?.();
+  }
 }
 
 function applyParams(value: string, params?: Record<string, string | number>) {
@@ -54,10 +77,11 @@ function getPreviewOracleEndpoint(extraConfig: Record<string, unknown> | undefin
   return typeof endpoint === "string" ? endpoint : undefined;
 }
 
-export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader }: RuntimeProviderProps) {
+export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader }: RuntimeProviderProps) {
   const [version, setVersion] = useState(0);
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
+  const nftMetadataCacheRef = useRef<Map<string, Promise<NftMetadataSnapshot>>>(new Map());
   const { address: accountAddress, isConnected } = useAccount();
   const connectedChainId = useChainId();
   const { connect, connectors } = useConnect();
@@ -265,6 +289,39 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [oracleReader, runtimeContext],
   );
 
+  const readNftMetadata = useCallback(
+    async (request: NftMetadataReadRequest): Promise<NftMetadataSnapshot> => {
+      if (request.tokenId < 0n) throw new Error("NFT tokenId must not be negative.");
+      const cacheKey = `${runtimeContext.chainId}:${request.nftAddress.toLowerCase()}:${request.tokenId.toString()}:${version}`;
+      const cached = nftMetadataCacheRef.current.get(cacheKey);
+      if (cached) return cached;
+      const pending = limitNftMetadataRead(async () => {
+        const tokenUri = await readContract<string>({
+          contract: "nft",
+          address: request.nftAddress,
+          abi: nftTokenUriAbi,
+          functionName: "tokenURI",
+          args: [request.tokenId],
+        });
+        if (typeof tokenUri !== "string" || !tokenUri.trim()) throw new Error("NFT tokenURI returned an empty value.");
+        return (nftMetadataReader ?? defaultNftMetadataReader)({
+          ...request,
+          chainId: runtimeContext.chainId,
+          tokenUri: tokenUri.trim(),
+          context: runtimeContext,
+        });
+      });
+      nftMetadataCacheRef.current.set(cacheKey, pending);
+      if (nftMetadataCacheRef.current.size > 128) {
+        const oldestKey = nftMetadataCacheRef.current.keys().next().value;
+        if (oldestKey) nftMetadataCacheRef.current.delete(oldestKey);
+      }
+      pending.catch(() => nftMetadataCacheRef.current.delete(cacheKey));
+      return pending;
+    },
+    [nftMetadataReader, readContract, runtimeContext, version],
+  );
+
   const refetch = useCallback(async () => {
     setVersion((item) => item + 1);
   }, []);
@@ -288,11 +345,12 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       writeContract,
       waitForTx,
       readOracle,
+      readNftMetadata,
       refetch,
       refetchNonce: version,
       openExplorerTx,
     }),
-    [i18nApi, notify, openExplorerTx, readContract, readOracle, refetch, runtimeContext, simulateContract, version, waitForTx, wallet, writeContract],
+    [i18nApi, notify, openExplorerTx, readContract, readNftMetadata, readOracle, refetch, runtimeContext, simulateContract, version, waitForTx, wallet, writeContract],
   );
 
   return (

@@ -24,6 +24,17 @@ async function readText(filePath) {
   return readFile(filePath, "utf8");
 }
 
+async function expectRejection(task, messagePattern, label) {
+  try {
+    await task();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (messagePattern.test(message)) return;
+    throw new Error(`${label} rejected with an unexpected error: ${message}`);
+  }
+  throw new Error(`${label} unexpectedly succeeded.`);
+}
+
 async function main() {
   const packageDir = process.argv[2] ? path.resolve(process.cwd(), process.argv[2]) : DEFAULT_PACKAGE_DIR;
 
@@ -84,6 +95,51 @@ async function main() {
   if (hostModule.chainLabelForChain?.(46630) !== "Robinhood Chain Testnet") {
     throw new Error("Robinhood Testnet chain label is missing from the runtime host export.");
   }
+
+  const serverModule = await import(`${pathToFileURL(path.join(packageDir, "server.js")).href}?verify=${Date.now()}`);
+  if (typeof serverModule.loadNftMetadata !== "function") {
+    throw new Error("Vault V2 NFT metadata resolver is missing from the runtime server export.");
+  }
+
+  const safeSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect width="2" height="2" fill="#123456"/></svg>';
+  const safeMetadata = {
+    name: "Runtime NFT",
+    image: `data:image/svg+xml;base64,${Buffer.from(safeSvg).toString("base64")}`,
+  };
+  const safeSnapshot = await serverModule.loadNftMetadata({
+    chainId: 56,
+    tokenUri: `data:application/json;base64,${Buffer.from(JSON.stringify(safeMetadata)).toString("base64")}`,
+  });
+  if (safeSnapshot?.name !== "Runtime NFT" || safeSnapshot?.imageMediaType !== "image/svg+xml" || !safeSnapshot?.imageDataUrl?.startsWith("data:image/svg+xml;base64,")) {
+    throw new Error("Vault V2 NFT metadata resolver did not normalize safe inline JSON/SVG metadata.");
+  }
+
+  const dangerousMetadata = {
+    image: `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>').toString("base64")}`,
+  };
+  await expectRejection(
+    () => serverModule.loadNftMetadata({
+      chainId: 56,
+      tokenUri: `data:application/json;base64,${Buffer.from(JSON.stringify(dangerousMetadata)).toString("base64")}`,
+    }),
+    /unsupported active or external content/i,
+    "Dangerous inline NFT SVG",
+  );
+
+  let privateFetchCalled = false;
+  await expectRejection(
+    () => serverModule.loadNftMetadata({
+      chainId: 56,
+      tokenUri: "https://127.0.0.1/metadata.json",
+      fetchImpl: async () => {
+        privateFetchCalled = true;
+        throw new Error("private fetch should not run");
+      },
+    }),
+    /host is not public/i,
+    "Private-network NFT metadata URL",
+  );
+  if (privateFetchCalled) throw new Error("Vault V2 NFT metadata resolver fetched a blocked private-network URL.");
 
   const packPreview = JSON.parse(
     execFileSync("npm", ["pack", "--json", "--dry-run"], {

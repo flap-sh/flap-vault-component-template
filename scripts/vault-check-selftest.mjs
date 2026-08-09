@@ -908,6 +908,68 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertNoRule("IpfsImage CIDs are not remote-media violations", allowedIpfsImageCheck, "media-policy/remote-media", "blocking");
   assertNoRule("valid IpfsImage CIDs pass static CID validation", allowedIpfsImageCheck, "media-policy/invalid-ipfs-image-cid", "blocking");
 
+  const allowedNftMetadataImageSlug = `${FIXTURE_PREFIX}-nft-metadata-image`;
+  writeVault(allowedNftMetadataImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { NftMetadataImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  const vaultNftState = { nftAddress: sdk.context.tokenAddress };
+  const nftAddress = vaultNftState.nftAddress;
+  return <NftMetadataImage sdk={sdk} nftAddress={nftAddress} tokenId={1n} alt={sdk.i18n.t("title")} />;
+}
+`,
+  });
+  const allowedNftMetadataImageCheck = runVaultCheck(allowedNftMetadataImageSlug, { silent: true });
+  assertNoRule("NftMetadataImage does not require developer endpoint declarations", allowedNftMetadataImageCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("NftMetadataImage accepts controlled runtime props", allowedNftMetadataImageCheck, "media-policy/invalid-nft-metadata-image", "blocking");
+
+  const invalidNftMetadataImageSlug = `${FIXTURE_PREFIX}-nft-metadata-invalid`;
+  writeVault(invalidNftMetadataImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { NftMetadataImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  return <NftMetadataImage nftAddress={sdk.context.tokenAddress} tokenId={1n} tokenURI="https://metadata.example/1.json" alt={sdk.i18n.t("title")} />;
+}
+`,
+  });
+  assertRule(
+    "NftMetadataImage blocks caller-supplied tokenURI and missing SDK mediation",
+    runVaultCheck(invalidNftMetadataImageSlug, { silent: true }),
+    "media-policy/invalid-nft-metadata-image",
+    "blocking",
+  );
+
+  const invalidNftMetadataAddressSlug = `${FIXTURE_PREFIX}-nft-metadata-runtime-address`;
+  writeVault(invalidNftMetadataAddressSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { NftMetadataImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  return <NftMetadataImage sdk={sdk} nftAddress={sdk.context.tokenAddress} tokenId={1n} alt={sdk.i18n.t("title")} />;
+}
+`,
+  });
+  assertRule(
+    "NftMetadataImage rejects obvious runtime token addresses as NFT addresses",
+    runVaultCheck(invalidNftMetadataAddressSlug, { silent: true }),
+    "media-policy/invalid-nft-metadata-image",
+    "blocking",
+  );
+
   const dynamicIpfsImageSlug = `${FIXTURE_PREFIX}-ipfs-dyn`;
   writeVault(dynamicIpfsImageSlug, {
     component: `"use client";

@@ -9,6 +9,7 @@ export * from "./ExternalLink";
 export * from "./Input";
 export * from "./IpfsBackground";
 export * from "./IpfsImage";
+export * from "./NftMetadataImage";
 export * from "./Metric";
 export * from "./ReviewedFrame";
 export * from "./StatusBadge";

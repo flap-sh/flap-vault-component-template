@@ -181,6 +181,7 @@ Use:
 - `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` when a write flow depends on the active wallet being on `context.chainId`. Keep the write section visible and render a clear switch-network state instead of attempting the write on the wrong chain.
 - `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token header/media data. The template preview shell first asks the same-origin runtime proxy for host presentation data, then falls back to ERC20 `symbol()` / `name()` from the preview `tokenAddress`; mocked image fallback is reserved for the neutral preview fixture only. `tokenAddress` alone is metadata-only in preview; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when token lifecycle state matters.
 - `IpfsImage` from `@/src/ui` when a Vault-specific immutable image is unavoidable, or `IpfsBackground` from `@/src/ui` for a decorative full-area/background image. Pass only a static image or collection-directory CID via `cid`. `IpfsImage` may receive a safe relative `path`; if the path is dynamic (for example `${tokenId}.png`), also provide one static `validationPath` sample under the same CID. Do not pass full gateway URLs, metadata CIDs, `ipfs://` values, or dynamic CIDs. `vault:check` verifies the effective static/sample path through at least one allowed Flap IPFS gateway as `image/*` before packaging.
+- `NftMetadataImage` from `@/src/ui` for Vault V2 contract-selected NFT media. Pass `sdk`, the NFT address read from the Vault, `tokenId`, and localized `alt`. The runtime reads `NFT.tokenURI(tokenId)` directly; do not read `tokenURIBase`, inspect `.json` suffixes, or construct metadata URLs in the Vault component. Mode 0/1 data JSON is parsed inside the shared runtime, while mode 2 IPFS/HTTPS metadata and external image bytes go through the host-owned resolver with DNS/public-network, redirect, timeout, byte-size, content-type, and SVG safety limits. Do not pass tokenURI, endpoint, src, imageUrl, CID/path, or spread props. Render only visible or paginated token ids; the runtime caches and limits concurrent reads to six.
 - Contract targets limited to `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, runtime payment/quote/dividend token addresses, token/NFT addresses derived from Vault reads, and declared `match.bindings[].externalContracts`. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.
 - For Vaults that coordinate internal modules such as wrap factories, routers, dividend distributors, staking wrappers, or trigger helpers, keep those modules behind Vault UI-facing view methods and public proxy actions. Add only the Vault-facing ABI fragments to `VaultABI.ts` and call them through `context.vaultAddress`; do not declare dynamic module addresses as `externalContracts` to bypass this boundary. Public proxy actions such as resolve, claim, or deposit flows are acceptable when they are stage-gated, wrong-network-gated, and contract-state-gated; operator/admin config methods such as `setConfig`, `setSwapPath`, and `setSplit` must not be exposed from `Component.tsx`.
 - Fixed extra contract targets declared under `match.bindings[].externalContracts` only when the target is truly required and cannot be represented by runtime token/Vault/factory context.
@@ -261,6 +262,26 @@ import { IpfsBackground } from "@/src/ui";
 `vault:check` validates every static `IpfsImage cid/path` or `IpfsBackground cid` by probing the allowed Flap IPFS gateways and requiring an `image/*` response. For a dynamic `path`, it probes `validationPath`. If `media-policy/invalid-ipfs-image-cid` appears, replace the prop with a raw static image/directory CID. If `media-policy/invalid-ipfs-image-path` appears, use a safe relative path and add exactly one static validation sample for a dynamic path. If `media-policy/ipfs-image-unavailable` appears, the effective image/sample is not currently readable through the allowed gateways, so pin a readable image path or remove the media.
 
 For default Vault UI, risk status still controls visual order: if the image is a hero, preview, showcase, or other large visual block, place the required host-derived risk status before it. `manifest.mode: "mini-app"` skips only this risk-status tag requirement.
+
+### Vault V2 NFT Metadata Images
+
+Vault V2 image mode is resolved by the NFT contract, not by component-owned string concatenation. Read `nft()` from `context.vaultAddress`, then pass that returned address to the controlled component:
+
+```tsx
+import { NftMetadataImage } from "@/src/ui";
+
+<NftMetadataImage
+  sdk={sdk}
+  nftAddress={nftAddress}
+  tokenId={tokenId}
+  alt={i18n.t("media.nftAlt")}
+  className="aspect-square w-full rounded-md object-cover"
+/>
+```
+
+`NftMetadataImage` calls `NFT.tokenURI(tokenId)` through the SDK. It supports mode 0/1 `data:application/json` metadata and mode 2 final IPFS/HTTPS metadata URIs without exposing those URIs to component code. The host route `/api/runtime/nft-metadata` resolves external JSON/images, rejects private-network and credentialed targets, revalidates redirects and DNS, caps metadata at 512 KiB and images at 5 MiB, accepts only reviewed image MIME types, and rejects active/external SVG content. The component receives only a validated data image.
+
+Do not call `Vault.tokenURIFor`, derive URLs from `tokenURIBase`, or mount every token in a large collection at once. Use `ownedTokensOf(user)` only as the token-id source, then paginate or render the visible subset. A burn/sell flow must remove stale token ids and media after the transaction confirms because burned `tokenURI` reads can revert.
 
 ## Validation Loop
 

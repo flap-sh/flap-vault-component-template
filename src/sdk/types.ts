@@ -272,6 +272,37 @@ export interface OracleReadRequest {
 
 export type OracleReader = <T = unknown>(request: OracleReadRequest) => Promise<T>;
 
+export type NftMetadataSource = "data-json" | "ipfs" | "https";
+
+export interface NftMetadataAttribute {
+  trait_type?: string;
+  display_type?: string;
+  value: string | number | boolean | null;
+}
+
+export interface NftMetadataSnapshot {
+  tokenUri: string;
+  source: NftMetadataSource;
+  name?: string;
+  description?: string;
+  attributes?: NftMetadataAttribute[];
+  imageDataUrl: string;
+  imageMediaType: string;
+}
+
+export interface NftMetadataReadRequest {
+  nftAddress: Address;
+  tokenId: bigint;
+}
+
+export interface NftMetadataReaderRequest extends NftMetadataReadRequest {
+  chainId: number;
+  tokenUri: string;
+  context: VaultRuntimeContext;
+}
+
+export type NftMetadataReader = (request: NftMetadataReaderRequest) => Promise<NftMetadataSnapshot>;
+
 export interface CreateVaultRuntimeContextInput {
   manifest: VaultManifest;
   connectedChainId?: number;
@@ -342,6 +373,7 @@ export interface FlapVaultSdk {
   writeContract(request: ContractWriteRequest): Promise<Address>;
   waitForTx(hash: Address): Promise<TxReceipt>;
   readOracle<T = unknown>(oracleId: string, params?: Record<string, string>): Promise<T>;
+  readNftMetadata(request: NftMetadataReadRequest): Promise<NftMetadataSnapshot>;
   /**
    * Triggers a reload by incrementing `refetchNonce`. Components that want
    * automatic reloads should include `sdk.refetchNonce` in their effect deps.

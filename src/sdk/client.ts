@@ -4,6 +4,7 @@ export * from "./contract";
 export * from "./erc20";
 export * from "./format";
 export * from "./ipfsImage";
+export * from "./nftMetadata";
 export * from "./oracle";
 export * from "./three";
 export { VaultRuntimeProvider, useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtime";
@@ -26,6 +27,12 @@ export type {
   FlapVaultSdk,
   FlapWallet,
   ManifestBindingEntry,
+  NftMetadataAttribute,
+  NftMetadataReader,
+  NftMetadataReaderRequest,
+  NftMetadataReadRequest,
+  NftMetadataSnapshot,
+  NftMetadataSource,
   OracleProvision,
   OracleReadRequest,
   OracleReader,

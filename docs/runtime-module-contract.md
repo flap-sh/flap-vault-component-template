@@ -147,6 +147,7 @@ The component should consume:
 - `sdk.readContract(...)`
 - `sdk.writeContract(...)`
 - `sdk.readOracle(...)` when approved/provisioned
+- `sdk.readNftMetadata({ nftAddress, tokenId })` for Vault V2 NFT media selected by `NFT.tokenURI(tokenId)`
 
 `sdk.readContract(...)` may include `account` for read-only contract functions whose return value depends on `msg.sender`. Hosts must forward that field to their public client instead of forcing components to use simulation for read-only user-state queries.
 
@@ -242,6 +243,8 @@ The host may implement different adapters behind the scenes:
 
 That shared surface should also own oracle provisioning. Components still call `sdk.readOracle(...)`, but the host/runtime should inject the actual reader through `VaultRuntimeProvider` rather than pushing raw oracle URLs into Vault source. In this template, local preview wires `oracleReader={createLocalOracleReader()}` and serves the request through `/api/runtime/oracle/{oracleId}` backed by server-side runtime defaults.
 
+The same host boundary owns Vault V2 NFT metadata resolution. `NftMetadataImage` calls `sdk.readNftMetadata`, which reads `NFT.tokenURI(tokenId)`. Inline mode 0/1 data JSON is handled inside the runtime. Mode 2 IPFS/HTTPS metadata and external image bytes use `/api/runtime/nft-metadata`, backed by `loadNftMetadata(...)` from the runtime `./server` export. Hosts must provide that route or inject an equivalent `nftMetadataReader` into `VaultRuntimeProvider`; Vault components never receive arbitrary fetch permission. The shared resolver validates public DNS targets and every redirect, limits time and bytes, accepts only approved image MIME types, rejects active/external SVG content, and returns a data image rather than the upstream URL.
+
 Oracle provider logic belongs in the shared runtime package when it is more than static HTTPS forwarding. Pyth/Hermes-style providers that need path templates, fixed price ids, response transforms into EVM bytes, or publish-time window checks should be exported by `@flapsdk/vault-runtime/server`. Workbench and `flap.sh` should not carry their own copies of those adapters; their route handlers should validate local proxy limits and call the shared runtime helper. This keeps the component contract as `sdk.readOracle(...)` while preventing host-specific oracle behavior drift.
 
 That shared surface also owns the reviewed frame primitive. Components may render at most one `ReviewedFrame`, and only with a static URL declared in the single `manifest.externalFrames` entry; Workbench and production hosts can rely on source-package review plus the `ReviewedFrame` primitive first. CSP `frame-src` allowlisting is optional follow-up hardening, not a required host change for this template contract.
@@ -309,6 +312,7 @@ The current runtime package also carries the public oracle provisioning surface:
 - `VaultRuntimeProvider` accepts `oracleReader`
 - `createLocalOracleReader()` targets `/api/runtime/oracle/{oracleId}`
 - `./server` exports the runtime-oracle registry helpers used by that proxy route
+- `./server` exports the NFT metadata/media resolver used by `/api/runtime/nft-metadata`
 
 Current status: `dist/vault-runtime` is a local extraction artifact and acceptance proof for this public template, while the published `@flapsdk/vault-runtime` version is used as the freshness anchor for local checks. The generated runtime package is not included in `yarn vault:package <folder-name>` source zips and is not automatically consumed by Workbench / `flap.sh` just because `yarn runtime:package` passed. Workbench and `flap.sh` should adopt this package only through an explicit integration decision, version pin, and rollout plan.
 
