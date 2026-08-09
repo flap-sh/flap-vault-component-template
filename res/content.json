@@ -277,6 +277,7 @@
       "scopeDescription": "Customize the Vault UI within the component structure provided by the template.",
       "scopeItems": [
         "Build the Vault UI inside the component structure provided by this template.",
+        "Vault V2-standard NFT image display is supported.",
         "Use the folder name only for the folder and preview route; vault:scaffold generates the manifest artifactId automatically.",
         "Declare Vault UI binding targets in the manifest with chain plus either factory address or a single Vault address. If a deployment needs a token CA reference list or fixed extra contract targets, declare them only inside the relevant match.bindings[] entry.",
         "Avoid external endpoints, external resources, and fixed extra contract targets; special cases must be declared and approved by Flap review before publish.",
@@ -443,7 +444,7 @@
         "Do not use direct wallet APIs, eval, the Function constructor, iframe, script injection, dangerouslySetInnerHTML, or runtime remote imports.",
         "Do not use direct browser network, media, storage, navigation, Worker, cross-context messaging, permission APIs, or browser-global aliasing/destructuring/computed access.",
         "Direct fetch() targets must be static absolute HTTPS URLs without credentials and covered by manifest.endpoints. Host-relative, dynamic, HTTP, credentialed, or undeclared fetch targets are blocked.",
-        "Do not add third-party images, remote media URLs, data URLs, Arweave, WebSocket, or non-HTTPS resources. Token media must come from Flap-controlled runtime context such as context.tokenImageUrl; immutable Vault-specific images use IpfsImage with a static image/directory CID. Vault V2 contract-selected NFT media uses NftMetadataImage with token id; it consumes shared SDK context internally and the runtime owns the Vault.nft() and NFT.tokenURI() ABIs, so do not pass sdk/ABI/nftAddress, fetch, or concatenate tokenURIBase in Component.tsx.",
+        "Do not add third-party images, remote media URLs, data URLs, Arweave, WebSocket, or non-HTTPS resources. Token media must come from Flap-controlled runtime context such as context.tokenImageUrl; immutable Vault-specific images use IpfsImage with a static image/directory CID. Vault V2-standard NFT image display is supported.",
         "Component-owned links must stay on the active chain explorer through context.explorerBaseUrl or shared explorer helpers; arbitrary external navigation is blocked.",
         "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay inside the Vault/token/NFT/factory/declaration boundary and use runtime context, Vault-derived addresses, or declared externalContracts. Routers, bridges, aggregators, or unrelated app contracts are blocked.",
         "Do not hardcode EVM addresses in Vault source. Use context.vaultAddress, context.tokenAddress, or approved runtime context values.",

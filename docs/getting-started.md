@@ -2,6 +2,8 @@
 
 This is the human developer quick-start. AI agents should use `agent-contract.json` and `docs/ai-agent.md` as the required workflow contract, then use this file only as supporting setup and preview context.
 
+The template supports Vault V2-standard NFT image display.
+
 ## 1. Install
 
 ```bash

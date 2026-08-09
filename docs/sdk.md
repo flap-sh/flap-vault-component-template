@@ -2,6 +2,8 @@
 
 The component should depend on the SDK contract, not on private `flap.sh` internals.
 
+The template supports Vault V2-standard NFT image display.
+
 ## Hooks
 
 ```ts
