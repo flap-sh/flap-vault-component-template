@@ -109,7 +109,7 @@ This package is the shared runtime surface that local preview, Artifact Workbenc
 
 - \`./sdk\`: component-facing SDK hooks, helpers, types, provider, and local oracle reader helper
 - \`./ui\`: shared UI primitives
-- \`./host\`: host/runtime preflight helpers
+- \`./host\`: host/runtime preflight helpers and the browser-safe same-origin presentation fetcher
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, and the controlled Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
