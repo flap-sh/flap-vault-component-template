@@ -180,7 +180,7 @@ Use:
 - `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` to keep stage-gated buttons consistent.
 - `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` when a write flow depends on the active wallet being on `context.chainId`. Keep the write section visible and render a clear switch-network state instead of attempting the write on the wrong chain.
 - `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token header/media data. The template preview shell first asks the same-origin runtime proxy for host presentation data, then falls back to ERC20 `symbol()` / `name()` from the preview `tokenAddress`; mocked image fallback is reserved for the neutral preview fixture only. `tokenAddress` alone is metadata-only in preview; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when token lifecycle state matters.
-- `IpfsImage` from `@/src/ui` when a Vault-specific immutable image is unavoidable, or `IpfsBackground` from `@/src/ui` for a decorative full-area/background image. Pass only a static image CID via `cid`; do not pass full gateway URLs, metadata CIDs, `ipfs://` values, paths, or dynamic expressions. `vault:check` verifies each CID resolves through at least one allowed Flap IPFS gateway to `image/*` before packaging.
+- `IpfsImage` from `@/src/ui` when a Vault-specific immutable image is unavoidable, or `IpfsBackground` from `@/src/ui` for a decorative full-area/background image. Pass only a static image or collection-directory CID via `cid`. `IpfsImage` may receive a safe relative `path`; if the path is dynamic (for example `${tokenId}.png`), also provide one static `validationPath` sample under the same CID. Do not pass full gateway URLs, metadata CIDs, `ipfs://` values, or dynamic CIDs. `vault:check` verifies the effective static/sample path through at least one allowed Flap IPFS gateway as `image/*` before packaging.
 - Contract targets limited to `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, runtime payment/quote/dividend token addresses, token/NFT addresses derived from Vault reads, and declared `match.bindings[].externalContracts`. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.
 - For Vaults that coordinate internal modules such as wrap factories, routers, dividend distributors, staking wrappers, or trigger helpers, keep those modules behind Vault UI-facing view methods and public proxy actions. Add only the Vault-facing ABI fragments to `VaultABI.ts` and call them through `context.vaultAddress`; do not declare dynamic module addresses as `externalContracts` to bypass this boundary. Public proxy actions such as resolve, claim, or deposit flows are acceptable when they are stage-gated, wrong-network-gated, and contract-state-gated; operator/admin config methods such as `setConfig`, `setSwapPath`, and `setSplit` must not be exposed from `Component.tsx`.
 - Fixed extra contract targets declared under `match.bindings[].externalContracts` only when the target is truly required and cannot be represented by runtime token/Vault/factory context.
@@ -212,7 +212,7 @@ Do not use:
 - Standard ERC20 ABI fragments in `VaultABI.ts`; use the SDK export unless the token has custom non-standard methods.
 - Silent action removal when an action is unavailable. Show the panel with a clear disabled or unavailable state instead.
 - Reimplementing token phase detection inside `Component.tsx`; use the host-provided `marketPhase`.
-- Uploading media, fetching private token metadata or token image APIs inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host, or `IpfsImage` / `IpfsBackground` with a static image CID when the image is Vault-specific and immutable.
+- Uploading media, fetching private token metadata or token image APIs inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host, or controlled `IpfsImage` / `IpfsBackground` static CIDs when the image is Vault-specific and immutable.
 
 ### Vault-Specific Images
 
@@ -234,6 +234,19 @@ import { IpfsImage } from "@/src/ui";
 
 Do not emit `imageUrl`, `<img src="https://.../ipfs/...">`, `ipfs://...`, CSS `url(...)`, a metadata CID, or a runtime variable/expression for `cid`. If the upload flow returns a metadata CID, fetch the metadata JSON and extract the `image` field first; then strip the gateway or `ipfs://` prefix and keep only the actual image CID. The Vault package must not implement the upload or pinning flow.
 
+For NFT previews, upload the complete image set as one IPFS directory outside the Vault package. Keep the directory CID static and let only the in-directory path depend on the NFT id:
+
+```tsx
+<IpfsImage
+  cid="bafy...collection-directory-cid"
+  path={`images/${tokenId.toString()}.png`}
+  validationPath="images/1.png"
+  alt={i18n.t("media.nftAlt")}
+/>
+```
+
+`validationPath` must be a real static sample whenever `path` is dynamic. A static `path` is validated directly and must not declare `validationPath`. Paths cannot contain traversal, schemes, query strings, hashes, encoded escapes, leading/trailing slashes, or empty segments. `IpfsBackground` does not accept `path`.
+
 For a decorative full-area background, use `IpfsBackground` inside a positioned container instead of CSS `background-image`:
 
 ```tsx
@@ -245,7 +258,7 @@ import { IpfsBackground } from "@/src/ui";
 </div>
 ```
 
-`vault:check` validates every static `IpfsImage cid` or `IpfsBackground cid` by probing the allowed Flap IPFS gateways and requiring an `image/*` response. If `media-policy/invalid-ipfs-image-cid` appears, replace the prop with a raw static image CID. If `media-policy/ipfs-image-unavailable` appears, the CID is not currently readable as an image through the allowed gateways, so use a pinned image CID that resolves correctly or remove the media.
+`vault:check` validates every static `IpfsImage cid/path` or `IpfsBackground cid` by probing the allowed Flap IPFS gateways and requiring an `image/*` response. For a dynamic `path`, it probes `validationPath`. If `media-policy/invalid-ipfs-image-cid` appears, replace the prop with a raw static image/directory CID. If `media-policy/invalid-ipfs-image-path` appears, use a safe relative path and add exactly one static validation sample for a dynamic path. If `media-policy/ipfs-image-unavailable` appears, the effective image/sample is not currently readable through the allowed gateways, so pin a readable image path or remove the media.
 
 For default Vault UI, risk status still controls visual order: if the image is a hero, preview, showcase, or other large visual block, place the required host-derived risk status before it. `manifest.mode: "mini-app"` skips only this risk-status tag requirement.
 

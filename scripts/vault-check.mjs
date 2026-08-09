@@ -184,6 +184,7 @@ const ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS = new Set([
   "https://magenta-naval-penguin-822.mypinata.cloud",
 ]);
 const IPFS_IMAGE_CID_RE = /^(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/;
+const IPFS_IMAGE_PATH_SEGMENT_RE = /^[A-Za-z0-9._~-]+$/;
 const ALLOWED_INLINE_SVG_TAGS = new Set([
   "svg",
   "g",
@@ -317,9 +318,10 @@ const FIX_HINTS = {
   "media/invalid-mini-app-audio-asset": `Use top-level lowercase Mini App audio files with one of these extensions only: ${MINI_APP_AUDIO_ASSET_EXTENSIONS.join(", ")}.`,
   "media/mini-app-audio-too-large": `Keep each Mini App audio file at or below ${Math.round(MINI_APP_AUDIO_MAX_BYTES / 1024 / 1024)} MiB and total Mini App audio at or below ${Math.round(MINI_APP_AUDIO_TOTAL_MAX_BYTES / 1024 / 1024)} MiB.`,
   "manual-review/mini-app-audio-asset": "Mini App audio files require Flap human review for source/license, play timing, visible mute/pause control, fallback, and mobile impact before publish.",
-  "media-policy/remote-media": "Remove remote media URLs. Use host-provided media for token images, or IpfsImage/IpfsBackground with a static image CID for immutable Vault-specific images.",
-  "media-policy/invalid-ipfs-image-cid": "Pass only a static image CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic expressions.",
-  "media-policy/ipfs-image-unavailable": "Use a static image CID that resolves through an allowed Flap IPFS gateway to an image/* response.",
+  "media-policy/remote-media": "Remove remote media URLs. Use host-provided token media, controlled IpfsImage cid/path for immutable Vault/NFT images, or CID-only IpfsBackground.",
+  "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
+  "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
+  "media-policy/ipfs-image-unavailable": "Use an image CID/path or directory CID/validationPath sample that resolves through an allowed Flap IPFS gateway to an image/* response.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
   "navigation-policy/invalid-external-link": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials.",
@@ -1386,9 +1388,15 @@ function collectIpfsImageCidUsages(content, file) {
     const tag = tagMatch[0];
     const index = tagMatch.index ?? 0;
     const cid = staticJsxStringAttribute(tag, "cid");
+    const hasPath = /\bpath\s*=/.test(tag);
+    const hasValidationPath = /\bvalidationPath\s*=/.test(tag);
+    const staticPath = staticJsxStringAttribute(tag, "path");
+    const staticValidationPath = staticJsxStringAttribute(tag, "validationPath");
     usages.push({
       component: tagMatch[1],
       cid: cid ? cid.trim() : cid,
+      path: hasPath ? (typeof staticPath === "string" ? staticPath.trim() : null) : undefined,
+      validationPath: hasValidationPath ? (typeof staticValidationPath === "string" ? staticValidationPath.trim() : null) : undefined,
       file,
       line: lineForIndex(content, index),
     });
@@ -1398,6 +1406,13 @@ function collectIpfsImageCidUsages(content, file) {
 
 function isValidIpfsImageCid(cid) {
   return typeof cid === "string" && IPFS_IMAGE_CID_RE.test(cid);
+}
+
+function isValidIpfsImagePath(imagePath) {
+  if (typeof imagePath !== "string" || !imagePath || imagePath.length > 512 || imagePath.startsWith("/") || imagePath.endsWith("/")) return false;
+  return imagePath
+    .split("/")
+    .every((segment) => segment && segment !== "." && segment !== ".." && IPFS_IMAGE_PATH_SEGMENT_RE.test(segment));
 }
 
 // The ExternalLink component from @/src/ui is the sanctioned way to send a user to
@@ -1440,8 +1455,8 @@ function isIndexWithinRanges(index, ranges = []) {
   return ranges.some(([start, end]) => index >= start && index < end);
 }
 
-function ipfsImageUrlsForCid(cid) {
-  return [...ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS].map((origin) => `${origin}/ipfs/${cid}`);
+function ipfsImageUrlsForCid(cid, imagePath) {
+  return [...ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS].map((origin) => `${origin}/ipfs/${cid}${imagePath ? `/${imagePath}` : ""}`);
 }
 
 function isValidFolderName(folderName) {
@@ -4017,7 +4032,28 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "media-policy/invalid-ipfs-image-cid",
-            "IpfsImage/IpfsBackground must receive a static image CID. URLs, ipfs:// values, metadata CIDs, and dynamic expressions are not allowed.",
+            "IpfsImage/IpfsBackground must receive a static image/directory CID. URLs, ipfs:// values, metadata CIDs, and dynamic CID expressions are not allowed.",
+            usage,
+          ),
+        );
+      }
+      const hasDynamicPath = usage.path === null;
+      const hasAnyPath = usage.path !== undefined;
+      const hasAnyValidationPath = usage.validationPath !== undefined;
+      const pathIsInvalid = typeof usage.path === "string" && !isValidIpfsImagePath(usage.path);
+      const validationPathIsInvalid = hasAnyValidationPath && !isValidIpfsImagePath(usage.validationPath);
+      const invalidPathContract =
+        (usage.component !== "IpfsImage" && (hasAnyPath || hasAnyValidationPath)) ||
+        pathIsInvalid ||
+        validationPathIsInvalid ||
+        (hasDynamicPath && !hasAnyValidationPath) ||
+        (!hasDynamicPath && hasAnyValidationPath);
+      if (invalidPathContract) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "media-policy/invalid-ipfs-image-path",
+            "IpfsImage path must be a safe relative path. A dynamic path requires one static validationPath sample; static or missing paths must not declare validationPath. IpfsBackground does not support dynamic paths.",
             usage,
           ),
         );
@@ -4262,10 +4298,14 @@ function collectIpfsImageCidSources(vaultDir) {
       const rel = path.relative(ROOT, item.path);
       const content = stripCommentsForScanning(fs.readFileSync(item.path, "utf8"));
       return collectIpfsImageCidUsages(content, rel)
-        .filter((source) => isValidIpfsImageCid(source.cid))
+        .filter((source) => {
+          const probePath = source.path === null ? source.validationPath : source.path;
+          return isValidIpfsImageCid(source.cid) && (probePath === undefined || isValidIpfsImagePath(probePath));
+        })
         .map((source) => ({
           ...source,
-          urls: ipfsImageUrlsForCid(source.cid),
+          probePath: source.path === null ? source.validationPath : source.path,
+          urls: ipfsImageUrlsForCid(source.cid, source.path === null ? source.validationPath : source.path),
         }));
     });
 }
@@ -4299,8 +4339,9 @@ async function probeImageUrl(url) {
 async function collectIpfsImageValidationIssues(vaultDir) {
   const seen = new Set();
   const sources = collectIpfsImageCidSources(vaultDir).filter((source) => {
-    if (seen.has(source.cid)) return false;
-    seen.add(source.cid);
+    const sourceKey = `${source.cid}/${source.probePath ?? ""}`;
+    if (seen.has(sourceKey)) return false;
+    seen.add(sourceKey);
     return true;
   });
   const issues = [];
@@ -4320,7 +4361,7 @@ async function collectIpfsImageValidationIssues(vaultDir) {
       issue(
         BLOCKING,
         "media-policy/ipfs-image-unavailable",
-        `${source.component} cid ${source.cid} must resolve through at least one allowed Flap IPFS gateway with an image/* content-type.`,
+        `${source.component} cid ${source.cid}${source.probePath ? ` path ${source.probePath}` : ""} must resolve through at least one allowed Flap IPFS gateway with an image/* content-type.`,
         { ...source, attempts },
       ),
     );

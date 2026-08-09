@@ -8,7 +8,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Hidden transaction target.
 - Hardcoded EVM addresses in Vault source unless the address is a binding-scoped factory/token/Vault reference or an explicitly declared `match.bindings[].externalContracts` target.
 - SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`.
-- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image CID that resolves to `image/*` through an allowed Flap IPFS gateway.
+- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. `IpfsImage` may append a safe relative path; dynamic paths require a static `validationPath` sample that resolves to `image/*` through an allowed Flap IPFS gateway.
 - Host-relative endpoint calls such as `fetch("/api/...")`.
 - Runtime remote import.
 - Dynamic import expression.
@@ -27,7 +27,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Unapproved dependencies.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - Missing i18n.
-- Remote image URLs inside Vault source. Immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid` and pass `vault:check`.
+- Remote image URLs inside Vault source. Immutable Vault-specific images must use controlled `IpfsImage cid/path` or CID-only `IpfsBackground` and pass `vault:check`.
 - Arbitrary external navigation or hardcoded off-site jumps (raw anchors, `window.open`, `location`) that are not the current chain explorer or an approved external-link host (currently `x.com` and its subdomains, HTTPS only). Every other external link must use the `ExternalLink` component from `@/src/ui` instead. Approved external-link hosts and `ExternalLink` are for user-facing links only, not as `fetch`/data endpoints.
 - Contract reads/writes, event watches, log/filter calls, or gas estimates to unrelated contracts such as routers, bridges, aggregators, or other app contracts outside the Vault/token/NFT/factory/declaration boundary.
 - Direct calls to dynamic module contracts such as wrap factories, routers, dividend distributors, staking wrappers, or trigger helpers when the same workflow can be exposed as Vault UI-facing views or public proxy actions on `context.vaultAddress`.
@@ -60,7 +60,7 @@ Three r185 is WebGL2-first. `webgl1` in `data-flap-3d-renderer` is an explicit l
 - SDK contract writes using runtime context addresses such as `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress`, plus token/NFT addresses derived from runtime context or Vault reads and fixed targets declared in `match.bindings[].externalContracts`.
 - UI-facing Vault views and public proxy actions called through `context.vaultAddress`, including read-only state helpers and gated resolve/claim/deposit flows. Keep router/wrap/dividend/staking internals behind the Vault contract.
 - Explorer links through `context.explorerBaseUrl`, `AddressLink`, `sdk.openExplorerTx(...)`, or reviewed `window.open` calls that target `context.explorerBaseUrl` address/transaction URLs with `noopener` or `noreferrer`.
-- Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images may use only `IpfsImage` or `IpfsBackground` with a static image CID verified through the allowed Flap IPFS gateways.
+- Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images may use only `IpfsImage` or `IpfsBackground` with a static image/directory CID. Dynamic NFT paths are allowed only on `IpfsImage` with a static validation sample.
 - One display-only `ReviewedFrame` chart from `@/src/ui` only when the exact static provider URL is declared in `manifest.externalFrames` and approved by Flap review.
 
 Declared non-oracle endpoints are review candidates, not automatic approvals. Avoid them by default. If a special non-oracle endpoint is unavoidable, it must be declared in the manifest and reviewed by Flap before publish. Endpoint URLs must not include username/password credentials. A declaration covers only the exact URL path or child paths on the same origin, never sibling paths or lookalike hosts. Direct `fetch(...)` calls must use static absolute HTTPS targets covered by that declaration. Oracle usage is detected by `vault:check` and provisioned outside the manifest. Anything not declared or provisioned is rejected.
@@ -82,7 +82,7 @@ Allowed only through Flap-controlled runtime/media policy:
 - token logo from Flap metadata
 - NFT metadata image through approved media handling
 - Flap official static asset
-- `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image CID verified by `vault:check`
+- `IpfsImage` with a static image/directory CID and optional controlled path, or CID-only `IpfsBackground`, verified by `vault:check`
 
 ## Obfuscation Resistance
 

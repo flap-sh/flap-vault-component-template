@@ -143,7 +143,7 @@ Use `context.host?.marketPhase` or the normalized `readTaxVaultHostContext(conte
 Wrong-network handling is separate from market-phase handling. Use `sdk.wallet.isWrongNetwork` to keep write buttons visible but disabled, then prompt `sdk.wallet.switchChain()` or show a clear switch-network state before any write.
 Do not fetch private token metadata or image APIs from the Vault component. If token media is needed, read `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol`; the template preview shell now injects these host values through the same-origin runtime proxy when available, then falls back to on-chain ERC20 metadata. Production Flap host should inject equivalent data.
 
-For a Vault-specific immutable image that cannot come from host token media, use CID-only `IpfsImage`; for a decorative full-area background, use CID-only `IpfsBackground`. Upload and pin the image outside the Vault UI package. Prefer the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) when the image must be available through Flap's gateway rather than a developer's personal Pinata gateway. Call `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation; the returned `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` / `IpfsBackground` value. Fetch that metadata JSON and read its `image` field; from an `image` value such as `https://.../ipfs/<imageCid>` or `ipfs://<imageCid>`, keep only `<imageCid>`. Do not use the metadata CID as the image CID.
+For a Vault-specific immutable image that cannot come from host token media, use `IpfsImage` with a static image or directory CID; for a decorative full-area background, use CID-only `IpfsBackground`. Upload and pin the image or complete NFT image directory outside the Vault UI package. Prefer the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) when the image must be available through Flap's gateway rather than a developer's personal Pinata gateway. Call `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation; the returned `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` / `IpfsBackground` value. Fetch that metadata JSON and read its `image` field; from an `image` value such as `https://.../ipfs/<imageCid>` or `ipfs://<imageCid>`, keep only `<imageCid>`. Do not use the metadata CID as the image CID.
 
 Minimal image upload example:
 
@@ -166,7 +166,18 @@ import { IpfsImage } from "@/src/ui";
 />
 ```
 
-Do not pass a full gateway URL, an `ipfs://` value, the metadata CID, a CSS `url(...)`, an `imageUrl` prop, or a runtime variable/expression into the image source. If a generator collects an `imageCid` from the user, emit it as the static string literal in the `cid` prop. `vault:check` resolves each CID through the allowed Flap IPFS gateways and blocks packaging unless at least one response is a real `image/*` asset. The Vault UI does not upload or pin images; it only reads and verifies the already-pinned image CID. For default Vault UI, keep required host risk status before any large or visually prominent image; `mode: "mini-app"` is the token-scoped 8888-token Mini App exception.
+For an NFT directory, append the id only through the controlled path prop:
+
+```tsx
+<IpfsImage
+  cid="bafy...collection-directory-cid"
+  path={`${tokenId.toString()}.png`}
+  validationPath="1.png"
+  alt={i18n.t("media.nftAlt")}
+/>
+```
+
+The dynamic path stays under the static CID; `validationPath` gives `vault:check` one real image to probe. Static paths are probed directly and do not use `validationPath`. Do not pass a full gateway URL, an `ipfs://` value, the metadata CID, a CSS `url(...)`, an `imageUrl` prop, or a runtime variable/expression into `cid`. Paths reject traversal, schemes, query/hash values, encoded escapes, leading/trailing slashes, and empty segments. The Vault UI does not upload or pin images; it reads already-pinned content only. For default Vault UI, keep required host risk status before any large or visually prominent image; `mode: "mini-app"` is the token-scoped 8888-token Mini App exception.
 
 Avoid external endpoints, resources, and frames. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` as a single absolute HTTPS URL string without username/password credentials or an array of those strings; it will enter Flap review and must be approved before publish. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. If a display-only chart iframe is unavoidable, declare at most one entry in `manifest.externalFrames[]` and render it only through one `ReviewedFrame` from `@/src/ui`; providers are limited to TradingView, DexScreener, and CoinGecko Terminal/GeckoTerminal, and the `src` must be a complete static HTTPS URL with fixed query params. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in the manifest. Declaration does not guarantee approval, and undeclared, host-relative, dynamic, HTTP, credentialed, raw iframe, or multiple `ReviewedFrame` usage is rejected.
 

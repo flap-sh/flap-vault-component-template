@@ -125,7 +125,7 @@ import {
 
 - Formatting: `formatTokenAmount` / `parseTokenAmount` convert between display strings and on-chain `bigint` amounts, `formatPercentBps` renders basis points as a percent, `formatCountdown` renders a remaining-time value, and `shortenAddress` renders a truncated address.
 - Tx errors: `getTxErrorKind` classifies a caught error into a `TxErrorKind`, and `handleTxError` maps it to a user-facing notification path. Prefer these over ad hoc string matching on wallet/RPC errors.
-- IPFS: `isIpfsImageCid` validates an image CID, and `resolveIpfsImageUrl` / `resolveIpfsImageUrls` resolve a CID (or list) to allowed Flap gateway URLs. Vault-specific images should still render through `IpfsImage` / `IpfsBackground` from `@/src/ui` with a static CID.
+- IPFS: `isIpfsImageCid` validates an image/directory CID, `normalizeIpfsImagePath` validates a safe relative path, and `resolveIpfsImageUrl` / `resolveIpfsImageUrls` resolve the CID plus optional path to allowed Flap gateway URLs. Vault-specific media should render through controlled `IpfsImage` / `IpfsBackground` from `@/src/ui`.
 - Oracle: `createLocalOracleReader`, `buildLocalOracleUrl`, `fetchOracleJson`, and `fetchProvisionedOracle` back the runtime oracle provisioning path described above.
 
 ## i18n
@@ -190,7 +190,20 @@ import { IpfsImage } from "@/src/ui";
 />
 ```
 
-The CID must be the image CID, not a metadata CID. If an image must be pinned through Flap instead of a personal Pinata gateway, use the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) outside the Vault package. The `https://funcs.flap.sh/api/upload` `create(file, meta)` response `data.create` is the metadata CID used for Portal launch `meta`; read that metadata JSON and extract the `image` field before using `IpfsImage` or `IpfsBackground`. Strip any gateway URL or `ipfs://` prefix before using the value. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic expression. `vault:check` verifies the static CID resolves as `image/*` through the allowed Flap IPFS gateways.
+The CID must be an image CID or an uploaded collection-directory CID, not a metadata CID. If an NFT collection is pinned as one IPFS directory, keep `cid` static and select the file with a relative `path`:
+
+```tsx
+<IpfsImage
+  cid="bafy...collection-directory-cid"
+  path={`nfts/${tokenId.toString()}.png`}
+  validationPath="nfts/1.png"
+  alt={i18n.t("media.nftAlt")}
+/>
+```
+
+`validationPath` is required only when `path` is dynamic; it names one real representative image that `vault:check` probes before packaging. Static `path="nfts/1.png"` is probed directly and must not include `validationPath`. Paths are limited to relative alphanumeric/`.`/`_`/`-`/`~` segments with `/` separators; traversal, query strings, hashes, schemes, encoded escapes, leading/trailing slashes, and empty segments resolve to no image. `IpfsBackground` remains CID-only.
+
+If an image must be pinned through Flap instead of a personal Pinata gateway, use the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) outside the Vault package. The `https://funcs.flap.sh/api/upload` `create(file, meta)` response `data.create` is the metadata CID used for Portal launch `meta`; read that metadata JSON and extract the `image` field before using `IpfsImage` or `IpfsBackground`. Strip any gateway URL or `ipfs://` prefix before using the value. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic CID. `vault:check` verifies the effective image path as `image/*` through the allowed Flap IPFS gateways.
 
 ## Taxinfo Host Context
 

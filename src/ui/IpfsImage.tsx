@@ -5,16 +5,21 @@ import { cn } from "./utils";
 export interface IpfsImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "alt" | "src" | "srcSet"> {
   alt: string;
   cid: string;
+  /** Safe relative file path below the static CID. */
+  path?: string;
+  /** Static representative image path required by vault:check when path is dynamic. */
+  validationPath?: string;
 }
 
-export function IpfsImage({ alt, cid, className, decoding = "async", loading = "lazy", onError, ...props }: IpfsImageProps) {
-  const urls = React.useMemo(() => resolveIpfsImageUrls(cid), [cid]);
+export function IpfsImage({ alt, cid, path, validationPath, className, decoding = "async", loading = "lazy", onError, ...props }: IpfsImageProps) {
+  void validationPath;
+  const urls = React.useMemo(() => resolveIpfsImageUrls(cid, 56, path), [cid, path]);
   const [urlIndex, setUrlIndex] = React.useState(0);
   const src = urls[urlIndex];
 
   React.useEffect(() => {
     setUrlIndex(0);
-  }, [cid]);
+  }, [cid, path]);
 
   if (!src) return null;
 

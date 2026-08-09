@@ -908,6 +908,78 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertNoRule("IpfsImage CIDs are not remote-media violations", allowedIpfsImageCheck, "media-policy/remote-media", "blocking");
   assertNoRule("valid IpfsImage CIDs pass static CID validation", allowedIpfsImageCheck, "media-policy/invalid-ipfs-image-cid", "blocking");
 
+  const dynamicIpfsImageSlug = `${FIXTURE_PREFIX}-ipfs-dyn`;
+  writeVault(dynamicIpfsImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const tokenId = 7n;
+  return (
+    <div>
+      <IpfsImage
+        cid="bafybeigdyrzt5sfp7udm7hu76ovxpcjz5j4bsslxq3whncw3qyq2wejvfy"
+        path={tokenId.toString() + ".png"}
+        validationPath="1.png"
+        alt=""
+      />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  const dynamicIpfsImageCheck = runVaultCheck(dynamicIpfsImageSlug, { silent: true });
+  assertNoRule("IpfsImage accepts dynamic paths with a static validation sample", dynamicIpfsImageCheck, "media-policy/invalid-ipfs-image-path", "blocking");
+
+  const missingValidationPathSlug = `${FIXTURE_PREFIX}-ipfs-no-proof`;
+  writeVault(missingValidationPathSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const tokenId = 7n;
+  return <IpfsImage cid="bafybeigdyrzt5sfp7udm7hu76ovxpcjz5j4bsslxq3whncw3qyq2wejvfy" path={tokenId.toString()} alt={i18n.t("title")} />;
+}
+`,
+  });
+  assertRule(
+    "IpfsImage dynamic paths require a static validation sample",
+    runVaultCheck(missingValidationPathSlug, { silent: true }),
+    "media-policy/invalid-ipfs-image-path",
+    "blocking",
+  );
+
+  const unsafeValidationPathSlug = `${FIXTURE_PREFIX}-ipfs-bad-proof`;
+  writeVault(unsafeValidationPathSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const tokenId = 7n;
+  return <IpfsImage cid="bafybeigdyrzt5sfp7udm7hu76ovxpcjz5j4bsslxq3whncw3qyq2wejvfy" path={tokenId.toString()} validationPath="../1.png" alt={i18n.t("title")} />;
+}
+`,
+  });
+  assertRule(
+    "IpfsImage rejects traversal in validationPath",
+    runVaultCheck(unsafeValidationPathSlug, { silent: true }),
+    "media-policy/invalid-ipfs-image-path",
+    "blocking",
+  );
+
   const allowedIpfsBackgroundSlug = `${FIXTURE_PREFIX}-ipfs-background`;
   writeVault(allowedIpfsBackgroundSlug, {
     component: `"use client";
