@@ -8,7 +8,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Hidden transaction target.
 - Hardcoded EVM addresses in Vault source unless the address is a binding-scoped factory/token/Vault reference or an explicitly declared `match.bindings[].externalContracts` target.
 - SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`.
-- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. `IpfsImage` may append a safe relative path; dynamic paths require a static `validationPath` sample that resolves to `image/*` through an allowed Flap IPFS gateway.
+- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. `IpfsImage` may append a safe relative path; dynamic paths require a static `validationPath` sample. The checker validates this contract statically without per-image network probes.
 - Component-owned NFT SDK/ABI/address/metadata resolution. Vault V2 media must use `NftMetadataImage` with token id; it consumes shared SDK context internally and the runtime owns `Vault.nft()` plus `NFT.tokenURI()` ABI calls. Direct `tokenURIBase` concatenation, dynamic metadata fetches, caller-supplied sdk/ABI/nftAddress/tokenURI/endpoints/src/imageUrl, and arbitrary metadata image rendering are blocked.
 - Host-relative endpoint calls such as `fetch("/api/...")`.
 - Runtime remote import.
