@@ -742,89 +742,103 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
         }
       >
         <CardHeader className="px-3 pb-4 pt-3 sm:px-8 sm:pb-6 sm:pt-7 lg:px-10">
-          <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2 text-[13px] leading-5 text-[#8A8F98] sm:mb-4">
-            <Link href={homeHref} className="hover:text-[#D0FF00]">
-              {lang.preview.tokens}
-            </Link>
-            <span className="text-[#50545B]">›</span>
-            {tokenDetailHref ? (
-              <Link href={tokenDetailHref} className="min-w-0 max-w-[180px] truncate hover:text-[#D0FF00] sm:max-w-[260px]">
-                {tokenSymbol}
+          <div className="space-y-[19px]">
+            <div className="flex min-w-0 items-center gap-1 text-[14px] leading-[1.4] text-[#A0A3A7]">
+              <Link href={homeHref} className="transition-colors hover:text-white">
+                {lang.preview.tokens}
               </Link>
-            ) : (
-              <span className="min-w-0 max-w-[180px] truncate sm:max-w-[260px]">{tokenSymbol}</span>
-            )}
-            <span className="text-[#50545B]">›</span>
-            <span className="text-[#E7EAEE]">{taxInfoLabel}</span>
-          </div>
-
-          <div className="relative overflow-hidden border border-[#353A3F] bg-[#070808] px-4 pb-4 pt-5 shadow-[0_0_0_1px_rgba(208,255,0,0.06)] sm:px-6 sm:pb-5 sm:pt-6">
-            <div aria-hidden="true" className="absolute left-0 top-0 flex h-[3px] w-[96px]">
-              <span className="h-full w-1/3 bg-[#FF4D57]" />
-              <span className="h-full w-1/3 bg-[#F4C542]" />
-              <span className="h-full w-1/3 bg-[#D0FF00]" />
-            </div>
-            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-6 opacity-80 [background-image:repeating-linear-gradient(110deg,transparent_0,transparent_18px,#D0FF00_18px,#D0FF00_21px,transparent_21px,transparent_34px)]" />
-
-            <div className="relative flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex min-w-0 flex-1 items-start gap-4">
-                <div className="relative h-[64px] w-[64px] shrink-0">
-                  {tokenImageUrl ? (
-                    <Image src={tokenImageUrl} alt={tokenSymbol} width={64} height={64} className="h-16 w-16 bg-[#121416] object-cover" />
-                  ) : (
-                    <div className="flex h-16 w-16 items-center justify-center bg-[#121416] text-[18px] font-black uppercase text-white">
-                      {tokenSymbol.slice(0, 2)}
-                    </div>
-                  )}
-                  <span aria-hidden="true" className="absolute -left-1 -top-1 h-4 w-4 border-l border-t border-[#D0FF00]" />
-                  <span aria-hidden="true" className="absolute -right-1 -top-1 h-4 w-4 border-r border-t border-[#D0FF00]" />
-                  <span aria-hidden="true" className="absolute -bottom-1 -left-1 h-4 w-4 border-b border-l border-[#D0FF00]" />
-                  <span aria-hidden="true" className="absolute -bottom-1 -right-1 h-4 w-4 border-b border-r border-[#D0FF00]" />
-                </div>
-
-                <div className="min-w-0 space-y-3 pt-0.5">
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                    <CardTitle className="min-w-0 break-words text-[22px] font-semibold leading-[1.15] text-[#F4F6F8] sm:text-[28px]">{tokenSymbol}</CardTitle>
-                    <span className="min-w-0 break-words text-[14px] font-semibold leading-5 text-[#A7ADB5]">({tokenName})</span>
-                  </div>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="inline-flex h-7 items-center gap-1.5 border border-[#D0FF00]/50 bg-[#D0FF00]/10 px-2 text-[12px] font-semibold leading-none text-[#D0FF00]">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      {facVerifiedLabel}
-                    </span>
-                    <span className="inline-flex h-7 items-center gap-1.5 border border-[#2ADFFF]/50 bg-[#2ADFFF]/10 px-2 text-[12px] font-semibold leading-none text-[#75EFFF]">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      {innovationLabel}
-                    </span>
-                  </div>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2 text-[12px] leading-5 text-[#7F858D]">
-                    <span className="text-[#555B63]">CA</span>
-                    <Link href={explorerAddressUrl} target="_blank" rel="noopener noreferrer" className="min-w-0 break-all text-[#A7ADB5] transition-colors hover:text-[#D0FF00]" title={lang.preview.viewOnExplorer}>
-                      {shortenAddress(context.tokenAddress)}
-                    </Link>
-                    <button type="button" onClick={copyAddress} className="text-[#7F858D] transition-colors hover:text-[#D0FF00]" title={lang.preview.copyAddress}>
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                    <Link href={explorerAddressUrl} target="_blank" rel="noopener noreferrer" className="text-[#7F858D] transition-colors hover:text-[#D0FF00]" title={lang.preview.viewOnExplorer}>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2 self-start">
-                <button
-                  type="button"
-                  onClick={toggleBrowserFullscreen}
-                  className="grid h-9 w-9 place-items-center border border-[#353A3F] bg-black/70 text-[#DDE2E7] transition-colors hover:border-[#D0FF00] hover:text-[#D0FF00]"
-                  title={isBrowserFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen}
-                  aria-label={isBrowserFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen}
-                >
-                  {isBrowserFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                </button>
-                <Link href={homeHref} className="grid h-9 w-9 place-items-center border border-[#353A3F] bg-black/70 text-[#DDE2E7] transition-colors hover:border-white hover:text-white" title={lang.preview.close}>
-                  <X className="h-4 w-4" />
+              <span aria-hidden="true" className="text-[12px]">›</span>
+              {tokenDetailHref ? (
+                <Link href={tokenDetailHref} className="min-w-0 truncate transition-colors hover:text-white">
+                  {tokenSymbol || tokenName || "Token"}
                 </Link>
+              ) : (
+                <span className="min-w-0 truncate">{tokenSymbol || tokenName || "Token"}</span>
+              )}
+              <span aria-hidden="true" className="text-[12px]">›</span>
+              <span className="text-white">{taxInfoLabel}</span>
+            </div>
+            <div className="border border-[#484B51]">
+              <div className="flex h-[26px] items-center border-b border-[#484B51] bg-[#010202] px-2" aria-hidden="true">
+                <div className="flex gap-2">
+                  {["#F7594B", "#FECF00", "#2BC235"].map((color) => (
+                    <span key={color} className="flex h-2.5 w-2.5 flex-col justify-between">
+                      {[0, 1, 2, 3].map((line) => (
+                        <span key={line} className="h-px w-full" style={{ backgroundColor: color }} />
+                      ))}
+                    </span>
+                  ))}
+                </div>
+                <div
+                  className="ml-6 h-2.5 min-w-0 flex-1 bg-[repeating-linear-gradient(105deg,transparent_0,transparent_6px,#D0FF00_6px,#D0FF00_7px)] sm:ml-[110px]"
+                  style={{
+                    maskImage: "linear-gradient(to right, transparent, black)",
+                    WebkitMaskImage: "linear-gradient(to right, transparent, black)",
+                  }}
+                />
+              </div>
+              <div className="min-h-[167px] bg-[#131516] px-4 py-7 sm:px-[21px] sm:py-[29px]">
+                <div className="flex min-w-0 items-start gap-5">
+                  <div className="relative h-[72px] w-[72px] shrink-0">
+                    {["left-0 top-0 border-l border-t", "right-0 top-0 border-r border-t", "bottom-0 left-0 border-b border-l", "bottom-0 right-0 border-b border-r"].map((position) => (
+                      <span key={position} aria-hidden="true" className={`absolute h-2 w-2 border-white ${position}`} />
+                    ))}
+                    <div className="absolute left-1 top-1 h-16 w-16 border border-solid border-[#484B51]">
+                      {tokenImageUrl ? (
+                        <Image src={tokenImageUrl} alt={tokenSymbol} width={64} height={64} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-[#303236] text-[18px] font-black uppercase text-white">
+                          {tokenSymbol.slice(0, 2)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1 pt-2">
+                    <div className="flex min-w-0 items-baseline gap-x-[13px]">
+                      <CardTitle className="min-w-0 break-words text-[20px] font-medium leading-[1.4] text-white">{tokenSymbol || tokenName || "Token"}</CardTitle>
+                      {tokenName ? (
+                        <span title={tokenName} className="inline-flex min-w-0 flex-1 text-[13px] leading-[1.4] text-[#84888C]">
+                          <span aria-hidden="true" className="shrink-0">(</span>
+                          <span className="min-w-0 truncate whitespace-nowrap">{tokenName}</span>
+                          <span aria-hidden="true" className="shrink-0">)</span>
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-[11px] flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="inline-flex h-7 items-center gap-1.5 border border-[#D0FF00]/50 bg-[#D0FF00]/10 px-2 text-[12px] font-semibold leading-none text-[#D0FF00]">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        {facVerifiedLabel}
+                      </span>
+                      <span className="inline-flex h-7 items-center gap-1.5 border border-[#2ADFFF]/50 bg-[#2ADFFF]/10 px-2 text-[12px] font-semibold leading-none text-[#75EFFF]">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {innovationLabel}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2 self-start">
+                    <button
+                      type="button"
+                      onClick={toggleBrowserFullscreen}
+                      className="grid h-9 w-9 place-items-center border border-[#484B51] text-[#8D8D8D] transition-colors hover:border-[#D0FF00] hover:text-[#D0FF00]"
+                      title={isBrowserFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen}
+                      aria-label={isBrowserFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen}
+                    >
+                      {isBrowserFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                    </button>
+                    <Link href={homeHref} className="grid h-9 w-9 place-items-center border border-[#484B51] text-[#8D8D8D] transition-colors hover:border-white hover:text-white" title={lang.preview.close}>
+                      <X className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+                <div className="mt-[18px] flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+                  <Link href={explorerAddressUrl} target="_blank" rel="noopener noreferrer" className="min-w-0 break-all font-mono text-sm text-cyan-200 hover:text-cyan-100">
+                    {shortenAddress(context.tokenAddress)}
+                  </Link>
+                  <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-white/35" aria-hidden="true" />
+                  <button type="button" onClick={copyAddress} className="rounded p-1 text-white/35 transition-colors hover:bg-white/10 hover:text-white/80" title={lang.preview.copyAddress} aria-label={lang.preview.copyAddress}>
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
