@@ -617,50 +617,93 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
       <main data-vault-layout="standard" className="mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden bg-[#010202] px-3 pb-6 pt-8 font-mono sm:px-4 sm:py-8">
         <Card className="mx-auto w-full max-w-full overflow-visible rounded-none border-0 bg-transparent text-white shadow-none sm:max-w-[800px]">
           <CardHeader className="px-0 pb-5 pt-0">
-            <div className="border border-[#484B51] bg-[#010202] px-3 py-3 sm:px-4">
-              <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  {tokenImageUrl ? (
-                    <Image src={tokenImageUrl} alt={tokenSymbol} width={44} height={44} className="h-11 w-11 shrink-0 border border-[#484B51] bg-[#1d1d1d] object-cover" />
-                  ) : (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-[#484B51] bg-[#1d1d1d] text-sm font-black uppercase text-white">
-                      {tokenSymbol.slice(0, 2)}
+            <div className="space-y-[19px]">
+              <div className="flex min-w-0 items-center gap-1 text-[14px] leading-[1.4] text-[#A0A3A7]">
+                <Link href={homeHref} className="transition-colors hover:text-white">
+                  {lang.preview.tokens}
+                </Link>
+                <span aria-hidden="true" className="text-[12px]">›</span>
+                {tokenDetailHref ? (
+                  <Link href={tokenDetailHref} className="min-w-0 truncate transition-colors hover:text-white">
+                    {tokenSymbol || tokenName || "Token"}
+                  </Link>
+                ) : (
+                  <span className="min-w-0 truncate">{tokenSymbol || tokenName || "Token"}</span>
+                )}
+                <span aria-hidden="true" className="text-[12px]">›</span>
+                <span className="text-white">{lang.preview.vault}</span>
+              </div>
+              <div className="border border-[#484B51]">
+                <div className="flex h-[26px] items-center border-b border-[#484B51] bg-[#010202] px-2" aria-hidden="true">
+                  <div className="flex gap-2">
+                    {["#F7594B", "#FECF00", "#2BC235"].map((color) => (
+                      <span key={color} className="flex h-2.5 w-2.5 flex-col justify-between">
+                        {[0, 1, 2, 3].map((line) => (
+                          <span key={line} className="h-px w-full" style={{ backgroundColor: color }} />
+                        ))}
+                      </span>
+                    ))}
+                  </div>
+                  <div
+                    className="ml-6 h-2.5 min-w-0 flex-1 bg-[repeating-linear-gradient(105deg,transparent_0,transparent_6px,#D0FF00_6px,#D0FF00_7px)] sm:ml-[110px]"
+                    style={{
+                      maskImage: "linear-gradient(to right, transparent, black)",
+                      WebkitMaskImage: "linear-gradient(to right, transparent, black)",
+                    }}
+                  />
+                </div>
+                <div className="min-h-[167px] bg-[#131516] px-4 py-7 sm:px-[21px] sm:py-[29px]">
+                  <div className="flex min-w-0 items-start gap-5">
+                    <div className="relative h-[72px] w-[72px] shrink-0">
+                      {["left-0 top-0 border-l border-t", "right-0 top-0 border-r border-t", "bottom-0 left-0 border-b border-l", "bottom-0 right-0 border-b border-r"].map((position) => (
+                        <span key={position} aria-hidden="true" className={`absolute h-2 w-2 border-white ${position}`} />
+                      ))}
+                      <div className="absolute left-1 top-1 h-16 w-16 border border-solid border-[#484B51]">
+                        {tokenImageUrl ? (
+                          <Image src={tokenImageUrl} alt={tokenSymbol} width={64} height={64} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-[#303236] text-[18px] font-black uppercase text-white">
+                            {tokenSymbol.slice(0, 2)}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  <div className="min-w-0 space-y-2">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-[12px] uppercase leading-[1.4] text-[#9A9A9A]">
-                      <Link href={homeHref} className="hover:text-white">
-                        {lang.preview.tokens}
-                      </Link>
-                      <span>/</span>
-                      {tokenDetailHref ? (
-                        <Link href={tokenDetailHref} className="min-w-0 max-w-[180px] truncate hover:text-white sm:max-w-[260px]">
-                          {tokenSymbol}
-                        </Link>
-                      ) : (
-                        <span className="min-w-0 max-w-[180px] truncate sm:max-w-[260px]">{tokenSymbol}</span>
-                      )}
-                      <span>/</span>
-                      <span className="text-white">{lang.preview.vault}</span>
+                    <div className="min-w-0 flex-1 pt-2">
+                      <div className="flex min-w-0 items-baseline gap-x-[13px]">
+                        <CardTitle className="min-w-0 break-words text-[20px] font-medium leading-[1.4] text-white">{tokenSymbol || tokenName || "Token"}</CardTitle>
+                        {tokenName ? (
+                          <span title={tokenName} className="inline-flex min-w-0 flex-1 text-[13px] leading-[1.4] text-[#84888C]">
+                            <span aria-hidden="true" className="shrink-0">(</span>
+                            <span className="min-w-0 truncate whitespace-nowrap">{tokenName}</span>
+                            <span aria-hidden="true" className="shrink-0">)</span>
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-[11px] flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="inline-flex h-7 items-center gap-1.5 border border-[#D0FF00]/50 bg-[#D0FF00]/10 px-2 text-[12px] font-semibold leading-none text-[#D0FF00]">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          {facVerifiedLabel}
+                        </span>
+                        <span className="inline-flex h-7 items-center gap-1.5 border border-[#2ADFFF]/50 bg-[#2ADFFF]/10 px-2 text-[12px] font-semibold leading-none text-[#75EFFF]">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          {innovationLabel}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-1">
-                      <CardTitle className="min-w-0 break-words text-[22px] font-semibold uppercase leading-[1.15] text-[#EEEEEE] sm:text-[28px]">{tokenSymbol}</CardTitle>
-                      <span className="min-w-0 break-words pb-1 text-[13px] font-semibold text-[#9A9A9A]">({tokenName})</span>
-                    </div>
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="min-w-0 break-all text-[12px] text-[#8D8D8D]">{shortenAddress(context.tokenAddress)}</span>
-                      <button type="button" onClick={copyAddress} className="text-[#8D8D8D] transition-colors hover:text-[#D0FF00]" title={lang.preview.copyAddress}>
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                      <Link href={explorerAddressUrl} target="_blank" rel="noopener noreferrer" className="text-[#8D8D8D] transition-colors hover:text-[#D0FF00]" title={lang.preview.viewOnExplorer}>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Link>
-                    </div>
+                    <Link href={homeHref} className="grid h-9 w-9 shrink-0 place-items-center border border-[#484B51] text-[#8D8D8D] transition-colors hover:border-white hover:text-white" title={lang.preview.close}>
+                      <X className="h-4 w-4" />
+                    </Link>
+                  </div>
+                  <div className="mt-[18px] flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+                    <Link href={explorerAddressUrl} target="_blank" rel="noopener noreferrer" className="min-w-0 break-all font-mono text-sm text-cyan-200 hover:text-cyan-100">
+                      {shortenAddress(context.tokenAddress)}
+                    </Link>
+                    <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-white/35" aria-hidden="true" />
+                    <button type="button" onClick={copyAddress} className="rounded p-1 text-white/35 transition-colors hover:bg-white/10 hover:text-white/80" title={lang.preview.copyAddress} aria-label={lang.preview.copyAddress}>
+                      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
                   </div>
                 </div>
-                <Link href={homeHref} className="grid h-9 w-9 shrink-0 place-items-center border border-[#484B51] text-[#8D8D8D] transition-colors hover:border-white hover:text-white" title={lang.preview.close}>
-                  <X className="h-4 w-4" />
-                </Link>
               </div>
             </div>
           </CardHeader>
