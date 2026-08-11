@@ -1,10 +1,10 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Copy, ExternalLink, X } from "lucide-react";
+import { AlertTriangle, Copy, ExternalLink, Maximize2, Minimize2, X } from "lucide-react";
 import { useChainId, usePublicClient } from "wagmi";
 import type { Address, FeeMode, PaymentToken, TokenMarketPhase, VaultHostContext, VaultManifest, VaultRenderSurface, VaultRuntimeContextOverrides } from "@/src/sdk";
 import {
@@ -552,6 +552,8 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
   const { lang } = useLang();
   const searchParams = useSearchParams();
   const context = useVaultContext();
+  const shellRef = useRef<HTMLElement | null>(null);
+  const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);
   const homeHref = "/";
   const tokenSymbol = context.tokenSymbol || "TOKEN";
   const tokenName = context.tokenName || readExtraString(context.extraConfig, "tokenName") || `${tokenSymbol} Preview Token`;
@@ -576,70 +578,117 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
     }
   };
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsBrowserFullscreen(document.fullscreenElement === shellRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    handleFullscreenChange();
+
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleBrowserFullscreen = async () => {
+    const shell = shellRef.current;
+    if (!fullscreen || !shell) return;
+
+    try {
+      if (document.fullscreenElement === shell) {
+        await document.exitFullscreen();
+      } else {
+        await shell.requestFullscreen();
+      }
+    } catch {
+      // Browser fullscreen can be blocked outside direct user gestures.
+    }
+  };
+
   return (
     <main
+      ref={shellRef}
       data-vault-layout={fullscreen ? "fullscreen" : "standard"}
-      className="mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden px-0 py-0 sm:px-4 sm:py-8"
+      className={fullscreen ? "vault-preview-taxinfo-shell mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden bg-[#010202] font-mono" : "mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden bg-[#010202] px-3 pb-6 pt-8 font-mono sm:px-4 sm:py-8"}
     >
       <Card
         className={
           fullscreen
-            ? "mx-auto w-full max-w-full overflow-hidden rounded-none border-x-0 bg-[#050914] sm:rounded-lg sm:border-x"
-            : "mx-auto w-full max-w-full overflow-hidden rounded-none border-x-0 bg-[#050914] sm:max-w-[768px] sm:rounded-lg sm:border-x"
+            ? "mx-auto w-full max-w-full overflow-visible rounded-none border-0 bg-transparent text-white shadow-none"
+            : "mx-auto w-full max-w-full overflow-visible rounded-none border-0 bg-transparent text-white shadow-none sm:max-w-[800px]"
         }
       >
-        <CardHeader className="px-4 py-5 sm:p-6">
-          <div className="relative flex flex-col space-y-4">
-            <Link href={homeHref} className="absolute right-0 top-0 p-2 text-gray-400 transition-colors hover:text-white" title={lang.preview.close}>
-              <X className="h-5 w-5" />
-            </Link>
-
-            <div className="flex min-w-0 flex-wrap items-center gap-2 pr-10 text-sm text-gray-400">
-              <Link href={homeHref} className="hover:text-gray-200">
-                {lang.preview.tokens}
-              </Link>
-              <span>›</span>
-              {tokenDetailHref ? (
-                <Link href={tokenDetailHref} className="hover:text-gray-200">
-                  {tokenSymbol}
-                </Link>
-              ) : (
-                <span>{tokenSymbol}</span>
-              )}
-              <span>›</span>
-              <span className="text-gray-200">{lang.preview.vault}</span>
-            </div>
-
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center gap-3">
+        <CardHeader className={fullscreen ? "px-3 pt-3 sm:px-4 sm:pt-4" : "px-0 pb-5 pt-0"}>
+          <div className="border border-[#484B51] bg-[#010202] px-3 py-3 sm:px-4">
+            <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
                 {tokenImageUrl ? (
-                  <Image src={tokenImageUrl} alt={tokenSymbol} width={40} height={40} className="h-10 w-10 shrink-0 rounded-md bg-gray-800 object-cover" />
+                  <Image src={tokenImageUrl} alt={tokenSymbol} width={44} height={44} className="h-11 w-11 shrink-0 border border-[#484B51] bg-[#1d1d1d] object-cover" />
                 ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-[#705ef3] to-[#15e897] text-sm font-black uppercase text-white">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-[#484B51] bg-[#1d1d1d] text-sm font-black uppercase text-white">
                     {tokenSymbol.slice(0, 2)}
                   </div>
                 )}
-                <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-                  <CardTitle className="min-w-0 break-words text-xl sm:text-2xl">{tokenSymbol}</CardTitle>
-                  <span className="min-w-0 break-words text-sm font-semibold text-gray-400">({tokenName})</span>
+                <div className="min-w-0 space-y-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 text-[12px] uppercase leading-[1.4] text-[#9A9A9A]">
+                    <Link href={homeHref} className="hover:text-white">
+                      {lang.preview.tokens}
+                    </Link>
+                    <span>/</span>
+                    {tokenDetailHref ? (
+                      <Link href={tokenDetailHref} className="min-w-0 max-w-[180px] truncate hover:text-white sm:max-w-[260px]">
+                        {tokenSymbol}
+                      </Link>
+                    ) : (
+                      <span className="min-w-0 max-w-[180px] truncate sm:max-w-[260px]">{tokenSymbol}</span>
+                    )}
+                    <span>/</span>
+                    <span className="text-white">{lang.preview.vault}</span>
+                  </div>
+                  <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-1">
+                    <CardTitle className="min-w-0 break-words text-[22px] font-semibold uppercase leading-[1.15] text-[#EEEEEE] sm:text-[28px]">{tokenSymbol}</CardTitle>
+                    <span className="min-w-0 break-words pb-1 text-[13px] font-semibold text-[#9A9A9A]">({tokenName})</span>
+                  </div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="min-w-0 break-all text-[12px] text-[#8D8D8D]">{shortenAddress(context.tokenAddress)}</span>
+                    <button type="button" onClick={copyAddress} className="text-[#8D8D8D] transition-colors hover:text-[#D0FF00]" title={lang.preview.copyAddress}>
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    <Link href={explorerAddressUrl} target="_blank" rel="noopener noreferrer" className="text-[#8D8D8D] transition-colors hover:text-[#D0FF00]" title={lang.preview.viewOnExplorer}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
                 </div>
               </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="min-w-0 break-all font-mono text-xs text-gray-500">{shortenAddress(context.tokenAddress)}</span>
-                <button type="button" onClick={copyAddress} className="text-gray-400 transition-colors hover:text-blue-400" title={lang.preview.copyAddress}>
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-                <Link href={explorerAddressUrl} target="_blank" className="text-gray-400 transition-colors hover:text-blue-400" title={lang.preview.viewOnExplorer}>
-                  <ExternalLink className="h-3.5 w-3.5" />
+              <div className="flex shrink-0 items-center gap-2">
+                {fullscreen ? (
+                  <button
+                    type="button"
+                    onClick={toggleBrowserFullscreen}
+                    className="grid h-9 w-9 place-items-center border border-[#484B51] bg-black/80 text-white transition-colors hover:border-[#D0FF00] hover:text-[#D0FF00]"
+                    title={isBrowserFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen}
+                    aria-label={isBrowserFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen}
+                  >
+                    {isBrowserFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </button>
+                ) : null}
+                <Link href={homeHref} className="grid h-9 w-9 place-items-center border border-[#484B51] text-[#8D8D8D] transition-colors hover:border-white hover:text-white" title={lang.preview.close}>
+                  <X className="h-4 w-4" />
                 </Link>
               </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="px-4 pb-6 sm:px-6">
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-white">{lang.preview.vaultInformation}</h3>
+        <CardContent className={fullscreen ? "px-0 pb-0 pt-0" : "px-0 pb-0 pt-0"}>
+          <div className={fullscreen ? "space-y-0" : "space-y-4"}>
+            <div className="border-b border-[#484B51]">
+              <div className="flex h-[43px] w-full items-end px-4 sm:px-6">
+                <h3 className="relative pb-[11px] text-[14px] font-semibold uppercase leading-[1.4] text-white">
+                  {lang.preview.vaultInformation}
+                  <span aria-hidden="true" className="absolute bottom-0 left-1/2 h-[3px] w-[27px] -translate-x-1/2 bg-white" />
+                </h3>
+              </div>
+            </div>
             {isTokenUnavailable ? (
               <div data-vault-token-unavailable="true" className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
                 <div className="flex items-start gap-3">
@@ -651,7 +700,7 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
                 </div>
               </div>
             ) : (
-              children
+              <div className={fullscreen ? "min-h-[420px] w-full min-w-0" : "border border-[#484B51] p-4 sm:p-6"}>{children}</div>
             )}
           </div>
         </CardContent>
