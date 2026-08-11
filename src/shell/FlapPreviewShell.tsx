@@ -721,7 +721,7 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
                   </div>
                 </div>
               ) : (
-                children
+                <div className="border border-[#484B51] bg-transparent p-4 sm:p-6">{children}</div>
               )}
             </div>
           </CardContent>
@@ -846,7 +846,7 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
                 </div>
               </div>
             ) : (
-              <div className="min-h-[420px] w-full min-w-0">{children}</div>
+              <div className="min-h-[420px] w-full min-w-0 border border-[#484B51] bg-transparent p-4 sm:p-6">{children}</div>
             )}
           </div>
         </CardContent>
