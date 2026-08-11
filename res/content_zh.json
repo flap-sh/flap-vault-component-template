@@ -153,8 +153,8 @@
           ],
           "farmBadge": "推荐起点",
           "farmTitle": "蝴蝶农场",
-          "farmDescription": "最适合先看的 Mini App 接入示例：用紧凑玩法说明全屏壳、宿主上下文和 manifest 如何衔接。",
-          "farmCta": "打开农场示例",
+          "farmDescription": "Mini App 壳和 manifest 衔接说明卡，保留农场预览截图；本地可打开的 live 示例使用已注册的能量竞技场路由。",
+          "farmCta": "打开可玩示例",
           "skiesBadge": "品牌 3D 世界",
           "skiesTitle": "Flap Skies",
           "skiesDescription": "一个可探索、有动态效果的 Flap 品牌微缩世界，完全运行在受控 3D 档案内，不依赖远程资源。",
@@ -244,11 +244,11 @@
         "preview": {
           "kicker": "预览截图",
           "title": "蝴蝶农场 Mini App 预览模式",
-          "description": "这个截图来自 flap-farm-vault 的 E2E 预览，展示的是 Mini APP shell、artifact 全屏区域和右侧 host/manifest 自测面板。",
+          "description": "这个截图来自 flap-farm-vault 的 E2E 预览，用于说明 Mini APP shell、artifact 全屏区域和右侧 host/manifest 自测面板；当前 live CTA 会打开已注册的可玩示例，而不是已归档的 Farm 源码。",
           "imageAlt": "蝴蝶农场 Mini App 预览模式截图",
-          "caption": "截图用于说明预览模式，不代表这个 package 会被当作首页模板。",
+          "caption": "截图用于说明预览模式；本地链接指向已注册的 live 示例。",
           "routeLabel": "预览路由",
-          "route": "/flap-farm-vault"
+          "route": "/flap-gamefi-arena"
         },
         "workflowTitle": "Agent 执行顺序",
         "workflow": [

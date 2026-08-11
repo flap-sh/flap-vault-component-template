@@ -153,8 +153,8 @@
           ],
           "farmBadge": "Start here",
           "farmTitle": "Butterfly Farm",
-          "farmDescription": "The clearest starting point for Mini App integration: a compact experience that shows the fullscreen shell, host context, and manifest wiring.",
-          "farmCta": "Open Butterfly Farm",
+          "farmDescription": "A Mini App shell and manifest guide card with the Farm preview screenshot. Use the playable arena route for the live local example.",
+          "farmCta": "Open playable example",
           "skiesBadge": "Branded 3D world",
           "skiesTitle": "Flap Skies",
           "skiesDescription": "A polished Flap-branded miniature world with motion and exploration, built entirely inside the approved 3D profile with no remote assets.",
@@ -244,11 +244,11 @@
         "preview": {
           "kicker": "Preview Screenshot",
           "title": "Flap Farm Mini App preview mode",
-          "description": "This screenshot comes from the flap-farm-vault E2E preview. It shows the Mini APP shell, fullscreen artifact area, and host/manifest self-test panel.",
+          "description": "This screenshot comes from the flap-farm-vault E2E preview. It documents the Mini APP shell, fullscreen artifact area, and host/manifest self-test panel; the live local CTA opens a registered playable example instead of the archived Farm source.",
           "imageAlt": "Flap Farm Mini App preview mode screenshot",
-          "caption": "The screenshot explains preview mode; it does not make this package the homepage template.",
+          "caption": "The screenshot explains preview mode; the linked local route is a registered live example.",
           "routeLabel": "Preview route",
-          "route": "/flap-farm-vault"
+          "route": "/flap-gamefi-arena"
         },
         "workflowTitle": "Agent Workflow",
         "workflow": [
