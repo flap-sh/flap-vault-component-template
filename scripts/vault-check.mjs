@@ -318,7 +318,7 @@ const FIX_HINTS = {
   "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
   "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
   "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with tokenId and alt plus safe image presentation props. It consumes the shared SDK context internally; do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
-  "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
+  "security/hardcoded-address": "Remove contract-address literals from Component.tsx. Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or a token/NFT address read directly from the current context.vaultAddress through a static Vault getter.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
   "navigation-policy/invalid-external-link": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials.",
   "contract-boundary/missing-contract-label": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the call target.",
@@ -2267,6 +2267,8 @@ function findSdkContractCalls(content) {
     if (objectEnd < 0) continue;
     calls.push({
       methodName,
+      methodStart: cursor,
+      typeArgumentsText: content.slice(cursor + methodName.length, callCursor).trim(),
       objectStart: argumentStart,
       objectText: content.slice(argumentStart, objectEnd + 1),
     });
@@ -2274,6 +2276,25 @@ function findSdkContractCalls(content) {
   }
 
   return calls;
+}
+
+function collectVaultDerivedContractAddressIdentifiers(content) {
+  const identifiers = new Set();
+  for (const call of findSdkContractCalls(content)) {
+    if (call.methodName !== "readContract") continue;
+    if (!/(?:^|[<,\s])(?:Address|HexAddress|`0x\$\{string\}`)(?:[>,\s]|$)/u.test(call.typeArgumentsText)) continue;
+    const contractProperty = extractObjectPropertyExpression(call.objectText, "contract");
+    const addressProperty = extractObjectPropertyExpression(call.objectText, "address");
+    const functionNameProperty = extractObjectPropertyExpression(call.objectText, "functionName");
+    const contractLabel = contractProperty ? parseStaticStringLiteral(stripExpressionDecorators(contractProperty.text)) : null;
+    const functionName = functionNameProperty ? parseStaticStringLiteral(stripExpressionDecorators(functionNameProperty.text)) : null;
+    const addressSource = addressProperty ? normalizeContractAddressExpression(addressProperty.text) : "";
+    if (contractLabel !== "vault" || !functionName || !["context.vaultaddress", "sdk.context.vaultaddress"].includes(addressSource)) continue;
+    const prefix = content.slice(Math.max(0, call.methodStart - 240), call.methodStart);
+    const assignment = /\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+(?:sdk\.)?$/u.exec(prefix);
+    if (assignment) identifiers.add(assignment[1]);
+  }
+  return identifiers;
 }
 
 function collectDynamicImportIssues(content, file) {
@@ -2404,10 +2425,11 @@ function collectReviewedFrameIssues(content, file, declaredFrames) {
   return issues;
 }
 
-function isApprovedContractAddressExpression(expressionText) {
+function isApprovedContractAddressExpression(expressionText, vaultDerivedAddressIdentifiers = new Set()) {
   const normalized = normalizeContractAddressExpression(expressionText);
   if (!normalized) return false;
   if (FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE.test(normalized)) return false;
+  if (/^[A-Za-z_$][\w$]*$/u.test(expressionText.trim()) && vaultDerivedAddressIdentifiers.has(expressionText.trim())) return true;
   if (normalized.includes("context.vaultaddress") || normalized.includes("context.tokenaddress") || normalized.includes("context.factoryaddress")) return true;
   if (normalized.includes("sdk.context.vaultaddress") || normalized.includes("sdk.context.tokenaddress") || normalized.includes("sdk.context.factoryaddress")) return true;
   return APPROVED_CONTRACT_ADDRESS_KEYWORD_RE.test(normalized);
@@ -2416,6 +2438,7 @@ function isApprovedContractAddressExpression(expressionText) {
 function collectContractInteractionIssues(content, file, contractPolicy) {
   const issues = [];
   const addressConstants = collectAddressConstants(content);
+  const vaultDerivedAddressIdentifiers = collectVaultDerivedContractAddressIdentifiers(content);
 
   for (const call of findSdkContractCalls(content)) {
     const contractProperty = extractObjectPropertyExpression(call.objectText, "contract");
@@ -2481,7 +2504,7 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
           ),
         );
       }
-    } else if (!isApprovedContractAddressExpression(addressProperty.text)) {
+    } else if (!isApprovedContractAddressExpression(addressProperty.text, vaultDerivedAddressIdentifiers)) {
       issues.push(
         issue(
           BLOCKING,
@@ -2734,10 +2757,10 @@ function scanResolvedStringForResources(value, ctx) {
   const addressMatch = /0x[a-fA-F0-9]{40}\b/.exec(value);
   if (addressMatch) {
     const normalized = normalizeAddress(addressMatch[0]);
-    if (!normalized || !ctx.contractPolicy.all.has(normalized)) {
+    if (ctx.blockAllHardcodedAddresses || !normalized || !ctx.contractPolicy.all.has(normalized)) {
       return {
         ruleId: "security/hardcoded-address",
-        message: `Hardcoded address ${addressMatch[0]} assembled from string fragments is not allowed. Use runtime context addresses or declare external contract targets in manifest match.bindings[].externalContracts.`,
+        message: `Hardcoded address ${addressMatch[0]} assembled from string fragments is not allowed in Component.tsx. Use runtime context addresses or read a token/NFT address directly from context.vaultAddress through a static Vault getter.`,
       };
     }
   }
@@ -3994,7 +4017,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel, manifest));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
-    issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: externalLinkAllowedRanges }));
+    issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: externalLinkAllowedRanges, blockAllHardcodedAddresses: item.name === "Component.tsx" }));
     if (item.name === "Component.tsx") {
       issues.push(...collectHardcodedVisibleCopyIssues(content, rel));
       issues.push(...collectInlineSvgIssues(content, rel));
@@ -4215,8 +4238,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const hardcodedAddressRegex = /["'`]0x[a-fA-F0-9]{40}["'`]/g;
     for (const match of scanContent.matchAll(hardcodedAddressRegex)) {
       const normalizedAddress = normalizeAddress(match[0].slice(1, -1));
-      if (!normalizedAddress || !contractPolicy.all.has(normalizedAddress)) {
-        issues.push(issue(BLOCKING, "security/hardcoded-address", `Hardcoded address ${match[0]} found in Vault source. Use runtime context addresses or declare intentional external contract addresses in manifest.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
+      if (item.name === "Component.tsx" || !normalizedAddress || !contractPolicy.all.has(normalizedAddress)) {
+        issues.push(issue(BLOCKING, "security/hardcoded-address", `Hardcoded address ${match[0]} found in ${rel}. Component.tsx must use runtime context addresses or read a token/NFT address directly from context.vaultAddress through a static Vault getter.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
     if (/refetchInterval\s*:\s*([0-4]?\d{1,3})(?!\d)/.test(scanContent)) {

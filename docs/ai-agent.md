@@ -148,12 +148,15 @@ Do not treat every secondary contract as an `externalContracts` entry. First det
 | Situation | Required implementation |
 | --- | --- |
 | The address is `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, or another allowed runtime-derived token/NFT/payment address | Call the runtime address through the SDK. |
+| A static getter on the current Vault returns a token or NFT address | Read it from `context.vaultAddress` with `sdk.readContract<Address>(...)`, then use that directly derived identifier as the downstream target. Do not substitute an address literal. |
 | The Vault coordinates a staking pool, auction contract, router, dividend distributor, wrapper, trigger helper, or similar module whose address comes from Vault state | Add UI-facing view methods and public proxy actions to the Vault contract, then call only `context.vaultAddress` from `Component.tsx`. Put only those Vault-facing ABI fragments in `VaultABI.ts`. |
 | The UI must call a truly fixed, independent non-token/non-Vault/non-factory contract | Declare it under the relevant `match.bindings[].externalContracts` entry with `address` and `label`, document the reason and methods for review, and call it only after approval. |
 
 For example, if `vault.stakingAdapter()` or `vault.auction()` returns a module address, the UI must not read that address and then call `stake`, `withdraw`, `claim`, `bid`, or `settle` on the returned contract. The Vault should expose the required read-only state and user actions as Vault methods such as `getStakeInfo`, `stake`, `withdrawStake`, `claimRewards`, `getAuctionState`, `placeBid`, or `settleAuction`; the UI calls those methods at `context.vaultAddress`. Exact method names are contract-specific.
 
 This boundary keeps dynamic implementation details behind the Vault, makes the transaction target reviewable, and prevents `externalContracts` from becoming a bypass. Never expose operator/admin configuration methods such as `setConfig`, `setSwapPath`, or `setSplit` in `Component.tsx`. If the Vault cannot expose a safe user-facing proxy action yet, keep that feature read-only or link to the approved official product surface until the contract is updated.
+
+`Component.tsx` must not contain any contract-address literal, including an address listed in `externalContracts`. Manifest entries remain review declarations and are not read as runtime address configuration. Existing token, Vault, and factory targets come from runtime context; only token/NFT identifiers read directly from the current Vault through a static getter with an explicit `Address` result type may become downstream targets.
 
 Use:
 

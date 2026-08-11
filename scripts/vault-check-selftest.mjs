@@ -2381,6 +2381,60 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("generic subTokenAddress sources are blocked like Workbench", runVaultCheck(derivedTokenAddressSlug, { silent: true }), "contract-boundary/undeclared-contract-address", "blocking");
 
+  const vaultDerivedTokenAddressSlug = `${FIXTURE_PREFIX}-vault-derived-token-address`;
+  writeVault(vaultDerivedTokenAddressSlug, {
+    abi: `export const vaultAbi = [
+  { type: "function", stateMutability: "view", name: "basket", inputs: [], outputs: [{ name: "", type: "address" }] },
+] as const;\n`,
+    component: `"use client";
+
+import type { Address, VaultComponentProps } from "@/src/sdk";
+import { erc20Abi, useFlapSdk } from "@/src/sdk";
+import { vaultAbi } from "./VaultABI";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  async function loadBasketSymbol() {
+    const basketTokenAddress = await sdk.readContract<Address>({
+      contract: "vault",
+      address: sdk.context.vaultAddress,
+      abi: vaultAbi,
+      functionName: "basket",
+    });
+    return sdk.readContract({
+      contract: "basketToken",
+      address: basketTokenAddress,
+      abi: erc20Abi,
+      functionName: "symbol",
+    });
+  }
+  void loadBasketSymbol;
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule("token addresses read directly from the current Vault are allowed", runVaultCheck(vaultDerivedTokenAddressSlug, { silent: true }), "contract-boundary/undeclared-contract-address", "blocking");
+
+  const untypedVaultDerivedAddressSlug = `${FIXTURE_PREFIX}-untyped-vault-derived-address`;
+  writeVault(untypedVaultDerivedAddressSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { erc20Abi, useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  async function loadSymbol() {
+    const linkedAddress = await sdk.readContract({ contract: "vault", address: sdk.context.vaultAddress, abi: [], functionName: "basket" });
+    return sdk.readContract({ contract: "basketToken", address: linkedAddress, abi: erc20Abi, functionName: "symbol" });
+  }
+  void loadSymbol;
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("Vault-derived targets require an explicit Address result type", runVaultCheck(untypedVaultDerivedAddressSlug, { silent: true }), "contract-boundary/undeclared-contract-address", "blocking");
+
   const contractEventMethodSlug = `${FIXTURE_PREFIX}-contract-event-methods`;
   writeVault(contractEventMethodSlug, {
     component: `"use client";
@@ -2465,9 +2519,9 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   const declaredExternalContractCheck = runVaultCheck(declaredExternalContractSlug, { silent: true });
   assert.equal(declaredExternalContractCheck.issues.some((item) => item.ruleId === "contract-boundary/undeclared-contract-address"), false);
-  assert.equal(declaredExternalContractCheck.issues.some((item) => item.ruleId === "security/hardcoded-address"), false);
+  assert.equal(declaredExternalContractCheck.issues.some((item) => item.ruleId === "security/hardcoded-address"), true);
   assert.equal(declaredExternalContractCheck.issues.some((item) => item.ruleId === "contract-boundary/disallowed-contract-label"), false);
-  passed.push("declared external contract addresses are allowed in SDK contract calls");
+  passed.push("manifest declarations do not permit address literals in Component.tsx");
 
   const abiSlug = `${FIXTURE_PREFIX}-abi`;
   writeVault(abiSlug, {

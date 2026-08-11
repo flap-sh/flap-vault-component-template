@@ -370,11 +370,11 @@ Vault source may call SDK contract methods against:
 - `context.factoryAddress`
 - binding-scoped `tokenAddresses`
 - binding-scoped `vaultAddresses`
-- fixed addresses declared in `match.bindings[].externalContracts`
+- fixed addresses declared in `match.bindings[].externalContracts` for review only; they must not be copied into `Component.tsx`
 
 If `Component.tsx` calls `readContract`, `simulateContract`, `writeContract`, `watchContractEvent`, `createContractEventFilter`, `getLogs`, or `estimateContractGas` against a fixed address that is not one of those allowed targets, `yarn vault:check <folder-name>` reports a blocking issue. This is the on-chain equivalent of endpoint declaration: extra contract dependencies must be visible before Workbench review.
 
-`externalContracts` does not make a target approved. It only makes the target reviewable and checkable.
+`externalContracts` does not make a target approved or inject it at runtime. It only makes the target reviewable. `Component.tsx` must not contain contract-address literals; use runtime context or a token/NFT address read directly from the current Vault through a static getter with an explicit `Address` result type.
 
 ## Actions
 
