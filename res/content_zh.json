@@ -487,6 +487,9 @@
   "preview": {
     "tokens": "Tokens",
     "vault": "Vault",
+    "taxInfo": "税收信息",
+    "facVerified": "通過 FAC",
+    "innovationTag": "創新",
     "vaultInformation": "金库信息",
     "bindingHint": "chain + factory",
     "badge": "預覽",

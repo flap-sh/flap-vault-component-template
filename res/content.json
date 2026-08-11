@@ -487,6 +487,9 @@
   "preview": {
     "tokens": "Tokens",
     "vault": "Vault",
+    "taxInfo": "Tax Info",
+    "facVerified": "FAC verified",
+    "innovationTag": "Innovation",
     "vaultInformation": "Vault Information",
     "bindingHint": "chain + factory",
     "badge": "Preview",
