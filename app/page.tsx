@@ -77,6 +77,8 @@ type MiniAppGuideContent = {
     title: string;
     body: string;
   }>;
+  vault7777Title: string;
+  vault7777Items: string[];
   examples: {
     kicker: string;
     title: string;
@@ -577,6 +579,17 @@ function MiniAppGuide({ doc, galleryOnly = false, hideGallery = false }: { doc: 
               {feature}
             </span>
           ))}
+        </div>
+
+        <div style={{ marginBottom: 18, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 22 }}>
+          <h3 style={{ margin: "0 0 14px", color: TEXT, fontSize: 20, lineHeight: 1.3 }}>{doc.vault7777Title}</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+            {doc.vault7777Items.map((item) => (
+              <div key={item} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "13px 14px", color: TEXT2, fontSize: 13.5, lineHeight: 1.6 }}>
+                <RichText text={item} />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div data-testid="mini-app-example-grid" className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-4">

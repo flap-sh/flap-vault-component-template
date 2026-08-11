@@ -31,7 +31,7 @@ Choose the example by purpose: start with `flap-gamefi-arena` for interactive ga
 | Runtime helpers | Artifact-relative asset URLs and Draco/KTX2 decoder URLs; no Drei/CDN default fallback |
 | Packaging | Source format 6, E2E report v2, recursive source/asset hashes, shaders and pinned dependencies in `component.mjs`, content-addressed binary assets under `assets/**` |
 | Deterministic state | Root exposes `data-flap-3d-state="loading|ready|fallback|error"` and `data-flap-3d-renderer="webgl2|webgl1|2d"` |
-| Review | `manual-review/mini-app-3d`, plus font license/provenance and performance/fallback review signals |
+| Review | 7777 Vault UI emits `manual-review/vault-ui-3d`; 8888 Mini App emits `manual-review/mini-app-3d`; both also surface font license/provenance and performance/fallback review signals |
 
 ## What remains blocked
 
@@ -72,6 +72,20 @@ const textureUrl = typeof textureAsset === "string" ? textureAsset : textureAsse
 - Performance guidance may warn before the security limit blocks the package.
 
 ## Authoring and proof
+
+For a 7777 Vault UI, keep `manifest.mode` omitted. Provide an explicit real deployed `7777` proof token; scaffold does not substitute the standard 8888 Mini App preview token for this surface.
+
+```bash
+yarn vault:scaffold my-3d-vault \
+  --name "My 3D Vault UI" \
+  --capability three-r3f-v1 \
+  --chain 56 \
+  --factory 0xRealFactory \
+  --token 0xRealDeployedTokenEnding7777 \
+  --locales en,zh
+```
+
+For an 8888 Mini App, use token-only binding plus bilingual `displayTitle`:
 
 ```bash
 yarn vault:scaffold my-3d-app \
