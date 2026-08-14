@@ -1456,6 +1456,40 @@ export default function SelftestVault(_props: VaultComponentProps) {
   passed.push("declared static fetch URL is exempt only at the fetch argument");
   passed.push("declared fetch review output includes exact URL and query params");
 
+  const externalContractReviewSlug = `${FIXTURE_PREFIX}-external-contract-review`;
+  writeVault(externalContractReviewSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [
+          {
+            chainId: 56,
+            factoryAddress: FACTORY,
+            tokenAddresses: [TOKEN],
+            externalContracts: [
+              {
+                address: EXTERNAL_CONTRACT,
+                label: "Settlement Machine",
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  });
+  const externalContractReviewCheck = runVaultCheck(externalContractReviewSlug, { silent: true });
+  assertRule("declared external contracts require manual review", externalContractReviewCheck, "manual-review/external-contract", "warning");
+  assert.deepEqual(externalContractReviewCheck.review.externalContracts, [
+    {
+      chainId: 56,
+      address: EXTERNAL_CONTRACT,
+      label: "Settlement Machine",
+      field: "match.bindings[0].externalContracts[0]",
+      severity: "warning",
+      ruleId: "manual-review/external-contract",
+    },
+  ]);
+  passed.push("external contract review output prints declared fixed contract targets");
+
   const validFrameSlug = `${FIXTURE_PREFIX}-valid-frame`;
   writeVault(validFrameSlug, {
     manifest: baseManifest({

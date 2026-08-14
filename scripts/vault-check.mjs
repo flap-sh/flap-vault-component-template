@@ -266,6 +266,7 @@ const FIX_HINTS = {
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
   "endpoint-policy/direct-fetch": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
+  "manual-review/external-contract": "Fixed extra contract targets are review candidates only. Confirm the address, role, write/approval/value exposure, and deployment provenance before publish.",
   "manual-review/external-link": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it.",
   "frame-policy/invalid-frames": "Set manifest.externalFrames to a non-empty array of reviewed frame declarations, or remove it.",
   "frame-policy/invalid-frame-declaration": "Each externalFrames entry must include id, provider, src, and title only.",
@@ -3132,7 +3133,7 @@ function collectManifestContractPolicy(manifest) {
   return { builtIn, external, all };
 }
 
-function checkExternalContracts(value, field, builtInAddresses = new Set()) {
+function checkExternalContracts(value, field, builtInAddresses = new Set(), bindingEntry = {}) {
   const issues = [];
   if (!Array.isArray(value) || value.length === 0) {
     issues.push(issue(BLOCKING, "manifest-binding/invalid-external-contract-list", `${field} must be a non-empty array when provided.`, { field }));
@@ -3164,6 +3165,19 @@ function checkExternalContracts(value, field, builtInAddresses = new Set()) {
         issues.push(issue(BLOCKING, "manifest-binding/duplicate-address", `${entryField}.address is already covered by this binding's factoryAddress, tokenAddresses, or vaultAddresses.`, { field: `${entryField}.address` }));
       } else {
         seen.set(normalized, entryField);
+        issues.push(
+          issue(
+            WARNING,
+            "manual-review/external-contract",
+            `Declared external contract ${contractEntry.label || "<unlabeled>"} at ${contractEntry.address} requires Flap review before publish.`,
+            {
+              field: entryField,
+              chainId: bindingEntry.chainId,
+              address: contractEntry.address,
+              label: contractEntry.label,
+            },
+          ),
+        );
       }
     }
     if (!isNonEmptyString(contractEntry.label) || contractEntry.label.trim().length < 2) {
@@ -3594,7 +3608,7 @@ function checkManifest(manifest, folderName) {
               ...(bindingEntry.vaultAddresses || []).map(normalizeAddress),
             ].filter(Boolean),
           );
-          issues.push(...checkExternalContracts(bindingEntry.externalContracts, `${field}.externalContracts`, builtInAddresses));
+          issues.push(...checkExternalContracts(bindingEntry.externalContracts, `${field}.externalContracts`, builtInAddresses, bindingEntry));
         }
       }
       for (const [chainId, factoryField] of factoryFieldsByChain.entries()) {
@@ -4314,6 +4328,9 @@ function buildAgentNextActions(issues) {
     frameId: item.frameId,
     provider: item.provider,
     src: item.src,
+    address: item.address,
+    label: item.label,
+    chainId: item.chainId,
     url: item.url,
     asset: item.asset,
     bytes: item.bytes,
@@ -4382,6 +4399,17 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
+  const externalContracts = issues
+    .filter((item) => item.ruleId === "manual-review/external-contract" && item.address)
+    .map((item) => ({
+      chainId: item.chainId,
+      address: item.address,
+      label: item.label,
+      field: item.field,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
   const fullscreenLayouts = issues
     .filter((item) => item.ruleId === "manual-review/fullscreen-layout")
     .map((item) => ({
@@ -4428,7 +4456,7 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames, externalLinks, fullscreenLayouts, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
+  return { externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
 }
 
 function buildCheckReport(folderName, issues) {
