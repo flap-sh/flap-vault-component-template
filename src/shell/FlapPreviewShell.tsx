@@ -487,7 +487,7 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
       <div className="min-h-screen bg-background">
         <FlapNavbar manifest={manifest} />
         <div className={isFullscreenLayout ? undefined : "xl:pr-[408px]"}>
-          <div data-vault-e2e-scope="vault-preview">
+          <div>
             <PreviewTaxInfoFrame fullscreen={isFullscreenLayout}>{children}</PreviewTaxInfoFrame>
           </div>
         </div>
@@ -721,7 +721,7 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
                   </div>
                 </div>
               ) : (
-                <div className="border border-[#484B51] bg-transparent p-4 sm:p-6">{children}</div>
+                <div data-vault-e2e-scope="vault-preview" className="border border-[#484B51] bg-transparent p-4 sm:p-6">{children}</div>
               )}
             </div>
           </CardContent>
@@ -860,7 +860,7 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
                 </div>
               </div>
             ) : (
-              <div className="min-h-[420px] w-full min-w-0 border border-[#484B51] bg-transparent p-4 sm:p-6">{children}</div>
+              <div data-vault-e2e-scope="vault-preview" className="min-h-[420px] w-full min-w-0 border border-[#484B51] bg-transparent p-4 sm:p-6">{children}</div>
             )}
           </div>
         </CardContent>

@@ -328,10 +328,10 @@ function layoutCheckScript(skipRiskStatus = false) {
     height: Math.round(rect.height),
   });
 
-  if (document.documentElement.scrollWidth > document.documentElement.clientWidth + tolerance) {
-    addIssue("layout/horizontal-overflow", "Document has horizontal overflow.", {
-      scrollWidth: document.documentElement.scrollWidth,
-      clientWidth: document.documentElement.clientWidth,
+  if (scope.scrollWidth > scope.clientWidth + tolerance) {
+    addIssue("layout/horizontal-overflow", "Vault business UI has horizontal overflow.", {
+      scrollWidth: scope.scrollWidth,
+      clientWidth: scope.clientWidth,
     });
   }
 
@@ -417,8 +417,8 @@ function layoutCheckScript(skipRiskStatus = false) {
   return {
     issues,
     metrics: {
-      documentScrollWidth: document.documentElement.scrollWidth,
-      documentClientWidth: document.documentElement.clientWidth,
+      documentScrollWidth: scope.scrollWidth,
+      documentClientWidth: scope.clientWidth,
       controlCount: controls.length,
       textNodeCount: textElements.length,
       riskVisible: skipRiskStatus ? true : Boolean(riskElement),

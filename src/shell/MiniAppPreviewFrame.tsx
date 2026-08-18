@@ -91,7 +91,6 @@ export function MiniAppPreviewFrame({ children }: { children: ReactNode }) {
         <div
           ref={containerRef}
           className="mini-app-artifact-shell relative flex min-h-[420px] w-full min-w-0 flex-1 overflow-hidden bg-[#1D1D1D]"
-          data-vault-e2e-scope="vault-preview"
         >
           <button
             type="button"
@@ -104,7 +103,7 @@ export function MiniAppPreviewFrame({ children }: { children: ReactNode }) {
           </button>
 
           <div className="mini-app-artifact-content min-h-0 w-full min-w-0 overflow-auto">
-            <div className="h-full min-h-full w-full min-w-0">{children}</div>
+            <div data-vault-e2e-scope="vault-preview" className="h-full min-h-full w-full min-w-0">{children}</div>
           </div>
         </div>
       </section>
