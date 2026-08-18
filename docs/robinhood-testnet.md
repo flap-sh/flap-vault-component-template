@@ -8,7 +8,7 @@ Robinhood Testnet is accepted as a Vault UI preview and E2E proof chain with:
 - explorer: `https://explorer.testnet.chain.robinhood.com`
 - E2E token policy: `robinhood-testnet`
 
-The local wallet chain selector exposes both Robinhood mainnet and Robinhood Testnet. Both entries use the same `public/robinhood.png` chain logo copied from flap.sh; the Flap application mark in `public/logo.png` is not a chain logo.
+The local wallet chain selector exposes both Robinhood mainnet and Robinhood Testnet. Both entries use the same `public/robinhood.png` chain logo copied from flap.sh; the Flap application mark in `public/logo.png` is not a chain logo. Artifact TaxInfo previews use `https://utter.cash/robinhood/...` on mainnet and `https://test.utter.cash/robinhood-testnet/...` on testnet.
 
 Starting with `@flapsdk/vault-runtime@0.1.23`, chain `46630` is a full host-runtime chain: it resolves the Robinhood Testnet explorer and network label, uses the `robinhood-testnet` flap.sh presentation slug, and reads live token lifecycle/tax state through the deployed Portal, tax helper, and VaultPortal contracts. The standard E2E token remains a separate proof requirement and must use one of the deployed Robinhood proof tokens below.
 
