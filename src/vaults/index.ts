@@ -57,6 +57,12 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./flap-gamefi-arena/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./flap-gamefi-arena/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
+  "myx-tax-token-vault": {
+    folderName: "myx-tax-token-vault",
+    loadComponent: () => import("./myx-tax-token-vault/Component"),
+    loadManifest: () => import("./myx-tax-token-vault/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./myx-tax-token-vault/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
 };
 
 export function getVaultFolderNames() {
