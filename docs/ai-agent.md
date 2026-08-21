@@ -189,6 +189,8 @@ Use:
 - The component to start at the first Vault-specific business section below `Vault Information`.
 - `VaultBanner` only when the target host surface truly lacks a standard shared summary/header block. Do not default to a component-owned top banner.
 
+If a legacy Vault calculates a native protocol or VRF fee from `tx.gasprice`, do not hardcode a gas-price table and do not choose the maximum of several quotes. Read one live value with `sdk.getGasPrice()`, use that exact `gasPrice` for the quote read, and pass it unchanged to both `sdk.simulateContract(...)` and `sdk.writeContract(...)`. Keep the quoted protocol fee in `value`; `gasPrice` and optional `gas` only control transaction execution. The runtime caps explicit write overrides, and `gas` should normally be omitted so the wallet can estimate it.
+
 Do not use:
 
 - Direct wallet APIs such as `window.ethereum`, injected wallet providers such as `web3.currentProvider`, EIP-6963 provider discovery, wallet-client/account signing utilities, or raw provider `request` / `send` / signing / transaction RPC methods.

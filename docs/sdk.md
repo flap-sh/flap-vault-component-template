@@ -14,6 +14,7 @@ import { useFlapSdk, useVaultContext, useFlapI18n, useFlapNotify, useFlapWallet 
 
 ```ts
 sdk.readContract<T>(request)
+sdk.getGasPrice()
 sdk.simulateContract(request)
 sdk.writeContract(request)
 sdk.waitForTx(hash)
@@ -24,6 +25,32 @@ sdk.openExplorerTx(hash)
 ```
 
 `sdk.readContract(...)` accepts an optional `account` field. Use it when a view function depends on `msg.sender`, for example `sdk.readContract({ contract: "vault", address: context.vaultAddress, abi: vaultAbi, functionName: "myInfo", account: context.userAddress })`.
+
+For a legacy transaction whose contract quote depends on `tx.gasprice`, read one current value with `sdk.getGasPrice()` and pass that exact `gasPrice` through the quote read, simulation, and write. `readContract(...)` forwards `gasPrice` as the `eth_call` transaction context; `simulateContract(...)` and `writeContract(...)` forward both optional `gasPrice` and `gas` fields. Do not use unrelated fixed gas-price tables for a live quote.
+
+```ts
+const gasPrice = await sdk.getGasPrice();
+const nativeFee = await sdk.readContract<bigint>({
+  contract: "vault",
+  address: context.vaultAddress,
+  abi: vaultAbi,
+  functionName: "quoteNativeFee",
+  gasPrice,
+});
+
+const request = {
+  contract: "vault",
+  address: context.vaultAddress,
+  abi: vaultAbi,
+  functionName: "execute",
+  value: nativeFee,
+  gasPrice,
+};
+await sdk.simulateContract(request);
+const hash = await sdk.writeContract(request);
+```
+
+Explicit write overrides are opt-in and guarded by the runtime. `gasPrice` must be positive and no more than two times the current network suggestion; `gas`, when supplied, must be positive and no more than 5,000,000. A component should normally omit `gas` so the wallet can estimate it. These fields describe transaction execution; they do not replace the native `value` required by a contract for VRF or other protocol fees.
 
 ABI methods with multiple return values are tuple arrays at runtime. Even if the ABI names the outputs, `returns (uint256 currentPool, uint256 totalReceived)` should be read as `readonly [currentPool: bigint, totalReceived: bigint]`, then mapped into object-shaped UI state if that is easier to render. Do not type a multi-output `sdk.readContract` call as an object interface. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
 

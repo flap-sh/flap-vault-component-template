@@ -319,10 +319,14 @@ export interface ContractReadRequest {
   args?: unknown[];
   /** Optional call account for view functions that depend on msg.sender. */
   account?: Address;
+  /** Optional legacy gas price used as the eth_call transaction context. */
+  gasPrice?: bigint;
 }
 
 export interface ContractWriteRequest extends ContractReadRequest {
   value?: bigint;
+  /** Optional gas limit. The runtime rejects values above its component safety ceiling. */
+  gas?: bigint;
 }
 
 export interface SimulateResult {
@@ -368,6 +372,8 @@ export interface FlapVaultSdk {
   i18n: FlapI18n;
   notify: FlapNotify;
   wallet: FlapWallet;
+  /** Returns the current legacy gas-price suggestion for the runtime chain. */
+  getGasPrice(): Promise<bigint>;
   readContract<T = unknown>(request: ContractReadRequest): Promise<T>;
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;
