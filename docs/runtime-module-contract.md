@@ -144,12 +144,20 @@ The component should consume:
 - `context.explorerBaseUrl` for explorer-only links
 - `sdk.wallet.isWrongNetwork`
 - `sdk.wallet.switchChain()`
+- `sdk.getGasPrice()`
+- `sdk.getBlockNumber()`
+- `sdk.getContractEvents(...)`
 - `sdk.readContract(...)`
+- `sdk.simulateContract(...)`
 - `sdk.writeContract(...)`
 - `sdk.readOracle(...)` when approved/provisioned
 - `sdk.readNftMetadata({ tokenId })` for generic Vault V2 NFT media selected by runtime-owned `Vault.nft()` and `NFT.tokenURI(tokenId)` ABI calls
 
 `sdk.readContract(...)` may include `account` for read-only contract functions whose return value depends on `msg.sender`. Hosts must forward that field to their public client instead of forcing components to use simulation for read-only user-state queries.
+
+Historical event reads must go through `sdk.getBlockNumber()` and `sdk.getContractEvents(...)`, not a component-owned RPC transport. The shared runtime resolves the latest block once per call, rejects negative or over-20,000-block ranges, splits provider calls into spans of at most 1,000 blocks, caps event-query concurrency at four, and preserves ascending range order in the flattened result. Hosts that provide the shared runtime package inherit this behavior without adding a separate event-log shim.
+
+Legacy contracts may also derive a native protocol fee from `tx.gasprice`. For those contracts only, the component should obtain one live value from `sdk.getGasPrice()` and pass that exact `gasPrice` through the quote read, `simulateContract(...)`, and `writeContract(...)`. The runtime forwards an optional `gas` limit for writes, but components should normally let the wallet estimate it. The runtime rejects non-positive overrides, gas prices above two times the current network suggestion, and gas limits above 5,000,000. Native protocol or VRF funding still belongs in `value`; gas execution fields do not replace it.
 
 Wrong-network handling belongs in this public component contract as well. A write-capable component should keep its action area visible, render a switch-network state when the connected wallet is on the wrong chain, and only proceed with writes after the wallet matches `context.chainId`.
 

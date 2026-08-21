@@ -2,10 +2,11 @@
 
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useBalance, useChainId, useConnect, useDisconnect, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
-import { formatUnits } from "viem";
+import { decodeFunctionResult, encodeFunctionData, formatUnits } from "viem";
 import { Alert } from "@/src/ui";
 import type {
   Address,
+  ContractEventRequest,
   ContractReadRequest,
   ContractWriteRequest,
   FlapI18n,
@@ -28,6 +29,8 @@ import { fetchOracleJson } from "./oracle";
 import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
 import { RuntimeContext } from "./runtimeStore";
 import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
+import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
+import { readContractEventsInBlockRanges } from "./contractEvents";
 
 export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
 
@@ -215,6 +218,27 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       if (!publicClient || !request.abi || !request.address) {
         throw new Error(`Contract read ${request.functionName} requires a public client, ABI, and address.`);
       }
+      if (request.gasPrice !== undefined) {
+        if (request.gasPrice <= 0n) throw new Error("Contract read gasPrice must be greater than zero.");
+        const data = encodeFunctionData({
+          abi: request.abi,
+          functionName: request.functionName,
+          args: request.args,
+        });
+        const response = await publicClient.call({
+          account: request.account,
+          to: request.address,
+          data,
+          gasPrice: request.gasPrice,
+        });
+        if (!response.data) throw new Error(`Contract read ${request.functionName} returned no data.`);
+        return decodeFunctionResult({
+          abi: request.abi,
+          functionName: request.functionName,
+          args: request.args,
+          data: response.data,
+        }) as T;
+      }
       return (await publicClient.readContract({
         address: request.address,
         abi: request.abi,
@@ -226,12 +250,53 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [publicClient],
   );
 
+  const getGasPrice = useCallback(async (): Promise<bigint> => {
+    if (!publicClient) throw new Error("Gas-price lookup requires a public client.");
+    const gasPrice = await publicClient.getGasPrice();
+    if (gasPrice <= 0n) throw new Error("The runtime returned an invalid network gas price.");
+    return gasPrice;
+  }, [publicClient]);
+
+  const getBlockNumber = useCallback(async (): Promise<bigint> => {
+    if (!publicClient) throw new Error("Block-number lookup requires a public client.");
+    const blockNumber = await publicClient.getBlockNumber();
+    if (blockNumber < 0n) throw new Error("The runtime returned an invalid block number.");
+    return blockNumber;
+  }, [publicClient]);
+
+  const getContractEvents = useCallback(
+    async <T,>(request: ContractEventRequest): Promise<T[]> => {
+      if (!publicClient || !request.abi || !request.address || !request.eventName.trim()) {
+        throw new Error("Contract event lookup requires a public client, ABI, address, and event name.");
+      }
+      const toBlock = typeof request.toBlock === "bigint" ? request.toBlock : await getBlockNumber();
+      return readContractEventsInBlockRanges<T>({
+        fromBlock: request.fromBlock,
+        toBlock,
+        readRange: async ({ fromBlock, toBlock: chunkToBlock }) => {
+          const events = await publicClient.getContractEvents({
+            address: request.address,
+            abi: request.abi,
+            eventName: request.eventName,
+            args: request.args,
+            fromBlock,
+            toBlock: chunkToBlock,
+            strict: request.strict,
+          } as never);
+          return events as unknown as T[];
+        },
+      });
+    },
+    [getBlockNumber, publicClient],
+  );
+
   const simulateContract = useCallback(
     async (request: ContractWriteRequest): Promise<SimulateResult> => {
       assertWalletWriteReady(`simulating ${request.functionName}`);
       if (!publicClient || !request.abi || !request.address) {
         throw new Error(`Contract simulation ${request.functionName} requires a public client, ABI, and address.`);
       }
+      const feeOverrides = await resolveSafeContractWriteFeeOverrides(request, getGasPrice);
       const simulation = await publicClient.simulateContract({
         account: accountAddress,
         address: request.address,
@@ -239,10 +304,11 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
         functionName: request.functionName,
         args: request.args,
         value: request.value,
+        ...feeOverrides,
       });
       return { request, result: simulation.result };
     },
-    [accountAddress, assertWalletWriteReady, publicClient],
+    [accountAddress, assertWalletWriteReady, getGasPrice, publicClient],
   );
 
   const writeContract = useCallback(
@@ -251,16 +317,18 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       if (!walletClient || !request.abi || !request.address) {
         throw new Error(`Contract write ${request.functionName} requires a wallet client, ABI, and address.`);
       }
+      const feeOverrides = await resolveSafeContractWriteFeeOverrides(request, getGasPrice);
       const hash = await walletClient.writeContract({
         address: request.address,
         abi: request.abi,
         functionName: request.functionName,
         args: request.args,
         value: request.value,
+        ...feeOverrides,
       });
       return hash as Address;
     },
-    [assertWalletWriteReady, walletClient],
+    [assertWalletWriteReady, getGasPrice, walletClient],
   );
 
   const waitForTx = useCallback(
@@ -371,6 +439,9 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       i18n: i18nApi,
       notify,
       wallet,
+      getGasPrice,
+      getBlockNumber,
+      getContractEvents,
       readContract,
       simulateContract,
       writeContract,
@@ -381,7 +452,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [i18nApi, notify, openExplorerTx, readContract, readNftMetadata, readOracle, refetch, runtimeContext, simulateContract, version, waitForTx, wallet, writeContract],
+    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, readContract, readNftMetadata, readOracle, refetch, runtimeContext, simulateContract, version, waitForTx, wallet, writeContract],
   );
 
   return (

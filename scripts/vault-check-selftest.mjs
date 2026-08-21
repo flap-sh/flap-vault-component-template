@@ -2430,12 +2430,13 @@ export default function SelftestVault(_props: VaultComponentProps) {
   void createContractEventFilter({ address: rogueLogAddress, abi: [], eventName: "Transfer" });
   void getLogs({ address: rogueLogAddress });
   void estimateContractGas({ address: rogueLogAddress, abi: [], functionName: "sync" });
+  void sdk.getContractEvents({ address: rogueLogAddress, abi: [], eventName: "Transfer", fromBlock: 0n, toBlock: 1n });
   return <div>{sdk.i18n.t("title")}</div>;
 }
 `,
   });
   const contractEventMethodCheck = runVaultCheck(contractEventMethodSlug, { silent: true });
-  for (const methodName of ["watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"]) {
+  for (const methodName of ["watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas", "getContractEvents"]) {
     assert.ok(
       contractEventMethodCheck.issues.some((item) => item.ruleId === "contract-boundary/undeclared-contract-address" && item.message.startsWith(`${methodName} address source`)),
       `${methodName} address source should be checked`,
@@ -2460,6 +2461,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   void sdk.readContract({ contract: "token", address: wrappedNativeToken, abi: [], functionName: "symbol" });
   void sdk.readContract({ contract: "token", address: nativeToken, abi: [], functionName: "symbol" });
   void sdk.readContract({ contract: "token", address: baseToken, abi: [], functionName: "symbol" });
+  void sdk.getContractEvents({ address: sdk.context.vaultAddress, abi: [], eventName: "Updated", fromBlock: 0n, toBlock: 1n });
   return <div>{sdk.i18n.t("title")}</div>;
 }
 `,

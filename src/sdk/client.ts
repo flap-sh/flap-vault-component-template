@@ -16,6 +16,7 @@ export { useFlapWallet } from "./useFlapWallet";
 export type {
   ActionAvailabilityStage,
   Address,
+  ContractEventRequest,
   ContractReadRequest,
   ContractWriteRequest,
   FeeMode,
