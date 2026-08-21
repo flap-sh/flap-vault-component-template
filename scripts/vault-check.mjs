@@ -107,7 +107,7 @@ const APPROVED_CONTRACT_LABEL_RE = /\b(?:vault|token|nft)\b/i;
 const APPROVED_CONTRACT_ADDRESS_KEYWORD_RE =
   /(paymenttoken|quotetoken|dividendtoken|rewardtoken|staketoken|taxtoken|targettoken|targetasset|approvedbuybacktoken|proposedtoken|nftaddress|nft|lptoken|assettoken|underlyingtoken|buybacktoken|feevaultaddress|feevault|wrappednativetoken|wrappednative|nativetoken|basetoken)/i;
 const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|oracle|aggregator|pair|amm|treasury|governor)/i;
-const CONTRACT_INTERACTION_METHODS = ["readContract", "simulateContract", "writeContract", "watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"];
+const CONTRACT_INTERACTION_METHODS = ["readContract", "simulateContract", "writeContract", "getContractEvents", "watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"];
 const CONTRACT_LABEL_REQUIRED_METHODS = new Set(["readContract", "simulateContract", "writeContract"]);
 const FORBIDDEN_UI_OPERATOR_FUNCTION_NAMES = new Set(["setConfig", "setSwapPath", "setSplit"]);
 const CONTRACT_INTERACTION_METHOD_RE = new RegExp(`^(?:${CONTRACT_INTERACTION_METHODS.join("|")})\\b`, "u");
