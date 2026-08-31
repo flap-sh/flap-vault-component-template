@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -87,6 +88,26 @@ async function expectRejection(task, messagePattern, label) {
     throw new Error(`${label} rejected with an unexpected error: ${message}`);
   }
   throw new Error(`${label} unexpectedly succeeded.`);
+}
+
+async function createPackPreview(packageDir) {
+  const npmCacheDir = await mkdtemp(path.join(os.tmpdir(), "flap-runtime-npm-cache-"));
+  try {
+    return JSON.parse(
+      execFileSync("npm", ["pack", "--json", "--dry-run"], {
+        cwd: packageDir,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          npm_config_cache: npmCacheDir,
+          npm_config_update_notifier: "false",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+      }),
+    );
+  } finally {
+    await rm(npmCacheDir, { recursive: true, force: true });
+  }
 }
 
 async function main() {
@@ -257,13 +278,7 @@ async function main() {
     throw new Error(`Maximum accepted NFT image exceeds the host response budget: ${serializedResponseBytes} bytes.`);
   }
 
-  const packPreview = JSON.parse(
-    execFileSync("npm", ["pack", "--json", "--dry-run"], {
-      cwd: packageDir,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }),
-  );
+  const packPreview = await createPackPreview(packageDir);
 
   for (const previewEntry of packPreview) {
     if (previewEntry?.name !== EXPECTED_PACKAGE_NAME) {

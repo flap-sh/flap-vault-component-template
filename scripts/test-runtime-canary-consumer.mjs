@@ -72,7 +72,17 @@ async function main() {
     execFileSync(
       npmCommand(),
       ["install", "--ignore-scripts", "--no-package-lock", "--no-save", "--legacy-peer-deps", tarballPath],
-      { cwd: stagingRoot, stdio: "inherit" },
+      {
+        cwd: stagingRoot,
+        env: {
+          ...process.env,
+          npm_config_audit: "false",
+          npm_config_cache: path.join(stagingRoot, "npm-cache"),
+          npm_config_fund: "false",
+          npm_config_update_notifier: "false",
+        },
+        stdio: "inherit",
+      },
     );
 
     const stagedRuntimeDir = path.join(stagingRoot, "node_modules", "@flapsdk", "vault-runtime");

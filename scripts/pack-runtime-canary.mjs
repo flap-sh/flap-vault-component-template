@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -24,13 +25,24 @@ async function main() {
   runNode("scripts/verify-runtime-package.mjs", ["dist/vault-runtime", "--canary"]);
 
   await mkdir(PACK_DIR, { recursive: true });
-  const packResult = JSON.parse(
-    execFileSync("npm", ["pack", PACKAGE_DIR, "--json", "--pack-destination", PACK_DIR], {
-      cwd: ROOT,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }),
-  );
+  const npmCacheDir = await mkdtemp(path.join(os.tmpdir(), "flap-runtime-npm-cache-"));
+  let packResult;
+  try {
+    packResult = JSON.parse(
+      execFileSync("npm", ["pack", PACKAGE_DIR, "--json", "--pack-destination", PACK_DIR], {
+        cwd: ROOT,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          npm_config_cache: npmCacheDir,
+          npm_config_update_notifier: "false",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+      }),
+    );
+  } finally {
+    await rm(npmCacheDir, { recursive: true, force: true });
+  }
   if (!Array.isArray(packResult) || packResult.length !== 1 || !packResult[0]?.filename) {
     throw new Error(`npm pack returned an unexpected result: ${JSON.stringify(packResult)}.`);
   }
