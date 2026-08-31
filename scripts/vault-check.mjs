@@ -102,6 +102,7 @@ const APPROVED_EXPLORER_ORIGINS = new Set([
 // URL literals), but NOT as fetch/data endpoints. Matches the apex and any
 // subdomain over HTTPS without credentials. x.com covers the official Flap/X (Twitter) links.
 const APPROVED_EXTERNAL_LINK_HOST_SUFFIXES = ["x.com"];
+const BINANCE_IMAGE_HOSTNAME = "bin.bnbstatic.com";
 const DEFAULT_ALLOWED_URL_PREFIXES = [];
 const APPROVED_CONTRACT_LABEL_RE = /\b(?:vault|token|nft)\b/i;
 const APPROVED_CONTRACT_ADDRESS_KEYWORD_RE =
@@ -158,7 +159,7 @@ const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRo
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 const RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE = 2;
 const RISK_STATUS_PRECEDING_BUSINESS_ROW_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow|TxButton)\b/g;
-const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
+const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
 const VISUAL_REFERENCE_EXAMPLE_FOLDERS = new Set([
   "example",
   "dex-listed-example",
@@ -319,6 +320,7 @@ const FIX_HINTS = {
   "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
   "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
   "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with tokenId and alt plus safe image presentation props. It consumes the shared SDK context internally; do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
+  "media-policy/invalid-binance-image": "Import BinanceImage from @/src/ui and pass src plus localized alt without spread props, srcSet, referrerPolicy, loading, or decoding overrides. Static URLs must use HTTPS on the exact bin.bnbstatic.com host; any pathname is allowed.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
   "navigation-policy/invalid-external-link": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials.",
@@ -1318,6 +1320,173 @@ function collectStaticImgSrcUrls(content, file) {
   };
   visit(sourceFile);
   return urls;
+}
+
+function isAllowedBinanceImageUrl(value) {
+  if (typeof value !== "string" || !value || value !== value.trim() || /[\u0000-\u001F\u007F]/u.test(value)) return false;
+  const parsed = parseUrl(value);
+  return Boolean(
+    parsed &&
+      parsed.protocol === "https:" &&
+      parsed.hostname.toLowerCase() === BINANCE_IMAGE_HOSTNAME &&
+      !parsed.username &&
+      !parsed.password &&
+      !parsed.port,
+  );
+}
+
+function importDeclarationForNode(node) {
+  let current = node;
+  while (current && !ts.isSourceFile(current)) {
+    if (ts.isImportDeclaration(current)) return current;
+    current = current.parent;
+  }
+  return null;
+}
+
+function isBinanceImageImportBinding(binding) {
+  const specifier = binding?.node;
+  if (!specifier || !ts.isImportSpecifier(specifier)) return false;
+  const importedName = specifier.propertyName?.text ?? specifier.name.text;
+  const declaration = importDeclarationForNode(specifier);
+  return Boolean(
+    importedName === "BinanceImage" &&
+      declaration &&
+      ts.isStringLiteral(declaration.moduleSpecifier) &&
+      declaration.moduleSpecifier.text === "@/src/ui",
+  );
+}
+
+function collectBinanceImageImportNames(sourceFile) {
+  const names = new Set();
+  const visit = (node) => {
+    if (ts.isImportSpecifier(node)) {
+      const importedName = node.propertyName?.text ?? node.name.text;
+      const declaration = importDeclarationForNode(node);
+      if (importedName === "BinanceImage" && declaration && ts.isStringLiteral(declaration.moduleSpecifier) && declaration.moduleSpecifier.text === "@/src/ui") {
+        names.add(node.name.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return names;
+}
+
+function collectReferencedExpressionRanges(expression, sourceFile, bindings, seen = new Set()) {
+  if (!expression) return [];
+  const current = unwrapTsExpression(expression);
+  if (ts.isIdentifier(current)) {
+    const binding = resolveVisibleLexicalBinding(current, sourceFile, bindings);
+    if (!binding?.isConst || !binding.initializer || seen.has(binding.node)) return [];
+    const nextSeen = new Set(seen);
+    nextSeen.add(binding.node);
+    return collectReferencedExpressionRanges(binding.initializer, sourceFile, bindings, nextSeen);
+  }
+  return [[tsNodeStart(current, sourceFile), current.end]];
+}
+
+function collectBinanceImageUsageAnalysis(content, file) {
+  const issues = [];
+  const allowedUrlRanges = [];
+  let sourceFile;
+  try {
+    sourceFile = createTsSourceFile(file, content);
+  } catch {
+    return { issues, allowedUrlRanges };
+  }
+
+  const bindings = collectLexicalBindings(sourceFile);
+  const binanceImageImportNames = collectBinanceImageImportNames(sourceFile);
+  const urlRegex = /\bhttps?:\/\/[^\s"'`<>)]+/g;
+  const forbiddenProps = new Set(["srcSet", "referrerPolicy", "loading", "decoding"]);
+
+  const visit = (node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      if (!ts.isIdentifier(node.tagName)) {
+        if (ts.isPropertyAccessExpression(node.tagName) && node.tagName.name.text === "BinanceImage") {
+          issues.push(
+            issue(
+              BLOCKING,
+              "media-policy/invalid-binance-image",
+              "Import BinanceImage as a named import from @/src/ui; namespace or member-expression access is not allowed.",
+              { file, line: lineForIndex(content, tsNodeStart(node, sourceFile)), importedFromSharedUi: false },
+            ),
+          );
+        }
+        ts.forEachChild(node, visit);
+        return;
+      }
+      const binding = resolveVisibleLexicalBinding(node.tagName, sourceFile, bindings);
+      const isApprovedComponent = isBinanceImageImportBinding(binding);
+      const isBinanceImageName = node.tagName.text === "BinanceImage" || binanceImageImportNames.has(node.tagName.text);
+      if (!isApprovedComponent && !isBinanceImageName) {
+        ts.forEachChild(node, visit);
+        return;
+      }
+
+      const tagStart = tsNodeStart(node, sourceFile);
+      const tagEnd = node.end;
+      const attributes = node.attributes.properties;
+      const srcAttribute = attributes.find((attribute) => ts.isJsxAttribute(attribute) && jsxAttributeNameText(attribute.name) === "src");
+      const hasAlt = attributes.some((attribute) => ts.isJsxAttribute(attribute) && jsxAttributeNameText(attribute.name) === "alt");
+      const presentForbiddenProps = attributes
+        .filter((attribute) => ts.isJsxAttribute(attribute) && forbiddenProps.has(jsxAttributeNameText(attribute.name)))
+        .map((attribute) => jsxAttributeNameText(attribute.name));
+      const hasSpreadProps = attributes.some((attribute) => ts.isJsxSpreadAttribute(attribute));
+      let sourceExpression = null;
+      if (srcAttribute && ts.isJsxAttribute(srcAttribute)) {
+        if (srcAttribute.initializer && ts.isStringLiteral(srcAttribute.initializer)) sourceExpression = srcAttribute.initializer;
+        else if (srcAttribute.initializer && ts.isJsxExpression(srcAttribute.initializer)) sourceExpression = srcAttribute.initializer.expression;
+      }
+      const staticSource = sourceExpression ? resolveLexicalStaticString(sourceExpression, sourceFile, bindings) : null;
+      const sourceRanges = collectReferencedExpressionRanges(sourceExpression, sourceFile, bindings);
+      const invalidEmbeddedUrls = [];
+      for (const [start, end] of sourceRanges) {
+        const sourceText = content.slice(start, end);
+        for (const match of sourceText.matchAll(urlRegex)) {
+          const url = sanitizeUrlLiteral(match[0]);
+          if (!isAllowedBinanceImageUrl(url)) invalidEmbeddedUrls.push(url);
+        }
+      }
+      const invalidStaticSource = staticSource !== null && !isAllowedBinanceImageUrl(staticSource);
+      const isInvalid =
+        !isApprovedComponent ||
+        !srcAttribute ||
+        !sourceExpression ||
+        !hasAlt ||
+        hasSpreadProps ||
+        presentForbiddenProps.length > 0 ||
+        invalidStaticSource ||
+        invalidEmbeddedUrls.length > 0;
+
+      if (isInvalid) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "media-policy/invalid-binance-image",
+            "BinanceImage must be imported from @/src/ui and receive src plus localized alt without spread props or image-loading/security overrides. Static URLs must use HTTPS on the exact bin.bnbstatic.com host; paths are unrestricted.",
+            {
+              file,
+              line: lineForIndex(content, tagStart),
+              importedFromSharedUi: isApprovedComponent,
+              missingProps: [!srcAttribute || !sourceExpression ? "src" : null, !hasAlt ? "alt" : null].filter(Boolean),
+              forbiddenProps: presentForbiddenProps,
+              hasSpreadProps,
+              invalidUrl: invalidStaticSource ? staticSource : invalidEmbeddedUrls[0] ?? null,
+            },
+          ),
+        );
+      }
+
+      if (isApprovedComponent) {
+        allowedUrlRanges.push([tagStart, tagEnd], ...sourceRanges);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return { issues, allowedUrlRanges };
 }
 
 function collectDirectFetchUsages(content, file, declaredFetchUrls) {
@@ -3885,6 +4054,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const externalLinkRanges = externalLinkUsages.map((usage) => [usage.tagStart, usage.tagEnd]);
     const externalLinkUrlSourceRanges = collectExternalLinkUrlSourceRanges(content, rel, externalLinkUsages);
     const externalLinkAllowedRanges = [...externalLinkRanges, ...externalLinkUrlSourceRanges];
+    const binanceImageAnalysis = collectBinanceImageUsageAnalysis(content, rel);
+    const approvedResourceRanges = [...externalLinkAllowedRanges, ...binanceImageAnalysis.allowedUrlRanges];
     if (manifest?.mode === MINI_APP_MODE && item.name === "Component.tsx" && !hasMiniAppFullHeightRoot(content)) {
       issues.push(
         issue(
@@ -4008,7 +4179,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel, manifest));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
-    issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: externalLinkAllowedRanges }));
+    issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: approvedResourceRanges }));
     if (item.name === "Component.tsx") {
       issues.push(...collectHardcodedVisibleCopyIssues(content, rel));
       issues.push(...collectInlineSvgIssues(content, rel));
@@ -4083,6 +4254,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     issues.push(...collectNftMetadataImageUsageIssues(scanContent, rel));
+    issues.push(...binanceImageAnalysis.issues);
     const requireRegex = /\brequire\s*\(/g;
     for (const match of scanContent.matchAll(requireRegex)) {
       issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
@@ -4189,10 +4361,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     for (const match of scanContent.matchAll(externalUrlRegex)) {
-      if (isIndexWithinRanges(match.index, externalLinkAllowedRanges) || isIndexWithinRanges(match.index, allowedDirectFetchTargetRanges)) continue;
+      if (isIndexWithinRanges(match.index, approvedResourceRanges) || isIndexWithinRanges(match.index, allowedDirectFetchTargetRanges)) continue;
       const url = sanitizeUrlLiteral(match[0]);
       if (!isAllowlistedExternalUrl(url, declaredFrames)) {
-        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not an approved non-fetch resource. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets. For user-facing navigation, use ExternalLink; for images, use host media or IpfsImage/IpfsBackground.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
+        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not an approved non-fetch resource. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets. For user-facing navigation, use ExternalLink; for images, use host media, BinanceImage for exact-host bin.bnbstatic.com, or IpfsImage/IpfsBackground.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
     for (const match of scanContent.matchAll(dataUrlRegex)) {
@@ -4223,7 +4395,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     }
     for (const imageSrc of staticImgSrcUrls) {
       if (/^(?:https?:\/\/|\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(imageSrc.url)) {
-        issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote image sources must use IpfsImage or IpfsBackground with a static cid prop instead of a URL.", imageSrc));
+        issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote image sources must use BinanceImage for exact-host bin.bnbstatic.com URLs, or IpfsImage/IpfsBackground for controlled IPFS media. Raw remote <img> remains blocked.", imageSrc));
       }
     }
     const hardcodedAddressRegex = /["'`]0x[a-fA-F0-9]{40}["'`]/g;

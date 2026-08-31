@@ -180,6 +180,7 @@ Use:
 - `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` to keep stage-gated buttons consistent.
 - `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` when a write flow depends on the active wallet being on `context.chainId`. Keep the write section visible and render a clear switch-network state instead of attempting the write on the wrong chain.
 - `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token header/media data. The template preview shell first asks the same-origin runtime proxy for host presentation data, then falls back to ERC20 `symbol()` / `name()` from the preview `tokenAddress`; mocked image fallback is reserved for the neutral preview fixture only. `tokenAddress` alone is metadata-only in preview; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when token lifecycle state matters.
+- `BinanceImage` from `@/src/ui` for individual images returned by an approved Binance data source. Its `src` may be dynamic. The runtime accepts only absolute HTTPS URLs on the exact `bin.bnbstatic.com` hostname, with no credential or alternate port; there is intentionally no pathname-prefix requirement. It forces lazy loading, async decoding, and `referrerPolicy="no-referrer"`. Paginate or virtualize large lists instead of mounting hundreds or thousands of images at once.
 - `IpfsImage` from `@/src/ui` when a Vault-specific immutable image is unavoidable, or `IpfsBackground` from `@/src/ui` for a decorative full-area/background image. Pass only a static image or collection-directory CID via `cid`. `IpfsImage` may receive a safe relative `path`; if the path is dynamic (for example `${tokenId}.png`), also provide one static `validationPath` sample under the same CID. Do not pass full gateway URLs, metadata CIDs, `ipfs://` values, or dynamic CIDs. `vault:check` validates CID/path syntax without probing every image over the network.
 - `NftMetadataImage` from `@/src/ui` for Vault V2 contract-selected NFT media. Pass only `tokenId` and localized `alt`; it consumes the shared SDK context internally. The generic runtime owns the minimal ABIs, reads `Vault.nft()` from `context.vaultAddress`, then reads `NFT.tokenURI(tokenId)`; do not add these image-only methods to project `VaultABI.ts`, read `tokenURIBase`, inspect `.json` suffixes, or construct metadata URLs in the Vault component. Mode 0/1 data JSON is parsed inside the shared runtime, while mode 2 IPFS/HTTPS metadata and external image bytes go through the host-owned resolver with DNS/public-network, redirect, timeout, byte-size, content-type, and SVG safety limits. Do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, or spread props. Render only visible or paginated token ids; the runtime caches and limits concurrent reads to six.
 - Contract targets limited to `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, runtime payment/quote/dividend token addresses, token/NFT addresses derived from Vault reads, and declared `match.bindings[].externalContracts`. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.
@@ -206,7 +207,7 @@ Do not use:
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
 - Clipboard access or programmatic copy, including `navigator.clipboard`, `document.execCommand("copy")`, aliases, and computed property access. Render the value only; the host owns copy actions.
 - Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, geolocation, permission, or notification APIs.
-- External URLs outside approved explorer/link hosts, `ExternalLink`, reviewed `manifest.externalFrames`, or a direct static `fetch(...)` covered by `manifest.endpoints`. Declaring a URL in `manifest.endpoints` does not authorize images or other non-fetch resources. Full gateway image URLs and remote audio URLs are not allowed; immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid`, and Mini App audio must be packaged as reviewed local top-level audio assets.
+- External URLs outside approved explorer/link hosts, `ExternalLink`, `BinanceImage` on the exact `bin.bnbstatic.com` host, reviewed `manifest.externalFrames`, or a direct static `fetch(...)` covered by `manifest.endpoints`. Declaring a URL in `manifest.endpoints` does not authorize images or other non-fetch resources. Raw remote `<img>` and full gateway image URLs remain blocked; immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid`, and Mini App audio must be packaged as reviewed local top-level audio assets.
 - More than one `ReviewedFrame`, or external frames unless declared in `manifest.externalFrames` and rendered through `ReviewedFrame` with static string literal props that exactly match the declaration.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` targets. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`.
 - Fixed contract targets outside `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, binding-scoped `tokenAddresses`/`vaultAddresses`, or `match.bindings[].externalContracts`.
@@ -217,11 +218,26 @@ Do not use:
 - Standard ERC20 ABI fragments in `VaultABI.ts`; use the SDK export unless the token has custom non-standard methods.
 - Silent action removal when an action is unavailable. Show the panel with a clear disabled or unavailable state instead.
 - Reimplementing token phase detection inside `Component.tsx`; use the host-provided `marketPhase`.
-- Uploading media, fetching private token metadata or token image APIs inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host, or controlled `IpfsImage` / `IpfsBackground` static CIDs when the image is Vault-specific and immutable.
+- Uploading media or fetching private token metadata inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host. An already-approved public data endpoint may return `bin.bnbstatic.com` image URLs for `BinanceImage`; other Vault-specific immutable media must use controlled `IpfsImage` / `IpfsBackground` static CIDs.
 
 ### Vault-Specific Images
 
-Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token presentation. Only use custom media when the image is Vault-specific, immutable, and already pinned outside the Vault UI package.
+Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for host-owned token presentation. Outside the Binance logo exception below, use custom media only when it is Vault-specific, immutable, and already pinned outside the Vault UI package.
+
+For individual stock/token logos returned by an approved data source, use `BinanceImage`. Static and API-returned dynamic `src` values are supported, and every runtime value is checked against the exact hostname. No `/images/web3-data/public/token/logos/` prefix is required:
+
+```tsx
+import { BinanceImage } from "@/src/ui";
+
+<BinanceImage
+  src={asset.logoUrl}
+  alt={i18n.t("assets.logoAlt")}
+  fallback={<span aria-hidden="true">{asset.symbol.slice(0, 2)}</span>}
+  className="size-9 rounded-full object-cover"
+/>
+```
+
+Do not replace it with raw `<img>`, CSS `url(...)`, or a generic remote-image wrapper. `http:`, credentials, alternate ports, subdomains such as `cdn.bin.bnbstatic.com`, and lookalike domains are rejected. Keep only the currently visible page or virtualized window mounted when the data set contains hundreds or thousands of logos.
 
 If a project needs Flap-hosted IPFS availability instead of a developer's personal Pinata gateway, upload the image through the Flap token metadata upload API documented in [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata). Use `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation. The response `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` value. For Vault UI media, fetch that metadata JSON, read its `image` field, strip any gateway URL or `ipfs://` prefix, and keep only the actual image CID.
 
@@ -336,7 +352,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, non-`7777`/`8888` test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, clipboard access and computed copy bypasses, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, operator/admin config methods in `Component.tsx`, IPFS-style non-image resources, full gateway image URLs, invalid `IpfsImage` / `IpfsBackground` CIDs, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, non-`7777`/`8888` test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, clipboard access and computed copy bypasses, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, operator/admin config methods in `Component.tsx`, IPFS-style non-image resources, raw remote images, invalid `BinanceImage` hosts/props, full gateway image URLs, invalid `IpfsImage` / `IpfsBackground` CIDs, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 
