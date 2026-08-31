@@ -315,6 +315,15 @@ yarn runtime:verify-package
 
 They build a packable runtime package under `dist/vault-runtime`, emit a `package.json` with subpath exports, and write a machine-readable `runtime-contract.json`. Before building, the script requires local `HEAD` to exactly match latest `origin/main`, then checks npm latest `@flapsdk/vault-runtime` against the local root version and published `gitHead` so a behind, ahead, diverged, or stale checkout cannot produce an outdated runtime package. This does not change Vault source authoring; it proves that the shared runtime surface can be extracted and npm-packed without forcing `Component.tsx` authors to abandon `@/src/sdk` / `@/src/ui`.
 
+Feature-branch runtime changes use a separate non-release canary path:
+
+```bash
+yarn runtime:pack:canary
+yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/consumer --script typecheck --script build
+```
+
+The canary builder requires a clean committed worktree, derives a private prerelease version from the current git head, omits public publish configuration, runs the same runtime package verifier, and emits a real npm `.tgz` plus SHA-256 under `dist/npm`. The consumer helper validates that exact archive with an isolated npm install, swaps only the consumer's installed runtime while it runs named `package.json` scripts, then restores the original runtime. It does not edit consumer dependency files. Canary success is pre-merge compatibility evidence only; it cannot replace the official-main freshness gate, release version bump, npm publish review, or downstream rollout approval.
+
 The current runtime package also carries the public oracle provisioning surface:
 
 - `VaultRuntimeProvider` accepts `oracleReader`

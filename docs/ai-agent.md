@@ -373,6 +373,16 @@ yarn runtime:verify-package
 That proves the shared runtime surface is still packable for Workbench / host reuse and that the generated `runtime-contract.json` stays in sync.
 `yarn build` and `yarn runtime:package` also run the same exact-`origin/main` git freshness gate and npm latest version gate before producing local build outputs.
 
+Before merge, validate the actual npm archive from the feature branch with the protected canary path:
+
+```bash
+yarn runtime:pack:canary
+yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/flap-artifact-workbench --script typecheck --script lint --script build
+yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/beta-multichain --script test --script lint --script build
+```
+
+`runtime:pack:canary` requires a clean committed worktree. It deliberately bypasses only the exact-`origin/main` release gate, changes the package version to a commit-bound `-canary.<gitHead>` prerelease, sets `private: true`, removes public publish configuration, verifies the package, and writes a SHA-256-addressed handoff result for the generated `.tgz`. It does not publish npm and is not release evidence. `runtime:test:canary` validates installation of that exact tarball in an isolated temporary directory, swaps only the consumer's installed runtime for the requested checks, and restores it afterward; it does not edit `package.json` or `yarn.lock`. After merge and the required version bump, rerun the release commands above from official `main` before publishing.
+
 ## Preview Loop
 
 Start local preview:

@@ -438,6 +438,15 @@ yarn runtime:verify-package
 
 `yarn build` and `yarn runtime:package` use the same official git freshness and npm latest version gates, so a checkout whose `HEAD` does not exactly match latest `origin/main` cannot produce a local build or shared runtime package that appears current.
 
+For an actual npm-tarball compatibility test before the feature branch is merged, use:
+
+```bash
+yarn runtime:pack:canary
+yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/consumer --script typecheck --script build
+```
+
+The canary command requires clean committed source and produces a commit-bound private prerelease package under `dist/npm`; npm publish is disabled for that archive. The consumer helper installs the exact `.tgz` in an isolated temporary directory, swaps only the consumer's installed runtime for the requested checks, then restores it. It never edits the consumer's `package.json` or lockfile. This is pre-merge test evidence only. Publishable packages still require the official `main` freshness gate and release process.
+
 That generated package currently exposes:
 
 - `@flapsdk/vault-runtime/sdk`
@@ -473,6 +482,8 @@ yarn vault:package example
 yarn vault:verify-package dist/example.zip
 yarn runtime:package
 yarn runtime:verify-package
+yarn runtime:pack:canary
+yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/consumer --script typecheck --script build
 yarn preview:smoke
 yarn preview:smoke:real
 yarn ci

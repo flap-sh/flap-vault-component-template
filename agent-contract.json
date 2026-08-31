@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 47,
+  "version": 48,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -200,6 +200,8 @@
     "verifyPackage": "yarn vault:verify-package dist/{folder-name}.zip",
     "runtimePackage": "yarn runtime:package",
     "runtimeVerifyPackage": "yarn runtime:verify-package",
+    "runtimePackCanary": "yarn runtime:pack:canary",
+    "runtimeTestCanaryConsumer": "yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/consumer --script typecheck --script build",
     "previewSmoke": "yarn preview:smoke",
     "previewSmokeReal": "yarn preview:smoke:real",
     "ci": "yarn ci",
@@ -400,6 +402,9 @@
     "risk-status/missing-host-risk-state": { "severity": "blocking", "fixAction": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable." },
     "risk-status/not-prominent-placement": { "severity": "blocking", "fixAction": "Place the contract risk status within the first three Vault business rows, before any preview, hero, banner, showcase, media, chart, or large visual block." },
     "runtime-package/build-failed": { "severity": "blocking", "fixAction": "Fix the runtime package entrypoints or tsup config, then rerun yarn runtime:package." },
+    "runtime-package/canary-consumer-failed": { "severity": "blocking", "fixAction": "Fix the reported consumer or canary package failure. Confirm the previous installed runtime was restored; dependency files are never edited by this helper." },
+    "runtime-package/canary-dirty": { "severity": "blocking", "fixAction": "Commit the intended runtime changes and remove unrelated untracked files, then rerun yarn runtime:pack:canary." },
+    "runtime-package/canary-pack-failed": { "severity": "blocking", "fixAction": "Fix the canary build or verifier failure, keep the worktree clean and committed, then rerun yarn runtime:pack:canary." },
     "runtime-package/verify-failed": { "severity": "blocking", "fixAction": "Build the runtime package first, then verify the generated exports, metadata, and npm pack preview." },
     "security/hardcoded-address": { "severity": "blocking", "fixAction": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts." },
     "svg-policy/unsafe-inline-svg": { "severity": "blocking", "fixAction": "Prefer CSS/HTML card shapes or lucide-react icons. If inline SVG JSX is necessary, keep it to static pure graphic nodes, local fragment refs such as url(#gradient), and no script/event/image/use/foreignObject/external URL/style url()/@import." },
@@ -594,8 +599,20 @@
     {
       "step": "validate-and-package",
       "description": "Run yarn vault:check {folder-name}; fix all blocking issues; run yarn vault:e2e {folder-name}; then run yarn vault:package {folder-name} and yarn vault:verify-package dist/{folder-name}.zip."
+    },
+    {
+      "step": "validate-shared-runtime-canary",
+      "description": "When shared runtime code changes on a feature branch, commit it, run yarn runtime:pack:canary, then test the same generated private .tgz in every affected consumer with yarn runtime:test:canary. Canary evidence never replaces official-main release packaging or publish approval."
     }
   ],
+  "runtimeCanary": {
+    "packCommand": "yarn runtime:pack:canary",
+    "consumerCommand": "yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/consumer --script <package-script>",
+    "sourceRule": "Canary packaging requires a clean committed feature-branch worktree so package gitHead provenance is exact.",
+    "publishRule": "The generated package uses a commit-bound prerelease version, private=true, no public publishConfig, and must never be published or recorded as release provenance.",
+    "consumerRule": "The helper validates the exact tarball through an isolated npm install, swaps only the consumer's installed runtime while running named scripts, and restores it afterward without editing package.json or yarn.lock.",
+    "releaseBoundary": "After merge and the required version bump, run yarn runtime:package and yarn runtime:verify-package from official main before any npm publish or rollout."
+  },
   "sourcePackage": {
     "requiredMarkerFile": "flap-vault-package.json",
     "requiredE2EReportFile": "qa/e2e-report.json",
