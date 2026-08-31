@@ -70,7 +70,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Added
 
-- Added a built-in display-only `bnb-usd-price` runtime oracle for BNB-to-USD conversion, using the same Binance `avgPrice` primary source and Pyth fallback strategy already used by `beta-multichain`.
+- Added a built-in display-only `bnb-usd-price` runtime oracle for BNB-to-USD conversion. It now uses Binance `avgPrice` exclusively and fails closed when Binance is unavailable.
 - Standardized the built-in `bnb-usd-price` response shape as `{ price: number, symbol: string, timestamp: number, source: string }` so Vault UI source packages can consume it through `sdk.readOracle("bnb-usd-price")` without declaring external endpoints.
 
 ### Changed

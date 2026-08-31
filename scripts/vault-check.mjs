@@ -127,10 +127,7 @@ const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
     "bnb-usd-price",
     {
       source: "built-in",
-      endpoints: [
-        "https://api.binance.com/api/v3/avgPrice?symbol=BNBUSDT",
-        "https://hermes.pyth.network/v2/updates/price/latest?ids%5B%5D=0x2f95862b045670cd22bee3114c39763a4a08beeb663b145d283c31d7d1101c4f&encoding=base64&parsed=true",
-      ],
+      endpoints: ["https://api.binance.com/api/v3/avgPrice?symbol=BNBUSDT"],
       allowedParams: [],
       fixedParams: {},
     },
