@@ -1,10 +1,10 @@
-# 7777 Vault UI and 8888 Mini App 3D capability
+# 7777 Vault UI and 7777/8888 Mini App 3D capability
 
-Flap supports standard 3D experiences through the versioned `three-r3f-v1` capability on two explicit surfaces: a mode-less 7777 Vault UI, or a token-scoped 8888 Mini App. It is opt-in and does not widen any unrelated Vault UI permission.
+Flap supports standard 3D experiences through the versioned `three-r3f-v1` capability on three explicit surfaces: a mode-less 7777 Vault UI, a token-scoped 7777 Tax Token Mini App, or a token-scoped 8888 zero-tax Mini App. It is opt-in and does not widen any unrelated Vault UI permission.
 
 `three-r3f-v1` is a stable capability and security boundary, not a dependency-major label. Current source authoring and new Workbench builds use the `react19-r3f9` dependency revision. Existing format-6 source packages and already-published artifacts that record the original `react18-r3f8` revision remain supported; they do not need to rename the capability or change product code solely for this migration.
 
-A 7777 3D Vault UI may use factory, single-Vault, or token bindings, must declare at least one real deployed 7777 proof token, and must keep every declared proof token on the 7777 suffix. It remains in the default Vault shell, must show host-derived contract risk status before the 3D visual, cannot add Mini App audio, and must omit `displayTitle` and `mode`. An 8888 3D Mini App keeps the existing token-only binding, bilingual `displayTitle`, full-height root, audio review, and risk-status exemption. Mixed 7777/8888 3D artifacts are blocked.
+A mode-less 7777 3D Vault UI may use factory, single-Vault, or token bindings, must keep every declared proof token on the 7777 suffix, remains in the default Vault shell, and keeps the host risk-status requirement. A 7777 or 8888 3D Mini App must set `mode: "mini-app"`, use token-only bindings, render a full-height root, provide bilingual `displayTitle`, and follow Mini App audio review. One Mini App artifact must use only 7777 or only 8888 bindings; mixed suffixes are blocked.
 
 ## Live examples
 
@@ -20,8 +20,8 @@ Choose the example by purpose: start with `flap-gamefi-arena` for interactive ga
 
 | Area | `three-r3f-v1` support |
 | --- | --- |
-| Eligibility | Either mode omitted with only real deployed `7777` proof tokens and factory/Vault/token bindings, or `manifest.mode: "mini-app"` with token-only real deployed `8888` bindings; both declare `capabilities: ["three-r3f-v1"]` |
-| Missing project test token | A 7777 Vault UI must pass an explicit real deployed `--token 0x...7777`. Only the 8888 Mini App path may omit `--token`; scaffold then uses Flap's deployed standard Mini App preview token for the selected supported chain. It is preview/E2E proof only, not the project's production CA restriction. |
+| Eligibility | Either mode omitted with only real deployed `7777` proof tokens and factory/Vault/token bindings, or `manifest.mode: "mini-app"` with token-only bindings that are all `7777` or all `8888`; all surfaces declare `capabilities: ["three-r3f-v1"]` |
+| Missing project test token | A 7777 Vault UI or 7777 Mini App must pass an explicit real deployed `--token 0x...7777`. An 8888 Mini App may omit `--token`; scaffold then uses Flap's deployed standard 8888 Mini App preview token for preview/E2E proof only. |
 | Current pinned packages | `react@19.2.8`, `three@0.185.1`, `@react-three/fiber@9.7.0`, `@react-three/drei@10.7.8`, `@react-three/postprocessing@3.0.4` (`react19-r3f9`) |
 | Accepted legacy revision | Existing packages/artifacts with `react@18.3.1`, `three@0.185.1`, `@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, and `@react-three/postprocessing@2.19.1` (`react18-r3f8`) remain valid under the same `three-r3f-v1` capability. |
 | Source | Recursive, statically reachable `.ts` and `.tsx` inside the current Vault folder |
@@ -31,7 +31,7 @@ Choose the example by purpose: start with `flap-gamefi-arena` for interactive ga
 | Runtime helpers | Artifact-relative asset URLs and Draco/KTX2 decoder URLs; no Drei/CDN default fallback |
 | Packaging | Source format 6, E2E report v2, recursive source/asset hashes, shaders and pinned dependencies in `component.mjs`, content-addressed binary assets under `assets/**` |
 | Deterministic state | Root exposes `data-flap-3d-state="loading|ready|fallback|error"` and `data-flap-3d-renderer="webgl2|webgl1|2d"` |
-| Review | 7777 Vault UI emits `manual-review/vault-ui-3d`; 8888 Mini App emits `manual-review/mini-app-3d`; both also surface font license/provenance and performance/fallback review signals |
+| Review | Mode-less 7777 Vault UI emits `manual-review/vault-ui-3d`; both 7777 and 8888 Mini Apps emit `manual-review/mini-app-3d`; all surface font license/provenance and performance/fallback review signals |
 
 ## What remains blocked
 
@@ -85,13 +85,14 @@ yarn vault:scaffold my-3d-vault \
   --locales en,zh
 ```
 
-For an 8888 Mini App, use token-only binding plus bilingual `displayTitle`:
+For a 7777 Tax Token or 8888 zero-tax Mini App, add `--mode mini-app`, use token-only bindings, and keep every token on the same suffix:
 
 ```bash
 yarn vault:scaffold my-3d-app \
+  --mode mini-app \
   --capability three-r3f-v1 \
   --chain 56 \
-  --token 0xRealDeployedTokenEnding8888 \
+  --token 0xRealDeployedTokenEnding7777Or8888 \
   --display-title-zh "三维应用" \
   --display-title-en "3D App"
 

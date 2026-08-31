@@ -90,22 +90,22 @@
       },
       "miniApp": {
         "label": "Mini App SOP",
-        "title": "Mini App is a fullscreen business component bound to an 8888 token.",
-        "description": "Mini App is still a Flap controlled source package: it ships the same four core Vault files, may additionally package reviewed top-level audio assets, and still runs vault:check, vault:e2e, and vault:package. The difference is that it uses the Mini APP preview shell instead of the default Vault Information shell, and routing is bound by token address. The current test-stage scope is real 8888 tokens, the no-tax path, and the U-pool direction, customized case by case through manual review/audit. Mini App allows broader external capabilities and creative expression within Flap's supported range, but publish review is stricter and more human-led; the code checker is an assistive gate, not the full approval decision.",
+        "title": "Mini App is a fullscreen business component bound to a 7777 or 8888 token.",
+        "description": "Mini App is still a Flap controlled source package: it ships the same four core Vault files, may additionally package reviewed top-level audio assets, and still runs vault:check, vault:e2e, and vault:package. The difference is that it uses the Mini APP preview shell instead of the default Vault Information shell, and routing is bound by token address. Use a real 7777 token for the Tax Token path or a real 8888 token for the zero-tax path; one artifact must not mix the two suffix families. Mini App allows broader external capabilities and creative expression within Flap's supported range, but publish review is stricter and more human-led; the code checker is an assistive gate, not the full approval decision.",
         "quickStart": {
           "kicker": "Mini App Quick Start",
-          "title": "Tell the Agent the mode, 8888 token, and Mini APP preview shell up front.",
-          "description": "Mini App is not a free-form webpage container. When you paste this prompt, make token-only binding, the 8888 suffix, the current no-tax/U-pool test-stage scope, a full-height root layout, and the human-review notes for external capabilities explicit.",
+          "title": "Tell the Agent the mode, token family, and Mini APP preview shell up front.",
+          "description": "Mini App is not a free-form webpage container. When you paste this prompt, make token-only binding, the 7777 Tax Token or 8888 zero-tax token family, a full-height root layout, and the human-review notes for external capabilities explicit.",
           "promptLabel": "Mini App Prompt Template",
-          "prompt": "Please generate a Flap Mini App source package in this repository. Folder name is <mini-app-folder>, Workbench internal UI name is <My Mini App>, flap.sh displayTitle is {\"zh\":\"<中文名>\",\"en\":\"<English Name>\"}; manifest.mode must be mini-app. Target network is <BNB Testnet | BNB Chain>. Binding must use only chainId + match.bindings[].tokenAddresses. tokenAddress is <real deployed ERC20 0x... ending in 8888>; do not write factoryAddress, vaultAddresses, global tokenAddresses, restrictTokenAddresses, or caPolicy. For the current test stage, describe the requirement as a real-8888, no-tax, U-pool Mini App, and assume final publish is case-by-case manual review/audit. The Component root layout must include min-h-[100vh], min-h-screen, min-h-full, or h-full. Preview uses the Mini APP shell, factoryAddress and vaultAddress are zero addresses, and the artifact area is fullscreen. Within Flap's supported range, Mini App can carry broader creative ideas and broader external capabilities, but the checker is only an assistive code gate and publish requires stricter human review; list every external endpoint, resource, frame, external link, fixed contract target, and audio/visual asset with purpose, data source, license, risk, and fallback. If BGM or sound effects are needed, put lowercase top-level audio files directly under src/vaults/<folder> and statically import them from Component.tsx; allowed extensions are .mp3, .wav, .ogg, .m4a, and .aac. Do not use remote audio or hidden autoplay; provide visible mute/pause controls and mobile fallback. Mini App only skips the default Vault UI host risk-status tag check; every other source-package, i18n, contract-boundary, and E2E rule still applies. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then implement, preview, run vault:check, vault:e2e, vault:package, and vault:verify-package."
+          "prompt": "Please generate a Flap Mini App source package in this repository. Folder name is <mini-app-folder>, Workbench internal UI name is <My Mini App>, flap.sh displayTitle is {\"zh\":\"<中文名>\",\"en\":\"<English Name>\"}; manifest.mode must be mini-app. Target network is <BNB Testnet | BNB Chain>. Token family is <7777 Tax Token | 8888 zero-tax token>. Binding must use only chainId + match.bindings[].tokenAddresses. tokenAddress is <real deployed ERC20 0x... ending in the selected 7777 or 8888 suffix>; do not write factoryAddress, vaultAddresses, global tokenAddresses, restrictTokenAddresses, or caPolicy, and never mix suffix families in one artifact. The Component root layout must include min-h-[100vh], min-h-screen, min-h-full, or h-full. Preview uses the Mini APP shell, factoryAddress and vaultAddress are zero addresses, and the artifact area is fullscreen. For 7777, treat buy tax, sell tax, and Marketing Wallet as live host/on-chain data; do not hardcode values or claim 100% allocation unless marketBps is exactly 10000. Within Flap's supported range, Mini App can carry broader creative ideas and broader external capabilities, but the checker is only an assistive code gate and publish requires stricter human review; list every external endpoint, resource, frame, external link, fixed contract target, and audio/visual asset with purpose, data source, license, risk, and fallback. If BGM or sound effects are needed, put lowercase top-level audio files directly under src/vaults/<folder> and statically import them from Component.tsx; allowed extensions are .mp3, .wav, .ogg, .m4a, and .aac. Do not use remote audio or hidden autoplay; provide visible mute/pause controls and mobile fallback. Mini App only skips the default Vault UI host risk-status tag check; every other source-package, i18n, contract-boundary, and E2E rule still applies. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then implement, preview, run vault:check, vault:e2e, vault:package, and vault:verify-package."
         },
         "summary": {
           "kicker": "Mode Definition",
-          "title": "In one line: Mini App = token-scoped 8888 artifact, not factory/Vault-scoped UI.",
-          "description": "When writing a Mini App, treat it as a controlled Vault UI package with stronger binding and a larger display area. It can feel like a game, campaign screen, or more creative interaction inside the artifact area. The current test-stage intake is real 8888 tokens, the no-tax path, and the U-pool direction. Within Flap's supported range, external capabilities are broader than the default Custom UI path, but review is more human-led.",
+          "title": "In one line: Mini App = token-scoped 7777 or 8888 artifact, not factory/Vault-scoped UI.",
+          "description": "When writing a Mini App, treat it as a controlled Vault UI package with stronger binding and a larger display area. It can feel like a game, campaign screen, or more creative interaction inside the artifact area. Use 7777 for the Tax Token path and 8888 for the zero-tax path. Within Flap's supported range, external capabilities are broader than the default Custom UI path, but review is more human-led.",
           "items": [
-            "Manifest must set `mode: \"mini-app\"` and bind only through `match.bindings[].tokenAddresses` using a real 8888 token.",
-            "Current test-stage Mini Apps are case-by-case 8888 no-tax / U-pool builds and must pass manual review/audit.",
+            "Manifest must set `mode: \"mini-app\"` and bind only through `match.bindings[].tokenAddresses` using real tokens that all end in 7777 or all end in 8888.",
+            "7777 Tax Token and 8888 zero-tax Mini Apps both require case-by-case manual review/audit.",
             "Local preview uses the `/mini-app`-style shell: the header shows `MINI APP`, and the artifact content area can be fullscreen.",
             "Only the default Vault UI host risk-status tag check is skipped; all other validation, file-boundary, and package rules still apply.",
             "External capabilities, resources, links, frames, endpoints, and fixed contract targets can be requested within the allowed range, but they must go through stricter human review."
@@ -138,9 +138,9 @@
         ],
         "examples": {
           "kicker": "Shared 3D Examples",
-          "title": "7777 Vault UI and 8888 Mini App now support the same controlled 3D capability.",
+          "title": "7777 Vault UI and 7777/8888 Mini App support the same controlled 3D capability.",
           "description": "Explore Butterfly Farm, Flap Energy Arena, Flap Skies, and the developer-focused 7777 Vault UI fixture. The three 3D demos use the same standard three-r3f-v1 profile across both supported surfaces.",
-          "capabilityLabel": "3D supported · 7777 Vault UI + 8888 Mini App · three-r3f-v1",
+          "capabilityLabel": "3D supported · 7777 Vault UI + 7777/8888 Mini App · three-r3f-v1",
           "capabilityFeatures": [
             "Three r185",
             "React Three Fiber",
@@ -188,12 +188,12 @@
           {
             "topic": "Token rule",
             "custom": "Package proof token must be real deployed ERC20. Standard 7777 Vault UI proof uses `7777`; a 7777 3D Vault UI must keep every proof token on `7777`.",
-            "miniApp": "Bound token must be a real deployed ERC20 and must end in `8888`."
+            "miniApp": "Bound tokens must be real deployed ERC20 contracts and must all end in `7777` or all end in `8888`."
           },
           {
             "topic": "Current stage",
             "custom": "Default Custom Vault UI moves through the Vault business requirement, declared bindings, and checker rules.",
-            "miniApp": "Test-stage Mini Apps are scoped to 8888 no-tax / U-pool builds; publish is case by case and requires manual review/audit."
+            "miniApp": "7777 Tax Token and 8888 zero-tax Mini Apps are supported; publish is case by case and requires manual review/audit."
           },
           {
             "topic": "Risk status",
@@ -269,8 +269,8 @@
         "rules": [
           "`mode` may only be `mini-app`; default custom UI must omit mode.",
           "Mini App binding may use only `tokenAddresses`; do not write factoryAddress or vaultAddresses.",
-          "The Mini App token must end in `8888` and must be a real deployed ERC20.",
-          "The current test stage first supports the 8888 no-tax / U-pool direction; other shapes need manual evaluation before implementation and cannot ship on checker pass alone.",
+          "Every Mini App token must be a real deployed ERC20 and all bindings must consistently end in either `7777` or `8888`.",
+          "Use 7777 for Tax Token Mini Apps and 8888 for zero-tax Mini Apps; both need manual evaluation and cannot ship on checker pass alone.",
           "Mini App must provide `manifest.displayTitle.zh` and `manifest.displayTitle.en`; this is shown on flap.sh Mini App pages.",
           "The root layout must be full-height; missing that class is blocked by `mini-app-layout/missing-full-height-root`.",
           "Animation should prefer local CSS/React. Extra animation libraries, audio, external media, or complex visual resources require human review.",
@@ -280,10 +280,10 @@
           "Mini App only skips the default Vault UI risk-status tag check. It does not skip source-package, E2E, manifest, i18n, or security rules."
         ],
         "doneTitle": "Done means",
-        "doneBody": "manifest.mode=mini-app, token-only 8888 binding, current 8888 no-tax / U-pool test-stage scope, full-height root layout, vault:check blocking=0, E2E covers PC/iPad/H5 plus phase/wrong-network states, and package + verify-package both pass. If broader external capabilities are used, the matching human review must also be complete.",
+        "doneBody": "manifest.mode=mini-app, token-only same-family 7777 or 8888 bindings, full-height root layout, vault:check blocking=0, E2E covers PC/iPad/H5 plus phase/wrong-network states, and package + verify-package both pass. If broader external capabilities are used, the matching human review must also be complete.",
         "vault7777Title": "7777 Vault UI also supports 3D and fullscreen.",
         "vault7777Items": [
-          "Use `capabilities: [\"three-r3f-v1\"]` with manifest.mode omitted for a 7777 Vault UI; it supports the same pinned Three/R3F profile as 8888 Mini App.",
+          "Use `capabilities: [\"three-r3f-v1\"]` with manifest.mode omitted for a 7777 Vault UI; it supports the same pinned Three/R3F profile as 7777/8888 Mini App.",
           "A 7777 3D Vault UI may bind by factory, single Vault, or token, but every proof token must be a real deployed ERC20 ending in `7777`.",
           "Keep the default Vault Information shell, host-derived risk status before the 3D scene, normal i18n/security/contract boundaries, and no Mini App audio/displayTitle/risk exemption.",
           "Use `layout: \"fullscreen\"` only when Flap explicitly asks for a full-screen Vault body; this is available to default Vault UI as a reviewed layout option, not only Mini App."
@@ -294,7 +294,7 @@
       "scopeItems": [
         "Build the Vault UI inside the component structure provided by this template.",
         "Vault V2-standard NFT image display is supported.",
-        "7777 Vault UI can declare `three-r3f-v1` for controlled 3D with the same pinned Three/R3F stack as 8888 Mini App, while keeping the default shell, risk-status, i18n, and security rules.",
+        "7777 Vault UI can declare `three-r3f-v1` for controlled 3D with the same pinned Three/R3F stack as 7777/8888 Mini App, while keeping the default shell, risk-status, i18n, and security rules.",
         "7777 Vault UI can use `layout: \"fullscreen\"` when Flap explicitly requests a reviewed full-screen Vault body; fullscreen is not limited to Mini App.",
         "Use the folder name only for the folder and preview route; vault:scaffold generates the manifest artifactId automatically.",
         "Declare Vault UI binding targets in the manifest with chain plus either factory address or a single Vault address. If a deployment needs a token CA reference list or fixed extra contract targets, declare them only inside the relevant match.bindings[] entry.",

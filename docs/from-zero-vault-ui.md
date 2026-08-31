@@ -92,7 +92,7 @@ Build a controlled Flap Vault UI for:
 - empty/error states:
 - preview URL addresses:
 
-Use the four core files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, call private token metadata APIs, add external navigation, or add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`. Mini Apps may add reviewed top-level audio. A mode-less 7777 Vault UI or token-scoped 8888 Mini App declaring `three-r3f-v1` may recursively add profile-approved source, shaders, and local 3D assets; use `yarn vault:scaffold {folder-name} --capability three-r3f-v1 ...` and keep every file statically reachable from `Component.tsx`.
+Use the four core files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, call private token metadata APIs, add external navigation, or add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`. Mini Apps may add reviewed top-level audio. A mode-less 7777 Vault UI or token-scoped 7777/8888 Mini App declaring `three-r3f-v1` may recursively add profile-approved source, shaders, and local 3D assets; use `yarn vault:scaffold {folder-name} --capability three-r3f-v1 ...` and keep every file statically reachable from `Component.tsx`.
 
 If I do not explicitly request a UI style, use the scaffold default surface / NiePan-style abstract template as the only visual default. Use built-in examples for behavior only, not visual styling.
 
@@ -115,7 +115,7 @@ For the first version, keep the scaffolded default surface and replace placehold
 - Show two or three Vault-specific metrics, not every possible contract field.
 - Keep one primary action area visible. Include input, quote/proof state, warnings, and the approve/write button there.
 - Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for phase gating.
-- For default Vault UI, read current risk status from `readTaxVaultHostContext(context.host)`, place it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a prominent warning if it is missing. For a token-scoped 8888-token Mini App, set `manifest.mode` to `mini-app`; this skips only the risk-status tag checks.
+- For default Vault UI, read current risk status from `readTaxVaultHostContext(context.host)`, place it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a prominent warning if it is missing. For a token-scoped 7777 or 8888 Mini App, set `manifest.mode` to `mini-app`; this skips only the risk-status tag checks.
 - Do not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`.
 - Use the host token name, symbol, and image from `context.tokenName`, `context.tokenSymbol`, and `context.tokenImageUrl`.
 - Use `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` before writes.
@@ -142,7 +142,7 @@ Check these before packaging:
 - The page renders under the host-owned `Vault Information` frame.
 - The component does not duplicate the token breadcrumb, token header, close control, or shell summary.
 - Risk status is visible within the first three business UI rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block.
-- Default Vault UI missing risk status shows a warning; `mode: "mini-app"` is the token-scoped 8888-token Mini App exception.
+- Default Vault UI missing risk status shows a warning; token-scoped 7777 or 8888 Mini Apps set `mode: "mini-app"` and are the exception.
 - English and Chinese copy both render if both locales are declared.
 - Wrong-network state blocks writes.
 - Market phase gating is visible in `Real`, `Internal`, and `Listing` preview modes when relevant.

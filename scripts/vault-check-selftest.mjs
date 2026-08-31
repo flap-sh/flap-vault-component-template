@@ -319,7 +319,48 @@ try {
   });
   const invalidMiniAppBindingResult = runVaultCheck(invalidMiniAppBindingSlug, { silent: true });
   assertRule("mini-app mode rejects factory-scoped bindings", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-binding", "blocking");
-  assertRule("mini-app mode requires an 8888 token", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-token", "blocking");
+
+  const taxTokenMiniAppSlug = `${FIXTURE_PREFIX}-tax-token-mini-app`;
+  writeVault(taxTokenMiniAppSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <div className="min-h-screen">{i18n.t("title")}</div>;
+}
+`,
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "税币 Mini App", en: "Tax Token Mini App" },
+      match: { bindings: [{ chainId: 56, tokenAddresses: [TOKEN] }] },
+    }),
+  });
+  const taxTokenMiniAppResult = runVaultCheck(taxTokenMiniAppSlug, { silent: true });
+  assertNoRule("mini-app mode accepts token-scoped 7777 Tax Token bindings", taxTokenMiniAppResult, "manifest-binding/invalid-mini-app-token", "blocking");
+  assertNoRule("pure 7777 Mini App bindings are not treated as mixed", taxTokenMiniAppResult, "manifest-binding/mixed-mini-app-token-suffixes", "blocking");
+
+  const mixedMiniAppSlug = `${FIXTURE_PREFIX}-mixed-mini-app`;
+  writeVault(mixedMiniAppSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <div className="min-h-screen">{i18n.t("title")}</div>;
+}
+`,
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "混合 Mini App", en: "Mixed Mini App" },
+      match: { bindings: [{ chainId: 56, tokenAddresses: [TOKEN, TOKEN_8888] }] },
+    }),
+  });
+  assertRule("mini-app mode rejects mixed 7777 and 8888 bindings", runVaultCheck(mixedMiniAppSlug, { silent: true }), "manifest-binding/mixed-mini-app-token-suffixes", "blocking");
 
   const miniAppMissingDisplayTitleSlug = `${FIXTURE_PREFIX}-mini-app-title`;
   writeVault(miniAppMissingDisplayTitleSlug, {
@@ -3419,6 +3460,28 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assert.equal(threeScaffold.ok, true);
   assert.equal(threeScaffold.dryRun, true);
   passed.push("scaffold supports token-scoped three-r3f-v1 Mini Apps");
+
+  const taxTokenMiniAppScaffold = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        "scripts/vault-scaffold.mjs",
+        `${FIXTURE_PREFIX}-tax-mini-scaffold`,
+        "--mode",
+        "mini-app",
+        "--capability",
+        "three-r3f-v1",
+        "--chain",
+        "56",
+        "--token",
+        TOKEN,
+        "--dry-run",
+      ],
+      { cwd: ROOT, encoding: "utf8" },
+    ),
+  );
+  assert.equal(taxTokenMiniAppScaffold.ok, true);
+  passed.push("scaffold supports explicit token-scoped 7777 Tax Token Mini Apps");
 
   const vaultThreeScaffoldSlug = `${FIXTURE_PREFIX}-vault-three-scaffold`;
   createdFolderNames.push(vaultThreeScaffoldSlug);

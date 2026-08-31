@@ -44,7 +44,7 @@ const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
 const MINI_APP_MODE = "mini-app";
-const MINI_APP_TOKEN_SUFFIX = "8888";
+const MINI_APP_TOKEN_SUFFIXES = ["7777", "8888"];
 const VAULT_UI_3D_TOKEN_SUFFIX = "7777";
 const CJK_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/u;
 const LATIN_RE = /[A-Za-z]/u;
@@ -215,7 +215,7 @@ const FIX_HINTS = {
   "source-syntax/invalid-typescript": "Fix the reported TypeScript/TSX syntax error before running vault:check, vault:e2e, or vault:package again.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
   "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, displayTitle for Mini App only, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
-  "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 8888-token Mini App with match.bindings[].tokenAddresses.',
+  "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 7777 or 8888 Mini App with match.bindings[].tokenAddresses.',
   "manifest-schema/invalid-layout": "Remove manifest.layout, or set it exactly to fullscreen when Flap explicitly asks for a full-screen Vault body.",
   "manifest-schema/missing-field": "Add the required manifest field.",
   "manifest-schema/invalid-artifact-id": "Use artifactId format vaultui_<folder-name>_<26-char ULID>, for example vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N.",
@@ -239,8 +239,9 @@ const FIX_HINTS = {
   "manifest-binding/mixed-chain-scope": "Do not split one chain into factory and no-factory bindings. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
-  "manifest-binding/invalid-mini-app-binding": "Mini App mode is token-address-bound. Use only token-scoped 8888 tokenAddresses; omit factoryAddress and vaultAddresses.",
-  "manifest-binding/invalid-mini-app-token": "Mini App mode must provide the bound token address as an 8888-suffix tokenAddresses entry. Omit mode for default Vault UI packages.",
+  "manifest-binding/invalid-mini-app-binding": "Mini App mode is token-address-bound. Use only token-scoped 7777 or 8888 tokenAddresses; omit factoryAddress and vaultAddresses.",
+  "manifest-binding/invalid-mini-app-token": "Mini App mode must provide bound tokenAddresses entries ending consistently in either 7777 or 8888. Omit mode for default Vault UI packages.",
+  "manifest-binding/mixed-mini-app-token-suffixes": "Use only 7777 tokens or only 8888 tokens in one Mini App artifact. Split mixed token families into separate artifacts.",
   "manifest-binding/invalid-vault-ui-3d-token": "A mode-less three-r3f-v1 Vault UI must declare only 7777-suffix proof tokens. Remove 8888 tokens or use the existing token-scoped Mini App contract.",
   "mini-app-layout/missing-full-height-root": "Add min-h-[100vh], min-h-screen, min-h-full, or h-full to the outermost returned Mini App layout element.",
   "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 or 8888 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
@@ -3459,6 +3460,7 @@ function checkManifest(manifest, folderName) {
       const seenBindingKeys = new Map();
       const manifestTestTokenFields = [];
       const miniAppTokenFields = [];
+      const miniAppTokenSuffixes = new Set();
       const vaultUI3DTokenFields = [];
       const factoryFieldsByChain = new Map();
       const noFactoryFieldsByChain = new Map();
@@ -3562,9 +3564,14 @@ function checkManifest(manifest, folderName) {
                 );
               } else {
                 manifestTestTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
-                if (addr.toLowerCase().endsWith(MINI_APP_TOKEN_SUFFIX)) {
+                const normalizedTokenAddress = addr.toLowerCase();
+                const miniAppTokenSuffix = MINI_APP_TOKEN_SUFFIXES.find((suffix) => normalizedTokenAddress.endsWith(suffix));
+                if (isMiniAppMode && miniAppTokenSuffix) {
                   miniAppTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
-                  if (isThreeR3FVaultUI(manifest)) {
+                  miniAppTokenSuffixes.add(miniAppTokenSuffix);
+                }
+                if (isThreeR3FVaultUI(manifest)) {
+                  if (!normalizedTokenAddress.endsWith(VAULT_UI_3D_TOKEN_SUFFIX)) {
                     issues.push(
                       issue(
                         BLOCKING,
@@ -3573,18 +3580,18 @@ function checkManifest(manifest, folderName) {
                         { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffix: VAULT_UI_3D_TOKEN_SUFFIX },
                       ),
                     );
+                  } else {
+                    vaultUI3DTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
                   }
-                } else if (isMiniAppMode) {
+                } else if (isMiniAppMode && !miniAppTokenSuffix) {
                   issues.push(
                     issue(
                       BLOCKING,
                       "manifest-binding/invalid-mini-app-token",
-                      `${field}.tokenAddresses[${addressIndex}] must end in ${MINI_APP_TOKEN_SUFFIX} when manifest.mode is mini-app: ${addr}.`,
-                      { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffix: MINI_APP_TOKEN_SUFFIX },
+                      `${field}.tokenAddresses[${addressIndex}] must end consistently in either 7777 or 8888 when manifest.mode is mini-app: ${addr}.`,
+                      { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffixes: MINI_APP_TOKEN_SUFFIXES },
                     ),
                   );
-                } else if (isThreeR3FVaultUI(manifest)) {
-                  vaultUI3DTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
                 }
               }
             }
@@ -3638,8 +3645,18 @@ function checkManifest(manifest, folderName) {
           issue(
             BLOCKING,
             "manifest-binding/invalid-mini-app-token",
-            `manifest.mode=mini-app requires at least one token-scoped tokenAddresses entry ending in ${MINI_APP_TOKEN_SUFFIX} because Mini App routing is tied to the token address.`,
-            { field: "match.bindings[].tokenAddresses", requiredSuffix: MINI_APP_TOKEN_SUFFIX },
+            "manifest.mode=mini-app requires at least one token-scoped tokenAddresses entry ending in 7777 or 8888 because Mini App routing is tied to the token address.",
+            { field: "match.bindings[].tokenAddresses", requiredSuffixes: MINI_APP_TOKEN_SUFFIXES },
+          ),
+        );
+      }
+      if (isMiniAppMode && miniAppTokenSuffixes.size > 1) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "manifest-binding/mixed-mini-app-token-suffixes",
+            "A Mini App artifact cannot mix 7777 Tax Token and 8888 zero-tax token bindings.",
+            { field: "match.bindings[].tokenAddresses", suffixes: [...miniAppTokenSuffixes] },
           ),
         );
       }

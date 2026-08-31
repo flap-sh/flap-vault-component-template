@@ -41,7 +41,7 @@ For factory-scoped UI, `factoryAddress` must be the real non-zero deployed facto
 
 Every binding-scoped `tokenAddresses` entry must be a real deployed ERC20 token address ending in `7777` or `8888`, including entries placed on factory bindings. In factory mode, `tokenAddresses` is package proof input, not the production CA restriction. Robinhood proof may use a real token-scoped address on chain `4663` or a real testnet token on chain `46630`; standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. Production CA restriction is a Workbench/registry `caRestrictionMode` decision: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` may write the production token restriction only after review checks. In no-factory mode `tokenAddresses` can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
 
-Mini App mode is token-address-bound. A manifest with `mode: "mini-app"` must provide a no-factory token-scoped `match.bindings[].tokenAddresses` entry ending in `8888`; factory and Vault bindings are invalid for Mini App artifacts.
+Mini App mode is token-address-bound. A manifest with `mode: "mini-app"` must provide no-factory token-scoped `match.bindings[].tokenAddresses` entries that all end in `7777` for Tax Token or all end in `8888` for zero-tax token; factory and Vault bindings are invalid, and the two suffix families cannot be mixed in one artifact.
 
 When a Mini App project has no supplied test token, use Flap's deployed standard Mini App preview token for that chain (BNB mainnet: `0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888`). This address is the preview/E2E proof binding, not the project's production CA restriction. It must pass the normal deployed-ERC20 checks; zero-like placeholders and validation exemptions are invalid.
 
@@ -49,7 +49,7 @@ When a Mini App project has no supplied test token, use Flap's deployed standard
 
 The complete developer-facing support matrix, limits, three live 3D previews, and proof checklist are maintained in `docs/mini-app-3d.md`.
 
-Full 3D is opt-in on either a mode-less 7777 Vault UI or a token-scoped 8888 Mini App:
+Full 3D is opt-in on a mode-less 7777 Vault UI or a token-scoped 7777/8888 Mini App:
 
 ```json
 {
@@ -188,7 +188,7 @@ Example:
 | Field | Required | Description |
 | --- | --- | --- |
 | `displayTitle` | Mini App only | Required when `mode` is `"mini-app"`. This is the bilingual title shown on flap.sh Mini App pages and tabs. Use separate values, for example `{ "zh": "蝴蝶农场", "en": "Butterfly Farm" }`. Do not use it for the default Vault UI. |
-| `mode` | No | Omit it for the default Vault UI. Use `"mini-app"` only for token-scoped 8888-token Mini App artifacts; it keeps the four core source files with an extra reviewed top-level audio-asset exception, is strongly bound to `match.bindings[].tokenAddresses` ending in `8888`, and skips the Vault risk-status tag checks. |
+| `mode` | No | Omit it for the default Vault UI. Use `"mini-app"` only for token-scoped Mini App artifacts whose bindings all end in `7777` or all end in `8888`; it keeps the four core source files with an extra reviewed top-level audio-asset exception and skips the Vault risk-status tag checks. |
 | `layout` | No | Optional internal-review layout request. Omit it for the standard 768px Vault business body. Use `"fullscreen"` only when Flap explicitly asks for a full-screen Vault body; `vault:check` emits `manual-review/fullscreen-layout`, and production host constraints remain owned by `flap.sh`. |
 | `endpoints` | No | Optional non-oracle external endpoint declarations. Use a single absolute HTTPS URL string without username/password credentials or an array of those strings. Avoid by default; declared endpoints enter Flap review and must be approved before publish. |
 | `externalFrames` | No | Optional reviewed display-only chart iframe declaration. At most one entry is allowed. Use only for `tradingview`, `dexscreener`, or `coingecko-terminal` provider embeds with a complete static HTTPS `src` URL and fixed query string. |
@@ -216,7 +216,7 @@ Mini App example:
 }
 ```
 
-Do not write `mode` for the default Vault UI. `mini-app` is the only allowed value, and it must be paired with token-scoped `8888` bindings because Mini App routing is tied to the token address.
+Do not write `mode` for the default Vault UI. `mini-app` is the only allowed value, and it must be paired with token-scoped bindings that are purely `7777` or purely `8888` because Mini App routing is tied to token addresses.
 
 Mini App display title SOP:
 

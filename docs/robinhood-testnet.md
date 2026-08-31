@@ -37,4 +37,4 @@ Example token-scoped shape:
 }
 ```
 
-Use the matching `8888` token instead for Mini App mode.
+Use a matching `7777` token for Tax Token Mini App mode, or a matching `8888` token for zero-tax Mini App mode.
