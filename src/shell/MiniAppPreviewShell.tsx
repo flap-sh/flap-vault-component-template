@@ -3,13 +3,12 @@
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useChainId, usePublicClient } from "wagmi";
-import type { Address, PaymentToken, TokenMarketPhase, VaultHostContext, VaultManifest, VaultRuntimeContextOverrides } from "@/src/sdk";
+import type { Address, PaymentToken, TokenMarketPhase, VaultManifest, VaultRuntimeContextOverrides } from "@/src/sdk";
 import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
 import type { HostRuntimePolicy, HostRuntimeResult, TokenRuntimeSnapshot } from "@/src/sdk/host";
 import {
   createVaultRuntimeContext,
   isValidAddress,
-  parsePortalTokenInfo,
   resolveManifestBinding,
   runHostRuntime,
   ZERO_ADDRESS,
@@ -21,6 +20,7 @@ import { ManifestPanel } from "./ManifestPanel";
 import { MiniAppPreviewFrame } from "./MiniAppPreviewFrame";
 import { getDefaultMiniAppPreviewTokenAddress } from "./previewCoinDetail";
 import { getPreviewRuntimeDefaults } from "./previewRuntimeDefaults";
+import { buildMiniAppPreviewHostContext } from "./miniAppPreviewHost";
 
 interface MiniAppPreviewShellProps {
   folderName: string;
@@ -67,13 +67,6 @@ function readMarketPhaseParam(searchParams: SearchParamsLike): TokenMarketPhase 
   return value === "internal-market" || value === "dex-listed" || value === "unknown" ? value : undefined;
 }
 
-function tokenStatusFromMarketPhase(marketPhase?: TokenMarketPhase) {
-  if (marketPhase === "internal-market") return 1;
-  if (marketPhase === "dex-listed") return 2;
-  if (marketPhase === "unknown") return 0;
-  return undefined;
-}
-
 function readPreviewWalletParam(searchParams: SearchParamsLike): VaultRuntimeContextOverrides["previewWallet"] | undefined {
   const mode = readStringParam(searchParams, "previewWallet", "walletState");
   if (mode !== "wrong-network" && mode !== "connected") return undefined;
@@ -91,52 +84,9 @@ function hasMiniAppPreviewHostOverride(searchParams: SearchParamsLike) {
       readBooleanParam(searchParams, "isListed", "listed") !== undefined ||
       readNumberParam(searchParams, "tokenStatusCode", "status") !== undefined ||
       readNumberParam(searchParams, "tokenVersion") !== undefined ||
+      readNumberParam(searchParams, "taxRate") !== undefined ||
       readAddressParam(searchParams, "quoteTokenAddress", "quoteToken") !== undefined,
   );
-}
-
-function buildMiniAppPreviewHostContext(
-  searchParams: SearchParamsLike,
-  runtimeSnapshot?: TokenRuntimeSnapshot | null,
-): VaultHostContext {
-  const baseTokenInfo = runtimeSnapshot?.tokenInfo ?? undefined;
-  const tokenStatus = readNumberParam(searchParams, "tokenStatusCode", "status");
-  const marketPhase = readMarketPhaseParam(searchParams);
-  const listed = readBooleanParam(searchParams, "isListed", "listed");
-  const tokenVersion = readNumberParam(searchParams, "tokenVersion");
-  const quoteTokenAddress = readAddressParam(searchParams, "quoteTokenAddress", "quoteToken");
-  const marketPhaseStatus = tokenStatusFromMarketPhase(marketPhase);
-  const listedStatus = listed === undefined ? undefined : listed ? 2 : 1;
-  const resolvedStatus = tokenStatus ?? marketPhaseStatus ?? listedStatus ?? baseTokenInfo?.status ?? 1;
-  const parsedTokenInfo =
-    parsePortalTokenInfo({
-      status: resolvedStatus,
-      tokenVersion: tokenVersion ?? baseTokenInfo?.tokenVersion ?? 7,
-      taxRate: 0n,
-      quoteTokenAddress: quoteTokenAddress ?? baseTokenInfo?.quoteTokenAddress ?? ZERO_ADDRESS,
-    }) ?? baseTokenInfo ?? undefined;
-  const tokenInfo = parsedTokenInfo
-    ? {
-        ...parsedTokenInfo,
-        exists: true,
-        isTaxToken: false,
-        taxRate: 0,
-        taxRateRaw: 0n,
-        quoteTokenAddress: parsedTokenInfo.quoteTokenAddress ?? quoteTokenAddress ?? ZERO_ADDRESS,
-      }
-    : undefined;
-  const effectiveMarketPhase = marketPhase ?? (resolvedStatus >= 2 ? "dex-listed" : "internal-market");
-
-  return {
-    tokenInfo,
-    taxInfo: null,
-    vaultInfo: null,
-    feeMode: "unknown",
-    renderSurface: "feeinfo",
-    copyScope: "fee",
-    isListed: listed ?? resolvedStatus >= 2,
-    marketPhase: effectiveMarketPhase,
-  };
 }
 
 function isValidTokenAddress(address?: string) {
@@ -243,7 +193,16 @@ export function MiniAppPreviewShell({ folderName, manifest, i18n, children }: Mi
       explorerBaseUrl: readStringParam(searchParams, "explorerBaseUrl", "explorer"),
       paymentToken,
       previewWallet,
-      host: buildMiniAppPreviewHostContext(searchParams, runtimeSnapshot),
+      host: buildMiniAppPreviewHostContext({
+        runtimeSnapshot,
+        tokenAddress: runtimeTokenAddress,
+        tokenStatus: readNumberParam(searchParams, "tokenStatusCode", "status"),
+        marketPhase: readMarketPhaseParam(searchParams),
+        listed: readBooleanParam(searchParams, "isListed", "listed"),
+        tokenVersion: readNumberParam(searchParams, "tokenVersion"),
+        taxRate: readNumberParam(searchParams, "taxRate"),
+        quoteTokenAddress: readAddressParam(searchParams, "quoteTokenAddress", "quoteToken"),
+      }),
       extraConfig: {
         ...(manifestBindingMismatch
           ? {

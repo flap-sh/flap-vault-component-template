@@ -1,7 +1,15 @@
 import type { PublicClient } from "viem";
 import { erc20Abi } from "./erc20";
 import { getTaxVaultHostChainConfig } from "./hostRuntimeConfig";
-import { createTaxInfoHostContext, isValidAddress, parsePortalTokenInfo, parseTaxTokenInfo, parseVaultPortalInfo, ZERO_ADDRESS } from "./taxInfo";
+import {
+  createTaxInfoHostContext,
+  isValidAddress,
+  normalizeOnchainPortalTokenVersion,
+  parsePortalTokenInfo,
+  parseTaxTokenInfo,
+  parseVaultPortalInfo,
+  ZERO_ADDRESS,
+} from "./taxInfo";
 import type { Address, FlapTokenInfo, PaymentToken, TokenMetadataSnapshot, TokenRuntimeSnapshot } from "./types";
 
 const portalAbi = [
@@ -258,7 +266,13 @@ export async function loadTokenRuntimeSnapshot(
 
   const tokenData = portalResult.data;
 
-  const tokenInfo = parsePortalTokenInfo(tokenData as Record<string, unknown>);
+  const parsedTokenInfo = parsePortalTokenInfo(tokenData as Record<string, unknown>);
+  const tokenInfo = parsedTokenInfo
+    ? {
+        ...parsedTokenInfo,
+        tokenVersion: normalizeOnchainPortalTokenVersion(parsedTokenInfo.tokenVersion),
+      }
+    : null;
   const hasTaxVaults = Boolean(chainConfig.vaultPortal);
   if (!tokenInfo) {
     return {
