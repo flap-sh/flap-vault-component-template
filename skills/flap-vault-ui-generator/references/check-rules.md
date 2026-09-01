@@ -41,7 +41,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - undeclared URL, endpoint, or external resource
 - host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch target
 - browser storage/navigation/worker/cross-context/permission API or direct browser network/media API
-- non-HTTPS, `ipfs://` / gateway image URL, Arweave, WebSocket, or embedded data URL resource usage in Vault source; immutable Vault-specific images must use controlled `IpfsImage` or CID-only `IpfsBackground`, and dynamic NFT paths require a static `validationPath` sample
+- non-HTTPS, `ipfs://` / gateway image URL, Arweave, WebSocket, or embedded data URL resource usage in Vault source; exact-host `https://bin.bnbstatic.com` images may use controlled `BinanceImage` with any pathname, while immutable Vault-specific images must use controlled `IpfsImage` or CID-only `IpfsBackground`, and dynamic NFT paths require a static `validationPath` sample
 - missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - i18n key missing from any locale declared by `manifest.i18n`
 - missing current contract risk-status integration from host `riskLevel` for default Vault UI, including the prominent unavailable-risk warning state; `manifest.mode: "mini-app"` is the only token-scoped 8888-token Mini App exception
@@ -50,7 +50,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - object result types on `sdk.readContract` calls for ABI methods with multiple return values; read those methods as tuple arrays and map indexes into UI state
 - unprovisioned or registry-only `sdk.readOracle(...)` usage that is not built into the shared runtime
 - suspicious `Number(...)` token amount conversion
-- remote media inside Vault source
+- uncontrolled remote media inside Vault source, including raw remote `<img>` instead of `BinanceImage`
 - hardcoded EVM addresses in Vault source unless they are binding-scoped token/Vault/factory references or declared external contract targets
 - contract reads/writes, event watches, log/filter calls, or gas estimates against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`
 

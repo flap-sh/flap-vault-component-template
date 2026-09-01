@@ -1,6 +1,7 @@
 export * from "./AddressLink";
 export * from "./Alert";
 export * from "./Button";
+export * from "./BinanceImage";
 export * from "./Card";
 export * from "./Countdown";
 export * from "./DataRow";

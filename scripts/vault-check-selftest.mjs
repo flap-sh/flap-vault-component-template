@@ -1157,6 +1157,119 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("direct Flap gateway image URLs remain blocked", runVaultCheck(directIpfsImageUrlSlug, { silent: true }), "media-policy/remote-media", "blocking");
 
+  const allowedBinanceImageSlug = `${FIXTURE_PREFIX}-binance-image`;
+  writeVault(allowedBinanceImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { BinanceImage as AllowedImage } from "@/src/ui";
+
+const logoUrl = "https://bin.bnbstatic.com/another/catalog/gmeb.png?size=96";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <AllowedImage src={logoUrl} alt={i18n.t("image.alt")} fallback={i18n.t("image.fallback")} />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo", fallback: "No logo" } } },
+  });
+  const allowedBinanceImageCheck = runVaultCheck(allowedBinanceImageSlug, { silent: true });
+  assertNoRule("BinanceImage accepts any path on the exact Binance static host", allowedBinanceImageCheck, "media-policy/invalid-binance-image", "blocking");
+  assertNoRule("BinanceImage URLs do not require manifest endpoint declarations", allowedBinanceImageCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("BinanceImage is not treated as uncontrolled remote media", allowedBinanceImageCheck, "media-policy/remote-media", "blocking");
+
+  const dynamicBinanceImageSlug = `${FIXTURE_PREFIX}-binance-image-dynamic`;
+  writeVault(dynamicBinanceImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { BinanceImage } from "@/src/ui";
+
+export default function SelftestVault({ context }: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const apiImageUrl = context.tokenImageUrl;
+  return <BinanceImage src={apiImageUrl} alt={i18n.t("image.alt")} />;
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo" } } },
+  });
+  assertNoRule(
+    "BinanceImage accepts API-provided dynamic image URLs for runtime host validation",
+    runVaultCheck(dynamicBinanceImageSlug, { silent: true }),
+    "media-policy/invalid-binance-image",
+    "blocking",
+  );
+
+  const invalidBinanceImageSlug = `${FIXTURE_PREFIX}-binance-image-invalid`;
+  writeVault(invalidBinanceImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { BinanceImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <BinanceImage src="https://cdn.bin.bnbstatic.com/logo.png" alt={i18n.t("image.alt")} />;
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo" } } },
+  });
+  assertRule(
+    "BinanceImage rejects subdomains instead of widening the hostname boundary",
+    runVaultCheck(invalidBinanceImageSlug, { silent: true }),
+    "media-policy/invalid-binance-image",
+    "blocking",
+  );
+
+  const shadowedBinanceImageSlug = `${FIXTURE_PREFIX}-binance-image-shadow`;
+  writeVault(shadowedBinanceImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { BinanceImage as AllowedImage } from "@/src/ui";
+
+export default function SelftestVault({ context }: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const AllowedImage = ({ src, alt }: { src?: string; alt: string }) => <img src={src} alt={alt} />;
+  return <AllowedImage src={context.tokenImageUrl} alt={i18n.t("image.alt")} />;
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo" } } },
+  });
+  assertRule(
+    "a local component cannot shadow an imported BinanceImage alias",
+    runVaultCheck(shadowedBinanceImageSlug, { silent: true }),
+    "media-policy/invalid-binance-image",
+    "blocking",
+  );
+
+  const directBinanceImgSlug = `${FIXTURE_PREFIX}-binance-native-img`;
+  writeVault(directBinanceImgSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <img src="https://bin.bnbstatic.com/logo.png" alt={i18n.t("image.alt")} />;
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo" } } },
+  });
+  const directBinanceImgCheck = runVaultCheck(directBinanceImgSlug, { silent: true });
+  assertRule("native img cannot bypass the BinanceImage runtime boundary", directBinanceImgCheck, "media-policy/remote-media", "blocking");
+  assertRule("a raw Binance URL remains an undeclared non-fetch resource", directBinanceImgCheck, "endpoint-policy/undeclared-url", "blocking");
+
   const declaredRemoteImageConstantSlug = `${FIXTURE_PREFIX}-remote-image-constant`;
   writeVault(declaredRemoteImageConstantSlug, {
     manifest: baseManifest({
