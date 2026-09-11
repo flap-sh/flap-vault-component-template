@@ -109,10 +109,10 @@ Before writing code:
 4. Use the scaffold default surface / NiePan-style abstract template from docs/ui-pattern-snippets.md as the visual default whenever I did not specify a UI style; use examples for behavior, not for visual styling.
 5. Confirm actionAvailabilityStage as one of internal-market, dex-listed, both, or read-only.
 6. Confirm testTokenAddresses separately from caRestrictionMode. Any manifest match.bindings[].tokenAddresses, including factory binding entries, must be real deployed ERC20 addresses ending in 7777 or 8888; factory-mode tokenAddresses are package proof tokens, not production CA restrictions.
-7. After inputs are complete, generate only the allowed four Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json.
+7. After inputs are complete, generate the four core Vault files: Component.tsx, manifest.json, VaultABI.ts, and i18n.json. Mini App mode may also include reviewed top-level audio files.
 8. Keep the first screen to one compact business card, at most one small metric strip, one primary action panel, and lower compact runtime details. Do not generate row-heavy overview/dividend/staking dashboard stacks.
 9. If the user provides an external visual reference such as 涅槃, extract section hierarchy, density, spacing, and interaction emphasis only; do not copy private code, constants, addresses, endpoints, or assets.
-10. Keep all user-facing copy in i18n.json, include every locale declared in manifest.i18n, and do not add helper files, assets, external navigation, undeclared endpoints, direct wallet APIs, or private Flap code.
+10. Keep all user-facing copy in i18n.json, include every locale declared in manifest.i18n, and do not add helper files, non-audio assets, external navigation, undeclared endpoints, direct wallet APIs, or private Flap code. Mini App BGM/sound files must be top-level .mp3, .wav, .ogg, .m4a, or .aac files and require human review.
 11. Do not call the package ready until yarn vault:check, yarn vault:e2e, yarn vault:package, and yarn vault:verify-package pass for the target folder.
 
 If anything is missing or unsafe, stop and ask questions instead of guessing. Answer in the language I use.`;
@@ -190,7 +190,7 @@ function main() {
   if (missingFiles.length) {
     fail("Cannot build AI context pack because required files are missing.", {
       code: "ai-context/missing-file",
-      fixHint: "Run the command from the flap-vault-ui-template repository root and choose an example folder that contains the strict four Vault files.",
+      fixHint: "Run the command from the flap-vault-ui-template repository root and choose an example folder that contains the strict core Vault files.",
       exampleFolder,
       missingFiles,
       nextActions: missingFiles.map((file) => ({

@@ -4,9 +4,18 @@ import { bsc, bscTestnet } from "viem/chains";
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 export const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 export const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
+export const STANDARD_MINI_APP_PREVIEW_TOKENS = new Map([
+  [56, "0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888"],
+  [97, "0x2865d202f0378df0f23c855a0b09b61721918888"],
+  [4663, "0x10b90dd1d5a999c2ff9c034d13be55a7ba788888"],
+  [46630, "0xbd2e243911c9cded8b2637f90439cb5777988888"],
+]);
+const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663, 46630]);
 const DEFAULT_RPC_URLS = {
   56: ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
   97: ["https://data-seed-prebsc-1-s1.binance.org:8545", "https://bsc-testnet-rpc.publicnode.com"],
+  4663: ["https://rpc.mainnet.chain.robinhood.com"],
+  46630: ["https://rpc.testnet.chain.robinhood.com/rpc"],
 };
 const CHAIN_BY_ID = {
   56: bsc,
@@ -31,6 +40,10 @@ export function hasRequiredTestTokenSuffix(value) {
   return Boolean(address && REQUIRED_TEST_TOKEN_SUFFIXES.some((suffix) => address.endsWith(suffix)));
 }
 
+export function standardMiniAppPreviewToken(chainId) {
+  return STANDARD_MINI_APP_PREVIEW_TOKENS.get(chainId);
+}
+
 function chainRpcCandidates(chainId) {
   return [
     envValue(`VAULT_CHECK_RPC_${chainId}`),
@@ -38,6 +51,8 @@ function chainRpcCandidates(chainId) {
     envValue(`CHAIN_${chainId}_RPC_URL`),
     chainId === 56 ? envValue("BSC_RPC_URL") ?? envValue("BNB_RPC_URL") : undefined,
     chainId === 97 ? envValue("BSC_TESTNET_RPC_URL") ?? envValue("BNB_TESTNET_RPC_URL") : undefined,
+    chainId === 4663 ? envValue("ROBINHOOD_RPC_URL") : undefined,
+    chainId === 46630 ? envValue("ROBINHOOD_TESTNET_RPC_URL") : undefined,
     ...(DEFAULT_RPC_URLS[chainId] ?? []),
   ].filter(Boolean);
 }
@@ -212,7 +227,7 @@ export async function collectManifestErc20TokenIssues(manifest, { file = "manife
 export async function collectE2EReportErc20TokenIssues(report, { file = "qa/e2e-report.json", folderName } = {}) {
   const chainId = report?.binding?.chainId;
   const tokenAddress = normalizeTokenAddress(report?.binding?.tokenAddress);
-  if ((chainId !== 56 && chainId !== 97) || !tokenAddress) return [];
+  if (!SUPPORTED_E2E_CHAIN_IDS.has(chainId) || !tokenAddress) return [];
   if (!hasRequiredTestTokenSuffix(tokenAddress)) {
     return [
       tokenContractIssue(
@@ -225,7 +240,7 @@ export async function collectE2EReportErc20TokenIssues(report, { file = "qa/e2e-
           chainId,
           tokenAddress,
           requiredSuffix: REQUIRED_TEST_TOKEN_SUFFIX,
-          fixHint: `Use a real deployed BNB Chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun yarn vault:e2e ${folderName ?? "<folder-name>"}, then regenerate the source package.`,
+          fixHint: `Use a real deployed supported-chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun yarn vault:e2e ${folderName ?? "<folder-name>"}, then regenerate the source package.`,
         },
       ),
     ];

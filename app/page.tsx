@@ -2,7 +2,9 @@
 
 import type React from "react";
 import type { CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, FileText, FolderCode, Terminal, Zap } from "lucide-react";
 import { useLang } from "@/src/i18n/useLang";
 import type { VaultManifest } from "@/src/sdk";
@@ -45,12 +47,108 @@ const gridStyle: CSSProperties = {
   WebkitMaskImage: "radial-gradient(ellipse 95% 72% at 50% 42%, black 62%, transparent 100%)",
 };
 
+type DocMode = "custom" | "miniApp";
+type SearchParamsLike = {
+  get: (name: string) => string | null;
+  toString: () => string;
+};
+
+function readDocMode(searchParams: SearchParamsLike): DocMode {
+  const value = searchParams.get("tab") ?? searchParams.get("mode");
+  return value === "mini-app" || value === "miniApp" || value === "mini" ? "miniApp" : "custom";
+}
+
+function writeDocMode(mode: DocMode) {
+  return mode === "miniApp" ? "mini-app" : "custom";
+}
+
+type MiniAppGuideContent = {
+  requirementsKicker: string;
+  comparisonKicker: string;
+  summary: {
+    kicker: string;
+    title: string;
+    description: string;
+    items: string[];
+  };
+  requirementsTitle: string;
+  requirementsDescription: string;
+  requirements: Array<{
+    title: string;
+    body: string;
+  }>;
+  vault7777Title: string;
+  vault7777Items: string[];
+  examples: {
+    kicker: string;
+    title: string;
+    description: string;
+    capabilityLabel: string;
+    capabilityFeatures: string[];
+    farmBadge: string;
+    farmTitle: string;
+    farmDescription: string;
+    farmCta: string;
+    skiesBadge: string;
+    skiesTitle: string;
+    skiesDescription: string;
+    skiesCta: string;
+    gameBadge: string;
+    gameTitle: string;
+    gameDescription: string;
+    gameCta: string;
+    technicalBadge: string;
+    technicalTitle: string;
+    technicalDescription: string;
+    technicalCta: string;
+  };
+  comparisonTitle: string;
+  comparisonDescription: string;
+  comparisonTopicHeader: string;
+  comparisonCustomHeader: string;
+  comparisonMiniAppHeader: string;
+  comparisonRows: Array<{
+    topic: string;
+    custom: string;
+    miniApp: string;
+  }>;
+  preview: {
+    kicker: string;
+    title: string;
+    description: string;
+    imageAlt: string;
+    caption: string;
+    routeLabel: string;
+    route: string;
+  };
+  workflowTitle: string;
+  workflow: string[];
+  rulesTitle: string;
+  rules: string[];
+  doneTitle: string;
+  doneBody: string;
+};
+
 export default function HomePage() {
   const { lang, languageCode } = useLang();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const sop = lang.home.sop;
-  const quickStart = sop.quickStart;
+  const docMode = readDocMode(searchParams);
+  const miniApp = sop.miniApp;
+  const quickStart = docMode === "miniApp" ? miniApp.quickStart : sop.quickStart;
   const developerEntry = sop.developerEntry;
   const agentGuide = sop.agentGuide;
+  const intro =
+    docMode === "miniApp"
+      ? { label: miniApp.label, title: miniApp.title, description: miniApp.description }
+      : { label: sop.label, title: sop.title, description: sop.description };
+  const setDocMode = (mode: DocMode) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("tab", writeDocMode(mode));
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  };
 
   return (
     <VaultRuntimeProvider
@@ -69,16 +167,18 @@ export default function HomePage() {
         <FlapNavbar manifest={homeManifest} />
 
         <main style={{ padding: "56px 0 120px" }}>
-          <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 32px" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 clamp(16px,4vw,32px)" }}>
+            <MiniAppGuide doc={miniApp} galleryOnly />
+            <ModeTabs mode={docMode} onChange={setDocMode} labels={sop.modeTabs} />
 
             {/* ── HERO: 2-col grid ─────────────────────────────────── */}
-            <section style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr", gap: 40, alignItems: "start" }}>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 40, alignItems: "start" }}>
               <div>
                 <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 14px" }}>
                   {quickStart.kicker}
                 </p>
                 <h1 style={{ fontSize: "clamp(32px,3.6vw,42px)", fontWeight: 760, lineHeight: 1.04, letterSpacing: "-0.025em", margin: "0 0 18px", color: TEXT }}>
-                  把一段 prompt 交给你的 Agent，它就能生成受控的 Vault UI。
+                  {quickStart.title}
                 </h1>
                 <p style={{ fontSize: 17, lineHeight: 1.65, color: TEXT2, maxWidth: "56ch" }}>
                   {quickStart.description}
@@ -97,16 +197,18 @@ export default function HomePage() {
             {/* ── SOP intro ────────────────────────────────────────── */}
             <section style={{ marginTop: 72 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 14px" }}>
-                {sop.label}
+                {intro.label}
               </p>
               <h2 style={{ fontSize: "clamp(32px,4vw,42px)", fontWeight: 760, lineHeight: 1.04, letterSpacing: "-0.025em", margin: "0 0 22px", color: TEXT }}>
-                {sop.title}
+                {intro.title}
               </h2>
               <p style={{ fontSize: 17, lineHeight: 1.65, color: TEXT2, maxWidth: "56ch" }}>
-                {sop.description}
+                {intro.description}
               </p>
             </section>
 
+            {docMode === "custom" ? (
+              <>
             {/* ── Developer Entry card ─────────────────────────────── */}
             <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
@@ -123,7 +225,7 @@ export default function HomePage() {
 
               {/* real examples */}
               <SubLabel>{developerEntry.realExamplesLabel}</SubLabel>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginBottom: 14 }}>
                 <Link href="/community-buyback-example" style={btnPrimary}>
                   {developerEntry.openCommunityBuybackExample} <ArrowSpan />
                 </Link>
@@ -136,7 +238,7 @@ export default function HomePage() {
               </p>
 
               <SubLabel muted>{developerEntry.referenceExamplesLabel}</SubLabel>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14, marginBottom: 14 }}>
                 <Link href="/example" style={btnSecondary}>
                   {developerEntry.openPreview} <ArrowSpan />
                 </Link>
@@ -154,7 +256,7 @@ export default function HomePage() {
               <hr style={{ height: 1, background: BORDER, border: 0, margin: "0 0 28px" }} />
 
               {/* 3-col info grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
                 {developerEntry.cards.map((card, i) => {
                   const Icon = entryIcons[i] ?? FileText;
                   return (
@@ -190,7 +292,7 @@ export default function HomePage() {
                 {sop.scopeTitle}
               </p>
               <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 24px", color: TEXT }}>
-                在模板提供的组件结构内完成 Vault UI 定制。
+                {sop.scopeDescription}
               </h3>
               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
                 {sop.scopeItems.map((item) => (
@@ -205,7 +307,7 @@ export default function HomePage() {
             {/* ── Agent guide card ─────────────────────────────────── */}
             <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
-                AI Agent / Skill
+                {agentGuide.kicker}
               </p>
               <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
                 {agentGuide.title}
@@ -226,7 +328,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28, marginTop: 28, alignItems: "start" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 28, marginTop: 28, alignItems: "start" }}>
                 {/* docs column */}
                 <div>
                   <SubLabel>{agentGuide.docsTitle}</SubLabel>
@@ -258,7 +360,7 @@ export default function HomePage() {
 
                   <div>
                     <SubLabel>{agentGuide.outputsTitle}</SubLabel>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
                       {agentGuide.outputs.map((f) => (
                         <span key={f} style={{ display: "inline-flex", alignItems: "center", fontFamily: MONO, fontSize: 13, color: TEXT2, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px" }}>
                           <strong style={{ color: ACCENT2, fontWeight: 500 }}>{f.replace("src/vaults/", "src/vaults/​")}</strong>
@@ -287,13 +389,13 @@ export default function HomePage() {
             {/* ── 7 Steps ──────────────────────────────────────────── */}
             <section style={{ marginTop: 72 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
-                流程
+                {sop.stepsLabel}
               </p>
               <h2 style={{ fontSize: 28, fontWeight: 680, lineHeight: 1.2, margin: "0 0 8px", color: TEXT }}>
-                七步完成一个 Vault UI。
+                {sop.stepsTitle}
               </h2>
               <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, margin: "0 0 28px" }}>
-                从安装依赖到打包给 Artifact Workbench，按顺序执行即可。
+                {sop.stepsDescription}
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -312,7 +414,7 @@ export default function HomePage() {
                         </div>
                       ) : null}
                       {step.files?.length ? (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10, marginTop: 14 }}>
                           {step.files.map((f) => (
                             <span key={f} style={{ display: "inline-flex", alignItems: "center", fontFamily: MONO, fontSize: 13, color: TEXT2, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px" }}>{f}</span>
                           ))}
@@ -337,12 +439,12 @@ export default function HomePage() {
             {/* ── Submission requirements ──────────────────────────── */}
             <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
               <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 24px" }}>
-                提交要求
+                {sop.rulesTitle}
               </p>
               <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 24px", color: TEXT }}>
-                交付前逐条对照。
+                {sop.rulesDescription}
               </h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14 }}>
                 {sop.rules.map((rule, i) => (
                   <div key={rule} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", fontSize: 14, lineHeight: 1.6, color: TEXT2, gridColumn: i === sop.rules.length - 1 && sop.rules.length % 2 !== 0 ? "1 / -1" : undefined }}>
                     <RichText text={rule} />
@@ -354,7 +456,7 @@ export default function HomePage() {
             {/* ── Footer CTA ───────────────────────────────────────── */}
             <section style={{ marginTop: 44 }}>
               <hr style={{ height: 1, background: BORDER, border: 0, margin: "0 0 32px" }} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
                 <Link href="/example" style={btnSecondary}>
                   {developerEntry.openPreview} <ArrowSpan />
                 </Link>
@@ -366,6 +468,10 @@ export default function HomePage() {
                 </Link>
               </div>
             </section>
+              </>
+            ) : (
+              <MiniAppGuide doc={miniApp} hideGallery />
+            )}
 
           </div>
         </main>
@@ -376,6 +482,297 @@ export default function HomePage() {
 }
 
 /* ── tiny helpers ──────────────────────────────────────────── */
+
+function ModeTabs({
+  mode,
+  onChange,
+  labels,
+}: {
+  mode: DocMode;
+  onChange: (mode: DocMode) => void;
+  labels: {
+    customLabel: string;
+    customDescription: string;
+    miniAppLabel: string;
+    miniAppDescription: string;
+  };
+}) {
+  return (
+    <section style={{ margin: "0 0 36px", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 8 }}>
+        <ModeTabButton active={mode === "custom"} label={labels.customLabel} description={labels.customDescription} onClick={() => onChange("custom")} />
+        <ModeTabButton active={mode === "miniApp"} label={labels.miniAppLabel} description={labels.miniAppDescription} onClick={() => onChange("miniApp")} />
+      </div>
+    </section>
+  );
+}
+
+function ModeTabButton({
+  active,
+  label,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        minHeight: 76,
+        border: `1px solid ${active ? ACCLINE : "transparent"}`,
+        borderRadius: 10,
+        background: active ? ACCSOFT : "transparent",
+        color: TEXT,
+        cursor: "pointer",
+        padding: "14px 16px",
+        textAlign: "left",
+      }}
+    >
+      <span style={{ display: "block", fontSize: 15, fontWeight: 700 }}>{label}</span>
+      <span style={{ display: "block", marginTop: 4, fontSize: 13, lineHeight: 1.5, color: active ? TEXT2 : TEXT3 }}>{description}</span>
+    </button>
+  );
+}
+
+function MiniAppGuide({ doc, galleryOnly = false, hideGallery = false }: { doc: MiniAppGuideContent; galleryOnly?: boolean; hideGallery?: boolean }) {
+  return (
+    <>
+      {!galleryOnly ? <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
+          {doc.summary.kicker}
+        </p>
+        <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
+          {doc.summary.title}
+        </h3>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, maxWidth: "70ch", margin: "0 0 24px" }}>
+          {doc.summary.description}
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
+          {doc.summary.items.map((item) => (
+            <div key={item} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", fontSize: 14, lineHeight: 1.6, color: TEXT2 }}>
+              <RichText text={item} />
+            </div>
+          ))}
+        </div>
+      </section> : null}
+
+      {!hideGallery ? <section data-testid="mini-app-example-gallery" style={{ marginTop: 0, padding: "28px 0 52px" }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
+          {doc.examples.kicker}
+        </p>
+        <h2 style={{ fontSize: 28, fontWeight: 680, lineHeight: 1.2, margin: "0 0 8px", color: TEXT }}>
+          {doc.examples.title}
+        </h2>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, margin: "0 0 28px", maxWidth: "72ch" }}>
+          {doc.examples.description}
+        </p>
+
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 18, padding: "14px 16px", borderRadius: 12, border: `1px solid ${ACCLINE}`, background: ACCSOFT }}>
+          <strong style={{ color: ACCENT2, fontSize: 13.5 }}>{doc.examples.capabilityLabel}</strong>
+          {doc.examples.capabilityFeatures.map((feature) => (
+            <span key={feature} style={{ padding: "4px 8px", borderRadius: 999, border: `1px solid ${BORDER}`, background: BG2, color: TEXT2, fontFamily: MONO, fontSize: 11.5 }}>
+              {feature}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ marginBottom: 18, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 22 }}>
+          <h3 style={{ margin: "0 0 14px", color: TEXT, fontSize: 20, lineHeight: 1.3 }}>{doc.vault7777Title}</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+            {doc.vault7777Items.map((item) => (
+              <div key={item} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "13px 14px", color: TEXT2, fontSize: 13.5, lineHeight: 1.6 }}>
+                <RichText text={item} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div data-testid="mini-app-example-grid" className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-4">
+          <article data-testid="flap-farm-guide-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14 }}>
+            <div className="h-[210px] md:h-[220px] xl:h-[180px]" style={{ overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: BG2 }}>
+              <Image src="/docs/mini-app-flap-farm-preview.png" alt={doc.preview.imageAlt} width={1440} height={2824} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
+            </div>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: 20 }}>
+              <span style={{ alignSelf: "flex-start", display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(54,211,153,0.09)", border: "1px solid rgba(54,211,153,0.22)", color: OK, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>{doc.examples.farmBadge}</span>
+              <h3 style={{ margin: "13px 0 8px", color: TEXT, fontSize: 19, lineHeight: 1.3 }}>{doc.examples.farmTitle}</h3>
+              <p style={{ flex: 1, margin: "0 0 18px", color: TEXT2, fontSize: 13.5, lineHeight: 1.65 }}>{doc.examples.farmDescription}</p>
+              <Link href={doc.preview.route} style={{ ...btnPrimary, width: "100%" }}>
+                {doc.examples.farmCta} <ArrowSpan />
+              </Link>
+            </div>
+          </article>
+
+          <article data-testid="flap-gamefi-arena-preview-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: "1px solid rgba(139,98,255,0.46)", borderRadius: 14, boxShadow: "0 18px 70px rgba(139,98,255,0.15)" }}>
+            <div className="h-[210px] md:h-[220px] xl:h-[180px]" style={{ position: "relative", overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "#050711" }}>
+              <Image
+                src="/docs/flap-gamefi-arena-preview.jpg"
+                alt={doc.examples.gameTitle}
+                width={2056}
+                height={1032}
+                style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 58%", transform: "scale(1.03)" }}
+              />
+              <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 58%,rgba(4,5,17,0.82) 100%)" }} />
+              <span style={{ position: "absolute", left: 14, right: 14, bottom: 12, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(145,246,255,0.28)", background: "rgba(5,7,17,0.66)", color: "#9ff9ff", fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.09em", textAlign: "center", textTransform: "uppercase", backdropFilter: "blur(8px)" }}>Interactive GameFi · Flap Showcase Only</span>
+            </div>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: 20 }}>
+              <span style={{ alignSelf: "flex-start", display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: "rgba(139,98,255,0.12)", border: "1px solid rgba(139,98,255,0.35)", color: "#b69cff", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                {doc.examples.gameBadge}
+              </span>
+              <h3 style={{ margin: "13px 0 8px", color: TEXT, fontSize: 19, lineHeight: 1.3 }}>{doc.examples.gameTitle}</h3>
+              <p style={{ flex: 1, margin: "0 0 18px", color: TEXT2, fontSize: 13.5, lineHeight: 1.65 }}>{doc.examples.gameDescription}</p>
+              <Link href="/flap-gamefi-arena" style={{ ...btnPrimary, width: "100%" }}>
+                {doc.examples.gameCta} <ArrowSpan />
+              </Link>
+            </div>
+          </article>
+
+          <article data-testid="flap-skies-preview-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(77,141,255,0.12)" }}>
+            <div className="h-[210px] md:h-[220px] xl:h-[180px]" style={{ position: "relative", overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "#050718" }}>
+              <Image
+                src="/docs/flap-skies-preview.jpg"
+                alt={doc.examples.skiesTitle}
+                width={1800}
+                height={1269}
+                style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 48%", transform: "scale(1.045)" }}
+              />
+              <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 64%,rgba(3,5,18,0.76) 100%)" }} />
+              <span style={{ position: "absolute", left: 14, bottom: 12, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.22)", background: "rgba(5,7,24,0.62)", color: "rgba(255,255,255,0.9)", fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", backdropFilter: "blur(8px)" }}>Flap Showcase Only</span>
+            </div>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: 20 }}>
+              <span style={{ alignSelf: "flex-start", display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                {doc.examples.skiesBadge}
+              </span>
+              <h3 style={{ margin: "13px 0 8px", color: TEXT, fontSize: 19, lineHeight: 1.3 }}>{doc.examples.skiesTitle}</h3>
+              <p style={{ flex: 1, margin: "0 0 18px", color: TEXT2, fontSize: 13.5, lineHeight: 1.65 }}>{doc.examples.skiesDescription}</p>
+              <Link href="/flap-skies-showcase" style={{ ...btnPrimary, width: "100%" }}>
+                {doc.examples.skiesCta} <ArrowSpan />
+              </Link>
+            </div>
+          </article>
+
+          <article data-testid="three-r3f-preview-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: `1px solid ${ACCLINE}`, borderRadius: 14, boxShadow: "0 18px 70px rgba(120,93,255,0.10)" }}>
+            <div aria-hidden="true" className="h-[210px] md:h-[220px] xl:h-[180px]" style={{ position: "relative", overflow: "hidden", borderBottom: `1px solid ${BORDER}`, background: "linear-gradient(145deg,#090b1f 0%,#16133b 55%,#071b2b 100%)" }}>
+              <div style={{ position: "absolute", inset: 0, opacity: 0.55, backgroundImage: "linear-gradient(rgba(119,117,255,0.28) 1px,transparent 1px),linear-gradient(90deg,rgba(119,117,255,0.28) 1px,transparent 1px)", backgroundSize: "28px 28px", transform: "perspective(340px) rotateX(58deg) scale(1.55) translateY(42px)" }} />
+              <div style={{ position: "absolute", left: "22%", top: "27%", width: 94, height: 94, borderRadius: 24, transform: "rotate(28deg)", background: "linear-gradient(135deg,#b38cff,#4d8dff)", boxShadow: "0 18px 65px rgba(117,105,255,0.48)" }} />
+              <div style={{ position: "absolute", right: "20%", top: "36%", width: 88, height: 88, borderRadius: "50%", background: "radial-gradient(circle at 32% 28%,#b9fff2,#3cc9bd 30%,#156377 72%,#09293d)", boxShadow: "0 18px 65px rgba(57,207,198,0.36)" }} />
+              <span style={{ position: "absolute", left: 14, right: 14, bottom: 14, color: "rgba(255,255,255,0.78)", fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.09em", textAlign: "center", textTransform: "uppercase" }}>Capability Fixture · three-r3f-v1</span>
+            </div>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: 20 }}>
+              <span style={{ alignSelf: "flex-start", display: "inline-flex", borderRadius: 999, padding: "4px 9px", background: ACCSOFT, border: `1px solid ${ACCLINE}`, color: ACCENT2, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                {doc.examples.technicalBadge}
+              </span>
+              <h3 style={{ margin: "13px 0 8px", color: TEXT, fontSize: 19, lineHeight: 1.3 }}>{doc.examples.technicalTitle}</h3>
+              <p style={{ flex: 1, margin: "0 0 18px", color: TEXT2, fontSize: 13.5, lineHeight: 1.65 }}>{doc.examples.technicalDescription}</p>
+              <Link href="/three-r3f-example" style={{ ...btnPrimary, width: "100%" }}>
+                {doc.examples.technicalCta} <ArrowSpan />
+              </Link>
+            </div>
+          </article>
+        </div>
+      </section> : null}
+
+      {!galleryOnly ? <>
+      <section style={{ marginTop: 72, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: TEXT3, margin: "0 0 14px" }}>
+          {doc.requirementsKicker}
+        </p>
+        <h3 style={{ fontSize: 24, fontWeight: 680, lineHeight: 1.2, margin: "0 0 14px", color: TEXT }}>
+          {doc.requirementsTitle}
+        </h3>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, maxWidth: "70ch", margin: "0 0 24px" }}>
+          {doc.requirementsDescription}
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14 }}>
+          {doc.requirements.map((item) => (
+            <div key={item.title} style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 18px", fontSize: 14, lineHeight: 1.6, color: TEXT2 }}>
+              <div style={{ marginBottom: 8, fontSize: 15, fontWeight: 700, color: TEXT }}>{item.title}</div>
+              <RichText text={item.body} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginTop: 72 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, margin: "0 0 8px" }}>
+          {doc.comparisonKicker}
+        </p>
+        <h2 style={{ fontSize: 28, fontWeight: 680, lineHeight: 1.2, margin: "0 0 8px", color: TEXT }}>
+          {doc.comparisonTitle}
+        </h2>
+        <p style={{ fontSize: 15, lineHeight: 1.7, color: TEXT2, margin: "0 0 28px", maxWidth: "68ch" }}>
+          {doc.comparisonDescription}
+        </p>
+        <div style={{ overflowX: "auto", border: `1px solid ${BORDER}`, borderRadius: 14, background: PANEL }}>
+          <div style={{ minWidth: 760 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(120px,0.7fr) minmax(220px,1fr) minmax(220px,1fr)", background: PANEL3, borderBottom: `1px solid ${BORDER}`, color: TEXT, fontSize: 13, fontWeight: 700 }}>
+            <CompareCell muted>{doc.comparisonTopicHeader}</CompareCell>
+            <CompareCell>{doc.comparisonCustomHeader}</CompareCell>
+            <CompareCell>{doc.comparisonMiniAppHeader}</CompareCell>
+          </div>
+          {doc.comparisonRows.map((row) => (
+            <div key={row.topic} style={{ display: "grid", gridTemplateColumns: "minmax(120px,0.7fr) minmax(220px,1fr) minmax(220px,1fr)", borderTop: `1px solid ${BORDER}` }}>
+              <CompareCell muted>{row.topic}</CompareCell>
+              <CompareCell><RichText text={row.custom} /></CompareCell>
+              <CompareCell><RichText text={row.miniApp} /></CompareCell>
+            </div>
+          ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{ marginTop: 72, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 18 }}>
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+          <SubLabel>{doc.workflowTitle}</SubLabel>
+          <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 16 }}>
+            {doc.workflow.map((item, i) => (
+              <li key={item} style={{ position: "relative", paddingLeft: 40, fontSize: 14.5, lineHeight: 1.6, color: TEXT2 }}>
+                <span style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderRadius: 7, background: BG2, border: `1px solid ${BORDSTR}`, color: ACCENT2, fontFamily: MONO, fontSize: 12, fontWeight: 600, display: "grid", placeItems: "center" }}>
+                  {i + 1}
+                </span>
+                <RichText text={item} />
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 32 }}>
+          <SubLabel>{doc.rulesTitle}</SubLabel>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+            {doc.rules.map((item) => (
+              <li key={item} style={{ position: "relative", paddingLeft: 26, fontSize: 14.5, lineHeight: 1.62, color: TEXT2 }}>
+                <span style={{ position: "absolute", left: 6, top: 9, width: 7, height: 7, borderRadius: "50%", border: `2px solid ${ACCENT}`, display: "inline-block" }} />
+                <RichText text={item} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section style={{ marginTop: 44 }}>
+        <div style={{ display: "flex", gap: 14, borderRadius: 10, padding: "16px 18px", background: "rgba(54,211,153,0.07)", border: "1px solid rgba(54,211,153,0.2)", color: TEXT2, fontSize: 14, lineHeight: 1.6 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={OK} strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}><path d="M20 6 9 17l-5-5"/></svg>
+          <div>
+            <strong style={{ color: TEXT, fontWeight: 600 }}>{doc.doneTitle} · </strong>
+            {doc.doneBody}
+          </div>
+        </div>
+      </section>
+      </> : null}
+    </>
+  );
+}
+
+function CompareCell({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
+  return (
+    <div style={{ padding: "15px 16px", color: muted ? TEXT3 : TEXT2, fontSize: 13.5, lineHeight: 1.6, wordBreak: "break-word", borderLeft: muted ? 0 : `1px solid ${BORDER}` }}>
+      {children}
+    </div>
+  );
+}
 
 function SubLabel({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
   return (

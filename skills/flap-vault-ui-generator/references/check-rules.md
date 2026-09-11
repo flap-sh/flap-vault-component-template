@@ -21,6 +21,10 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - invalid manifest binding: `match.bindings` must be a non-empty array of factory-scoped, Vault-scoped, or token-scoped targets
 - duplicate `match.bindings` entries with the same runtime target
 - missing or non-`7777`/`8888` manifest test token in `match.bindings[].tokenAddresses`
+- invalid `manifest.mode` value (`manifest-schema/invalid-mode`); the only allowed value is `mini-app`
+- Mini App binding that is not token-scoped (`manifest-binding/invalid-mini-app-binding`); `mode: "mini-app"` must omit factory/Vault bindings and use `match.bindings[].tokenAddresses`
+- Mini App token that does not end in `8888` (`manifest-binding/invalid-mini-app-token`)
+- Mini App component missing a full-height root (`mini-app-layout/missing-full-height-root`); the outermost returned layout element must set `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full`
 - legacy `chainIds` top-level field present (removed; chain IDs must live inside `match.bindings` entries)
 - disallowed fields at `match` level (only `bindings` is allowed)
 - invalid binding entry: missing or invalid `chainId`, missing target, zero factory, no-factory Vault binding without exactly one Vault address, or invalid token target list
@@ -37,7 +41,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - undeclared URL, endpoint, or external resource
 - host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch target
 - browser storage/navigation/worker/cross-context/permission API or direct browser network/media API
-- non-HTTPS, `ipfs://` / gateway image URL, Arweave, WebSocket, or embedded data URL resource usage in Vault source; immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` with a static image CID
+- non-HTTPS, `ipfs://` / gateway image URL, Arweave, WebSocket, or embedded data URL resource usage in Vault source; exact-host `https://bin.bnbstatic.com` images may use controlled `BinanceImage` with any pathname, while immutable Vault-specific images must use controlled `IpfsImage` or CID-only `IpfsBackground`, and dynamic NFT paths require a static `validationPath` sample
 - missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - i18n key missing from any locale declared by `manifest.i18n`
 - missing current contract risk-status integration from host `riskLevel` for default Vault UI, including the prominent unavailable-risk warning state; `manifest.mode: "mini-app"` is the only token-scoped 8888-token Mini App exception
@@ -46,9 +50,22 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - object result types on `sdk.readContract` calls for ABI methods with multiple return values; read those methods as tuple arrays and map indexes into UI state
 - unprovisioned or registry-only `sdk.readOracle(...)` usage that is not built into the shared runtime
 - suspicious `Number(...)` token amount conversion
-- remote media inside Vault source
+- uncontrolled remote media inside Vault source, including raw remote `<img>` instead of `BinanceImage`
 - hardcoded EVM addresses in Vault source unless they are binding-scoped token/Vault/factory references or declared external contract targets
 - contract reads/writes, event watches, log/filter calls, or gas estimates against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`
+
+### Obfuscation-Resistant Security Scanning
+
+The `forbidden-api/*`, `security/hardcoded-address`, and `endpoint-policy/undeclared-url` checks are AST-aware, so obfuscated or indirect variants are caught, not just literal usage. Examples that still fire:
+
+- string-concatenated addresses or URLs assembled from fragments
+- aliased or indirect `eval` (for example `const e = eval; e(...)`) and `(0, eval)(...)` / `(0, fetch)(...)` indirect-call forms
+- computed `.constructor` access used to reach the `Function` constructor, and `Reflect.construct(...)` scope escapes
+- `React.createElement("iframe", ...)` iframe construction
+- computed `innerHTML` / HTML-sink property writes
+- bare injected-provider identifiers (for example a destructured or aliased `ethereum` reference)
+
+In addition, `i18n.json` string values are now scanned the same way. Unsafe schemes, hardcoded EVM addresses, and undeclared URLs placed inside locale strings are blocked, so translation copy cannot be used to smuggle disallowed targets past the source scan.
 
 ## Selftest
 
@@ -58,13 +75,13 @@ Run `yarn vault:check:selftest` after changing checker rules, the Agent contract
 
 Run `yarn vault:verify-package dist/{folder-name}.zip` after packaging. It checks:
 
-- `flap-vault-package.json` exists
+- `flap-vault-package.json` exists (current format version `6`; legacy format 5 is Workbench-readable only without `capabilities`)
 - package kind and format version match the supported Workbench intake contract
 - marker generator, sourcePackage, and check summary match the script-generated package
-- the zip contains only the four Vault files, manifest schema, package metadata, and package marker
+- the zip contains the four core Vault files, manifest schema, capability profile contract, package metadata, package marker, E2E report v2, and every recursively reachable source/asset listed by format 6
 - duplicate zip entries and central/local header filename mismatches are rejected
 - metadata matches the marker
-- source file and schema SHA-256 hashes match
+- source file, schema, and E2E report SHA-256 hashes match
 
 ## Warning
 

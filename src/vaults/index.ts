@@ -39,11 +39,23 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./flapixel-example/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./flapixel-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
-  "cz-burn-dividend-vault-v1": {
-    folderName: "cz-burn-dividend-vault-v1",
-    loadComponent: () => import("./cz-burn-dividend-vault-v1/Component"),
-    loadManifest: () => import("./cz-burn-dividend-vault-v1/manifest.json") as Promise<{ default: VaultManifest }>,
-    loadI18n: () => import("./cz-burn-dividend-vault-v1/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  "three-r3f-example": {
+    folderName: "three-r3f-example",
+    loadComponent: () => import("./three-r3f-example/Component"),
+    loadManifest: () => import("./three-r3f-example/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./three-r3f-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
+  "flap-skies-showcase": {
+    folderName: "flap-skies-showcase",
+    loadComponent: () => import("./flap-skies-showcase/Component"),
+    loadManifest: () => import("./flap-skies-showcase/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./flap-skies-showcase/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
+  "flap-gamefi-arena": {
+    folderName: "flap-gamefi-arena",
+    loadComponent: () => import("./flap-gamefi-arena/Component"),
+    loadManifest: () => import("./flap-gamefi-arena/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./flap-gamefi-arena/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
   "myx-tax-token-vault": {
     folderName: "myx-tax-token-vault",

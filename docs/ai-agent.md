@@ -38,9 +38,11 @@ The contract is intentionally small:
 
 - Generate or edit one Vault UI package at a time.
 - Implement only the Vault-specific business UI for that package. Do not expand a Vault task into preview shell/header work unless the user explicitly asks for shell work.
-- Keep the Vault folder limited to exactly four files.
+- Keep the default Vault folder limited to exactly four core files. Mini App mode may additionally include reviewed top-level audio files.
+- `three-r3f-v1` supports a mode-less Vault UI with only 7777 proof tokens, a token-scoped 7777 Tax Token Mini App, or a token-scoped 8888 zero-tax Mini App. Mode-less 7777 keeps the default shell and host risk status; Mini App uses `--mode mini-app`, token-only same-suffix bindings, bilingual displayTitle, and full-height layout. Start from `src/vaults/three-r3f-example`, keep every file reachable through static imports from `Component.tsx`, and expose `data-flap-3d-state` plus `data-flap-3d-renderer`.
+- Read `docs/mini-app-3d.md` for the full package/API/asset/fallback/limit matrix. Use `flap-skies-showcase` as the experience-quality reference, `flap-gamefi-arena` as the keyboard/touch gameplay reference, and `three-r3f-example` as the minimal technical integration reference.
 - Register the Vault folder name in `src/vaults/index.ts` so local preview works.
-- Use `yarn vault:register {folder-name}` when the four files already exist and scaffold did not create the package.
+- Use `yarn vault:register {folder-name}` when the core files already exist and scaffold did not create the package.
 - Run checks before packaging.
 - Treat every Vault CLI failure as machine-readable JSON. Read `code`, `fixHint`, and `agent.nextActions`; fix those items before retrying.
 - Treat any blocking check issue as unfinished work.
@@ -55,16 +57,18 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | --- | --- | --- |
 | `folder name` | Yes | Use 3-64 characters of lowercase kebab-case. Used in `src/vaults/{folder-name}` and preview route `/{folder-name}`. |
 | `name` | Yes | Human-readable manifest name shown in the Artifact Workbench. |
-| `mode` | Optional | Omit for the default Vault UI. Use `mini-app` only for token-scoped 8888-token Mini App artifacts; Mini App mode is strongly bound to the token address and skips the Vault risk-status tag checks. |
+| `displayTitle` | Mini App only | Bilingual Mini App display title shown on flap.sh pages and tabs. Use separate values, for example `{ "zh": "蝴蝶农场", "en": "Butterfly Farm" }`. This is separate from the Workbench internal `name`. |
+| `mode` | Optional | Omit for the default Vault UI. Use `mini-app` only for token-scoped Mini App artifacts whose bindings are all 7777 or all 8888; Mini App mode skips the Vault risk-status tag checks. |
 | `bindings` | Yes | Core generation uses `chainId` plus non-zero `factoryAddress` for factory-scoped UI, or exactly one non-zero `vaultAddresses` entry for no-factory UI. Include a real deployed ERC20 test token ending in `7777` or `8888` plus the final real mainnet factory binding when mainnet launch is planned. |
 | `vaultAddresses` | Required for core no-factory binding | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]` for the normal scaffold path. |
 | `caRestrictionMode` | Yes | One of `none`, `reserved`, or `verified`. This is a Workbench/registry production decision, not a public manifest field. |
-| `testTokenAddresses` | Yes | Use real deployed ERC20 token(s) whose address ends in `7777` or `8888`. Store them only inside `match.bindings[].tokenAddresses` so `vault:check`, Workbench, and `vault:e2e` have manifest-declared proof input. |
+| `testTokenAddresses` | Yes | Use real deployed ERC20 token(s) whose address ends in `7777` or `8888`. Store them only inside `match.bindings[].tokenAddresses` so `vault:check`, Workbench, and `vault:e2e` have manifest-declared proof input. Robinhood may use token scope on chain `4663` or a real proof token on chain `46630`; standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. |
 | `productionFactoryAddress` | When mainnet factory-scoped launch is planned | Provide the final real mainnet factory address early and write it to the mainnet binding `factoryAddress` instead of using random mainnet token CAs for testing. |
 | `productionRestrictedTokenAddresses` | Only for `verified` CA restriction | Workbench/registry-only production restriction input. Do not add it as global `tokenAddresses`, `restrictTokenAddresses`, `caPolicy`, or any other public manifest field. |
 | `tokenAddresses` | Yes, at manifest level | Use only inside `match.bindings` entries. In factory mode this is the manifest test-token source, not the production CA restriction. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. In `mini-app` mode, a token-scoped `8888` token address is mandatory because the artifact is bound by token address. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `externalFrames` | Optional | Use only when a display-only chart embed is unavoidable. At most one entry is allowed. Providers are limited to `tradingview`, `dexscreener`, and `coingecko-terminal`; `src` must be one complete static HTTPS provider URL with fixed query params. |
+| `audioAssets` | Mini App only | Optional BGM/sound-effect files placed directly under `src/vaults/{folder-name}`. Use lowercase top-level `.mp3`, `.wav`, `.ogg`, `.m4a`, or `.aac` files, static imports from `Component.tsx`, visible mute/pause controls, and clear source/license/fallback notes for human review. |
 | `locales` | Yes | Example: `en,zh` or `zh`. Each locale string must be at least two characters. Check validates only declared locales. |
 | `VaultABI` | Yes | Minimal Vault ABI fragments used by the component. Do not include standard ERC20 here. |
 | `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, risk posture, and current contract risk-status handling. |
@@ -78,7 +82,7 @@ There are two supported creation paths:
 | Path | Use When | Required Commands |
 | --- | --- | --- |
 | Scaffold-first | The Agent is creating a new package from inputs such as folder name, chain, factory or Vault, and locales. | `yarn vault:scaffold {folder-name} ...` |
-| Manifest-first | The Agent already has or generated the four Vault files from a provided manifest. | `yarn vault:register {folder-name}` |
+| Manifest-first | The Agent already has or generated the core Vault files from a provided manifest. | `yarn vault:register {folder-name}` |
 
 Both paths must end with `yarn vault:check {folder-name}`, `yarn vault:e2e {folder-name}`, and `yarn vault:package {folder-name}`. Do not hand-edit `src/vaults/index.ts` unless `vault:register` reports that the index shape cannot be parsed.
 For a step-by-step beginner path that starts from raw Vault requirements and ends with a verified zip, follow `docs/from-zero-vault-ui.md`.
@@ -105,7 +109,9 @@ Replace these placeholder strings with real `0x` + 40 hex deployment addresses b
 
 Every binding-scoped `tokenAddresses` entry, including optional factory-mode entries, must be a real deployed ERC20 token address ending in `7777` or `8888`. In factory mode, `tokenAddresses` is package proof input, not production CA restriction. Do not add global `tokenAddresses`, `restrictTokenAddresses`, or `caPolicy`. Local-only `vault:e2e --token` overrides do not satisfy `vault:check`. Production CA restriction must be collected as `caRestrictionMode`: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` is applied only by Workbench/registry after ERC20 plus factory/Vault/token relationship checks.
 
-If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
+Robinhood supports two proof paths. A token-scoped package may bind its real `7777`/`8888` token directly on Robinhood mainnet chain `4663`; that token is both the runtime scope and the E2E proof input. A factory- or Vault-scoped package may instead use a real deployed Robinhood Testnet token on chain `46630` (`https://rpc.testnet.chain.robinhood.com/rpc`). Standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. Do not put a fabricated placeholder into `manifest.json`; `vault:check`, E2E packaging, and Workbench intake must remain blocked for undeployed or non-ERC20 tokens.
+
+If the UI needs a non-oracle HTTPS endpoint, declare it in `manifest.endpoints` as a single absolute HTTPS URL string without username/password credentials or an array of those strings so `vault:check` can validate it and the Workbench can route it for review. That declaration authorizes only direct static `fetch(...)` targets; it does not authorize `<img src>`, ordinary URL constants, i18n URL values, or other non-fetch resources. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration. Also add it as an `openItems` entry until Flap review explicitly approves it. The `openItems` entry must include: the endpoint URL, purpose, request/response shape, data sensitivity, why on-chain reads or `sdk.readOracle(...)` are insufficient, and the fallback behavior when the endpoint is unavailable. This repository does not define SLA, approver, or ticket routing for endpoint review; agents must not imply approval just because `manifest.endpoints` validates.
 
 If the UI needs a display-only market chart iframe, declare it in `manifest.externalFrames` and render it only through `ReviewedFrame` from `@/src/ui`. The declaration must be an array with at most one entry containing `id`, `provider`, `src`, and `title`. Supported providers are only `tradingview`, `dexscreener`, and `coingecko-terminal`; CoinGecko Terminal embeds use the GeckoTerminal domain. The `src` must be the complete static HTTPS provider URL with a non-empty fixed query string, no username/password credentials, and no hash. Component code may render at most one `ReviewedFrame` and must pass static string literal `frameId`, `provider`, `src`, and `title` props that exactly match the manifest entry. Do not use raw `<iframe>`, `srcDoc`, dynamic URL construction, postMessage, wallet connection, transaction flows, quote/risk/settlement logic, or arbitrary third-party embeds. Add the external frame as an `openItems` entry until Flap review explicitly approves it.
 
@@ -118,6 +124,7 @@ src/vaults/{folder-name}/Component.tsx
 src/vaults/{folder-name}/manifest.json
 src/vaults/{folder-name}/VaultABI.ts
 src/vaults/{folder-name}/i18n.json
+src/vaults/{folder-name}/<optional-mini-app-audio>.mp3
 ```
 
 If the Vault files were generated directly from a provided manifest instead of using `vault:scaffold`, run:
@@ -128,11 +135,25 @@ yarn vault:register {folder-name}
 
 This only adds local preview wiring to `src/vaults/index.ts`; it does not perform any production publish or deployment binding step.
 
-Do not add helper files, nested components, assets, docs, local JSON data, symlinks, CommonJS `require(...)`, or dynamic imports inside the Vault folder.
+Do not add helper files, nested components, docs, local JSON data, symlinks, CommonJS `require(...)`, or dynamic imports inside the Vault folder. Default Vault UI cannot add local assets. Mini App mode may add only reviewed top-level audio assets with allowed extensions.
 
 The folder name is the route and source folder only. Do not use it as the artifact identity. `vault:scaffold` generates the stable source-package `artifactId`, and the folder-name segment in that ID must stay tied to the Vault folder name. `match` remains the developer-facing binding intent for deployment targets.
 
 ## Implementation Rules
+
+### Dynamic modules: staking, auctions, routers, and helpers
+
+Do not treat every secondary contract as an `externalContracts` entry. First determine whether the target is a fixed independent contract or a dynamic module owned/coordinated by the Vault.
+
+| Situation | Required implementation |
+| --- | --- |
+| The address is `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, or another allowed runtime-derived token/NFT/payment address | Call the runtime address through the SDK. |
+| The Vault coordinates a staking pool, auction contract, router, dividend distributor, wrapper, trigger helper, or similar module whose address comes from Vault state | Add UI-facing view methods and public proxy actions to the Vault contract, then call only `context.vaultAddress` from `Component.tsx`. Put only those Vault-facing ABI fragments in `VaultABI.ts`. |
+| The UI must call a truly fixed, independent non-token/non-Vault/non-factory contract | Declare it under the relevant `match.bindings[].externalContracts` entry with `address` and `label`, document the reason and methods for review, and call it only after approval. |
+
+For example, if `vault.stakingAdapter()` or `vault.auction()` returns a module address, the UI must not read that address and then call `stake`, `withdraw`, `claim`, `bid`, or `settle` on the returned contract. The Vault should expose the required read-only state and user actions as Vault methods such as `getStakeInfo`, `stake`, `withdrawStake`, `claimRewards`, `getAuctionState`, `placeBid`, or `settleAuction`; the UI calls those methods at `context.vaultAddress`. Exact method names are contract-specific.
+
+This boundary keeps dynamic implementation details behind the Vault, makes the transaction target reviewable, and prevents `externalContracts` from becoming a bypass. Never expose operator/admin configuration methods such as `setConfig`, `setSwapPath`, or `setSplit` in `Component.tsx`. If the Vault cannot expose a safe user-facing proxy action yet, keep that feature read-only or link to the approved official product surface until the contract is updated.
 
 Use:
 
@@ -149,21 +170,29 @@ Use:
 - `docs/ui-pattern-snippets.md` to choose section order, metric grids, action panels, transaction states, and empty/error states.
 - The scaffold default surface as the preferred visual starting point. Built-in examples are behavior references; do not copy their visual layout as the default.
 - For `manifest.mode: "mini-app"`, put a full-height class or inline height on the outermost returned layout element, for example `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full`.
+- For `manifest.mode: "mini-app"`, set `manifest.displayTitle` as an object with separate `zh` and `en` strings. The Mini APP shell uses the current language query/user selection to render `displayTitle.zh` for Chinese and `displayTitle.en` for English in the page title and tab. Keep `manifest.name` for the Workbench internal name.
+- For Mini App BGM or sound effects, put lowercase top-level audio files directly under `src/vaults/{folder-name}` and import them statically from `Component.tsx`, for example `import bgmUrl from "./bgm.mp3";`. Allowed extensions are `.mp3`, `.wav`, `.ogg`, `.m4a`, and `.aac`; nested folders, remote audio, data URLs, and hidden autoplay are blocked. Add visible mute/pause controls and document source/license, play timing, fallback, and mobile impact for human review.
 - Local preview uses separate host shells: default Vault UI packages keep the existing Vault Information shell, and `manifest.mode: "mini-app"` packages render inside the beta `/mini-app`-style shell with zero factory/Vault runtime addresses plus artifact-area fullscreen.
 - An explicit action availability stage: `internal-market`, `dex-listed`, `both`, or `read-only`.
 - `context.host?.marketPhase` as the stage source of truth. The current template preview host provides this API for local self-test; production Flap host injects equivalent context. Existing tokens with `tokenInfo.status < 2` are `internal-market`; existing tokens with `tokenInfo.status >= 2` are `dex-listed`; missing token info is `unknown`.
 - `readTaxVaultHostContext(context.host)` as the normalized public SDK accessor for custom Vault host state. Custom Vault UI in this template targets the tax-token path, so the live runtime fields that matter are `marketPhase`, `isListed`, and host-injected token metadata rather than ad hoc token-type props.
-- Current contract risk status from `readTaxVaultHostContext(context.host)` for default Vault UI. Derive it from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`, display it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a warning/danger notice when the risk level is unavailable. This is required unless `manifest.mode` is `mini-app` for a token-scoped 8888-token Mini App. Do not hardcode or unconditionally render `Low risk` / `低风险` labels, badges, summaries, or reassuring copy; those labels may appear only when selected from the host-derived `riskLevel === 1` branch.
+- Current contract risk status from `readTaxVaultHostContext(context.host)` for default Vault UI. Derive it from `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel`, display it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a warning/danger notice when the risk level is unavailable. This is required unless `manifest.mode` is `mini-app` for a token-scoped 7777 or 8888 Mini App.
 - `isActionAvailableForPhase(stage, context.host?.marketPhase ?? "unknown")` to keep stage-gated buttons consistent.
 - `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` when a write flow depends on the active wallet being on `context.chainId`. Keep the write section visible and render a clear switch-network state instead of attempting the write on the wrong chain.
 - `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token header/media data. The template preview shell first asks the same-origin runtime proxy for host presentation data, then falls back to ERC20 `symbol()` / `name()` from the preview `tokenAddress`; mocked image fallback is reserved for the neutral preview fixture only. `tokenAddress` alone is metadata-only in preview; use `marketPhase`, `isListed`, `status`, or `tokenStatusCode` when token lifecycle state matters.
-- `IpfsImage` from `@/src/ui` when a Vault-specific immutable image is unavoidable, or `IpfsBackground` from `@/src/ui` for a decorative full-area/background image. Pass only a static image CID via `cid`; do not pass full gateway URLs, metadata CIDs, `ipfs://` values, paths, or dynamic expressions. `vault:check` verifies each CID resolves through at least one allowed Flap IPFS gateway to `image/*` before packaging.
+- `BinanceImage` from `@/src/ui` for individual images returned by an approved Binance data source. Its `src` may be dynamic. The runtime accepts only absolute HTTPS URLs on the exact `bin.bnbstatic.com` hostname, with no credential or alternate port; there is intentionally no pathname-prefix requirement. It forces lazy loading, async decoding, and `referrerPolicy="no-referrer"`. Paginate or virtualize large lists instead of mounting hundreds or thousands of images at once.
+- `IpfsImage` from `@/src/ui` when a Vault-specific immutable image is unavoidable, or `IpfsBackground` from `@/src/ui` for a decorative full-area/background image. Pass only a static image or collection-directory CID via `cid`. `IpfsImage` may receive a safe relative `path`; if the path is dynamic (for example `${tokenId}.png`), also provide one static `validationPath` sample under the same CID. Do not pass full gateway URLs, metadata CIDs, `ipfs://` values, or dynamic CIDs. `vault:check` validates CID/path syntax without probing every image over the network.
+- `NftMetadataImage` from `@/src/ui` for Vault V2 contract-selected NFT media. Pass only `tokenId` and localized `alt`; it consumes the shared SDK context internally. The generic runtime owns the minimal ABIs, reads `Vault.nft()` from `context.vaultAddress`, then reads `NFT.tokenURI(tokenId)`; do not add these image-only methods to project `VaultABI.ts`, read `tokenURIBase`, inspect `.json` suffixes, or construct metadata URLs in the Vault component. Mode 0/1 data JSON is parsed inside the shared runtime, while mode 2 IPFS/HTTPS metadata and external image bytes go through the host-owned resolver with DNS/public-network, redirect, timeout, byte-size, content-type, and SVG safety limits. Do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, or spread props. Render only visible or paginated token ids; the runtime caches and limits concurrent reads to six.
 - Contract targets limited to `context.vaultAddress`, `context.tokenAddress`, `context.factoryAddress`, runtime payment/quote/dividend token addresses, token/NFT addresses derived from Vault reads, and declared `match.bindings[].externalContracts`. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.
 - For Vaults that coordinate internal modules such as wrap factories, routers, dividend distributors, staking wrappers, or trigger helpers, keep those modules behind Vault UI-facing view methods and public proxy actions. Add only the Vault-facing ABI fragments to `VaultABI.ts` and call them through `context.vaultAddress`; do not declare dynamic module addresses as `externalContracts` to bypass this boundary. Public proxy actions such as resolve, claim, or deposit flows are acceptable when they are stage-gated, wrong-network-gated, and contract-state-gated; operator/admin config methods such as `setConfig`, `setSwapPath`, and `setSplit` must not be exposed from `Component.tsx`.
 - Fixed extra contract targets declared under `match.bindings[].externalContracts` only when the target is truly required and cannot be represented by runtime token/Vault/factory context.
 - The preview shell / production host for the target surface to own token breadcrumb/header, close control, `Vault Information` frame, wallet header, language selector, invalid token fallback, width constraint, and any standard shared summary block already present on the host surface.
 - The component to start at the first Vault-specific business section below `Vault Information`.
 - `VaultBanner` only when the target host surface truly lacks a standard shared summary/header block. Do not default to a component-owned top banner.
+
+If a legacy Vault calculates a native protocol or VRF fee from `tx.gasprice`, do not hardcode a gas-price table and do not choose the maximum of several quotes. Read one live value with `sdk.getGasPrice()`, use that exact `gasPrice` for the quote read, and pass it unchanged to both `sdk.simulateContract(...)` and `sdk.writeContract(...)`. Keep the quoted protocol fee in `value`; `gasPrice` and optional `gas` only control transaction execution. The runtime caps explicit write overrides, and `gas` should normally be omitted so the wallet can estimate it.
+
+If a Vault UI needs historical contract events, use `sdk.getBlockNumber()` and `sdk.getContractEvents(...)` with a runtime-approved address. Keep each requested lookback at 20,000 blocks or less. The runtime resolves `latest` once, splits provider requests into spans of at most 1,000 blocks, caps concurrency at four, and returns the flattened result in ascending range order. Do not import or call raw `getLogs`, `watchContractEvent`, or component-owned RPC transports; use pagination or a host indexer for longer history.
 
 Do not use:
 
@@ -176,8 +205,9 @@ Do not use:
 - CommonJS `require(...)`; use static ESM imports only.
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
-- Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, clipboard, geolocation, permission, or notification APIs.
-- External URLs unless declared as non-oracle `manifest.endpoints` using a single HTTPS URL string without credentials or an array of HTTPS URL strings without credentials. Full gateway image URLs are not allowed; immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid`.
+- Clipboard access or programmatic copy, including `navigator.clipboard`, `document.execCommand("copy")`, aliases, and computed property access. Render the value only; the host owns copy actions.
+- Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, geolocation, permission, or notification APIs.
+- External URLs outside approved explorer/link hosts, `ExternalLink`, `BinanceImage` on the exact `bin.bnbstatic.com` host, reviewed `manifest.externalFrames`, or a direct static `fetch(...)` covered by `manifest.endpoints`. Declaring a URL in `manifest.endpoints` does not authorize images or other non-fetch resources. Raw remote `<img>` and full gateway image URLs remain blocked; immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid`, and Mini App audio must be packaged as reviewed local top-level audio assets.
 - More than one `ReviewedFrame`, or external frames unless declared in `manifest.externalFrames` and rendered through `ReviewedFrame` with static string literal props that exactly match the declaration.
 - Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` targets. Direct `fetch(...)` must use a static absolute HTTPS string covered by `manifest.endpoints`.
 - Fixed contract targets outside `context.tokenAddress`, `context.vaultAddress`, `context.factoryAddress`, binding-scoped `tokenAddresses`/`vaultAddresses`, or `match.bindings[].externalContracts`.
@@ -188,11 +218,26 @@ Do not use:
 - Standard ERC20 ABI fragments in `VaultABI.ts`; use the SDK export unless the token has custom non-standard methods.
 - Silent action removal when an action is unavailable. Show the panel with a clear disabled or unavailable state instead.
 - Reimplementing token phase detection inside `Component.tsx`; use the host-provided `marketPhase`.
-- Uploading media, fetching private token metadata or token image APIs inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host, or `IpfsImage` / `IpfsBackground` with a static image CID when the image is Vault-specific and immutable.
+- Uploading media or fetching private token metadata inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host. An already-approved public data endpoint may return `bin.bnbstatic.com` image URLs for `BinanceImage`; other Vault-specific immutable media must use controlled `IpfsImage` / `IpfsBackground` static CIDs.
 
 ### Vault-Specific Images
 
-Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for token presentation. Only use custom media when the image is Vault-specific, immutable, and already pinned outside the Vault UI package.
+Use `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol` for host-owned token presentation. Outside the Binance logo exception below, use custom media only when it is Vault-specific, immutable, and already pinned outside the Vault UI package.
+
+For individual stock/token logos returned by an approved data source, use `BinanceImage`. Static and API-returned dynamic `src` values are supported, and every runtime value is checked against the exact hostname. No `/images/web3-data/public/token/logos/` prefix is required:
+
+```tsx
+import { BinanceImage } from "@/src/ui";
+
+<BinanceImage
+  src={asset.logoUrl}
+  alt={i18n.t("assets.logoAlt")}
+  fallback={<span aria-hidden="true">{asset.symbol.slice(0, 2)}</span>}
+  className="size-9 rounded-full object-cover"
+/>
+```
+
+Do not replace it with raw `<img>`, CSS `url(...)`, or a generic remote-image wrapper. `http:`, credentials, alternate ports, subdomains such as `cdn.bin.bnbstatic.com`, and lookalike domains are rejected. Keep only the currently visible page or virtualized window mounted when the data set contains hundreds or thousands of logos.
 
 If a project needs Flap-hosted IPFS availability instead of a developer's personal Pinata gateway, upload the image through the Flap token metadata upload API documented in [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata). Use `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation. The response `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` value. For Vault UI media, fetch that metadata JSON, read its `image` field, strip any gateway URL or `ipfs://` prefix, and keep only the actual image CID.
 
@@ -210,6 +255,19 @@ import { IpfsImage } from "@/src/ui";
 
 Do not emit `imageUrl`, `<img src="https://.../ipfs/...">`, `ipfs://...`, CSS `url(...)`, a metadata CID, or a runtime variable/expression for `cid`. If the upload flow returns a metadata CID, fetch the metadata JSON and extract the `image` field first; then strip the gateway or `ipfs://` prefix and keep only the actual image CID. The Vault package must not implement the upload or pinning flow.
 
+For NFT previews, upload the complete image set as one IPFS directory outside the Vault package. Keep the directory CID static and let only the in-directory path depend on the NFT id:
+
+```tsx
+<IpfsImage
+  cid="bafy...collection-directory-cid"
+  path={`images/${tokenId.toString()}.png`}
+  validationPath="images/1.png"
+  alt={i18n.t("media.nftAlt")}
+/>
+```
+
+`validationPath` must be a real static sample whenever `path` is dynamic. A static `path` is validated directly and must not declare `validationPath`. Paths cannot contain traversal, schemes, query strings, hashes, encoded escapes, leading/trailing slashes, or empty segments. `IpfsBackground` does not accept `path`.
+
 For a decorative full-area background, use `IpfsBackground` inside a positioned container instead of CSS `background-image`:
 
 ```tsx
@@ -221,11 +279,31 @@ import { IpfsBackground } from "@/src/ui";
 </div>
 ```
 
-`vault:check` validates every static `IpfsImage cid` or `IpfsBackground cid` by probing the allowed Flap IPFS gateways and requiring an `image/*` response. If `media-policy/invalid-ipfs-image-cid` appears, replace the prop with a raw static image CID. If `media-policy/ipfs-image-unavailable` appears, the CID is not currently readable as an image through the allowed gateways, so use a pinned image CID that resolves correctly or remove the media.
+`vault:check` validates every static `IpfsImage cid/path` or `IpfsBackground cid` syntactically. For a dynamic `path`, it requires a static `validationPath`. It does not probe every image over the network during source validation. If `media-policy/invalid-ipfs-image-cid` appears, replace the prop with a raw static image/directory CID. If `media-policy/invalid-ipfs-image-path` appears, use a safe relative path and add exactly one static validation sample for a dynamic path. Package owners remain responsible for pinning readable image bytes.
 
 For default Vault UI, risk status still controls visual order: if the image is a hero, preview, showcase, or other large visual block, place the required host-derived risk status before it. `manifest.mode: "mini-app"` skips only this risk-status tag requirement.
 
+### Vault V2 NFT Metadata Images
+
+Vault V2 image mode is resolved by the shared runtime and NFT contract, not by project-supplied image ABI or component-owned string concatenation:
+
+```tsx
+import { NftMetadataImage } from "@/src/ui";
+
+<NftMetadataImage
+  tokenId={tokenId}
+  alt={i18n.t("media.nftAlt")}
+  className="aspect-square w-full rounded-md object-cover"
+/>
+```
+
+`NftMetadataImage` consumes the SDK provider internally, then calls `Vault.nft()` and `NFT.tokenURI(tokenId)` through runtime-owned minimal ABIs. It supports mode 0/1 `data:application/json` metadata and mode 2 final IPFS/HTTPS metadata URIs without exposing those URIs to component code. The host route `/api/runtime/nft-metadata` resolves external JSON/images, rejects private-network and credentialed targets, revalidates redirects, binds the HTTPS connection to a validated public DNS address, caps metadata at 512 KiB and images at 3,000,000 bytes, accepts only reviewed image MIME types, and rejects active/external SVG content. Pinata dedicated-gateway IPFS URLs are normalized to Pinata's public gateway by validated CID/path before fetching, so local DNS blocking of a developer gateway does not disable a valid IPFS asset. The component receives only a validated data image. Project `VaultABI.ts` remains necessary only for other Vault-specific business reads/writes used by the component.
+
+Do not call `Vault.tokenURIFor`, derive URLs from `tokenURIBase`, or mount every token in a large collection at once. Use `ownedTokensOf(user)` only as the token-id source, then paginate or render the visible subset. A burn/sell flow must remove stale token ids and media after the transaction confirms because burned `tokenURI` reads can revert.
+
 ## Validation Loop
+
+`vault:check` treats every TypeScript/TSX/JavaScript/JSX parse diagnostic as blocking. Fix `source-syntax/invalid-typescript` before E2E or packaging; the checker must never accept a partially recovered AST as buildable source.
 
 All Vault commands are designed for Agent recovery. On failure, parse the JSON output:
 
@@ -258,9 +336,10 @@ If `manual-review/action-stage-gating` appears, the component has a write path b
 If `visual-policy/row-heavy-dashboard` appears, the component copied the old sample-dashboard shape. Rebuild it with the scaffold default surface / NiePan-style compact template: one primary business card, a small metric strip, one visible action panel, and lower runtime facts.
 If `manifest-binding/mixed-binding-target` appears, one binding contains both `factoryAddress` and `vaultAddresses`. Choose one scope: factory-scoped UI uses `factoryAddress`; single-Vault UI omits `factoryAddress` and uses exactly one `vaultAddresses` entry.
 If `manifest-binding/missing-test-token` appears, add the required package-proof token source. If `manifest-binding/invalid-test-token-suffix` appears, replace the offending `tokenAddresses` entry with a real deployed ERC20 token ending in `7777` or `8888`. This applies to factory bindings too; it is still not a production CA restriction.
-If `manifest-binding/invalid-mini-app-binding` or `manifest-binding/invalid-mini-app-token` appears, use `manifest.mode: "mini-app"` only with token-scoped `match.bindings[].tokenAddresses` ending in `8888`. Mini App artifacts are bound by token address, so factory/Vault bindings or missing token addresses are invalid.
+If `manifest-binding/invalid-mini-app-binding`, `manifest-binding/invalid-mini-app-token`, or `manifest-binding/mixed-mini-app-token-suffixes` appears, use `manifest.mode: "mini-app"` only with token-scoped bindings that are all `7777` or all `8888`. Factory/Vault bindings, missing token addresses, and mixed suffixes are invalid.
 If `mini-app-layout/missing-full-height-root` appears, add `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full` to the outermost returned Mini App layout element.
-If `risk-status/missing-host-risk-state` appears, the default Vault UI component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying. Use `manifest.mode: "mini-app"` only for a token-scoped 8888-token Mini App.
+If `media/mini-app-audio-only`, `media/invalid-mini-app-audio-asset`, or `media/mini-app-audio-too-large` appears, keep audio files only in Mini App mode, top-level, lowercase, allowed extension, and within the size limits. If `manual-review/mini-app-audio-asset` appears, keep it in `openItems` until Flap review approves source/license, play timing, controls, fallback, and mobile impact.
+If `risk-status/missing-host-risk-state` appears, the default Vault UI component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add `riskLevel` handling from `readTaxVaultHostContext(context.host)` and a prominent missing-risk warning before retrying. Token-scoped 7777 or 8888 Mini Apps use `manifest.mode: "mini-app"` and are exempt from this tag check.
 If `risk-status/not-prominent-placement` appears, the component renders host risk status too low or after a large visual block. Move the risk badge, metric, or row within the first three visible Vault-specific business rows/blocks, before any preview, hero, banner, showcase, media, chart, or large visual block, before retrying.
 If `risk-status/manual-low-risk-label` appears, the component renders `Low risk` / `低风险` copy without deriving it from host `riskLevel === 1`. Remove the manual label or move it into the explicit host-risk mapping branch before retrying.
 If `contract-abi/human-readable-requires-parse-abi` appears, `VaultABI.ts` exports human-readable ABI signature strings without `parseAbi(...)`. Import `parseAbi` from `viem` and wrap the string array, or use full object ABI fragments.
@@ -273,7 +352,7 @@ When changing the check script or Agent contract itself, also run:
 yarn vault:check:selftest
 ```
 
-That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, non-`7777`/`8888` test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, operator/admin config methods in `Component.tsx`, IPFS-style non-image resources, full gateway image URLs, invalid `IpfsImage` / `IpfsBackground` CIDs, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
+That selftest creates temporary Vault fixtures and verifies the checker still blocks CA policy inside the UI manifest, missing manifest test tokens, non-`7777`/`8888` test tokens, mixed factory/Vault binding targets, malformed, zero, or reserved placeholder binding addresses, malformed or credentialed endpoint declarations, endpoint-prefix escapes, invalid or dynamic external frame usage, hidden host-relative/dynamic/credentialed fetches, clipboard access and computed copy bypasses, CommonJS `require(...)`, symlinks, browser-global escapes, unsafe `window.open`, document overwrite APIs, eval-like execution, direct wallet-provider/signing bypasses, browser storage/navigation/worker/permission APIs, SDK-like package imports, phishing-sensitive external navigation, disallowed contract targets, operator/admin config methods in `Component.tsx`, IPFS-style non-image resources, raw remote images, invalid `BinanceImage` hosts/props, full gateway image URLs, invalid `IpfsImage` / `IpfsBackground` CIDs, invalid folder names, raw human-readable ABI string arrays without `parseAbi(...)`, object-typed reads for multi-output ABI methods, and standard ERC20 ABI fragments in `VaultABI.ts`.
 
 When it passes:
 
@@ -293,11 +372,11 @@ The package command prints:
 - `sha256`
 - `bytes`
 
-`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This V1 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. The E2E proof must use a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
+`vault:e2e` writes `dist/e2e/{folder-name}/qa-report.json` and must cover PC / iPad / H5 for `default`, `internal-market`, `dex-listed`, and wrong-network states. This v2 gate is deterministic Playwright DOM/layout/state checking and must not depend on AI image judgment. Before browser checks, the runner verifies `/api/runtime/e2e-source` and records preview-source attestation proving that the preview server serves the same `Component.tsx`; stale or unrelated base URLs are rejected. The E2E proof must use a real deployed `7777`/`8888`-suffix test token declared in manifest `match.bindings[].tokenAddresses`; supported proof chains are BNB mainnet `56`, BNB Testnet `97`, Robinhood mainnet `4663`, and Robinhood Testnet `46630`. Local `--token 0x...` overrides are only for developer self-test and do not satisfy `vault:check` or Workbench intake.
 First-time local machines, especially Windows machines, may need `yarn playwright install chromium` before Chromium can launch. If the browser is missing, `vault:e2e` must emit the JSON code `vault-e2e/playwright-browser-missing` with that fix hint. GitHub Actions uses `npx playwright install --with-deps chromium`.
-Submit only the zip produced by this command. The zip contains format-version `4` `flap-vault-package.json`, `qa/e2e-report.json`, and matching `e2e` summary fields, which identify the package as a script-generated Flap Vault UI source package and record required file hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Flap Artifact Workbench should reject hand-made zips without this marker, proof, or matching hashes.
-The package command uses the same official git freshness gate as `vault:check` and rejects missing, failed, or stale E2E proof, so a checkout that is behind, ahead, diverged, or not E2E-proven cannot produce a source zip.
-The verify command checks the same source package from the Workbench side: marker, kind/version, exact file list, metadata, E2E proof, and SHA-256 hashes. If it fails, read the JSON `code`, `fixHint`, and `agent.nextActions`, then regenerate the package instead of editing the zip by hand.
+Submit only the zip produced by this command. The zip contains format-version `6` `flap-vault-package.json`, E2E report v2, the packaged capability profile contract, and matching `e2e` summary fields. It records recursive required source/asset hashes, optional Mini App audio hashes, E2E proof hashes, plus npm latest `@flapsdk/vault-runtime` `gitHead` provenance. Workbench may read legacy format 5 only without `capabilities` and should reject hand-made zips without this marker, proof, profile contract, or matching hashes.
+The package command's first step fetches the official template ref. If local `HEAD` is only behind `origin/main`, it automatically fast-forwards and then launches the latest package script while preserving non-conflicting local Vault work. Conflicting local changes and ahead/diverged checkouts stop with machine-readable freshness errors; local work is never discarded. The package script then runs the full git/npm freshness gate and rejects missing, failed, or stale E2E proof.
+The verify command checks the same source package from the Workbench side: marker, current template/runtime provenance, current manifest schema, exact file list, metadata, E2E proof, and SHA-256 hashes. If it fails, read the JSON `code`, `fixHint`, and `agent.nextActions`, then regenerate the package instead of editing the zip by hand. `--self-contained` is only for historical package forensics and is not a handoff pass.
 Do not describe a future write-UI tx hash as a strong local-origin proof. A local wallet trace or tx hash can prove a real transaction and target, but only a platform-controlled Playwright + wallet runner can strongly prove the UI path by replaying it in a trusted environment.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also run:
@@ -309,6 +388,16 @@ yarn runtime:verify-package
 
 That proves the shared runtime surface is still packable for Workbench / host reuse and that the generated `runtime-contract.json` stays in sync.
 `yarn build` and `yarn runtime:package` also run the same exact-`origin/main` git freshness gate and npm latest version gate before producing local build outputs.
+
+Before merge, validate the actual npm archive from the feature branch with the protected canary path:
+
+```bash
+yarn runtime:pack:canary
+yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/flap-artifact-workbench --script typecheck --script lint --script build
+yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/beta-multichain --script test --script lint --script build
+```
+
+`runtime:pack:canary` requires a clean committed worktree. It deliberately bypasses only the exact-`origin/main` release gate, changes the package version to a commit-bound `-canary.<gitHead>` prerelease, sets `private: true`, removes public publish configuration, verifies the package, and writes a SHA-256-addressed handoff result for the generated `.tgz`. It does not publish npm and is not release evidence. `runtime:test:canary` validates installation of that exact tarball in an isolated temporary directory, swaps only the consumer's installed runtime for the requested checks, and restores it afterward; it does not edit `package.json` or `yarn.lock`. After merge and the required version bump, rerun the release commands above from official `main` before publishing.
 
 ## Preview Loop
 
@@ -354,10 +443,10 @@ Built-in reference packages:
 - `example`: reward/oracle pattern with approve, simulate, write, claim, and refetch.
 - `dex-listed-example`: listed-only stage gate with visible disabled state before listing and approve -> write after `marketPhase=dex-listed`.
 - `action-gallery-example`: richer action gallery showing internal-market, DEX-listed, both-stage, and read-only controls in one previewable Vault.
-- `community-buyback-example`: live CA Store example for the Community Approved Buyback vault on BNB.
-- `flapixel-example`: live CA Store example for the FLAPixel NFT vault on BNB.
+- `community-buyback-example`: Community Approved Buyback workflow example on BNB. Its manifest currently binds to the same shared neutral preview fixture factory/token as the other workflow examples.
+- `flapixel-example`: FLAPixel NFT example on BNB with its own distinct reviewed binding.
 
-Built-in examples use real `7777`/`8888`-suffix BNB token/factory bindings for package proof. `example`, `dex-listed-example`, and `action-gallery-example` are workflow fixtures only; `community-buyback-example` and `flapixel-example` are reviewed live host/runtime examples. Do not treat any example as a factory, token, Vault, or project endorsement. For local testing with a different reviewed Store factory or fixed Vault, pass real runtime values through URL params instead of committing additional addresses into a public template fixture.
+Built-in examples use real `7777`/`8888`-suffix BNB token/factory bindings for package proof. `example`, `dex-listed-example`, `action-gallery-example`, and `community-buyback-example` currently share the neutral preview fixture binding and are workflow fixtures; `flapixel-example` uses a distinct reviewed host/runtime binding. Do not treat any example as a factory, token, Vault, or project endorsement. For local testing with a different reviewed Store factory or fixed Vault, pass real runtime values through URL params instead of committing additional addresses into a public template fixture.
 
 Token image preview is also addressable by URL. `tokenImageUrl` is the direct override when a local preview needs a different mocked image:
 

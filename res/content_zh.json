@@ -16,7 +16,9 @@
     "wrongNetwork": "網絡錯誤",
     "current": "當前",
     "bnbChain": "BNB Chain",
-    "bnbTestnet": "BNB Testnet"
+    "bnbTestnet": "BNB Testnet",
+    "robinhoodChain": "Robinhood 链",
+    "robinhoodTestnet": "Robinhood 测试网"
   },
   "home": {
     "sop": {
@@ -25,11 +27,18 @@
       "label": "SOP",
       "title": "从这里开始：定制一个 Vault UI。",
       "description": "按这个 SOP 完成创建、注册、实现、预览、检查和打包，不需要先读完整仓库。主要实现都发生在一个 Vault 目录里。",
+      "modeTabs": {
+        "customLabel": "定制 UI",
+        "customDescription": "默認 Vault Information 壳；7777 Token 也可以申請受控 3D 和全屏布局。",
+        "miniAppLabel": "Mini App",
+        "miniAppDescription": "8888 Token 绑定、Mini APP 预览壳、更宽创意空间但更严人工审核。"
+      },
       "quickStart": {
         "kicker": "AI Agent 快速开始",
+        "title": "把一段 prompt 交给你的 Agent，它就能生成受控的 Vault UI。",
         "description": "把这段 prompt 贴进你的 AI coding Agent，替换占位符，它就可以按本仓库规则生成受控的自定义 Vault UI。",
         "promptLabel": "Prompt 模板",
-        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，绑定模式是 <factory | 无 factory 的 Vault | 无 factory 的 token>，factoryAddress 是 <0x... | 无>，Vault 地址是 <0x... | 无>，用于 Workbench/E2E 的测试 tokenAddress 是 <真实 ERC20 且 7777 结尾的 0x...>，用于预览的 tokenAddress 是 <同测试 token | 其他真实 token | 可选>。production caRestrictionMode 是 <none | reserved | verified>，生产限制 CA 是 <无 | 0x..., 0x...，仅给 Workbench/registry，不写入 public manifest>。注意：任何 match.bindings[].tokenAddresses，包括 factory binding 里的 tokenAddresses，都必须是真实可读 ERC20 且 7777 结尾；factory 模式下它只是测试 token，不是生产 CA 限制。固定额外合约目标是 <没有 | 地址 + label + purpose>；如果需要，请写入 match.bindings[].externalContracts。按钮可用阶段是 <internal-market | dex-listed | both | read-only>。如果我没有明确指定 UI 风格，请把 scaffold default surface / 涅槃风格抽象模板作为唯一默认视觉；内置 examples 只作为行为参考。最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
+        "prompt": "请在这个仓库里帮我生成一个自定义 Flap Vault UI。我的目录名是 <your-vault-name>，UI 名称是 <My Vault UI>，目标网络是 <BNB Chain 主网 | BNB Testnet>，绑定模式是 <factory | 无 factory 的 Vault | 无 factory 的 token>，factoryAddress 是 <0x... | 无>，Vault 地址是 <0x... | 无>，用于 Workbench/E2E 的测试 tokenAddress 是 <真实 ERC20 且 7777 结尾的 0x...>，用于预览的 tokenAddress 是 <同测试 token | 其他真实 token | 可选>。production caRestrictionMode 是 <none | reserved | verified>，生产限制 CA 是 <无 | 0x..., 0x...，仅给 Workbench/registry，不写入 public manifest>。注意：任何 match.bindings[].tokenAddresses，包括 factory binding 里的 tokenAddresses，都必须是真实可读 ERC20 且 7777 结尾；factory 模式下它只是测试 token，不是生产 CA 限制。如果这个 7777 Vault UI 需要 3D，请声明 capabilities: [\"three-r3f-v1\"]，保持 manifest.mode 省略，所有本地 3D source/asset 必须从 Component.tsx 静态可达，并且在 3D 大视觉前展示 host 风险状态。如果 Flap 明确要求全屏，请设置 layout: \"fullscreen\"，同时保留默认 Vault UI 的 shell、risk、i18n 和安全规则。固定额外合约目标是 <没有 | 地址 + label + purpose>；如果需要，请写入 match.bindings[].externalContracts。按钮可用阶段是 <internal-market | dex-listed | both | read-only>。如果我没有明确指定 UI 风格，请把 scaffold default surface / 涅槃风格抽象模板作为唯一默认视觉；内置 examples 只作为行为参考。最小 Vault ABI 和读写流程是：<粘贴 ABI、主要 read/write 方法、approve spender、native value、refetch points、empty states>。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md、docs/ui-pattern-snippets.md；如果需要 3D 还要读取 docs/mini-app-3d.md，然后 scaffold、实现、预览、运行 vault:check，并生成 package。"
       },
       "developerEntry": {
         "kicker": "开发者入口",
@@ -56,7 +65,7 @@
           },
           {
             "title": "只在这里实现",
-            "body": "每个 Vault UI 只维护四个 source 文件。注册由脚本处理。",
+            "body": "默认 Vault UI 只维护四个核心 source 文件；Mini App 可以额外携带经审核的顶层音频文件。注册由脚本处理。",
             "items": [
               "src/vaults/{folder-name}/Component.tsx",
               "src/vaults/{folder-name}/manifest.json",
@@ -79,21 +88,227 @@
         "doneTitle": "完成标准",
         "doneBody": "blocking 为 0、注册存在、/{folder-name} 能预览、package 成功，并且 zip 内包含脚本生成的 flap-vault-package.json 标识和 runtimePackageGitHead。"
       },
+      "miniApp": {
+        "label": "Mini App SOP",
+        "title": "Mini App 是绑定 7777 或 8888 Token 的全屏业务组件。",
+        "description": "Mini App 仍然是 Flap controlled source package，仍然交付四个核心 Vault 文件，并且可以额外携带经过 review 的顶层音频素材，继续走 vault:check / vault:e2e / vault:package；区别是它不挂在默认 Vault Information 壳里，而是进入 Mini APP 预览壳，按 token address 绑定。7777 对应 Tax Token 路径，8888 对应 zero-tax 路径，同一 artifact 不得混用两种后缀。Mini App 会在我们支持的允许范围内放宽外部能力和创意表达，但发布会更依赖严格人工 review，代码辅助 checker 只是辅助门槛。",
+        "quickStart": {
+          "kicker": "Mini App 快速开始",
+          "title": "给 Agent 明确 mode、Token 类型和 Mini APP 预览壳。",
+          "description": "Mini App 不是普通网页容器。把这段 prompt 贴给 Agent 时，重点确认 token-only 绑定、7777 Tax Token 或 8888 zero-tax 类型、全屏根布局，以及需要更完整人工 review 的外部能力说明。",
+          "promptLabel": "Mini App Prompt 模板",
+          "prompt": "请在这个仓库里生成一个 Flap Mini App source package。目录名是 <mini-app-folder>，Workbench 内部 UI 名称 name 是 <My Mini App>，flap.sh 页面展示标题 displayTitle 是 {\"zh\":\"<中文名>\",\"en\":\"<English Name>\"}；manifest.mode 必须是 mini-app。目标网络是 <BNB Testnet | BNB Chain>，Token 类型是 <7777 Tax Token | 8888 zero-tax token>。绑定只能使用 chainId + match.bindings[].tokenAddresses，tokenAddress 是 <真实部署 ERC20，且以所选的 7777 或 8888 后缀结尾的 0x...>；不要写 factoryAddress、vaultAddresses、全局 tokenAddresses、restrictTokenAddresses 或 caPolicy，同一 artifact 不能混合两种后缀。Component 根布局必须带 min-h-[100vh] / min-h-screen / min-h-full / h-full。预览会走 Mini APP shell，factoryAddress 和 vaultAddress 为零地址，artifact 区域全屏。对于 7777，买入税率、卖出税率和 Marketing Wallet 必须视为 host/on-chain 实时数据；不要硬编码数值，也不要在 marketBps 不等于 10000 时声称 100% 进入 Marketing Wallet。Mini App 在 Flap 支持的允许范围内可以承载更自由的创意和更宽的外部能力，但 checker 只是代码辅助门槛，发布前需要更严格人工 review；请把所有外部 endpoint、外部资源、externalFrames、外部链接、固定合约目标以及音频/视觉素材逐项写清 purpose、数据来源、授权、风险和 fallback。如果需要 BGM/音效，请把小写命名的音频文件直接放在 src/vaults/<folder> 顶层，并在 Component.tsx 里静态 import；允许扩展名是 .mp3、.wav、.ogg、.m4a、.aac。不能私自硬接远程音频或隐藏自动播放，必须提供可见静音/暂停控制和移动端 fallback。Mini App 只跳过默认 Vault UI 的 host risk-status tag 检查，其他 source package、i18n、合约边界和 E2E 规则全部仍然生效。请先读取 AGENTS.md、agent-contract.json、docs/ai-agent.md 和 docs/ui-pattern-snippets.md，然后实现、预览、运行 vault:check、vault:e2e、vault:package 和 vault:verify-package。"
+        },
+        "summary": {
+          "kicker": "模式定义",
+          "title": "一句话：Mini App = token-scoped 7777 或 8888 artifact，不是 factory/Vault scoped UI。",
+          "description": "写 Mini App 时，先把它当成一个更强绑定、更大展示区域的受控 Vault UI package。它可以像小游戏、活动页或更有创意的互动体验一样占满 artifact 区域；7777 走 Tax Token 路径，8888 走 zero-tax 路径。在我们支持的允许范围内外部能力会比默认定制 UI 更宽，但审核会更偏人工 review。",
+          "items": [
+            "Manifest 必须写 `mode: \"mini-app\"`，并且只能用 `match.bindings[].tokenAddresses` 绑定全部以 7777 或全部以 8888 结尾的真实 Token。",
+            "7777 Tax Token 和 8888 zero-tax Mini App 都必须经过 case-by-case 人工审核/审计。",
+            "本地预览使用 `/mini-app` 风格 shell：顶部显示 `MINI APP`，artifact 内容区可以全屏。",
+            "它只豁免默认 Vault UI 的 host risk-status tag 检查；其他校验、文件边界和打包规则不豁免。",
+            "外部能力、资源、链接、frame、endpoint 和固定合约目标可以在允许范围内申请，但必须进入更严格的人工 review。"
+          ]
+        },
+        "requirementsKicker": "Mini App 输入",
+        "requirementsTitle": "Mini App 需要额外补充这些创作输入。",
+        "requirementsDescription": "这些不是默认 Vault UI 的必填项。默认 Vault UI 还是围绕 Vault 业务流程；Mini App 如果要做更像小程序的体验，就要把这些能力提前说清楚，方便模板限制和人工审核。",
+        "requirements": [
+          {
+            "title": "小程序名称",
+            "body": "`manifest.name` 仍是 Workbench 内部 UI 名称；Mini App 需要额外填写 `manifest.displayTitle.zh` 和 `manifest.displayTitle.en`，例如 `{ \"zh\": \"蝴蝶农场\", \"en\": \"Butterfly Farm\" }`。这个展示标题会显示在 flap.sh 的 Mini App 页面标题和 tab 中；`MINI APP` 只作为模式标识，不应该替代项目名称。默认 Vault UI 仍展示 Vault Information 壳。"
+          },
+          {
+            "title": "动画效果",
+            "body": "Mini App 可以申请更炫的动画效果，优先用 CSS transition/keyframes、React state 和已允许的 UI/图标能力实现。复杂动画、外部动效资源或额外依赖需要写明用途和风险，进入人工 review；默认 Vault UI 不要求提供动画配置。"
+          },
+          {
+            "title": "BGM / 音效",
+            "body": "如果 Mini App 需要 BGM 或音效，可以把小写命名的音频文件直接放在 `src/vaults/<folder>` 顶层，并从 `Component.tsx` 静态 import。必须提供音频来源、授权、播放时机、可见静音/暂停控制、失败 fallback 和是否影响移动端体验。不能私自硬接远程音频或隐藏自动播放；默认 Vault UI 不允许本地音频素材。"
+          },
+          {
+            "title": "视觉占位和首屏",
+            "body": "Mini App 是全屏 artifact 区域，允许更大的视觉空间，但首屏不能出现无意义的大空白或被图片中部占满。需要说明核心玩法/主操作/状态在首屏的位置；大图、背景、canvas 或外部视觉资源都要进入对应审核。"
+          },
+          {
+            "title": "SDK 使用说明",
+            "body": "SDK 是一组小 function / hook 的组合，不是让开发者重新造 SDK。需求里要写清楚要用哪些 `@/src/sdk` 能力、primary reads/writes、refetch points、wallet/network 状态和 fallback；不要新增 SDK-like wrapper。"
+          }
+        ],
+        "examples": {
+          "kicker": "通用 3D 示例",
+          "title": "7777 Vault UI 与 7777/8888 Mini App 现已支持同等的受控 3D 能力。",
+          "description": "这里集中展示蝴蝶农场、Flap 能量竞技场、Flap Skies，以及面向开发者的 7777 Vault UI 技术示例。三个 3D Demo 在两种 surface 上共用同一套标准 three-r3f-v1 档案。",
+          "capabilityLabel": "已支持 3D · 7777 Vault UI + 7777/8888 Mini App · three-r3f-v1",
+          "capabilityFeatures": [
+            "Three r185",
+            "React Three Fiber",
+            "Drei",
+            "后处理",
+            "WebGL2",
+            "Shader",
+            "运行时 2D Canvas 纹理",
+            "响应式 2D/静态降级"
+          ],
+          "farmBadge": "推荐起点",
+          "farmTitle": "蝴蝶农场",
+          "farmDescription": "Mini App 壳和 manifest 衔接说明卡，保留农场预览截图；本地可打开的 live 示例使用已注册的能量竞技场路由。",
+          "farmCta": "打开可玩示例",
+          "skiesBadge": "品牌 3D 世界",
+          "skiesTitle": "Flap Skies",
+          "skiesDescription": "一个可探索、有动态效果的 Flap 品牌微缩世界，完全运行在受控 3D 档案内，不依赖远程资源。",
+          "skiesCta": "探索 Flap Skies",
+          "gameBadge": "可玩 GameFi",
+          "gameTitle": "Flap 能量竞技场",
+          "gameDescription": "可以直接上手的 GameFi Demo：用键盘或触屏移动，收集七枚能量核心，使用加速并完成一局挑战。",
+          "gameCta": "试玩能量竞技场",
+          "technicalBadge": "7777 Vault UI",
+          "technicalTitle": "Three/R3F Example",
+          "technicalDescription": "默认 7777 Vault UI 技术实现，展示 3D 大视觉前的宿主风险状态，以及嵌套组件、Shader、本地资源、运行时 Canvas 纹理和后处理。",
+          "technicalCta": "查看 3D 示例"
+        },
+        "comparisonKicker": "Mini App / 定制 UI",
+        "comparisonTitle": "Mini App 和定制 Vault UI 的主要差异。",
+        "comparisonDescription": "默认仍展示定制 UI；Mini App 是另一个模式。它不是无限制网页容器，而是在同一套 controlled source package 上换了绑定方式、预览壳、外部能力边界和审核策略。",
+        "comparisonTopicHeader": "对照项",
+        "comparisonCustomHeader": "定制 Vault UI",
+        "comparisonMiniAppHeader": "Mini App",
+        "comparisonRows": [
+          {
+            "topic": "入口壳",
+            "custom": "默认进入 `Vault Information` 预览壳，宿主拥有 token header、breadcrumb、close、宽度和共享摘要。",
+            "miniApp": "进入 Mini APP 预览壳，页面标题和 tab 按当前语言使用 `manifest.displayTitle.zh/en`；这个标题会显示在 flap.sh Mini App 页面中，`MINI APP` 只是模式标识。"
+          },
+          {
+            "topic": "绑定方式",
+            "custom": "支持 `chainId + factoryAddress`、`chainId + vaultAddresses[0]` 或 token-scoped no-factory binding。",
+            "miniApp": "只能是 token-scoped：`chainId + match.bindings[].tokenAddresses`，不能写 factory 或 Vault binding。"
+          },
+          {
+            "topic": "Token 要求",
+            "custom": "Package proof token 必须是真实部署 ERC20。标准 7777 Vault UI proof 使用 `7777`；7777 3D Vault UI 的所有 proof token 都必须保持 `7777` 后缀。",
+            "miniApp": "绑定 token 必须是真实部署 ERC20，且同一 artifact 必须全部以 `7777` 或全部以 `8888` 结尾。"
+          },
+          {
+            "topic": "当前阶段",
+            "custom": "默认定制 Vault UI 按 Vault 业务需求、声明的 binding 和 checker 规则推进。",
+            "miniApp": "支持 7777 Tax Token 与 8888 zero-tax Mini App；能否发布 case by case，并且必须经过人工审核/审计。"
+          },
+          {
+            "topic": "风险状态",
+            "custom": "必须读取并展示 host Vault/TaxInfo riskLevel，缺失时要显示 warning/danger。",
+            "miniApp": "跳过默认 Vault risk-status tag 检查，但不跳过其他安全、资源、合约和 i18n 检查。"
+          },
+          {
+            "topic": "外部能力",
+            "custom": "默认尽量避免外部 endpoint、外部资源、externalFrames、任意外链和固定额外合约目标。",
+            "miniApp": "在 Flap 支持的允许范围内可以更宽，但每个外部能力都要写清用途、来源、风险和 fallback，并等待人工审核。"
+          },
+          {
+            "topic": "审核方式",
+            "custom": "`vault:check` / E2E / package proof 是主要准入门槛，人工 review 聚焦例外项。",
+            "miniApp": "checker 只是辅助发现代码问题；最终更依赖人工 review 判断创意、外部依赖、交互边界和上线风险。"
+          },
+          {
+            "topic": "创意范围",
+            "custom": "更适合受控 Vault 业务流程：读数、状态、动作、claim、approve/write。",
+            "miniApp": "在允许范围内鼓励各自实现创意体验，但不能绕过 Flap 审核、包边界和安全底线。"
+          },
+          {
+            "topic": "动效 / 音效",
+            "custom": "默认不要求动画、BGM 或音效配置；通常保持静态、紧凑、业务优先。",
+            "miniApp": "可以申请动画、BGM 和音效；音频可以作为 Mini App 顶层文件随 source package 提交，但必须声明资源、授权、交互控制和 fallback，并等待人工审核。"
+          },
+          {
+            "topic": "SDK 使用",
+            "custom": "按 Vault 业务写清 read/write、approve、marketPhase、riskLevel 等固定流程。",
+            "miniApp": "同样使用 `@/src/sdk` 的小函数组合，但需求要把玩法所需函数和状态写清楚，不能新造 SDK wrapper。"
+          },
+          {
+            "topic": "布局",
+            "custom": "默认是 768px Vault body；7777 Vault UI 在 Flap 明确要求 reviewed 全屏 Vault body 时，也可以使用 `layout: \"fullscreen\"`。",
+            "miniApp": "Component 最外层必须有 `min-h-[100vh]` / `min-h-screen` / `min-h-full` / `h-full` 之一。"
+          },
+          {
+            "topic": "运行地址",
+            "custom": "runtime 可以有 token、factory、Vault，preview 按 manifest binding 保守匹配。",
+            "miniApp": "preview 使用 token address 作为核心上下文；factory/Vault runtime 地址为零地址。"
+          },
+          {
+            "topic": "交付",
+            "custom": "四文件 source package，运行 check/e2e/package/verify 后提交 zip。",
+            "miniApp": "同样四个核心文件，可以额外携带经过 review 的顶层音频素材；同样必须运行 check/e2e/package/verify 后提交 zip。"
+          }
+        ],
+        "preview": {
+          "kicker": "预览截图",
+          "title": "蝴蝶农场 Mini App 预览模式",
+          "description": "这个截图来自 flap-farm-vault 的 E2E 预览，用于说明 Mini APP shell、artifact 全屏区域和右侧 host/manifest 自测面板；当前 live CTA 会打开已注册的可玩示例，而不是已归档的 Farm 源码。",
+          "imageAlt": "蝴蝶农场 Mini App 预览模式截图",
+          "caption": "截图用于说明预览模式；本地链接指向已注册的 live 示例。",
+          "routeLabel": "预览路由",
+          "route": "/flap-gamefi-arena"
+        },
+        "workflowTitle": "Agent 执行顺序",
+        "workflow": [
+          "确认这是 Mini App，而不是默认定制 Vault UI。",
+          "确认真实部署的 `8888` Token 地址和 chainId；没有真实 token 时不要硬写占位地址。",
+          "确认当前需求符合测试阶段的 8888 无税模式 / U 池子方向；不符合时先进入人工评估，不要直接实现。",
+          "Manifest 写 `mode: \"mini-app\"`，并只写 token-scoped binding。",
+          "把 `manifest.displayTitle.zh` 和 `manifest.displayTitle.en` 写成实际展示标题，例如 `{ \"zh\": \"蝴蝶农场\", \"en\": \"Butterfly Farm\" }`；它会显示在 flap.sh Mini App 页面中，必须分别填写中文和英文。",
+          "Component 根节点加全高 class；不要重建 host navbar、钱包连接或 Mini APP shell。",
+          "如果需要动效、BGM、音效或大视觉资源，先列出资源来源、授权、控制方式、fallback 和移动端影响；Mini App 音频素材可以直接放在 `src/vaults/<folder>` 顶层。",
+          "说明 SDK 使用：需要哪些 `@/src/sdk` function / hook、读写方法、状态和错误兜底。",
+          "如果使用外部能力，逐项列出 endpoint、resource、frame、external link、externalContracts 的用途、数据、风险和 fallback，交给人工 review。",
+          "照常保持四个核心文件、i18n、SDK/UI import 规则和合约边界；Mini App 音频是唯一的本地素材例外。",
+          "运行 `yarn vault:check <folder-name>`，按 JSON 的 code / fixHint / agent.nextActions 修到 blocking 为 0。",
+          "运行 `yarn vault:e2e <folder-name>`、`yarn vault:package <folder-name>` 和 `yarn vault:verify-package dist/<folder-name>.zip`。"
+        ],
+        "rulesTitle": "限制规则",
+        "rules": [
+          "`mode` 只能是 `mini-app`，默认定制 UI 必须省略 mode。",
+          "Mini App binding 只能使用 `tokenAddresses`，不能写 factoryAddress 或 vaultAddresses。",
+          "Mini App token 必须是真实部署 ERC20，且同一 artifact 的绑定必须统一以 `7777` 或 `8888` 结尾。",
+          "7777 用于 Tax Token Mini App，8888 用于 zero-tax Mini App；两者都需要人工评估，不能靠 checker 通过直接上线。",
+          "Mini App 必须提供 `manifest.displayTitle.zh` 和 `manifest.displayTitle.en`；它会显示在 flap.sh Mini App 页面中。",
+          "根布局必须全高；缺少全高 class 会被 `mini-app-layout/missing-full-height-root` 阻断。",
+          "动画优先用本地 CSS/React 实现；额外动画库、音频、外部媒体或复杂视觉资源都需要人工 review。",
+          "BGM/音效素材只能在 Mini App mode 下作为 `src/vaults/<folder>` 顶层音频文件提交，不能隐藏自动播放；必须提供用户可见的静音/暂停控制和不可用 fallback，并等待人工审核。",
+          "不要把 Mini App 当成任意网页容器；direct wallet API、iframe、eval、未声明 endpoint 和未声明固定合约目标仍然会被阻断。",
+          "Mini App 允许在支持范围内申请更宽的外部能力，但这些内容默认需要更严格的人工 review，不能只看 checker 通过就发布。",
+          "Mini App 只豁免默认 Vault UI risk-status tag 检查，不豁免 source package、E2E、manifest、i18n 或安全规则。"
+        ],
+        "doneTitle": "完成标准",
+        "doneBody": "manifest.mode=mini-app、token-only 且后缀一致的 7777 或 8888 binding、根布局全高、vault:check blocking=0、E2E 覆盖 PC/iPad/H5 与 phase/wrong-network 状态，并通过 package + verify-package；如果使用更宽的外部能力，还必须完成对应人工 review。",
+        "vault7777Title": "7777 Vault UI 也支持 3D 和全屏。",
+        "vault7777Items": [
+          "7777 Vault UI 可以在省略 manifest.mode 的情况下声明 `capabilities: [\"three-r3f-v1\"]`，使用与 7777/8888 Mini App 相同的 Three/R3F 固定能力档案。",
+          "7777 3D Vault UI 可以按 factory、单 Vault 或 token 绑定，但所有 proof token 都必须是真实部署 ERC20 且以 `7777` 结尾。",
+          "它仍使用默认 Vault Information 壳，必须在 3D 场景前展示 host 派生风险状态，并继续遵守普通 i18n、安全和合约边界；不继承 Mini App 音频、displayTitle 或 risk 豁免。",
+          "只有 Flap 明确要求全屏 Vault body 时才使用 `layout: \"fullscreen\"`；这是默认 Vault UI 也可申请的 reviewed layout，不是 Mini App 专属。"
+        ]
+      },
       "scopeTitle": "开发范围",
+      "scopeDescription": "在模板提供的组件结构内完成 Vault UI 定制。",
       "scopeItems": [
         "请在模板提供的组件结构内完成 Vault UI 定制。",
+        "支援按 Vault V2 標準展示 NFT 圖片。",
+        "7777 Vault UI 可以声明 `three-r3f-v1` 使用受控 3D，能力栈与 7777/8888 Mini App 相同，但仍保留默认 shell、risk-status、i18n 和安全规则。",
+        "7777 Vault UI 在 Flap 明确要求 reviewed 全屏 Vault body 时，可以使用 `layout: \"fullscreen\"`；全屏不是 Mini App 专属。",
         "目录名只作为目录和预览路由；manifest 里的 artifactId 默认由 vault:scaffold 自动生成。",
         "Vault UI 绑定目标需要在 manifest 中声明 chain 加 factory 地址、chain 加单个 Vault 地址，或 chain 加一个或多个 Token CA；如果某个部署需要 Token CA 列表或固定额外合约目标，只能写在对应 match.bindings[] 里。",
         "尽量避免外部 endpoint、外部资源和固定额外合约目标；特殊情况必须声明并通过 Flap 审查后才能发布。",
-        "Vault 包目录只保留 Component.tsx、manifest.json、VaultABI.ts、i18n.json。",
+        "默认 Vault UI 包目录只保留 Component.tsx、manifest.json、VaultABI.ts、i18n.json；Mini App 可以额外携带经审核的顶层音频文件。",
         "本地预览路由由 vault:scaffold 或 vault:register 注册；除非脚本无法解析 index 文件，否则不要手写注册。",
-        "不要在 Vault 包内新增 helpers、子组件、图片、本地文档或任何其他文件。",
+        "不要在 Vault 包内新增 helpers、子组件、非音频本地资产、本地文档或任何其他文件。",
         "本地预览默认使用安全的 fixture 地址渲染，也可以通过 URL 参数传入真实 runtime 地址。",
         "提交包保留源码，线上 runtime JS 由 Flap Artifact Workbench 构建生成。"
       ],
       "agentGuide": {
+        "kicker": "AI Agent / Skill",
         "title": "AI Agent / Skill 使用说明",
-        "description": "Agent 只需要围绕入口文件、四个 Vault 文件和检查结果工作。不要让 Agent 自己扩展目录结构。",
+        "description": "Agent 只需要围绕入口文件、核心 Vault 文件、Mini App 允许的音频资产和检查结果工作。不要让 Agent 自己扩展目录结构。",
         "skillTitle": "必须使用的 Skill",
         "skillName": "flap-vault-ui-generator",
         "skillPath": "skills/flap-vault-ui-generator/SKILL.md",
@@ -141,13 +356,17 @@
           "先读取必须文档和 Skill，再选最接近的 patterns。",
           "如果没有明确指定 UI 风格，默认只能使用 scaffold default surface / 涅槃风格抽象模板；examples 只作为行为参考。",
           "如果是新 Vault 包，factory 模式传入 chain/factory，无 factory 模式传入 chain/Vault 和可选 token；vault:scaffold 会自动生成 artifactId。",
-          "只在四个 Vault 核心文件内实现；不要新增 helpers、子组件、图片、本地文档或样例数据。",
+          "默认只在四个 Vault 核心文件内实现；Mini App 可以新增经审核的顶层音频文件。不要新增 helpers、子组件、图片、本地文档或样例数据。",
           "如果不是 scaffold 创建的包，运行 yarn vault:register {folder-name}，然后预览 /{folder-name}。",
-          "共享能力只用 @/src/sdk 和 @/src/ui；本地相对导入只允许 ./VaultABI。",
+          "共享能力只用 @/src/sdk 和 @/src/ui；默认 Vault UI 本地相对导入只允许 ./VaultABI，Mini App 可以额外静态导入经审核的顶层音频文件。",
+          "如果是 7777 3D Vault UI，声明 three-r3f-v1、保持 mode 省略、使用真实 7777 proof token、所有本地 3D 文件静态 import，并把 host 风险状态放在 3D 大视觉前。",
           "首次预览使用安全默认地址；测试具体 Vault 时，通过 URL 参数传入 chainId、tokenAddress、vaultAddress 等真实 runtime 地址。",
           "运行 yarn vault:check {folder-name} 后按 agent.nextActions 修到 blocking 为 0，再运行 yarn vault:package {folder-name}。"
         ]
       },
+      "stepsLabel": "流程",
+      "stepsTitle": "七步完成一个 Vault UI。",
+      "stepsDescription": "从安装依赖到打包给 Artifact Workbench，按顺序执行即可。",
       "steps": [
         {
           "title": "安装依赖",
@@ -188,6 +407,7 @@
             "使用 @/src/sdk 处理链状态、钱包、合约、oracle、i18n、通知、解析和交易。",
             "使用 @/src/ui 里的共享 UI primitives。",
             "不要在 src/vaults/{folder-name} 下新增其他文件或子目录。",
+            "7777 Vault UI 如需 3D，必须显式声明 three-r3f-v1，保持 mode 省略，使用真实 7777 proof token，所有本地 3D 文件静态可达，并在 3D 大视觉前展示 host 风险状态。",
             "路由默认使用安全预览地址渲染；测试具体 Vault 时，通过 URL 参数传入真实 chainId、tokenAddress、vaultAddress 等地址。",
             "共享能力使用公共 alias；本地相对导入只允许 ./VaultABI，不能使用 ./helpers、../VaultABI、子组件导入、本地资源导入或动态导入。",
             "同一套 UI 可以复用到测试网、主网或其他 factory；binding 列表只描述这套共享 UI 计划绑定到哪些部署目标。",
@@ -221,6 +441,7 @@
         }
       ],
       "rulesTitle": "提交要求",
+      "rulesDescription": "交付前逐条对照。",
       "rules": [
         "目录名和路由必须是 3-64 个字符的全小写中划线格式。",
         "预览注册只是本地 wiring；如果 scaffold 没有注册目录，用 yarn vault:register {folder-name}。",
@@ -234,6 +455,7 @@
         "打包前必须运行 yarn vault:check {folder-name}，并按 agent.nextActions 修到 blocking 为 0。",
         "必须使用 yarn vault:package {folder-name} 生成提交包；Workbench 只接收带 flap-vault-package.json、runtimePackageGitHead 且哈希匹配的脚本产物。",
         "Vault 包目录只能包含 Component.tsx、manifest.json、VaultABI.ts、i18n.json；不能新增 helpers、资源、子目录、文档、样例数据、symlink 或其他文件。",
+        "省略 mode 的 7777 Vault UI 只能新增 `three-r3f-v1` 允许的、从 Component.tsx 递归静态可达的文件；这不会获得 Mini App 音频、displayTitle 或 risk-status 豁免。",
         "Manifest 只允许 artifactId、name、match、i18n 和可选 endpoints。binding-scoped tokenAddresses、vaultAddresses、externalContracts 只能放在 match.bindings[] 下。不要添加 chainIds、id、owner、version、sdkVersion、actions、oracles、media、fallback、contracts、全局 tokenAddresses、restrictTokenAddresses 或 caPolicy。",
         "match.bindings 必须是唯一目标：chainId + factoryAddress、chainId + 单个 Vault 地址，或 chainId + tokenAddress。tokenAddresses 只能写在对应 binding 内；无 factory 模式可以包含多个 token。重复地址会被拒绝。",
         "无 factory manifest 必须兼容 Vault-only、token-only、Vault+token 三种映射。Vault+token 映射可以携带多个 tokenAddresses，并应按每个 token 生成 binding key 供 Workbench/flap.sh 映射审查。",
@@ -243,7 +465,7 @@
         "不要使用 direct wallet API、eval、Function constructor、iframe、script injection、dangerouslySetInnerHTML 或 runtime remote import。",
         "不要使用直接浏览器 network、media、storage、navigation、Worker、cross-context messaging、permission API，也不要通过 alias、destructuring 或 computed access 绕过 browser global 检查。",
         "直接 fetch() 目标必须是静态、无凭证的 absolute HTTPS URL，并被 manifest.endpoints 覆盖。host-relative、动态、HTTP、带凭证或未声明的 fetch 目标都会被阻断。",
-        "不要添加第三方图片、remote media URL、data URL、Arweave、WebSocket 或非 HTTPS 资源。Token 媒体只能来自 Flap 控制的 runtime context，例如 context.tokenImageUrl；不可避免的 Vault 专属不可变图片必须使用 IpfsImage 和静态图片 CID。",
+        "不要添加第三方图片、remote media URL、data URL、Arweave、WebSocket 或非 HTTPS 资源。Token 媒体只能来自 Flap 控制的 runtime context，例如 context.tokenImageUrl；Vault 专属静态不可变图片使用 IpfsImage 和静态图片/目录 CID。支援按 Vault V2 標準展示 NFT 圖片。",
         "组件自己拥有的链接只能通过 context.explorerBaseUrl 或共享 explorer helper 留在当前链浏览器；任意外部跳转会被阻断。",
         "合约 reads、writes、event watches、log/filter calls 和 gas estimates 必须留在 Vault/token/NFT/factory/已声明目标边界内，并使用 runtime context、Vault 读取派生地址或已声明 externalContracts。routers、bridges、aggregators 或无关 app contracts 都会被阻断。",
         "不要在 Vault source 里硬编码 EVM 地址。请使用 context.vaultAddress、context.tokenAddress 或批准的 runtime context 值。",
@@ -265,6 +487,9 @@
   "preview": {
     "tokens": "Tokens",
     "vault": "Vault",
+    "taxInfo": "税收信息",
+    "facVerified": "通過 FAC",
+    "innovationTag": "創新",
     "vaultInformation": "金库信息",
     "bindingHint": "chain + factory",
     "badge": "預覽",

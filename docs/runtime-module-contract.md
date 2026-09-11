@@ -1,5 +1,13 @@
 # Runtime Module Contract
 
+## Mini App 3D assets
+
+See `docs/mini-app-3d.md` for the complete capability matrix and the `flap-skies-showcase` / `flap-gamefi-arena` / `three-r3f-example` live reference routes.
+
+`three-r3f-v1` source packages build to the same five required runtime roots plus a metadata-declared `assets/**` set. Every asset path is content addressed, carries MIME, byte size, and SHA-256 in `metadata.json`, and is resolved relative to `import.meta.url`. Hosts must load, cache, validate, and publish exactly this list; directory scanning is not part of the contract.
+
+The SDK exports `resolveMiniApp3DAssetUrl(...)` and `resolveMiniApp3DDecoderUrls(...)` so loaders can obtain artifact-relative asset and Draco/KTX2 decoder locations without network fallbacks. These helpers enter the public runtime only after the corresponding `@flapsdk/vault-runtime` patch is published and the Workbench pin is updated.
+
 This document defines how a custom Vault UI source package connects to the shared runtime that powers local preview, Artifact Workbench preview/build, and the final `flap.sh` host.
 
 The goal is one stable component contract across all surfaces. Developers should not need one import style for local preview, a second one for Workbench, and a third one for production.
@@ -83,7 +91,7 @@ Vault source must not import:
 - `./helpers`
 - `../VaultABI`
 - local nested components
-- local assets
+- local assets, except reviewed Mini App top-level audio files that are statically imported from the same Vault folder
 - dynamic imports
 
 `Component.tsx` is allowed to import public helpers and UI primitives. It is **not** required to receive every helper via props.
@@ -136,11 +144,20 @@ The component should consume:
 - `context.explorerBaseUrl` for explorer-only links
 - `sdk.wallet.isWrongNetwork`
 - `sdk.wallet.switchChain()`
+- `sdk.getGasPrice()`
+- `sdk.getBlockNumber()`
+- `sdk.getContractEvents(...)`
 - `sdk.readContract(...)`
+- `sdk.simulateContract(...)`
 - `sdk.writeContract(...)`
 - `sdk.readOracle(...)` when approved/provisioned
+- `sdk.readNftMetadata({ tokenId })` for generic Vault V2 NFT media selected by runtime-owned `Vault.nft()` and `NFT.tokenURI(tokenId)` ABI calls
 
 `sdk.readContract(...)` may include `account` for read-only contract functions whose return value depends on `msg.sender`. Hosts must forward that field to their public client instead of forcing components to use simulation for read-only user-state queries.
+
+Historical event reads must go through `sdk.getBlockNumber()` and `sdk.getContractEvents(...)`, not a component-owned RPC transport. The shared runtime resolves the latest block once per call, rejects negative or over-20,000-block ranges, splits provider calls into spans of at most 1,000 blocks, caps event-query concurrency at four, and preserves ascending range order in the flattened result. Hosts that provide the shared runtime package inherit this behavior without adding a separate event-log shim.
+
+Legacy contracts may also derive a native protocol fee from `tx.gasprice`. For those contracts only, the component should obtain one live value from `sdk.getGasPrice()` and pass that exact `gasPrice` through the quote read, `simulateContract(...)`, and `writeContract(...)`. The runtime forwards an optional `gas` limit for writes, but components should normally let the wallet estimate it. The runtime rejects non-positive overrides, gas prices above two times the current network suggestion, and gas limits above 5,000,000. Native protocol or VRF funding still belongs in `value`; gas execution fields do not replace it.
 
 Wrong-network handling belongs in this public component contract as well. A write-capable component should keep its action area visible, render a switch-network state when the connected wallet is on the wrong chain, and only proceed with writes after the wallet matches `context.chainId`.
 
@@ -234,7 +251,11 @@ The host may implement different adapters behind the scenes:
 
 That shared surface should also own oracle provisioning. Components still call `sdk.readOracle(...)`, but the host/runtime should inject the actual reader through `VaultRuntimeProvider` rather than pushing raw oracle URLs into Vault source. In this template, local preview wires `oracleReader={createLocalOracleReader()}` and serves the request through `/api/runtime/oracle/{oracleId}` backed by server-side runtime defaults.
 
-Oracle provider logic belongs in the shared runtime package when it is more than static HTTPS forwarding. Pyth/Hermes-style providers that need path templates, fixed price ids, response transforms into EVM bytes, or publish-time window checks should be exported by `@flapsdk/vault-runtime/server`. Workbench and `flap.sh` should not carry their own copies of those adapters; their route handlers should validate local proxy limits and call the shared runtime helper. This keeps the component contract as `sdk.readOracle(...)` while preventing host-specific oracle behavior drift.
+The same host boundary owns Vault V2 NFT metadata resolution. `NftMetadataImage` consumes the shared SDK context internally and calls `sdk.readNftMetadata({ tokenId })`; the SDK owns the minimal ABIs, reads `Vault.nft()` from `context.vaultAddress`, caches that address, and then reads `NFT.tokenURI(tokenId)`. Vault source does not provide an SDK prop, ABI, or NFT address for this generic path. The packaged `./sdk` and `./ui` entrypoints share one internal runtime-context chunk so the provider and controlled UI primitive use the same React context instance. Inline mode 0/1 data JSON is handled inside the runtime. Mode 2 IPFS/HTTPS metadata and external image bytes use `/api/runtime/nft-metadata`, backed by `loadNftMetadata(...)` from the runtime `./server` export. Hosts must provide that route or inject an equivalent `nftMetadataReader` into `VaultRuntimeProvider`; Vault components never receive arbitrary fetch permission. The shared resolver validates public DNS targets and every redirect, binds each HTTPS socket lookup to the validated public address, limits time and bytes, accepts only approved image MIME types, rejects active/external SVG content, and returns a data image rather than the upstream URL. A valid Pinata dedicated-gateway `/ipfs/<CID>/...` URL is normalized by CID/path to Pinata's public gateway before fetching so a locally blocked developer gateway domain does not break packaged preview.
+
+The shared `./ui` entrypoint also owns `BinanceImage`, the sole component-facing exception for direct third-party image bytes. It validates every static or dynamic `src` at render time and accepts only absolute HTTPS URLs on the exact `bin.bnbstatic.com` hostname, without credentials or alternate ports. Its pathname is intentionally unrestricted. It forces lazy loading, async decoding, and `referrerPolicy="no-referrer"`; source packages cannot override those fields or use `srcSet`. Hosts do not need a proxy for this path, but their CSP must continue allowing HTTPS images.
+
+Oracle provider logic belongs in the shared runtime package when it is more than static HTTPS forwarding. Provider adapters that need path templates, fixed identifiers, response transforms, or publish-time window checks should be exported by `@flapsdk/vault-runtime/server`. Workbench and `flap.sh` should not carry their own copies of those adapters; their route handlers should validate local proxy limits and call the shared runtime helper. A provider that is unavailable must fail closed instead of being replaced with data that has different semantics. This keeps the component contract as `sdk.readOracle(...)` while preventing host-specific oracle behavior drift.
 
 That shared surface also owns the reviewed frame primitive. Components may render at most one `ReviewedFrame`, and only with a static URL declared in the single `manifest.externalFrames` entry; Workbench and production hosts can rely on source-package review plus the `ReviewedFrame` primitive first. CSP `frame-src` allowlisting is optional follow-up hardening, not a required host change for this template contract.
 
@@ -296,11 +317,21 @@ yarn runtime:verify-package
 
 They build a packable runtime package under `dist/vault-runtime`, emit a `package.json` with subpath exports, and write a machine-readable `runtime-contract.json`. Before building, the script requires local `HEAD` to exactly match latest `origin/main`, then checks npm latest `@flapsdk/vault-runtime` against the local root version and published `gitHead` so a behind, ahead, diverged, or stale checkout cannot produce an outdated runtime package. This does not change Vault source authoring; it proves that the shared runtime surface can be extracted and npm-packed without forcing `Component.tsx` authors to abandon `@/src/sdk` / `@/src/ui`.
 
+Feature-branch runtime changes use a separate non-release canary path:
+
+```bash
+yarn runtime:pack:canary
+yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/consumer --script typecheck --script build
+```
+
+The canary builder requires a clean committed worktree, derives a private prerelease version from the current git head, omits public publish configuration, runs the same runtime package verifier, and emits a real npm `.tgz` plus SHA-256 under `dist/npm`. The consumer helper validates that exact archive with an isolated npm install, swaps only the consumer's installed runtime while it runs named `package.json` scripts, then restores the original runtime. It does not edit consumer dependency files. Canary success is pre-merge compatibility evidence only; it cannot replace the official-main freshness gate, release version bump, npm publish review, or downstream rollout approval.
+
 The current runtime package also carries the public oracle provisioning surface:
 
 - `VaultRuntimeProvider` accepts `oracleReader`
 - `createLocalOracleReader()` targets `/api/runtime/oracle/{oracleId}`
 - `./server` exports the runtime-oracle registry helpers used by that proxy route
+- `./server` exports the NFT metadata/media resolver used by `/api/runtime/nft-metadata`
 
 Current status: `dist/vault-runtime` is a local extraction artifact and acceptance proof for this public template, while the published `@flapsdk/vault-runtime` version is used as the freshness anchor for local checks. The generated runtime package is not included in `yarn vault:package <folder-name>` source zips and is not automatically consumed by Workbench / `flap.sh` just because `yarn runtime:package` passed. Workbench and `flap.sh` should adopt this package only through an explicit integration decision, version pin, and rollout plan.
 

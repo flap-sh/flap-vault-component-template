@@ -7,6 +7,24 @@ const nextConfig = {
       "@react-native-async-storage/async-storage": false,
       "pino-pretty": false,
     };
+    config.module.rules.push({
+      test: /\.(mp3|wav|ogg|m4a|aac)$/i,
+      type: "asset/resource",
+      generator: {
+        filename: "static/media/[name].[contenthash][ext]",
+      },
+    });
+    config.module.rules.push({
+      test: /\.(glsl|vert|frag)$/i,
+      type: "asset/source",
+    });
+    config.module.rules.push({
+      test: /\.(glb|gltf|bin|ktx2|basis|hdr|exr|ttf|otf|woff2?|wasm)$/i,
+      type: "asset/resource",
+      generator: {
+        filename: "static/media/[name].[contenthash][ext]",
+      },
+    });
     return config;
   },
   images: {

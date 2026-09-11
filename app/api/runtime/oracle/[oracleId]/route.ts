@@ -16,8 +16,9 @@ function readOracleParams(searchParams: URLSearchParams) {
   return Object.fromEntries(searchParams.entries());
 }
 
-export async function GET(request: NextRequest, { params }: { params: { oracleId: string } }) {
-  const oracleId = params.oracleId?.trim();
+export async function GET(request: NextRequest, { params }: { params: Promise<{ oracleId: string }> }) {
+  const { oracleId: rawOracleId } = await params;
+  const oracleId = rawOracleId?.trim();
   if (!oracleId) {
     return NextResponse.json(
       {

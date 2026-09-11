@@ -8,7 +8,7 @@ import { resolveManifestBinding } from "@/src/sdk/host";
 import { useLang } from "@/src/i18n/useLang";
 import { Button } from "@/src/ui/Button";
 import { StatusBadge } from "@/src/ui/StatusBadge";
-import { PREVIEW_TOKEN_ADDRESS } from "./previewCoinDetail";
+import { getDefaultMiniAppPreviewTokenAddress, getDefaultVaultPreviewTokenAddress } from "./previewCoinDetail";
 
 interface ManifestPanelProps {
   manifest: VaultManifest;
@@ -154,7 +154,10 @@ export function ManifestPanel({
     const previewChainId = fallbackChainId ?? resolvedBinding?.chainId;
     const previewFactoryAddress = fallbackFactoryAddress ?? resolvedBinding?.factoryAddress;
     const previewVaultAddress = fallbackVaultAddress ?? resolvedBinding?.vaultAddresses?.[0];
-    const previewTokenAddress = fallbackTokenAddress ?? resolvedBinding?.tokenAddresses?.[0] ?? PREVIEW_TOKEN_ADDRESS;
+    const previewTokenAddress =
+      fallbackTokenAddress ??
+      resolvedBinding?.tokenAddresses?.[0] ??
+      (manifest.mode === "mini-app" ? getDefaultMiniAppPreviewTokenAddress(previewChainId) : getDefaultVaultPreviewTokenAddress(previewChainId));
 
     if (previewChainId) {
       nextParams.set("chainId", String(previewChainId));
@@ -162,7 +165,7 @@ export function ManifestPanel({
     if (previewFactoryAddress) {
       nextParams.set("factoryAddress", previewFactoryAddress);
     }
-    if (!nextParams.get("tokenAddress") && !nextParams.get("token") && !nextParams.get("ca")) {
+    if (previewTokenAddress && !nextParams.get("tokenAddress") && !nextParams.get("token") && !nextParams.get("ca")) {
       nextParams.set("tokenAddress", previewTokenAddress);
     }
     if (previewVaultAddress) {

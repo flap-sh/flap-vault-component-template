@@ -4,7 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { failAgent } from "./agent-error.mjs";
-import { hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX, validateErc20TokenContract } from "./erc20-token-validation.mjs";
+import { hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX, standardMiniAppPreviewToken, validateErc20TokenContract } from "./erc20-token-validation.mjs";
 import { isValidFolderName, registerVault } from "./vault-registration.mjs";
 
 const ROOT = process.cwd();
@@ -17,6 +17,7 @@ const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
 ]);
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const ARTIFACT_ID_RE = /^vaultui_([a-z0-9]+(?:-[a-z0-9]+)*)_([0-9A-HJKMNPQRSTVWXYZ]{26})$/;
+const THREE_R3F_CAPABILITY = "three-r3f-v1";
 
 function fail(message, { code = "cli/scaffold-error", fixHint = "Read agent.nextActions and rerun the command after fixing the input.", nextActions, ...extra } = {}) {
   failAgent({ code, message, fixHint, nextActions, extra });
@@ -148,7 +149,7 @@ function localeText(locale, zh, en) {
   return locale.toLowerCase().startsWith("zh") ? zh : en;
 }
 
-function componentSource(componentName) {
+function componentSource(componentName, { miniApp = false } = {}) {
   return `"use client";
 
 import type { VaultComponentProps } from "@/src/sdk";
@@ -185,7 +186,7 @@ export default function ${componentName}(_props: VaultComponentProps) {
   void vaultAbi;
 
   return (
-    <div className="w-full space-y-3 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[length:34px_34px] sm:space-y-4">
+    <div className="${miniApp ? "min-h-screen " : ""}w-full space-y-3 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[length:34px_34px] sm:space-y-4">
       <Card className="overflow-hidden rounded-[18px] border-white/10 bg-gradient-to-b from-[#0e141d] to-[#070b11] shadow-[0_20px_70px_-38px_rgba(76,141,255,0.65)]">
         <CardHeader className="p-4 pb-3 sm:p-5 sm:pb-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -311,6 +312,74 @@ export default function ${componentName}(_props: VaultComponentProps) {
 `;
 }
 
+function threeR3FComponentSource(componentName, { vaultUI = false } = {}) {
+  return `"use client";
+
+import { Canvas } from "@react-three/fiber";
+import { useEffect, useState } from "react";
+import type { VaultComponentProps } from "@/src/sdk";
+import { ${vaultUI ? "readTaxVaultHostContext, " : ""}useFlapSdk } from "@/src/sdk";
+
+type Renderer = "webgl2" | "webgl1" | "2d";
+type RenderState = "loading" | "ready" | "fallback" | "error";
+
+export default function ${componentName}(_props: VaultComponentProps) {
+  const { ${vaultUI ? "context, " : ""}i18n } = useFlapSdk();
+  const [renderer, setRenderer] = useState<Renderer>("webgl2");
+  const [renderState, setRenderState] = useState<RenderState>("loading");
+${vaultUI ? `  const host = readTaxVaultHostContext(context.host);
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel =
+    riskLevel === 1
+      ? i18n.t("states.riskLow")
+      : riskLevel === 2
+        ? i18n.t("states.riskLowMedium")
+        : riskLevel === 3
+          ? i18n.t("states.riskMedium")
+          : riskLevel === 4
+            ? i18n.t("states.riskHigh")
+            : riskLevel === 0
+              ? i18n.t("states.riskUnverified")
+              : i18n.t("states.riskMissing");
+` : ""}
+
+  useEffect(() => {
+    const probe = document.createElement("canvas");
+    if (!probe.getContext("webgl2")) {
+      setRenderer("2d");
+      setRenderState("fallback");
+    }
+  }, []);
+
+  return (
+    <div className="${vaultUI ? "w-full space-y-3" : "min-h-screen"} bg-slate-950 text-white" data-flap-3d-state={renderState} data-flap-3d-renderer={renderer}>
+      <header className="px-5 py-6">
+        <h1 className="text-xl font-semibold">{i18n.t("title")}</h1>
+        <p className="mt-1 text-sm text-slate-300">{i18n.t("subtitle")}</p>
+${vaultUI ? `        <div className={\`mt-3 rounded-lg border px-3 py-2 text-sm \${riskLevel === null || riskLevel === 0 || riskLevel >= 4 ? "border-red-400/40 bg-red-500/10 text-red-100" : "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"}\`}>
+          {riskLabel}
+        </div>
+        {riskLevel === null ? <div className="mt-2 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-100">{i18n.t("notices.riskMissing")}</div> : null}
+` : ""}      </header>
+      <main className="h-[70vh] min-h-[420px]">
+        {renderer === "webgl2" ? (
+          <Canvas camera={{ position: [0, 0, 4], fov: 48 }} onCreated={() => setRenderState("ready")}>
+            <ambientLight intensity={1.5} />
+            <mesh rotation={[0.45, 0.6, 0]}>
+              <boxGeometry args={[1.8, 1.8, 1.8]} />
+              <meshStandardMaterial color="#8b5cf6" />
+            </mesh>
+          </Canvas>
+        ) : (
+          <div className="grid h-full place-items-center px-6 text-center text-slate-300">{i18n.t("subtitle")}</div>
+        )}
+      </main>
+    </div>
+  );
+}
+`;
+}
+
 function abiSource() {
   return `export const vaultAbi = [] as const;
 `;
@@ -387,7 +456,7 @@ function i18nSource(locales, name) {
   return `${JSON.stringify(payload, null, 2)}\n`;
 }
 
-function manifestSource({ artifactId, name, bindings, locales }) {
+function manifestSource({ artifactId, name, bindings, locales, capability, displayTitle, miniApp }) {
   const matchBindings = bindings.map((binding) => {
     const entry = { chainId: binding.chainId };
     if (binding.factoryAddress) entry.factoryAddress = binding.factoryAddress;
@@ -396,7 +465,17 @@ function manifestSource({ artifactId, name, bindings, locales }) {
     return entry;
   });
   const match = { bindings: matchBindings };
-  return `${JSON.stringify({ artifactId, name, match, i18n: locales }, null, 2)}\n`;
+  const manifest = { artifactId, name };
+  if (miniApp) {
+    manifest.displayTitle = displayTitle;
+    manifest.mode = "mini-app";
+  }
+  if (capability) {
+    manifest.capabilities = [capability];
+  }
+  manifest.match = match;
+  manifest.i18n = locales;
+  return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
 async function main() {
@@ -423,13 +502,35 @@ async function main() {
     });
   }
 
-  const name = typeof parsed.name === "string" ? parsed.name.trim() : `${humanizeFolderName(folderName)} Vault UI`;
+  const requestedMode = typeof parsed.mode === "string" ? parsed.mode.trim() : parsed.mode;
+  const explicitMiniApp = requestedMode === "mini-app";
+  const name = typeof parsed.name === "string"
+    ? parsed.name.trim()
+    : `${humanizeFolderName(folderName)} ${explicitMiniApp ? "Mini App" : "Vault UI"}`;
   const artifactId = typeof parsed["artifact-id"] === "string" ? parsed["artifact-id"].trim() : createArtifactId(folderName);
   const chainValues = collectValues(parsed, ["chain", "chains"], ["56"]).map((value) => Number(value));
   const factoryValues = collectValues(parsed, ["factory", "factories"]);
-  const tokenValues = collectValues(parsed, ["token", "tokens"]);
+  const requestedTokenValues = collectValues(parsed, ["token", "tokens"]);
   const vaultValues = collectValues(parsed, ["vault", "vaults"]);
   const locales = unique(collectValues(parsed, ["locale", "locales"], ["en", "zh"]));
+  const capabilities = unique(collectValues(parsed, ["capability", "capabilities"]));
+  const capability = capabilities[0];
+  const isThreeR3F = capability === THREE_R3F_CAPABILITY;
+  const legacyThreeR3FMiniApp = isThreeR3F && requestedMode === undefined && (
+    requestedTokenValues.length === 0 ||
+    !requestedTokenValues.every((address) => address.toLowerCase().endsWith("7777"))
+  );
+  const isMiniApp = explicitMiniApp || legacyThreeR3FMiniApp;
+  const isThreeR3FVaultUI = isThreeR3F && !isMiniApp;
+  const tokenValues = requestedTokenValues.length
+    ? requestedTokenValues
+    : isThreeR3F
+      ? chainValues.map((chainId) => standardMiniAppPreviewToken(chainId)).filter(Boolean)
+      : [];
+  const displayTitle = {
+    zh: typeof parsed["display-title-zh"] === "string" ? parsed["display-title-zh"].trim() : name,
+    en: typeof parsed["display-title-en"] === "string" ? parsed["display-title-en"].trim() : name,
+  };
 
   if (!name) {
     fail("--name must not be empty.", {
@@ -437,7 +538,26 @@ async function main() {
       fixHint: "Pass a readable manifest name with --name, for example --name \"My Vault UI\".",
     });
   }
+  if (requestedMode !== undefined && requestedMode !== "mini-app") {
+    fail('--mode may only be "mini-app". Omit it for the default Vault UI.', {
+      code: "manifest-schema/invalid-mode",
+      fixHint: 'Pass --mode mini-app for a token-scoped 7777 or 8888 Mini App, or omit --mode for Vault UI.',
+    });
+  }
   validateArtifactId(artifactId, folderName);
+  if (capabilities.length > 1 || (capability && !isThreeR3F)) {
+    fail(`Unsupported --capability value: ${capabilities.join(", ") || "<missing>"}.`, {
+      code: "manifest-schema/unknown-capability",
+      fixHint: `Use --capability ${THREE_R3F_CAPABILITY}, or omit --capability for a default Vault UI.`,
+      capabilities,
+    });
+  }
+  if (isMiniApp && (!displayTitle.zh || !displayTitle.en)) {
+    fail("Mini App display titles must be non-empty in both languages.", {
+      code: "manifest-schema/mini-app-display-title",
+      fixHint: "Pass --display-title-zh and --display-title-en, or keep the generated name defaults.",
+    });
+  }
   if (!chainValues.length || chainValues.some((chainId) => !Number.isInteger(chainId) || chainId <= 0)) {
     fail("--chain must be a positive integer chain ID, for example --chain 56.", {
       code: "manifest-binding/invalid-chain-ids",
@@ -447,10 +567,22 @@ async function main() {
   }
   const usingFactoryMode = factoryValues.length > 0;
   const usingVaultMode = factoryValues.length === 0 && vaultValues.length > 0;
-  if (!usingFactoryMode && !usingVaultMode) {
+  if (!isMiniApp && !isThreeR3F && !usingFactoryMode && !usingVaultMode) {
     fail("Each binding needs either --factory or --vault.", {
       code: "manifest-binding/missing-binding-target",
       fixHint: "Pass --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory for factory-scoped UI with mainnet launch intent, or --chain 56 --vault 0x... --token 0x... for single-Vault UI.",
+    });
+  }
+  if (isMiniApp && (usingFactoryMode || usingVaultMode || factoryValues.length || vaultValues.length)) {
+    fail("Mini Apps are token-scoped and cannot use factory or Vault bindings.", {
+      code: "manifest-binding/mini-app-token-only",
+      fixHint: "Remove --factory and --vault; use --mode mini-app --chain 56 --token 0x...7777 for Tax Token or 0x...8888 for zero-tax token.",
+    });
+  }
+  if (isMiniApp && tokenValues.length !== chainValues.length) {
+    fail("Each Mini App chain must have exactly one supported preview token binding.", {
+      code: "manifest-binding/chain-token-count-mismatch",
+      fixHint: "Pair every --chain with one real deployed --token, using only 7777 tokens or only 8888 tokens in one Mini App.",
     });
   }
   if (usingFactoryMode && chainValues.length !== factoryValues.length) {
@@ -548,6 +680,18 @@ async function main() {
       });
     }
   }
+  if (isMiniApp && tokenValues.some((address) => address.toLowerCase().endsWith("7777")) && tokenValues.some((address) => address.toLowerCase().endsWith("8888"))) {
+    fail("Mini App artifacts cannot mix 7777 Tax Token and 8888 zero-tax token bindings.", {
+      code: "manifest-binding/mixed-mini-app-token-suffixes",
+      fixHint: "Use only 7777 tokens or only 8888 tokens in one Mini App artifact.",
+    });
+  }
+  if (isThreeR3FVaultUI && tokenValues.some((address) => !address.toLowerCase().endsWith("7777"))) {
+    fail("three-r3f-v1 Vault UIs require token addresses ending in 7777.", {
+      code: "manifest-binding/vault-ui-3d-token-suffix",
+      fixHint: "Use a real deployed ERC20 token address ending in 7777 for every 3D Vault UI proof token.",
+    });
+  }
   if (!locales.length || locales.some((locale) => locale.length < 2)) {
     fail("--locales must contain at least one locale.", {
       code: "i18n-policy/manifest-locales",
@@ -596,8 +740,8 @@ async function main() {
   const pascalName = pascalCase(folderName);
   const componentName = pascalName.endsWith("Vault") ? pascalName : `${pascalName}Vault`;
   const files = [
-    ["Component.tsx", componentSource(componentName)],
-    ["manifest.json", manifestSource({ artifactId, name, bindings, locales })],
+    ["Component.tsx", isThreeR3F ? threeR3FComponentSource(componentName, { vaultUI: isThreeR3FVaultUI }) : componentSource(componentName, { miniApp: isMiniApp })],
+    ["manifest.json", manifestSource({ artifactId, name, bindings, locales, capability, displayTitle, miniApp: isMiniApp })],
     ["VaultABI.ts", abiSource()],
     ["i18n.json", i18nSource(locales, name)],
   ];

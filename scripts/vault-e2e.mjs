@@ -24,6 +24,13 @@ const YARN_COMMAND = process.platform === "win32" ? "yarn.cmd" : "yarn";
 const DEFAULT_WALLET_ADDRESS = "0x0000000000000000000000000000000000000EaE";
 const DEFAULT_WRONG_CHAIN_ID = 1;
 const MINI_APP_MODE = "mini-app";
+const HOST_OWNED_EXTERNAL_ORIGINS = new Set([
+  "https://pulse.walletconnect.org",
+  "https://api.web3modal.org",
+  "https://bsc-dataseed.bnbchain.org",
+  "https://bsc-dataseed.binance.org",
+  "https://bsc-rpc.publicnode.com",
+]);
 const folderName = process.argv[2];
 
 const VIEWPORTS = [
@@ -225,6 +232,44 @@ async function startPreviewServer() {
   }
 }
 
+async function verifyPreviewSource(baseUrl, expectedComponentSha256) {
+  const endpoint = new URL("/api/runtime/e2e-source", baseUrl);
+  endpoint.searchParams.set("folderName", folderName);
+  let response;
+  try {
+    response = await fetch(endpoint);
+  } catch (error) {
+    failE2E(
+      "vault-e2e/preview-source-unavailable",
+      `Could not verify the preview source: ${error instanceof Error ? error.message : String(error)}`,
+      "Run E2E against the current template preview server and retry.",
+      { endpoint: endpoint.toString() },
+    );
+  }
+  if (!response.ok) {
+    failE2E(
+      "vault-e2e/preview-source-unavailable",
+      `Preview source verification returned HTTP ${response.status}.`,
+      "Run E2E against the current template preview server and retry.",
+      { endpoint: endpoint.toString() },
+    );
+  }
+  const payload = await response.json();
+  if (payload?.componentSha256 !== expectedComponentSha256) {
+    failE2E(
+      "vault-e2e/preview-source-mismatch",
+      "The preview server Component.tsx hash does not match the source being tested.",
+      "Stop stale preview servers, remove VAULT_E2E_BASE_URL unless it points to this checkout, and rerun yarn vault:e2e <folder-name>.",
+      { expected: expectedComponentSha256, actual: payload?.componentSha256, endpoint: endpoint.toString() },
+    );
+  }
+  return {
+    verified: true,
+    componentSha256: payload.componentSha256,
+    endpoint: "/api/runtime/e2e-source",
+  };
+}
+
 function buildPreviewUrl(baseUrl, binding, phase, wrongNetwork = false) {
   const url = new URL(`/${folderName}`, baseUrl);
   const resolvedPhase = phase === "dex-listed" ? "dex-listed" : "internal-market";
@@ -283,10 +328,10 @@ function layoutCheckScript(skipRiskStatus = false) {
     height: Math.round(rect.height),
   });
 
-  if (document.documentElement.scrollWidth > document.documentElement.clientWidth + tolerance) {
-    addIssue("layout/horizontal-overflow", "Document has horizontal overflow.", {
-      scrollWidth: document.documentElement.scrollWidth,
-      clientWidth: document.documentElement.clientWidth,
+  if (scope.scrollWidth > scope.clientWidth + tolerance) {
+    addIssue("layout/horizontal-overflow", "Vault business UI has horizontal overflow.", {
+      scrollWidth: scope.scrollWidth,
+      clientWidth: scope.clientWidth,
     });
   }
 
@@ -372,8 +417,8 @@ function layoutCheckScript(skipRiskStatus = false) {
   return {
     issues,
     metrics: {
-      documentScrollWidth: document.documentElement.scrollWidth,
-      documentClientWidth: document.documentElement.clientWidth,
+      documentScrollWidth: scope.scrollWidth,
+      documentClientWidth: scope.clientWidth,
       controlCount: controls.length,
       textNodeCount: textElements.length,
       riskVisible: skipRiskStatus ? true : Boolean(riskElement),
@@ -381,20 +426,43 @@ function layoutCheckScript(skipRiskStatus = false) {
   };
 }
 
-async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase, wrongNetwork = false, skipRiskStatus = false }) {
+async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase, wrongNetwork = false, skipRiskStatus = false, has3D = false, forceNoWebGL2 = false, reducedMotion = false, contextLoss = false }) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: 1,
+    reducedMotion: reducedMotion ? "reduce" : "no-preference",
   });
-  const traceName = `${viewport.id}-${wrongNetwork ? "wrong-network" : phase}`;
+  if (forceNoWebGL2) {
+    await context.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function patched(type, ...args) {
+        if (type === "webgl2") return null;
+        return original.call(this, type, ...args);
+      };
+    });
+  }
+  const suffix = forceNoWebGL2 ? "3d-fallback" : reducedMotion ? "3d-reduced-motion" : contextLoss ? "3d-context-loss" : wrongNetwork ? "wrong-network" : phase;
+  const traceName = `${viewport.id}-${suffix}`;
   const screenshotPath = path.join(outDir, "screenshots", `${traceName}.png`);
   const tracePath = path.join(outDir, "traces", `${traceName}.zip`);
   await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
   const page = await context.newPage();
   const consoleMessages = [];
+  const pageErrors = [];
+  const externalRequests = [];
   page.on("console", (message) => {
     if (["error", "warning"].includes(message.type())) {
       consoleMessages.push({ type: message.type(), text: message.text().slice(0, 500) });
+    }
+  });
+  page.on("pageerror", (error) => pageErrors.push(error.message.slice(0, 500)));
+  page.on("request", (request) => {
+    try {
+      const requestUrl = new URL(request.url());
+      const previewUrl = new URL(baseUrl);
+      if (!["data:", "blob:"].includes(requestUrl.protocol) && requestUrl.origin !== previewUrl.origin && !HOST_OWNED_EXTERNAL_ORIGINS.has(requestUrl.origin)) externalRequests.push(request.url());
+    } catch {
+      externalRequests.push(request.url());
     }
   });
   const url = buildPreviewUrl(baseUrl, binding, phase, wrongNetwork);
@@ -414,12 +482,38 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
     }
     const layout = await page.evaluate(layoutCheckScript, skipRiskStatus);
     issues.push(...layout.issues);
+    if (has3D) {
+      const root3D = previewScope.locator("[data-flap-3d-state][data-flap-3d-renderer]").first();
+      await root3D.waitFor({ state: "visible", timeout: 15_000 });
+      await page.waitForFunction(() => {
+        const root = document.querySelector("[data-flap-3d-state]");
+        return root && ["ready", "fallback", "error"].includes(root.getAttribute("data-flap-3d-state") || "");
+      });
+      const state = await root3D.getAttribute("data-flap-3d-state");
+      const renderer = await root3D.getAttribute("data-flap-3d-renderer");
+      if (forceNoWebGL2) {
+        if (state !== "fallback" || !["webgl1", "2d"].includes(renderer || "")) issues.push({ ruleId: "3d/fallback-missing", message: `Expected WebGL1/2D fallback, got state=${state} renderer=${renderer}.` });
+      } else if (state !== "ready" || renderer !== "webgl2") {
+        issues.push({ ruleId: "3d/webgl2-not-ready", message: `Expected ready WebGL2 scene, got state=${state} renderer=${renderer}.` });
+      }
+      const canvas = root3D.locator("canvas").first();
+      const box = await canvas.boundingBox();
+      if (!box || box.width <= 0 || box.height <= 0) issues.push({ ruleId: "3d/canvas-zero-size", message: "3D/fallback canvas has zero size." });
+      if (reducedMotion && (await root3D.getAttribute("data-flap-reduced-motion")) !== "true") issues.push({ ruleId: "3d/reduced-motion-missing", message: "prefers-reduced-motion did not activate the deterministic motion downgrade." });
+      if (contextLoss && renderer === "webgl2") {
+        await canvas.evaluate((element) => element.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext());
+        await page.waitForFunction(() => document.querySelector("[data-flap-3d-state]")?.getAttribute("data-flap-3d-state") === "error", undefined, { timeout: 5_000 });
+      }
+      if (externalRequests.length) issues.push({ ruleId: "3d/external-request", message: "3D Mini App made undeclared external requests.", externalRequests: [...new Set(externalRequests)] });
+    }
     if (wrongNetwork && !/wrong network|switch wallet|switch.*chain|切换|网络/i.test(bodyText)) {
       issues.push({ ruleId: "wallet/wrong-network-state-missing", message: "Wrong-network preview did not render a visible switch-network state." });
     }
-    if (consoleMessages.some(isBlockingConsoleMessage)) {
+    if (!contextLoss && consoleMessages.some(isBlockingConsoleMessage)) {
       issues.push({ ruleId: "render/console-error", message: "Browser console emitted errors.", consoleMessages });
     }
+    const blockingPageErrors = pageErrors.filter((message) => !/^A network error occurred\.?$/i.test(message));
+    if (!contextLoss && blockingPageErrors.length) issues.push({ ruleId: "render/page-error", message: "Browser emitted page errors.", pageErrors: blockingPageErrors });
     await page.screenshot({ path: screenshotPath, fullPage: true });
     await context.tracing.stop({ path: tracePath });
     await context.close();
@@ -467,6 +561,7 @@ if (!fs.existsSync(manifestPath)) {
 
 const manifest = readJson(manifestPath);
 const skipRiskStatus = manifest.mode === MINI_APP_MODE;
+const has3D = Array.isArray(manifest.capabilities) && manifest.capabilities.includes("three-r3f-v1");
 let binding;
 try {
   binding = selectE2EBinding(manifest, {
@@ -488,15 +583,22 @@ const sourceFileSha256 = collectSourceHashes(ROOT, folderName);
 const sourceSha256 = sourceSha256FromFileHashes(sourceFileSha256);
 let browser;
 let server;
+let previewSource;
 const checks = [];
 try {
   browser = await launchChromium();
   server = await startPreviewServer();
+  previewSource = await verifyPreviewSource(server.baseUrl, sourceFileSha256[`src/vaults/${folderName}/Component.tsx`]);
   for (const viewport of VIEWPORTS) {
     for (const phase of REQUIRED_PHASES) {
-      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, skipRiskStatus }));
+      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, skipRiskStatus, has3D }));
     }
-    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true, skipRiskStatus }));
+    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true, skipRiskStatus, has3D }));
+    if (has3D) checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "default", skipRiskStatus, has3D, forceNoWebGL2: true }));
+  }
+  if (has3D) {
+    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", skipRiskStatus, has3D, reducedMotion: true }));
+    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", skipRiskStatus, has3D, contextLoss: true }));
   }
 } finally {
   if (browser) await browser.close();
@@ -522,6 +624,7 @@ const report = {
   sourcePackage: `src/vaults/${folderName}`,
   sourceSha256,
   fileSha256: sourceFileSha256,
+  previewSource,
   manifestSha256: sourceFileSha256[`src/vaults/${folderName}/manifest.json`],
   schemaSha256: sourceFileSha256[MANIFEST_SCHEMA_PATH],
   binding: {

@@ -4,7 +4,24 @@ import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
+import {
+  MINI_APP_AUDIO_ASSET_EXTENSIONS,
+  MINI_APP_AUDIO_MAX_BYTES,
+  MINI_APP_AUDIO_TOTAL_MAX_BYTES,
+  isMiniAppAudioAssetName,
+} from "./e2e-report-utils.mjs";
 import { collectManifestErc20TokenIssues, hasRequiredTestTokenSuffix, REQUIRED_TEST_TOKEN_SUFFIX } from "./erc20-token-validation.mjs";
+import {
+  THREE_R3F_PROFILE_ID,
+  capabilityFileExtensions,
+  isCapabilityImportAllowed,
+  isThreeR3FArtifact,
+  isThreeR3FMiniApp,
+  isThreeR3FVaultUI,
+  loadMiniAppCapabilityConfig,
+  manifestCapabilityIds,
+  threeR3FProfile,
+} from "./mini-app-capabilities.mjs";
 
 const ROOT = process.env.VAULT_CHECK_ROOT ? path.resolve(process.env.VAULT_CHECK_ROOT) : process.cwd();
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
@@ -22,12 +39,15 @@ const FORBIDDEN_NAMES = new Set(["node_modules", ".git", ".vercel", ".env", ".en
 const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const ALLOWED_VAULT_FILES = new Set(REQUIRED_FILES);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
 const MINI_APP_MODE = "mini-app";
-const MINI_APP_TOKEN_SUFFIX = "8888";
+const MINI_APP_TOKEN_SUFFIXES = ["7777", "8888"];
+const VAULT_UI_3D_TOKEN_SUFFIX = "7777";
+const CJK_RE = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/u;
+const LATIN_RE = /[A-Za-z]/u;
 const MINI_APP_FULL_HEIGHT_CLASS_RE = /(?:^|[\s"'`{])(?:min-h-(?:screen|dvh|svh|lvh|full|\[100(?:vh|dvh|svh|lvh|%)\])|h-(?:screen|dvh|svh|lvh|full|\[100(?:vh|dvh|svh|lvh|%)\]))(?=$|[\s"'`}])/;
 const MINI_APP_FULL_HEIGHT_STYLE_RE = /\b(?:minHeight|height)\s*:\s*["'`](?:100vh|100dvh|100svh|100lvh|100%)["'`]/;
 const FRAME_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -72,13 +92,23 @@ const FORBIDDEN_IMPORTS = [
   "recharts",
   "viem/accounts",
 ];
-const APPROVED_EXPLORER_ORIGINS = new Set(["https://bscscan.com", "https://testnet.bscscan.com"]);
+const APPROVED_EXPLORER_ORIGINS = new Set([
+  "https://bscscan.com",
+  "https://testnet.bscscan.com",
+  "https://robinhoodchain.blockscout.com",
+  "https://explorer.testnet.chain.robinhood.com",
+]);
+// Registrable domains allowed as user-facing external links (href / window.open /
+// URL literals), but NOT as fetch/data endpoints. Matches the apex and any
+// subdomain over HTTPS without credentials. x.com covers the official Flap/X (Twitter) links.
+const APPROVED_EXTERNAL_LINK_HOST_SUFFIXES = ["x.com"];
+const BINANCE_IMAGE_HOSTNAME = "bin.bnbstatic.com";
 const DEFAULT_ALLOWED_URL_PREFIXES = [];
 const APPROVED_CONTRACT_LABEL_RE = /\b(?:vault|token|nft)\b/i;
 const APPROVED_CONTRACT_ADDRESS_KEYWORD_RE =
   /(paymenttoken|quotetoken|dividendtoken|rewardtoken|staketoken|taxtoken|targettoken|targetasset|approvedbuybacktoken|proposedtoken|nftaddress|nft|lptoken|assettoken|underlyingtoken|buybacktoken|feevaultaddress|feevault|wrappednativetoken|wrappednative|nativetoken|basetoken)/i;
 const FORBIDDEN_CONTRACT_ADDRESS_KEYWORD_RE = /(router|bridge|oracle|aggregator|pair|amm|treasury|governor)/i;
-const CONTRACT_INTERACTION_METHODS = ["readContract", "simulateContract", "writeContract", "watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"];
+const CONTRACT_INTERACTION_METHODS = ["readContract", "simulateContract", "writeContract", "getContractEvents", "watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"];
 const CONTRACT_LABEL_REQUIRED_METHODS = new Set(["readContract", "simulateContract", "writeContract"]);
 const FORBIDDEN_UI_OPERATOR_FUNCTION_NAMES = new Set(["setConfig", "setSwapPath", "setSplit"]);
 const CONTRACT_INTERACTION_METHOD_RE = new RegExp(`^(?:${CONTRACT_INTERACTION_METHODS.join("|")})\\b`, "u");
@@ -98,10 +128,7 @@ const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
     "bnb-usd-price",
     {
       source: "built-in",
-      endpoints: [
-        "https://api.binance.com/api/v3/avgPrice?symbol=BNBUSDT",
-        "https://hermes.pyth.network/v2/updates/price/latest?ids%5B%5D=0x2f95862b045670cd22bee3114c39763a4a08beeb663b145d283c31d7d1101c4f&encoding=base64&parsed=true",
-      ],
+      endpoints: ["https://api.binance.com/api/v3/avgPrice?symbol=BNBUSDT"],
       allowedParams: [],
       fixedParams: {},
     },
@@ -115,12 +142,21 @@ const BUILTIN_RUNTIME_ORACLE_PROVISIONS = new Map([
       fixedParams: {},
     },
   ],
+  [
+    "x-verifier",
+    {
+      source: "built-in",
+      endpoints: ["https://x-verifier.taxvault.info/submit"],
+      allowedParams: ["tax_token", "tweet_id"],
+      fixedParams: {},
+    },
+  ],
 ]);
 const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow)\b(?=[^>]*\b(?:riskLabel|riskLevel|riskTone)\b)|<StatusBadge\b[^>]*>\s*{?\s*(?:riskLabel|riskLevel|riskTone)\b/;
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 const RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE = 2;
 const RISK_STATUS_PRECEDING_BUSINESS_ROW_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow|TxButton)\b/g;
-const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<ReviewedFrame\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
+const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
 const VISUAL_REFERENCE_EXAMPLE_FOLDERS = new Set([
   "example",
   "dex-listed-example",
@@ -141,11 +177,8 @@ const WARNING = "warning";
 const INFO = "info";
 const TYPE_BINDING_KEYS = new Set(["vault" + "Type", "vault" + "Types"]);
 const UNSAFE_RESOURCE_SCHEMES = ["ipfs://", "ar://", "data:", "javascript:"];
-const ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS = new Set([
-  "https://flap.mypinata.cloud",
-  "https://magenta-naval-penguin-822.mypinata.cloud",
-]);
 const IPFS_IMAGE_CID_RE = /^(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/;
+const IPFS_IMAGE_PATH_SEGMENT_RE = /^[A-Za-z0-9._~-]+$/;
 const ALLOWED_INLINE_SVG_TAGS = new Set([
   "svg",
   "g",
@@ -172,20 +205,23 @@ const FIX_HINTS = {
   "cli/missing-slug": "Run yarn vault:check <slug> with a registered Vault slug.",
   "cli/invalid-folder-name": "Use a 3-64 character lowercase kebab-case folder name, for example my-vault.",
   "package-structure/missing-vault-dir": "Create the package with yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory or yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x..., or add src/vaults/<folder-name>.",
-  "package-structure/missing-required-file": "Keep exactly Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder.",
-  "package-structure/disallowed-vault-file": "Move helpers, assets, nested components, docs, and sample data outside src/vaults/<folder-name> or inline small code in Component.tsx.",
+  "package-structure/missing-required-file": "Keep Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder. Mini App may additionally include reviewed top-level audio assets.",
+  "package-structure/disallowed-vault-file": "Move helpers, nested components, docs, sample data, and non-audio assets outside src/vaults/<folder-name> or inline small code in Component.tsx. Mini App may include only reviewed top-level audio files.",
   "preview-registration/missing-vault-module": "Register the folder name in src/vaults/index.ts with loadComponent, loadManifest, and loadI18n entries.",
   "forbidden-files/disallowed-entry": "Remove environment, dependency, git, or build output files from the Vault package.",
   "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
+  "source-syntax/invalid-typescript": "Fix the reported TypeScript/TSX syntax error before running vault:check, vault:e2e, or vault:package again.",
   "manifest-schema/invalid-json": "Fix JSON syntax in manifest.json.",
-  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
-  "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 8888-token Mini App with match.bindings[].tokenAddresses.',
+  "manifest-schema/disallowed-field": "Remove internal runtime fields. Developer manifest fields are artifactId, name, displayTitle for Mini App only, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries.",
+  "manifest-schema/invalid-mode": 'Remove manifest.mode for the default Vault UI, or set it exactly to "mini-app" for a token-scoped 7777 or 8888 Mini App with match.bindings[].tokenAddresses.',
   "manifest-schema/invalid-layout": "Remove manifest.layout, or set it exactly to fullscreen when Flap explicitly asks for a full-screen Vault body.",
   "manifest-schema/missing-field": "Add the required manifest field.",
   "manifest-schema/invalid-artifact-id": "Use artifactId format vaultui_<folder-name>_<26-char ULID>, for example vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N.",
   "manifest-schema/artifact-id-folder-name-mismatch": "Make the artifactId folder-name segment match the src/vaults/<folder-name> folder name.",
   "manifest-schema/duplicate-artifact-id": "Generate a new artifactId; each Vault package in the repo must have a unique artifactId.",
   "manifest-schema/invalid-name": "Set manifest.name to a human-readable string with at least two characters.",
+  "manifest-schema/display-title-mini-app-only": "Use manifest.displayTitle only for Mini App artifacts, or remove it from the default Vault UI manifest.",
+  "manifest-schema/mini-app-display-title-requires-bilingual": 'Set Mini App manifest.displayTitle to separate Chinese and English values, for example {"zh":"蝴蝶农场","en":"Butterfly Farm"}.',
   "manifest-schema/invalid-match": "Set manifest.match to an object with bindings (array of factory-scoped, single-Vault, or token-scoped binding entries).",
   "manifest-schema/disallowed-match-field": "Keep match limited to bindings. Use match.bindings[].tokenAddresses for test tokens or no-factory token-scoped bindings only; production CA restriction belongs in Workbench/registry configuration.",
   "manifest-binding/missing-bindings": "Add match.bindings as a non-empty array. Each entry needs chainId plus a non-zero factoryAddress, exactly one vaultAddresses entry, or one or more tokenAddresses.",
@@ -201,8 +237,10 @@ const FIX_HINTS = {
   "manifest-binding/mixed-chain-scope": "Do not split one chain into factory and no-factory bindings. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode.",
   "manifest-binding/duplicate-address": "Remove duplicate addresses from the binding-scoped reference list.",
   "manifest-binding/ca-policy-not-in-manifest": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration.",
-  "manifest-binding/invalid-mini-app-binding": "Mini App mode is token-address-bound. Use only token-scoped 8888 tokenAddresses; omit factoryAddress and vaultAddresses.",
-  "manifest-binding/invalid-mini-app-token": "Mini App mode must provide the bound token address as an 8888-suffix tokenAddresses entry. Omit mode for default Vault UI packages.",
+  "manifest-binding/invalid-mini-app-binding": "Mini App mode is token-address-bound. Use only token-scoped 7777 or 8888 tokenAddresses; omit factoryAddress and vaultAddresses.",
+  "manifest-binding/invalid-mini-app-token": "Mini App mode must provide bound tokenAddresses entries ending consistently in either 7777 or 8888. Omit mode for default Vault UI packages.",
+  "manifest-binding/mixed-mini-app-token-suffixes": "Use only 7777 tokens or only 8888 tokens in one Mini App artifact. Split mixed token families into separate artifacts.",
+  "manifest-binding/invalid-vault-ui-3d-token": "A mode-less three-r3f-v1 Vault UI must declare only 7777-suffix proof tokens. Remove 8888 tokens or use the existing token-scoped Mini App contract.",
   "mini-app-layout/missing-full-height-root": "Add min-h-[100vh], min-h-screen, min-h-full, or h-full to the outermost returned Mini App layout element.",
   "manifest-binding/missing-test-token": "Declare at least one real deployed ERC20 test token ending in 7777 or 8888 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding.",
   "manifest-binding/invalid-test-token-suffix": "Use a real deployed ERC20 test token address ending in 7777 or 8888. Non-7777/8888 tokenAddresses are not accepted as package proof.",
@@ -223,10 +261,12 @@ const FIX_HINTS = {
   "endpoint-policy/invalid-endpoint-declaration": "Endpoint declarations must be valid absolute HTTPS URL strings only.",
   "endpoint-policy/https-required": "Use an HTTPS endpoint URL string, or remove the endpoint.",
   "endpoint-policy/no-credentials": "Remove username/password credentials from endpoint URLs. Workbench endpoint declarations must be bearerless HTTPS URLs.",
-  "endpoint-policy/undeclared-url": "Remove the URL or declare a non-oracle https endpoint in manifest.endpoints for review.",
+  "endpoint-policy/undeclared-url": "Remove the URL. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets; use approved runtime media, ExternalLink, or a reviewed externalFrame for other URL uses.",
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
   "endpoint-policy/direct-fetch": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
+  "manual-review/external-contract": "Fixed extra contract targets are review candidates only. Confirm the address, role, write/approval/value exposure, and deployment provenance before publish.",
+  "manual-review/external-link": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it.",
   "frame-policy/invalid-frames": "Set manifest.externalFrames to a non-empty array of reviewed frame declarations, or remove it.",
   "frame-policy/invalid-frame-declaration": "Each externalFrames entry must include id, provider, src, and title only.",
   "frame-policy/duplicate-frame-id": "Use a unique lowercase kebab-case id for each external frame declaration.",
@@ -253,6 +293,7 @@ const FIX_HINTS = {
   "forbidden-api/script": "Do not inject scripts inside a Vault component.",
   "forbidden-api/dangerously-set-inner-html": "Render structured React content instead of raw HTML.",
   "forbidden-api/remote-import": "Remove runtime remote imports. Use only approved local package imports.",
+  "forbidden-api/clipboard": "Do not access the clipboard or trigger programmatic copy from a Vault component. Render the value only; the host owns copy actions.",
   "forbidden-api/browser-global-escape": "Use explicit Flap SDK/runtime APIs instead of computed browser-global access.",
   "forbidden-api/browser-network": "Use Flap SDK/readOracle, or a static absolute HTTPS fetch target declared in manifest.endpoints.",
   "forbidden-api/browser-storage": "Use local React state or Flap-provided runtime state instead of browser storage APIs.",
@@ -268,12 +309,19 @@ const FIX_HINTS = {
   "imports-and-dependencies/require-call": "Use static ESM imports only. CommonJS require() is not allowed in Vault source.",
   "imports-and-dependencies/unreviewed-import": "Remove the dependency unless Flap explicitly approves it.",
   "imports-and-dependencies/dynamic-import": "Use static imports only.",
-  "media/local-asset": "Move local media outside the Vault package. Vault folders must contain only the four allowed files.",
-  "media-policy/remote-media": "Remove remote media URLs. Use host-provided media for token images, or IpfsImage/IpfsBackground with a static image CID for immutable Vault-specific images.",
-  "media-policy/invalid-ipfs-image-cid": "Pass only a static image CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic expressions.",
-  "media-policy/ipfs-image-unavailable": "Use a static image CID that resolves through an allowed Flap IPFS gateway to an image/* response.",
+  "media/local-asset": "Move local media outside the Vault package. Only Mini App mode may include reviewed top-level audio assets.",
+  "media/mini-app-audio-only": 'Audio files inside src/vaults/<folder-name> are allowed only when manifest.mode is "mini-app".',
+  "media/invalid-mini-app-audio-asset": `Use top-level lowercase Mini App audio files with one of these extensions only: ${MINI_APP_AUDIO_ASSET_EXTENSIONS.join(", ")}.`,
+  "media/mini-app-audio-too-large": `Keep each Mini App audio file at or below ${Math.round(MINI_APP_AUDIO_MAX_BYTES / 1024 / 1024)} MiB and total Mini App audio at or below ${Math.round(MINI_APP_AUDIO_TOTAL_MAX_BYTES / 1024 / 1024)} MiB.`,
+  "manual-review/mini-app-audio-asset": "Mini App audio files require Flap human review for source/license, play timing, visible mute/pause control, fallback, and mobile impact before publish.",
+  "media-policy/remote-media": "Remove remote media URLs. Use host-provided token media, controlled IpfsImage cid/path for immutable Vault/NFT images, or CID-only IpfsBackground.",
+  "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
+  "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
+  "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with tokenId and alt plus safe image presentation props. It consumes the shared SDK context internally; do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
+  "media-policy/invalid-binance-image": "Import BinanceImage from @/src/ui and pass src plus localized alt without spread props, srcSet, referrerPolicy, loading, or decoding overrides. Static URLs must use HTTPS on the exact bin.bnbstatic.com host; any pathname is allowed.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
-  "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites. Keep component-owned links on the current chain explorer only, and use host-reviewed allowlists for any exceptional metadata/oracle origin during review.",
+  "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
+  "navigation-policy/invalid-external-link": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials.",
   "contract-boundary/missing-contract-label": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the call target.",
   "contract-boundary/disallowed-contract-label": "Limit contract labels to vault/token/nft-related targets. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package.",
   "contract-boundary/disallowed-contract-address-source": "Keep contract targets on context.vaultAddress, context.tokenAddress, context.factoryAddress, token/NFT-related runtime addresses, or declared externalContracts only.",
@@ -434,7 +482,7 @@ function normalizeManifestExternalFrames(externalFrames) {
   return null;
 }
 
-function collectDeclaredUrls(manifest) {
+function collectDeclaredFetchUrls(manifest) {
   const urls = new Set();
   const normalized = normalizeManifestEndpoints(manifest.endpoints);
   if (!normalized) return urls;
@@ -767,8 +815,34 @@ function normalizeRelativeImport(spec) {
   return spec.replace(/\.(tsx?|jsx?|mjs|cjs)$/, "");
 }
 
+function isMiniAppAudioImportSpec(spec) {
+  if (!spec.startsWith("./")) return false;
+  const localName = spec.slice(2);
+  return !localName.includes("/") && isMiniAppAudioAssetName(localName);
+}
+
+function readManifestForStructure(vaultDir) {
+  try {
+    return readJson(path.join(vaultDir, "manifest.json"));
+  } catch {
+    return {};
+  }
+}
+
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isMiniAppDisplayTitle(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    isNonEmptyString(value.zh) &&
+    isNonEmptyString(value.en) &&
+    CJK_RE.test(value.zh) &&
+    LATIN_RE.test(value.en)
+  );
 }
 
 function sanitizeUrlLiteral(value) {
@@ -792,27 +866,42 @@ function matchesAllowlistPrefix(url, prefixes) {
   return false;
 }
 
+function isApprovedExternalLinkUrl(url) {
+  const parsed = parseUrl(url);
+  if (!parsed) return false;
+  if (parsed.protocol !== "https:") return false;
+  if (parsed.username || parsed.password) return false;
+  const host = parsed.hostname.toLowerCase();
+  return APPROVED_EXTERNAL_LINK_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
+}
+
 function isApprovedNavigationUrl(url) {
   const origin = normalizeOrigin(url);
-  return Boolean(origin && APPROVED_EXPLORER_ORIGINS.has(origin));
+  if (origin && APPROVED_EXPLORER_ORIGINS.has(origin)) return true;
+  return isApprovedExternalLinkUrl(url);
 }
 
-function isAllowedBrowserGlobalMember(globalName, memberName) {
-  return ALLOWED_BROWSER_GLOBAL_MEMBERS.get(globalName)?.has(memberName) ?? false;
+function isAllowedBrowserGlobalMember(globalName, memberName, manifest) {
+  if (ALLOWED_BROWSER_GLOBAL_MEMBERS.get(globalName)?.has(memberName)) return true;
+  if (!isThreeR3FArtifact(manifest)) return false;
+  return (threeR3FProfile(ROOT).safeBrowserMembers?.[globalName] || []).includes(memberName);
 }
 
-function collectBrowserGlobalMemberIssues(content, file) {
+function collectBrowserGlobalMemberIssues(content, file, manifest) {
   const issues = [];
   const memberRegex = /\b(window|globalThis|global|self|navigator|document)\s*(?:\?\.|\.)\s*([A-Za-z_$][\w$]*)/g;
   for (const match of content.matchAll(memberRegex)) {
     const globalName = match[1];
     const memberName = match[2];
-    if (isAllowedBrowserGlobalMember(globalName, memberName)) continue;
+    if (isAllowedBrowserGlobalMember(globalName, memberName, manifest)) continue;
+    const isClipboard = globalName === "navigator" && memberName === "clipboard";
     issues.push(
       issue(
         BLOCKING,
-        "forbidden-api/browser-global-escape",
-        `${globalName}.${memberName} access is not allowed inside Vault components. Use Flap SDK/runtime APIs instead.`,
+        isClipboard ? "forbidden-api/clipboard" : "forbidden-api/browser-global-escape",
+        isClipboard
+          ? "Clipboard access and programmatic copy are not allowed inside Vault components. Render the value only; the host owns copy actions."
+          : `${globalName}.${memberName} access is not allowed inside Vault components. Use Flap SDK/runtime APIs instead.`,
         { file, line: lineForIndex(content, match.index ?? -1) },
       ),
     );
@@ -1077,41 +1166,363 @@ function collectHardcodedVisibleCopyIssues(content, file) {
   return issues;
 }
 
-function isAllowlistedExternalUrl(url, declaredUrls, declaredFrames = new Map()) {
-  return isDeclaredUrl(url, declaredUrls) || isDeclaredExternalFrameUrl(url, declaredFrames) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
+function isAllowlistedExternalUrl(url, declaredFrames = new Map()) {
+  return isDeclaredExternalFrameUrl(url, declaredFrames) || isApprovedExternalLinkUrl(url) || matchesAllowlistPrefix(url, DEFAULT_ALLOWED_URL_PREFIXES);
 }
 
-function isAllowedIpfsImageGatewayUrl(url) {
-  const parsed = parseUrl(url);
-  return (
-    parsed?.protocol === "https:" &&
-    !parsed.username &&
-    !parsed.password &&
-    !parsed.search &&
-    !parsed.hash &&
-    ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS.has(parsed.origin) &&
-    /^\/ipfs\/[^/]+(?:\/[^?#]*)?$/.test(parsed.pathname)
-  );
+function collectLexicalBindings(sourceFile) {
+  const bindings = new Map();
+
+  function addBinding(name, node, scope, initializer = null, isConst = false) {
+    if (!name || !scope) return;
+    const entries = bindings.get(name) ?? [];
+    entries.push({ node, scope, initializer, isConst });
+    bindings.set(name, entries);
+  }
+
+  function bindingNames(name) {
+    if (ts.isIdentifier(name)) return [name.text];
+    if (!ts.isObjectBindingPattern(name) && !ts.isArrayBindingPattern(name)) return [];
+    const names = [];
+    for (const element of name.elements) {
+      if (!ts.isBindingElement(element)) continue;
+      names.push(...bindingNames(element.name));
+    }
+    return names;
+  }
+
+  function nearestScope(node, variableFlags = null) {
+    let current = node.parent;
+    if (variableFlags !== null && !(variableFlags & ts.NodeFlags.BlockScoped)) {
+      while (current && !ts.isFunctionLike(current) && !ts.isSourceFile(current)) current = current.parent;
+      return current ?? sourceFile;
+    }
+    while (
+      current &&
+      !ts.isBlock(current) &&
+      !ts.isSourceFile(current) &&
+      !ts.isModuleBlock(current) &&
+      !ts.isCaseBlock(current) &&
+      !ts.isForStatement(current) &&
+      !ts.isForInStatement(current) &&
+      !ts.isForOfStatement(current) &&
+      !ts.isFunctionLike(current) &&
+      !ts.isCatchClause(current)
+    ) {
+      current = current.parent;
+    }
+    return current ?? sourceFile;
+  }
+
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node)) {
+      const declarationList = ts.isVariableDeclarationList(node.parent) ? node.parent : null;
+      const flags = declarationList?.flags ?? ts.NodeFlags.None;
+      const scope = nearestScope(node, flags);
+      const names = bindingNames(node.name);
+      for (const name of names) {
+        addBinding(name, node, scope, ts.isIdentifier(node.name) ? node.initializer ?? null : null, Boolean(flags & ts.NodeFlags.Const));
+      }
+    } else if (ts.isParameter(node)) {
+      const scope = nearestScope(node);
+      for (const name of bindingNames(node.name)) addBinding(name, node, scope);
+    } else if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
+      addBinding(node.name.text, node, nearestScope(node));
+    } else if (ts.isImportClause(node)) {
+      if (node.name) addBinding(node.name.text, node, sourceFile);
+    } else if (ts.isImportSpecifier(node) || ts.isNamespaceImport(node) || ts.isImportEqualsDeclaration(node)) {
+      addBinding(node.name.text, node, sourceFile);
+    } else if (ts.isCatchClause(node) && node.variableDeclaration) {
+      for (const name of bindingNames(node.variableDeclaration.name)) addBinding(name, node.variableDeclaration, node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return bindings;
+}
+
+function resolveVisibleLexicalBinding(identifier, sourceFile, bindings) {
+  const candidates = bindings.get(identifier.text) ?? [];
+  const referenceStart = tsNodeStart(identifier, sourceFile);
+  const visible = candidates.filter(({ scope }) => {
+    const scopeStart = scope.getStart(sourceFile);
+    return scopeStart <= referenceStart && referenceStart < scope.end;
+  });
+  if (visible.length === 0) return null;
+  visible.sort((left, right) => {
+    const leftSpan = left.scope.end - left.scope.getStart(sourceFile);
+    const rightSpan = right.scope.end - right.scope.getStart(sourceFile);
+    if (leftSpan !== rightSpan) return leftSpan - rightSpan;
+    return tsNodeStart(right.node, sourceFile) - tsNodeStart(left.node, sourceFile);
+  });
+  const nearest = visible[0];
+  const nearestScope = nearest.scope;
+  if (visible.some((candidate, index) => index > 0 && candidate.scope === nearestScope)) return null;
+  return nearest;
+}
+
+function resolveLexicalStaticString(expression, sourceFile, bindings, seen = new Set()) {
+  if (!expression) return null;
+  const current = unwrapTsExpression(expression);
+  if (ts.isStringLiteral(current) || ts.isNoSubstitutionTemplateLiteral(current)) return current.text;
+  if (ts.isIdentifier(current)) {
+    const binding = resolveVisibleLexicalBinding(current, sourceFile, bindings);
+    if (!binding?.isConst || !binding.initializer || seen.has(binding.node)) return null;
+    const nextSeen = new Set(seen);
+    nextSeen.add(binding.node);
+    return resolveLexicalStaticString(binding.initializer, sourceFile, bindings, nextSeen);
+  }
+  if (ts.isTemplateExpression(current)) {
+    let value = current.head.text;
+    for (const span of current.templateSpans) {
+      const resolved = resolveLexicalStaticString(span.expression, sourceFile, bindings, seen);
+      if (resolved === null) return null;
+      value += resolved + span.literal.text;
+    }
+    return value;
+  }
+  if (ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = resolveLexicalStaticString(current.left, sourceFile, bindings, seen);
+    const right = resolveLexicalStaticString(current.right, sourceFile, bindings, seen);
+    return left === null || right === null ? null : left + right;
+  }
+  return null;
 }
 
 function collectStaticImgSrcUrls(content, file) {
   const urls = [];
-  const tagRegex = /<img\b[^>]*>/gi;
-  for (const tagMatch of content.matchAll(tagRegex)) {
-    const tag = tagMatch[0];
-    const tagStart = tagMatch.index ?? 0;
-    const srcRegex = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*(["'`])((?:\\.|(?!\3)[\s\S])*?)\3\s*\})/g;
-    for (const srcMatch of tag.matchAll(srcRegex)) {
-      const url = srcMatch[1] ?? srcMatch[2] ?? srcMatch[4];
-      if (!url) continue;
-      urls.push({
-        url: sanitizeUrlLiteral(url),
-        file,
-        line: lineForIndex(content, tagStart + (srcMatch.index ?? 0)),
-      });
+  const sourceFile = createTsSourceFile(file, content);
+  const bindings = collectLexicalBindings(sourceFile);
+  const visit = (node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      if (jsxTagNameText(node.tagName) === "img") {
+        for (const property of node.attributes.properties) {
+          if (!ts.isJsxAttribute(property) || jsxAttributeNameText(property.name) !== "src") continue;
+          let value = null;
+          const initializer = property.initializer;
+          if (initializer && ts.isStringLiteral(initializer)) {
+            value = initializer.text;
+          } else if (initializer && ts.isJsxExpression(initializer) && initializer.expression) {
+            value = resolveLexicalStaticString(initializer.expression, sourceFile, bindings);
+          }
+          if (!value) continue;
+          urls.push({
+            url: sanitizeUrlLiteral(value),
+            file,
+            line: lineForIndex(content, tsNodeStart(property, sourceFile)),
+          });
+        }
+      }
     }
-  }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
   return urls;
+}
+
+function isAllowedBinanceImageUrl(value) {
+  if (typeof value !== "string" || !value || value !== value.trim() || /[\u0000-\u001F\u007F]/u.test(value)) return false;
+  const parsed = parseUrl(value);
+  return Boolean(
+    parsed &&
+      parsed.protocol === "https:" &&
+      parsed.hostname.toLowerCase() === BINANCE_IMAGE_HOSTNAME &&
+      !parsed.username &&
+      !parsed.password &&
+      !parsed.port,
+  );
+}
+
+function importDeclarationForNode(node) {
+  let current = node;
+  while (current && !ts.isSourceFile(current)) {
+    if (ts.isImportDeclaration(current)) return current;
+    current = current.parent;
+  }
+  return null;
+}
+
+function isBinanceImageImportBinding(binding) {
+  const specifier = binding?.node;
+  if (!specifier || !ts.isImportSpecifier(specifier)) return false;
+  const importedName = specifier.propertyName?.text ?? specifier.name.text;
+  const declaration = importDeclarationForNode(specifier);
+  return Boolean(
+    importedName === "BinanceImage" &&
+      declaration &&
+      ts.isStringLiteral(declaration.moduleSpecifier) &&
+      declaration.moduleSpecifier.text === "@/src/ui",
+  );
+}
+
+function collectBinanceImageImportNames(sourceFile) {
+  const names = new Set();
+  const visit = (node) => {
+    if (ts.isImportSpecifier(node)) {
+      const importedName = node.propertyName?.text ?? node.name.text;
+      const declaration = importDeclarationForNode(node);
+      if (importedName === "BinanceImage" && declaration && ts.isStringLiteral(declaration.moduleSpecifier) && declaration.moduleSpecifier.text === "@/src/ui") {
+        names.add(node.name.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return names;
+}
+
+function collectReferencedExpressionRanges(expression, sourceFile, bindings, seen = new Set()) {
+  if (!expression) return [];
+  const current = unwrapTsExpression(expression);
+  if (ts.isIdentifier(current)) {
+    const binding = resolveVisibleLexicalBinding(current, sourceFile, bindings);
+    if (!binding?.isConst || !binding.initializer || seen.has(binding.node)) return [];
+    const nextSeen = new Set(seen);
+    nextSeen.add(binding.node);
+    return collectReferencedExpressionRanges(binding.initializer, sourceFile, bindings, nextSeen);
+  }
+  return [[tsNodeStart(current, sourceFile), current.end]];
+}
+
+function collectBinanceImageUsageAnalysis(content, file) {
+  const issues = [];
+  const allowedUrlRanges = [];
+  let sourceFile;
+  try {
+    sourceFile = createTsSourceFile(file, content);
+  } catch {
+    return { issues, allowedUrlRanges };
+  }
+
+  const bindings = collectLexicalBindings(sourceFile);
+  const binanceImageImportNames = collectBinanceImageImportNames(sourceFile);
+  const urlRegex = /\bhttps?:\/\/[^\s"'`<>)]+/g;
+  const forbiddenProps = new Set(["srcSet", "referrerPolicy", "loading", "decoding"]);
+
+  const visit = (node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      if (!ts.isIdentifier(node.tagName)) {
+        if (ts.isPropertyAccessExpression(node.tagName) && node.tagName.name.text === "BinanceImage") {
+          issues.push(
+            issue(
+              BLOCKING,
+              "media-policy/invalid-binance-image",
+              "Import BinanceImage as a named import from @/src/ui; namespace or member-expression access is not allowed.",
+              { file, line: lineForIndex(content, tsNodeStart(node, sourceFile)), importedFromSharedUi: false },
+            ),
+          );
+        }
+        ts.forEachChild(node, visit);
+        return;
+      }
+      const binding = resolveVisibleLexicalBinding(node.tagName, sourceFile, bindings);
+      const isApprovedComponent = isBinanceImageImportBinding(binding);
+      const isBinanceImageName = node.tagName.text === "BinanceImage" || binanceImageImportNames.has(node.tagName.text);
+      if (!isApprovedComponent && !isBinanceImageName) {
+        ts.forEachChild(node, visit);
+        return;
+      }
+
+      const tagStart = tsNodeStart(node, sourceFile);
+      const tagEnd = node.end;
+      const attributes = node.attributes.properties;
+      const srcAttribute = attributes.find((attribute) => ts.isJsxAttribute(attribute) && jsxAttributeNameText(attribute.name) === "src");
+      const hasAlt = attributes.some((attribute) => ts.isJsxAttribute(attribute) && jsxAttributeNameText(attribute.name) === "alt");
+      const presentForbiddenProps = attributes
+        .filter((attribute) => ts.isJsxAttribute(attribute) && forbiddenProps.has(jsxAttributeNameText(attribute.name)))
+        .map((attribute) => jsxAttributeNameText(attribute.name));
+      const hasSpreadProps = attributes.some((attribute) => ts.isJsxSpreadAttribute(attribute));
+      let sourceExpression = null;
+      if (srcAttribute && ts.isJsxAttribute(srcAttribute)) {
+        if (srcAttribute.initializer && ts.isStringLiteral(srcAttribute.initializer)) sourceExpression = srcAttribute.initializer;
+        else if (srcAttribute.initializer && ts.isJsxExpression(srcAttribute.initializer)) sourceExpression = srcAttribute.initializer.expression;
+      }
+      const staticSource = sourceExpression ? resolveLexicalStaticString(sourceExpression, sourceFile, bindings) : null;
+      const sourceRanges = collectReferencedExpressionRanges(sourceExpression, sourceFile, bindings);
+      const invalidEmbeddedUrls = [];
+      for (const [start, end] of sourceRanges) {
+        const sourceText = content.slice(start, end);
+        for (const match of sourceText.matchAll(urlRegex)) {
+          const url = sanitizeUrlLiteral(match[0]);
+          if (!isAllowedBinanceImageUrl(url)) invalidEmbeddedUrls.push(url);
+        }
+      }
+      const invalidStaticSource = staticSource !== null && !isAllowedBinanceImageUrl(staticSource);
+      const isInvalid =
+        !isApprovedComponent ||
+        !srcAttribute ||
+        !sourceExpression ||
+        !hasAlt ||
+        hasSpreadProps ||
+        presentForbiddenProps.length > 0 ||
+        invalidStaticSource ||
+        invalidEmbeddedUrls.length > 0;
+
+      if (isInvalid) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "media-policy/invalid-binance-image",
+            "BinanceImage must be imported from @/src/ui and receive src plus localized alt without spread props or image-loading/security overrides. Static URLs must use HTTPS on the exact bin.bnbstatic.com host; paths are unrestricted.",
+            {
+              file,
+              line: lineForIndex(content, tagStart),
+              importedFromSharedUi: isApprovedComponent,
+              missingProps: [!srcAttribute || !sourceExpression ? "src" : null, !hasAlt ? "alt" : null].filter(Boolean),
+              forbiddenProps: presentForbiddenProps,
+              hasSpreadProps,
+              invalidUrl: invalidStaticSource ? staticSource : invalidEmbeddedUrls[0] ?? null,
+            },
+          ),
+        );
+      }
+
+      if (isApprovedComponent) {
+        allowedUrlRanges.push([tagStart, tagEnd], ...sourceRanges);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return { issues, allowedUrlRanges };
+}
+
+function collectDirectFetchUsages(content, file, declaredFetchUrls) {
+  const usages = [];
+  const sourceFile = createTsSourceFile(file, content);
+  const bindings = collectLexicalBindings(sourceFile);
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = unwrapTsExpression(node.expression);
+      if (ts.isIdentifier(callee) && callee.text === "fetch") {
+        const isGlobalFetch = !resolveVisibleLexicalBinding(callee, sourceFile, bindings);
+        const target = node.arguments[0] ?? null;
+        const staticTarget = target ? tsStaticStringValue(target) : null;
+        const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
+        const allowed = Boolean(
+          isGlobalFetch &&
+            staticTarget &&
+            parsedTarget &&
+            parsedTarget.protocol === "https:" &&
+            !parsedTarget.username &&
+            !parsedTarget.password &&
+            isDeclaredUrl(staticTarget, declaredFetchUrls),
+        );
+        usages.push({
+          allowed,
+          isGlobalFetch,
+          staticTarget,
+          parsedTarget,
+          file,
+          line: lineForIndex(content, tsNodeStart(node, sourceFile)),
+          targetRange: target ? [tsNodeStart(target, sourceFile), target.end] : null,
+        });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return usages;
 }
 
 function staticJsxStringAttribute(tag, attributeName) {
@@ -1128,9 +1539,15 @@ function collectIpfsImageCidUsages(content, file) {
     const tag = tagMatch[0];
     const index = tagMatch.index ?? 0;
     const cid = staticJsxStringAttribute(tag, "cid");
+    const hasPath = /\bpath\s*=/.test(tag);
+    const hasValidationPath = /\bvalidationPath\s*=/.test(tag);
+    const staticPath = staticJsxStringAttribute(tag, "path");
+    const staticValidationPath = staticJsxStringAttribute(tag, "validationPath");
     usages.push({
       component: tagMatch[1],
       cid: cid ? cid.trim() : cid,
+      path: hasPath ? (typeof staticPath === "string" ? staticPath.trim() : null) : undefined,
+      validationPath: hasValidationPath ? (typeof staticValidationPath === "string" ? staticValidationPath.trim() : null) : undefined,
       file,
       line: lineForIndex(content, index),
     });
@@ -1142,8 +1559,81 @@ function isValidIpfsImageCid(cid) {
   return typeof cid === "string" && IPFS_IMAGE_CID_RE.test(cid);
 }
 
-function ipfsImageUrlsForCid(cid) {
-  return [...ALLOWED_IPFS_IMAGE_GATEWAY_ORIGINS].map((origin) => `${origin}/ipfs/${cid}`);
+function isValidIpfsImagePath(imagePath) {
+  if (typeof imagePath !== "string" || !imagePath || imagePath.length > 512 || imagePath.startsWith("/") || imagePath.endsWith("/")) return false;
+  return imagePath
+    .split("/")
+    .every((segment) => segment && segment !== "." && segment !== ".." && IPFS_IMAGE_PATH_SEGMENT_RE.test(segment));
+}
+
+function collectNftMetadataImageUsageIssues(content, file) {
+  const issues = [];
+  const tagRegex = /<NftMetadataImage\b[^>]*>/g;
+  const requiredProps = ["tokenId", "alt"];
+  const forbiddenProps = ["sdk", "abi", "nftAddress", "src", "srcSet", "tokenUri", "tokenURI", "endpoint", "imageUrl", "cid", "path", "validationPath"];
+  for (const tagMatch of content.matchAll(tagRegex)) {
+    const tag = tagMatch[0];
+    const missingProps = requiredProps.filter((prop) => !new RegExp(`\\b${prop}\\s*=`).test(tag));
+    const presentForbiddenProps = forbiddenProps.filter((prop) => new RegExp(`\\b${prop}\\s*=`).test(tag));
+    const hasSpreadProps = /\{\s*\.\.\./.test(tag);
+    if (missingProps.length || presentForbiddenProps.length || hasSpreadProps) {
+      issues.push(
+        issue(
+          BLOCKING,
+          "media-policy/invalid-nft-metadata-image",
+          "NftMetadataImage must receive only tokenId, alt, and safe image presentation props. It consumes the shared SDK context internally, and the runtime owns the Vault V2 nft() and NFT tokenURI() ABIs; caller-supplied sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, and spread props are not allowed.",
+          {
+            file,
+            line: lineForIndex(content, tagMatch.index ?? 0),
+            missingProps,
+            forbiddenProps: presentForbiddenProps,
+            hasSpreadProps,
+          },
+        ),
+      );
+    }
+  }
+  return issues;
+}
+
+// The ExternalLink component from @/src/ui is the sanctioned way to send a user to
+// a non-allowlisted external site: it intercepts navigation and shows a risk
+// confirmation before opening the destination. Collect its usages so URL literals
+// used only for ExternalLink navigation are not double-reported as endpoints.
+function collectExternalLinkUsages(content, file) {
+  const usages = [];
+  const tagRegex = /<ExternalLink\b[^>]*>/g;
+  for (const tagMatch of content.matchAll(tagRegex)) {
+    const tag = tagMatch[0];
+    const tagStart = tagMatch.index ?? 0;
+    const url = staticJsxStringAttribute(tag, "url");
+    const expressionMatch = /\burl\s*=\s*\{([\s\S]*?)\}/u.exec(tag);
+    usages.push({
+      url: typeof url === "string" ? url.trim() : url,
+      urlExpression: expressionMatch ? expressionMatch[1].trim() : null,
+      tagStart,
+      tagEnd: tagStart + tag.length,
+      file,
+      line: lineForIndex(content, tagStart),
+    });
+  }
+  return usages;
+}
+
+function collectExternalLinkI18nKeys(usages) {
+  const keys = new Set();
+  for (const usage of usages) {
+    if (!usage.urlExpression) continue;
+    const translationCallRegex = /(?:\bi18n\s*\.\s*)?\bt\s*\(\s*(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+    for (const match of usage.urlExpression.matchAll(translationCallRegex)) {
+      if (match[2]) keys.add(match[2]);
+    }
+  }
+  return keys;
+}
+
+function isIndexWithinRanges(index, ranges = []) {
+  return ranges.some(([start, end]) => index >= start && index < end);
 }
 
 function isValidFolderName(folderName) {
@@ -1350,9 +1840,84 @@ function parseStaticStringLiteral(expressionText) {
   return null;
 }
 
+function splitTopLevelPlus(value) {
+  const parts = [];
+  let start = 0;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  for (let cursor = 0; cursor < value.length; cursor += 1) {
+    const char = value[cursor];
+    if (char === "\"" || char === "'" || char === "`") {
+      cursor = skipQuoted(value, cursor) - 1;
+      continue;
+    }
+    if (char === "(") parenDepth += 1;
+    if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
+    if (char === "[") bracketDepth += 1;
+    if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    if (char === "+" && parenDepth === 0 && bracketDepth === 0) {
+      parts.push(value.slice(start, cursor));
+      start = cursor + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+
+// Parse a single string literal only when it spans the entire trimmed text, so
+// `"12".repeat(2)` or `"a" + b` are rejected rather than silently truncated to
+// their first literal.
+function parseWholeStringLiteral(expressionText) {
+  const trimmed = stripExpressionDecorators(expressionText).trim();
+  const value = parseStaticStringLiteral(trimmed);
+  if (value === null) return null;
+  const quote = trimmed[0];
+  if (trimmed.length < 2 || trimmed[trimmed.length - 1] !== quote) return null;
+  return value;
+}
+
+// Fold a string-concatenation expression such as `"0x" + "12" + "34"` into its
+// literal value. Returns null if any operand is not a static string literal.
+// This closes the "split a hardcoded value across `+` to dodge the single-literal
+// regex" class of bypasses. Single literals fall through to parseWholeStringLiteral.
+function foldConcatenatedStringText(expressionText) {
+  const parts = splitTopLevelPlus(expressionText);
+  if (parts.length === 1) return parseWholeStringLiteral(expressionText);
+  let value = "";
+  for (const part of parts) {
+    const literal = parseWholeStringLiteral(part);
+    if (literal === null) return null;
+    value += literal;
+  }
+  return value;
+}
+
 function createTsSourceFile(file, content) {
   const scriptKind = file.endsWith(".tsx") || file.endsWith(".jsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   return ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
+}
+
+function collectSourceSyntaxIssues(file, content) {
+  const sourceFile = createTsSourceFile(file, content);
+  const seen = new Set();
+  const issues = [];
+  for (const diagnostic of sourceFile.parseDiagnostics) {
+    const start = diagnostic.start ?? 0;
+    const position = sourceFile.getLineAndCharacterOfPosition(start);
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+    const key = `${diagnostic.code}:${start}:${message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    issues.push(
+      issue(BLOCKING, "source-syntax/invalid-typescript", `TypeScript/TSX syntax error TS${diagnostic.code}: ${message}`, {
+        file,
+        line: position.line + 1,
+        column: position.character + 1,
+        diagnosticCode: diagnostic.code,
+      }),
+    );
+  }
+  return issues;
 }
 
 function unwrapTsExpression(node) {
@@ -1740,7 +2305,7 @@ function collectAddressConstants(content) {
     if (content[cursor] !== "=") continue;
     const valueStart = skipWhitespace(content, cursor + 1);
     const valueEnd = findExpressionEnd(content, valueStart);
-    const literal = parseStaticStringLiteral(stripExpressionDecorators(content.slice(valueStart, valueEnd)));
+    const literal = foldConcatenatedStringText(stripExpressionDecorators(content.slice(valueStart, valueEnd)));
     const normalized = normalizeAddress(literal);
     if (normalized) constants.set(name, normalized);
     cursor = valueEnd;
@@ -1751,7 +2316,7 @@ function collectAddressConstants(content) {
 
 function resolveAddressExpressionText(expressionText, addressConstants) {
   const expression = stripExpressionDecorators(expressionText);
-  const literal = parseStaticStringLiteral(expression);
+  const literal = foldConcatenatedStringText(expression);
   if (literal !== null) return normalizeAddress(literal);
   if (/^[$A-Z_a-z][$\w]*$/u.test(expression)) {
     return addressConstants.get(expression) ?? null;
@@ -2102,8 +2667,409 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
   return issues;
 }
 
+const INJECTED_WALLET_GLOBAL_IDENTIFIERS = new Set([
+  "ethereum",
+  "BinanceChain",
+  "tronWeb",
+  "okxwallet",
+  "trustwallet",
+  "coinbaseWalletExtension",
+]);
+const BROWSER_GLOBAL_ROOTS = new Set(["window", "globalThis", "global", "self", "document", "navigator"]);
+
+function tsNodeStart(node, sourceFile) {
+  try {
+    return node.getStart(sourceFile);
+  } catch {
+    return node.pos;
+  }
+}
+
+function isValueReferenceIdentifier(node) {
+  const parent = node.parent;
+  if (!parent) return true;
+  if (ts.isPropertyAccessExpression(parent) && parent.name === node) return false;
+  if (ts.isQualifiedName(parent) && parent.right === node) return false;
+  if (ts.isTypeReferenceNode(parent) && parent.typeName === node) return false;
+  if (ts.isTypeQueryNode(parent)) return false;
+  if (
+    (ts.isPropertyAssignment(parent) ||
+      ts.isPropertySignature(parent) ||
+      ts.isPropertyDeclaration(parent) ||
+      ts.isMethodDeclaration(parent) ||
+      ts.isMethodSignature(parent) ||
+      ts.isEnumMember(parent)) &&
+    parent.name === node
+  ) {
+    return false;
+  }
+  if (ts.isBindingElement(parent) && (parent.name === node || parent.propertyName === node)) return false;
+  if ((ts.isVariableDeclaration(parent) || ts.isParameter(parent) || ts.isFunctionDeclaration(parent)) && parent.name === node) return false;
+  if (ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent) || ts.isNamespaceImport(parent) || ts.isImportClause(parent)) return false;
+  return true;
+}
+
+function collectIdentifierNamesFromText(text) {
+  const names = new Set();
+  if (typeof text !== "string") return names;
+  for (const match of text.matchAll(/\b[$A-Z_a-z][$\w]*\b/g)) names.add(match[0]);
+  return names;
+}
+
+function collectValueIdentifierNames(node) {
+  const names = new Set();
+  const visit = (current) => {
+    if (ts.isIdentifier(current) && isValueReferenceIdentifier(current)) names.add(current.text);
+    ts.forEachChild(current, visit);
+  };
+  if (node) visit(node);
+  return names;
+}
+
+function collectVariableDeclarations(sourceFile) {
+  const declarations = new Map();
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && !declarations.has(node.name.text)) {
+      declarations.set(node.name.text, node.initializer);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return declarations;
+}
+
+function collectExternalLinkUrlSourceRanges(content, file, usages) {
+  const pending = [];
+  for (const usage of usages) {
+    if (usage.urlExpression) pending.push(...collectIdentifierNamesFromText(usage.urlExpression));
+  }
+  if (pending.length === 0) return [];
+
+  let sourceFile;
+  try {
+    sourceFile = createTsSourceFile(file, content);
+  } catch {
+    return [];
+  }
+
+  const declarations = collectVariableDeclarations(sourceFile);
+  const ranges = [];
+  const seen = new Set();
+  while (pending.length > 0) {
+    const name = pending.pop();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    const initializer = declarations.get(name);
+    if (!initializer) continue;
+    ranges.push([tsNodeStart(initializer, sourceFile), initializer.end]);
+    for (const dependency of collectValueIdentifierNames(initializer)) {
+      if (!seen.has(dependency)) pending.push(dependency);
+    }
+  }
+  return ranges;
+}
+
+// Fold a static string expression using the TypeScript AST. Handles single
+// literals, template literals with only static spans, `+` concatenation,
+// Array.join / String.concat / String.fromCharCode, and (with varMap) simple
+// const-bound string identifiers. Returns null when any part is not static.
+function foldTsStaticString(node, varMap) {
+  if (!node) return null;
+  const current = unwrapTsExpression(node);
+  if (ts.isStringLiteral(current) || ts.isNoSubstitutionTemplateLiteral(current)) return current.text;
+  if (ts.isIdentifier(current)) return varMap && varMap.has(current.text) ? varMap.get(current.text) : null;
+  if (ts.isTemplateExpression(current)) {
+    let out = current.head.text;
+    for (const span of current.templateSpans) {
+      const value = foldTsStaticString(span.expression, varMap);
+      if (value === null) return null;
+      out += value + span.literal.text;
+    }
+    return out;
+  }
+  if (ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = foldTsStaticString(current.left, varMap);
+    const right = foldTsStaticString(current.right, varMap);
+    if (left === null || right === null) return null;
+    return left + right;
+  }
+  if (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {
+    const method = current.expression.name.text;
+    if (method === "join") {
+      const array = unwrapTsExpression(current.expression.expression);
+      if (ts.isArrayLiteralExpression(array)) {
+        const separator = current.arguments.length === 0 ? "," : foldTsStaticString(current.arguments[0], varMap);
+        if (separator === null) return null;
+        const parts = [];
+        for (const element of array.elements) {
+          const value = foldTsStaticString(element, varMap);
+          if (value === null) return null;
+          parts.push(value);
+        }
+        return parts.join(separator);
+      }
+    } else if (method === "concat") {
+      const base = foldTsStaticString(current.expression.expression, varMap);
+      if (base === null) return null;
+      let out = base;
+      for (const argument of current.arguments) {
+        const value = foldTsStaticString(argument, varMap);
+        if (value === null) return null;
+        out += value;
+      }
+      return out;
+    } else if (method === "fromCharCode") {
+      const object = unwrapTsExpression(current.expression.expression);
+      if (ts.isIdentifier(object) && object.text === "String") {
+        let out = "";
+        for (const argument of current.arguments) {
+          const unwrapped = unwrapTsExpression(argument);
+          if (ts.isNumericLiteral(unwrapped)) out += String.fromCharCode(Number(unwrapped.text));
+          else return null;
+        }
+        return out;
+      }
+    }
+  }
+  return null;
+}
+
+function collectStaticStringVarMap(sourceFile) {
+  const map = new Map();
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && node.name && ts.isIdentifier(node.name) && node.initializer) {
+      const value = foldTsStaticString(node.initializer, null);
+      if (value !== null && !map.has(node.name.text)) map.set(node.name.text, value);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return map;
+}
+
+function getStaticBrowserMemberPath(node, varMap, browserAliases = new Map()) {
+  if (!node) return null;
+  const current = unwrapTsExpression(node);
+  if (ts.isIdentifier(current)) {
+    if (BROWSER_GLOBAL_ROOTS.has(current.text)) return [current.text];
+    return browserAliases.get(current.text) ?? null;
+  }
+  if (ts.isConditionalExpression(current)) {
+    return getStaticBrowserMemberPath(current.whenTrue, varMap, browserAliases) ?? getStaticBrowserMemberPath(current.whenFalse, varMap, browserAliases);
+  }
+  if (ts.isPropertyAccessExpression(current)) {
+    const parentPath = getStaticBrowserMemberPath(current.expression, varMap, browserAliases);
+    return parentPath ? [...parentPath, current.name.text] : null;
+  }
+  if (ts.isElementAccessExpression(current)) {
+    const parentPath = getStaticBrowserMemberPath(current.expression, varMap, browserAliases);
+    const key = foldTsStaticString(current.argumentExpression, varMap);
+    return parentPath && key !== null ? [...parentPath, key] : null;
+  }
+  return null;
+}
+
+function collectStaticBrowserAliases(sourceFile, varMap) {
+  const aliases = new Map();
+  for (let pass = 0; pass < 4; pass += 1) {
+    let changed = false;
+    const visit = (node) => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && !aliases.has(node.name.text)) {
+        const path = getStaticBrowserMemberPath(node.initializer, varMap, aliases);
+        if (path) {
+          aliases.set(node.name.text, path);
+          changed = true;
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+    if (!changed) break;
+  }
+  return aliases;
+}
+
+function isClipboardMemberPath(memberPath) {
+  const navigatorIndex = memberPath?.indexOf("navigator") ?? -1;
+  return navigatorIndex >= 0 && memberPath[navigatorIndex + 1] === "clipboard";
+}
+
+// Inspect a fully resolved string value for a hardcoded address, unsafe scheme,
+// or undeclared external URL. Shared by the AST composite-string scan and the
+// i18n.json value scan so obfuscated payloads are caught wherever they resolve.
+function scanResolvedStringForResources(value, ctx) {
+  if (typeof value !== "string" || !value) return null;
+  const addressMatch = /0x[a-fA-F0-9]{40}\b/.exec(value);
+  if (addressMatch) {
+    const normalized = normalizeAddress(addressMatch[0]);
+    if (!normalized || !ctx.contractPolicy.all.has(normalized)) {
+      return {
+        ruleId: "security/hardcoded-address",
+        message: `Hardcoded address ${addressMatch[0]} assembled from string fragments is not allowed. Use runtime context addresses or declare external contract targets in manifest match.bindings[].externalContracts.`,
+      };
+    }
+  }
+  const schemeMatch = /(?:javascript|vbscript|data):/i.exec(value);
+  if (schemeMatch) {
+    return {
+      ruleId: "endpoint-policy/undeclared-url",
+      message: `Unsafe ${schemeMatch[0]} resource assembled from string fragments is not allowed inside Vault source.`,
+    };
+  }
+  const urlMatch = /(?:https?:\/\/|wss?:\/\/|ipfs:\/\/|ar:\/\/)[^\s"'`<>)]+/i.exec(value);
+  if (urlMatch) {
+    const url = sanitizeUrlLiteral(urlMatch[0]);
+    if (!isAllowlistedExternalUrl(url, ctx.declaredFrames)) {
+      return {
+        ruleId: "endpoint-policy/undeclared-url",
+        message: `URL ${url} assembled from string fragments is not an approved non-fetch resource. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets.`,
+      };
+    }
+  }
+  return null;
+}
+
+// AST-based obfuscation-resistant security pass. Complements the line-regex
+// checks by folding constant expressions and inspecting semantic node shapes,
+// so aliasing, comma-operator, computed-member, and string-concatenation
+// bypasses of the regex layer are still caught.
+function collectAstSecurityIssues(content, file, ctx) {
+  const issues = [];
+  let sourceFile;
+  try {
+    sourceFile = createTsSourceFile(file, content);
+  } catch {
+    return issues;
+  }
+  const varMap = collectStaticStringVarMap(sourceFile);
+  const browserAliases = collectStaticBrowserAliases(sourceFile, varMap);
+  const seen = new Set();
+  const add = (ruleId, message, node) => {
+    const line = lineForIndex(content, tsNodeStart(node, sourceFile));
+    const key = `${ruleId}:${line}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    issues.push(issue(BLOCKING, ruleId, message, { file, line }));
+  };
+
+  const visit = (node) => {
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      const memberPath = getStaticBrowserMemberPath(node, varMap, browserAliases);
+      if (isClipboardMemberPath(memberPath)) {
+        add("forbidden-api/clipboard", "Clipboard access and programmatic copy are not allowed inside Vault components, including aliased or computed browser-global access.", node);
+      }
+    }
+
+    if (ts.isIdentifier(node) && isValueReferenceIdentifier(node)) {
+      if (node.text === "eval") {
+        add("forbidden-api/eval", "eval is not allowed inside Vault components, including aliased or indirect (0, eval) usage.", node);
+      } else if (INJECTED_WALLET_GLOBAL_IDENTIFIERS.has(node.text)) {
+        add("forbidden-api/direct-window-ethereum", `Direct injected wallet provider reference (${node.text}) is not allowed inside Vault components.`, node);
+      } else if (node.text === "Function") {
+        const parent = node.parent;
+        const directConstruct = (ts.isNewExpression(parent) && parent.expression === node) || (ts.isCallExpression(parent) && parent.expression === node);
+        if (!directConstruct) {
+          add("forbidden-api/function-constructor", "Referencing the Function constructor as a value is not allowed inside Vault components.", node);
+        }
+      }
+    }
+
+    if (ts.isElementAccessExpression(node)) {
+      const key = foldTsStaticString(node.argumentExpression, varMap);
+      if (key === "constructor") {
+        add("forbidden-api/function-constructor", "Computed .constructor access is a Function-constructor escape and is not allowed.", node);
+      } else if (key === "innerHTML" || key === "outerHTML" || key === "insertAdjacentHTML") {
+        add("forbidden-api/script", "Computed HTML injection member access is not allowed inside Vault components.", node);
+      } else if (key !== null && INJECTED_WALLET_GLOBAL_IDENTIFIERS.has(key)) {
+        add("forbidden-api/direct-window-ethereum", "Computed injected wallet provider access is not allowed inside Vault components.", node);
+      }
+    }
+
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      node.name.text === "constructor" &&
+      ts.isCallExpression(node.parent) &&
+      node.parent.expression === node
+    ) {
+      add("forbidden-api/function-constructor", "Calling .constructor(...) as a Function-constructor escape is not allowed.", node);
+    }
+
+    if (ts.isCallExpression(node)) {
+      const callee = unwrapTsExpression(node.expression);
+      const calleePath = getStaticBrowserMemberPath(callee, varMap, browserAliases);
+      if (
+        calleePath?.length >= 2 &&
+        calleePath[calleePath.length - 2] === "document" &&
+        calleePath[calleePath.length - 1] === "execCommand" &&
+        foldTsStaticString(node.arguments[0], varMap)?.toLowerCase() === "copy"
+      ) {
+        add("forbidden-api/clipboard", "document.execCommand(\"copy\") is not allowed inside Vault components.", node);
+      }
+      let calleeName = null;
+      if (ts.isIdentifier(callee)) {
+        calleeName = callee.text;
+      } else if (ts.isPropertyAccessExpression(callee)) {
+        calleeName = callee.name.text;
+        const object = unwrapTsExpression(callee.expression);
+        if (ts.isIdentifier(object) && object.text === "Reflect" && (callee.name.text === "construct" || callee.name.text === "apply")) {
+          add("forbidden-api/function-constructor", "Reflection-based invocation (Reflect.construct/apply) is not allowed inside Vault components.", node);
+        }
+      }
+      if (calleeName === "createElement") {
+        const tag = foldTsStaticString(node.arguments[0], varMap);
+        if (tag && /^(?:iframe|script|object|embed)$/i.test(tag.trim())) {
+          add(/iframe/i.test(tag) ? "forbidden-api/iframe" : "forbidden-api/script", `Dynamic createElement("${tag.trim()}") is not allowed inside Vault components.`, node);
+        }
+      }
+      if ((calleeName === "setTimeout" || calleeName === "setInterval" || calleeName === "setImmediate") && node.arguments.length > 0) {
+        if (foldTsStaticString(node.arguments[0], varMap) !== null) {
+          add("forbidden-api/eval", "String-based timer callbacks are eval-like and are not allowed inside Vault components.", node);
+        }
+      }
+    }
+
+    if (ts.isVariableDeclaration(node) && node.initializer) {
+      const initializer = unwrapTsExpression(node.initializer);
+      if (ts.isIdentifier(initializer) && BROWSER_GLOBAL_ROOTS.has(initializer.text)) {
+        add("forbidden-api/browser-global-escape", `Aliasing browser global ${initializer.text} is not allowed inside Vault components.`, node);
+      }
+    }
+
+    const isCompositeString =
+      (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) ||
+      ts.isTemplateExpression(node) ||
+      (ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        (node.expression.name.text === "join" || node.expression.name.text === "concat" || node.expression.name.text === "fromCharCode"));
+    if (isCompositeString) {
+      const parent = node.parent;
+      const parentIsPlus = parent && ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken;
+      if (!parentIsPlus && !isIndexWithinRanges(tsNodeStart(node, sourceFile), ctx.externalLinkUrlSourceRanges)) {
+        const folded = foldTsStaticString(node, varMap);
+        const finding = folded !== null ? scanResolvedStringForResources(folded, ctx) : null;
+        if (finding) add(finding.ruleId, finding.message, node);
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return issues;
+}
+
 function checkStructure(vaultDir) {
   const issues = [];
+  const manifest = readManifestForStructure(vaultDir);
+  const isMiniApp = manifest?.mode === MINI_APP_MODE;
+  const has3D = isThreeR3FArtifact(manifest);
+  const profile = has3D ? threeR3FProfile(ROOT) : null;
+  const allowedCapabilityExtensions = has3D ? capabilityFileExtensions(manifest, ROOT) : new Set();
+  const fontExtensions = new Set(profile?.fontExtensions || []);
+  let miniAppAudioBytes = 0;
+  let capabilityAssetBytes = 0;
+  let capabilityFontBytes = 0;
+  let capabilityFileCount = 0;
+  const caseFoldedPaths = new Map();
   for (const file of REQUIRED_FILES) {
     if (!fs.existsSync(path.join(vaultDir, file))) {
       issues.push(issue(BLOCKING, "package-structure/missing-required-file", `Missing ${file}.`, { file }));
@@ -2112,20 +3078,105 @@ function checkStructure(vaultDir) {
   for (const item of walk(vaultDir)) {
     const rel = path.relative(ROOT, item.path);
     const relToVault = path.relative(vaultDir, item.path);
+    const portableRel = relToVault.split(path.sep).join("/");
+    const folded = portableRel.toLowerCase();
+    if (caseFoldedPaths.has(folded) && caseFoldedPaths.get(folded) !== portableRel) {
+      issues.push(issue(BLOCKING, "package-structure/case-conflict", `Paths ${caseFoldedPaths.get(folded)} and ${portableRel} differ only by case.`, { file: rel }));
+    } else {
+      caseFoldedPaths.set(folded, portableRel);
+    }
     if (item.isSymlink) {
       issues.push(issue(BLOCKING, "forbidden-files/symlink", `Symlink ${item.name} is not allowed inside a Vault package.`, { file: rel }));
       continue;
     }
-    if (item.isDirectory || relToVault.includes(path.sep) || !ALLOWED_VAULT_FILES.has(item.name)) {
-      issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may contain only ${REQUIRED_FILES.join(", ")}. Move ${item.name} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
+    if (FORBIDDEN_NAMES.has(item.name) || item.name.startsWith(".")) {
+      issues.push(issue(BLOCKING, "forbidden-files/disallowed-entry", `Forbidden or hidden entry ${portableRel} found.`, { file: rel }));
       continue;
     }
-    if (FORBIDDEN_NAMES.has(item.name)) {
-      issues.push(issue(BLOCKING, "forbidden-files/disallowed-entry", `Forbidden entry ${item.name} found.`, { file: rel }));
+    if (item.isDirectory) {
+      if (!has3D) {
+        issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may not contain nested folders. Move ${relToVault} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
+      }
+      continue;
+    }
+    if (relToVault.includes(path.sep) && !has3D) {
+      issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may not contain nested folders or nested files. Move ${relToVault} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
+      continue;
+    }
+    if (!ALLOWED_VAULT_FILES.has(item.name)) {
+      const isAudioExtension = MINI_APP_AUDIO_ASSET_EXTENSIONS.some((extension) => item.name.toLowerCase().endsWith(extension));
+      if (!isMiniApp && isAudioExtension) {
+        issues.push(issue(BLOCKING, "media/mini-app-audio-only", `Audio asset ${item.name} is allowed only for manifest.mode=mini-app.`, { file: rel }));
+        continue;
+      }
+      if (isMiniApp && isAudioExtension) {
+        if (relToVault.includes(path.sep)) {
+          issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Mini App audio asset ${portableRel} must remain top-level.`, { file: rel }));
+          continue;
+        }
+        if (!isMiniAppAudioAssetName(item.name)) {
+          issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Mini App audio asset ${item.name} must be a top-level lowercase file with an allowed extension.`, { file: rel }));
+          continue;
+        }
+        const bytes = fs.statSync(item.path).size;
+        miniAppAudioBytes += bytes;
+        if (bytes <= 0 || bytes > MINI_APP_AUDIO_MAX_BYTES) {
+          issues.push(issue(BLOCKING, "media/mini-app-audio-too-large", `Mini App audio asset ${item.name} is ${bytes} bytes and must be between 1 byte and ${MINI_APP_AUDIO_MAX_BYTES} bytes.`, { file: rel, bytes, maxBytes: MINI_APP_AUDIO_MAX_BYTES }));
+          continue;
+        }
+        issues.push(
+          issue(WARNING, "manual-review/mini-app-audio-asset", `Mini App audio asset ${item.name} is packaged and requires Flap human review before publish.`, {
+            file: rel,
+            asset: item.name,
+            bytes,
+          }),
+        );
+        continue;
+      }
+      const extension = path.extname(item.name).toLowerCase();
+      if (has3D && allowedCapabilityExtensions.has(extension)) {
+        const bytes = fs.statSync(item.path).size;
+        capabilityFileCount += 1;
+        if (!profile.sourceExtensions.includes(extension) && !profile.shaderExtensions.includes(extension)) {
+          capabilityAssetBytes += bytes;
+          if (bytes > profile.limits.maxAssetBytes) {
+            issues.push(issue(BLOCKING, "capability-assets/asset-too-large", `${portableRel} is ${bytes} bytes and exceeds the ${profile.limits.maxAssetBytes} byte per-resource limit.`, { file: rel, bytes, maxBytes: profile.limits.maxAssetBytes }));
+          }
+          if (fontExtensions.has(extension)) {
+            capabilityFontBytes += bytes;
+            if (bytes > profile.limits.maxFontBytes) {
+              issues.push(issue(BLOCKING, "capability-assets/font-too-large", `${portableRel} is ${bytes} bytes and exceeds the ${profile.limits.maxFontBytes} byte per-font limit.`, { file: rel, bytes, maxBytes: profile.limits.maxFontBytes }));
+            }
+            issues.push(issue(WARNING, "manual-review/mini-app-3d-font", `Local font ${portableRel} requires source and license review.`, { file: rel, asset: portableRel, bytes }));
+          }
+        }
+        continue;
+      }
+      issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may contain only ${REQUIRED_FILES.join(", ")}${isMiniApp ? " plus reviewed top-level audio assets" : ""}. Move ${item.name} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
+      continue;
     }
     if (!item.isDirectory && item.name.match(/\.(png|jpe?g|gif|webp|svg)$/i)) {
       issues.push(issue(BLOCKING, "media/local-asset", `Local media asset ${item.name} is not part of the Vault package. Keep media controlled by Flap Artifact Workbench/runtime policy.`, { file: rel }));
     }
+  }
+  if (has3D && capabilityFileCount + REQUIRED_FILES.length > profile.limits.maxFiles) {
+    issues.push(issue(BLOCKING, "capability-assets/too-many-files", `3D Mini App has ${capabilityFileCount + REQUIRED_FILES.length} files; the ${THREE_R3F_PROFILE_ID} limit is ${profile.limits.maxFiles}.`, { file: `src/vaults/${path.basename(vaultDir)}` }));
+  }
+  if (has3D && capabilityAssetBytes > profile.limits.maxAssetTotalBytes) {
+    issues.push(issue(BLOCKING, "capability-assets/assets-too-large", `3D assets total ${capabilityAssetBytes} bytes and exceed ${profile.limits.maxAssetTotalBytes} bytes.`, { file: `src/vaults/${path.basename(vaultDir)}` }));
+  }
+  if (has3D && capabilityFontBytes > profile.limits.maxFontTotalBytes) {
+    issues.push(issue(BLOCKING, "capability-assets/fonts-too-large", `Fonts total ${capabilityFontBytes} bytes and exceed ${profile.limits.maxFontTotalBytes} bytes.`, { file: `src/vaults/${path.basename(vaultDir)}` }));
+  }
+  if (miniAppAudioBytes > MINI_APP_AUDIO_TOTAL_MAX_BYTES) {
+    issues.push(
+      issue(
+        BLOCKING,
+        "media/mini-app-audio-too-large",
+        `Mini App audio assets total ${miniAppAudioBytes} bytes and must not exceed ${MINI_APP_AUDIO_TOTAL_MAX_BYTES} bytes.`,
+        { file: `src/vaults/${path.basename(vaultDir)}`, bytes: miniAppAudioBytes, maxBytes: MINI_APP_AUDIO_TOTAL_MAX_BYTES },
+      ),
+    );
   }
   return issues;
 }
@@ -2249,7 +3300,7 @@ function collectManifestContractPolicy(manifest) {
   return { builtIn, external, all };
 }
 
-function checkExternalContracts(value, field, builtInAddresses = new Set()) {
+function checkExternalContracts(value, field, builtInAddresses = new Set(), bindingEntry = {}) {
   const issues = [];
   if (!Array.isArray(value) || value.length === 0) {
     issues.push(issue(BLOCKING, "manifest-binding/invalid-external-contract-list", `${field} must be a non-empty array when provided.`, { field }));
@@ -2281,6 +3332,19 @@ function checkExternalContracts(value, field, builtInAddresses = new Set()) {
         issues.push(issue(BLOCKING, "manifest-binding/duplicate-address", `${entryField}.address is already covered by this binding's factoryAddress, tokenAddresses, or vaultAddresses.`, { field: `${entryField}.address` }));
       } else {
         seen.set(normalized, entryField);
+        issues.push(
+          issue(
+            WARNING,
+            "manual-review/external-contract",
+            `Declared external contract ${contractEntry.label || "<unlabeled>"} at ${contractEntry.address} requires Flap review before publish.`,
+            {
+              field: entryField,
+              chainId: bindingEntry.chainId,
+              address: contractEntry.address,
+              label: contractEntry.label,
+            },
+          ),
+        );
       }
     }
     if (!isNonEmptyString(contractEntry.label) || contractEntry.label.trim().length < 2) {
@@ -2411,6 +3475,7 @@ function checkExternalFrames(value) {
 function checkManifest(manifest, folderName) {
   const issues = [];
   const isMiniAppMode = manifest?.mode === MINI_APP_MODE;
+  const capabilities = manifestCapabilityIds(manifest);
   for (const key of Object.keys(manifest || {})) {
     if (!ALLOWED_MANIFEST_KEYS.has(key)) {
       const ruleId = key === "restrictTokenAddresses" || key === "tokenAddresses" || key === "caPolicy" ? "manifest-binding/ca-policy-not-in-manifest" : "manifest-schema/disallowed-field";
@@ -2418,7 +3483,7 @@ function checkManifest(manifest, folderName) {
         issue(
           BLOCKING,
           ruleId,
-          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, match, i18n, optional mode, layout, endpoints, and externalFrames.`,
+          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, Mini App-only displayTitle and capabilities, match, i18n, optional mode, layout, endpoints, and externalFrames.`,
           { field: key },
         ),
       );
@@ -2446,6 +3511,19 @@ function checkManifest(manifest, folderName) {
   if (manifest.name !== undefined && (!isNonEmptyString(manifest.name) || manifest.name.trim().length < 2)) {
     issues.push(issue(BLOCKING, "manifest-schema/invalid-name", "manifest.name must be a human-readable string with at least two characters.", { field: "name" }));
   }
+  if (manifest.displayTitle !== undefined && !isMiniAppMode) {
+    issues.push(issue(BLOCKING, "manifest-schema/display-title-mini-app-only", "manifest.displayTitle is only used by Mini App artifacts. Omit it for the default Vault UI.", { field: "displayTitle" }));
+  }
+  if (isMiniAppMode && !isMiniAppDisplayTitle(manifest.displayTitle)) {
+    issues.push(
+      issue(
+        BLOCKING,
+        "manifest-schema/mini-app-display-title-requires-bilingual",
+        'Mini App manifest.displayTitle must be an object with separate zh and en strings because this display name is shown on flap.sh Mini App surfaces.',
+        { field: "displayTitle" },
+      ),
+    );
+  }
   if (manifest.mode !== undefined && manifest.mode !== MINI_APP_MODE) {
     issues.push(
       issue(
@@ -2455,6 +3533,34 @@ function checkManifest(manifest, folderName) {
         { field: "mode", mode: manifest.mode },
       ),
     );
+  }
+  if (manifest.capabilities !== undefined) {
+    const knownProfiles = loadMiniAppCapabilityConfig(ROOT).profiles || {};
+    if (!Array.isArray(manifest.capabilities) || manifest.capabilities.length === 0 || manifest.capabilities.some((value) => typeof value !== "string" || !value.trim())) {
+      issues.push(issue(BLOCKING, "manifest-schema/invalid-capabilities", "manifest.capabilities must be a non-empty array of capability profile ids.", { field: "capabilities" }));
+    } else {
+      if (new Set(capabilities).size !== capabilities.length) {
+        issues.push(issue(BLOCKING, "manifest-schema/duplicate-capability", "manifest.capabilities must not contain duplicates.", { field: "capabilities" }));
+      }
+      for (const capability of capabilities) {
+        if (!knownProfiles[capability]) {
+          issues.push(issue(BLOCKING, "manifest-schema/unknown-capability", `Unknown Mini App capability profile ${capability}.`, { field: "capabilities", capability }));
+        }
+      }
+      if (isThreeR3FMiniApp(manifest)) {
+        issues.push(issue(WARNING, "manual-review/mini-app-3d", `${THREE_R3F_PROFILE_ID} enables reviewed local 3D source and assets. Review performance tiers, asset provenance, fallback behavior, and external request logs before publish.`, {
+          field: "capabilities",
+          capability: THREE_R3F_PROFILE_ID,
+          dependencies: threeR3FProfile(ROOT).dependencies,
+        }));
+      } else if (isThreeR3FVaultUI(manifest)) {
+        issues.push(issue(WARNING, "manual-review/vault-ui-3d", `${THREE_R3F_PROFILE_ID} enables reviewed local 3D source and assets for a 7777 Vault UI. Review performance tiers, asset provenance, fallback behavior, risk-status placement, and external request logs before publish.`, {
+          field: "capabilities",
+          capability: THREE_R3F_PROFILE_ID,
+          dependencies: threeR3FProfile(ROOT).dependencies,
+        }));
+      }
+    }
   }
   if (manifest.layout !== undefined) {
     if (manifest.layout !== FULLSCREEN_LAYOUT) {
@@ -2520,6 +3626,8 @@ function checkManifest(manifest, folderName) {
       const seenBindingKeys = new Map();
       const manifestTestTokenFields = [];
       const miniAppTokenFields = [];
+      const miniAppTokenSuffixes = new Set();
+      const vaultUI3DTokenFields = [];
       const factoryFieldsByChain = new Map();
       const noFactoryFieldsByChain = new Map();
       for (const [index, bindingEntry] of manifest.match.bindings.entries()) {
@@ -2622,15 +3730,32 @@ function checkManifest(manifest, folderName) {
                 );
               } else {
                 manifestTestTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
-                if (addr.toLowerCase().endsWith(MINI_APP_TOKEN_SUFFIX)) {
+                const normalizedTokenAddress = addr.toLowerCase();
+                const miniAppTokenSuffix = MINI_APP_TOKEN_SUFFIXES.find((suffix) => normalizedTokenAddress.endsWith(suffix));
+                if (isMiniAppMode && miniAppTokenSuffix) {
                   miniAppTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
-                } else if (isMiniAppMode) {
+                  miniAppTokenSuffixes.add(miniAppTokenSuffix);
+                }
+                if (isThreeR3FVaultUI(manifest)) {
+                  if (!normalizedTokenAddress.endsWith(VAULT_UI_3D_TOKEN_SUFFIX)) {
+                    issues.push(
+                      issue(
+                        BLOCKING,
+                        "manifest-binding/invalid-vault-ui-3d-token",
+                        `${field}.tokenAddresses[${addressIndex}] must end in ${VAULT_UI_3D_TOKEN_SUFFIX} for a mode-less ${THREE_R3F_PROFILE_ID} Vault UI: ${addr}.`,
+                        { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffix: VAULT_UI_3D_TOKEN_SUFFIX },
+                      ),
+                    );
+                  } else {
+                    vaultUI3DTokenFields.push(`${field}.tokenAddresses[${addressIndex}]`);
+                  }
+                } else if (isMiniAppMode && !miniAppTokenSuffix) {
                   issues.push(
                     issue(
                       BLOCKING,
                       "manifest-binding/invalid-mini-app-token",
-                      `${field}.tokenAddresses[${addressIndex}] must end in ${MINI_APP_TOKEN_SUFFIX} when manifest.mode is mini-app: ${addr}.`,
-                      { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffix: MINI_APP_TOKEN_SUFFIX },
+                      `${field}.tokenAddresses[${addressIndex}] must end consistently in either 7777 or 8888 when manifest.mode is mini-app: ${addr}.`,
+                      { field: `${field}.tokenAddresses[${addressIndex}]`, tokenAddress: addr, requiredSuffixes: MINI_APP_TOKEN_SUFFIXES },
                     ),
                   );
                 }
@@ -2656,7 +3781,7 @@ function checkManifest(manifest, folderName) {
               ...(bindingEntry.vaultAddresses || []).map(normalizeAddress),
             ].filter(Boolean),
           );
-          issues.push(...checkExternalContracts(bindingEntry.externalContracts, `${field}.externalContracts`, builtInAddresses));
+          issues.push(...checkExternalContracts(bindingEntry.externalContracts, `${field}.externalContracts`, builtInAddresses, bindingEntry));
         }
       }
       for (const [chainId, factoryField] of factoryFieldsByChain.entries()) {
@@ -2686,8 +3811,28 @@ function checkManifest(manifest, folderName) {
           issue(
             BLOCKING,
             "manifest-binding/invalid-mini-app-token",
-            `manifest.mode=mini-app requires at least one token-scoped tokenAddresses entry ending in ${MINI_APP_TOKEN_SUFFIX} because Mini App routing is tied to the token address.`,
-            { field: "match.bindings[].tokenAddresses", requiredSuffix: MINI_APP_TOKEN_SUFFIX },
+            "manifest.mode=mini-app requires at least one token-scoped tokenAddresses entry ending in 7777 or 8888 because Mini App routing is tied to the token address.",
+            { field: "match.bindings[].tokenAddresses", requiredSuffixes: MINI_APP_TOKEN_SUFFIXES },
+          ),
+        );
+      }
+      if (isMiniAppMode && miniAppTokenSuffixes.size > 1) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "manifest-binding/mixed-mini-app-token-suffixes",
+            "A Mini App artifact cannot mix 7777 Tax Token and 8888 zero-tax token bindings.",
+            { field: "match.bindings[].tokenAddresses", suffixes: [...miniAppTokenSuffixes] },
+          ),
+        );
+      }
+      if (isThreeR3FVaultUI(manifest) && vaultUI3DTokenFields.length === 0) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "manifest-binding/invalid-vault-ui-3d-token",
+            `A mode-less ${THREE_R3F_PROFILE_ID} Vault UI requires at least one tokenAddresses proof entry ending in ${VAULT_UI_3D_TOKEN_SUFFIX}.`,
+            { field: "match.bindings[].tokenAddresses", requiredSuffix: VAULT_UI_3D_TOKEN_SUFFIX },
           ),
         );
       }
@@ -2766,20 +3911,165 @@ function checkI18n(i18n, manifestLocales) {
   return issues;
 }
 
+// i18n.json string values are consumable by the component (href, src, tx target)
+// but were previously never security-scanned. Treat them as a source surface:
+// reject embedded unsafe schemes, hardcoded addresses, and undeclared URLs.
+function collectI18nResourceIssues(i18n, declaredFrames, contractPolicy, externalLinkKeys = new Set()) {
+  const issues = [];
+  if (!i18n || typeof i18n !== "object") return issues;
+  const ctx = { declaredFrames, contractPolicy };
+  const seen = new Set();
+  const walk = (value, resourceKey = null) => {
+    if (typeof value === "string") {
+      const finding = scanResolvedStringForResources(value, ctx);
+      if (finding) {
+        if (finding.ruleId === "endpoint-policy/undeclared-url" && externalLinkKeys.has(resourceKey)) return;
+        const key = `${finding.ruleId}:${value}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          issues.push(
+            issue(BLOCKING, finding.ruleId, `${finding.message} Found in i18n.json string value.`, { file: "i18n.json" }),
+          );
+        }
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value) walk(entry, resourceKey);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [key, entry] of Object.entries(value)) walk(entry, key);
+    }
+  };
+  walk(i18n);
+  return issues;
+}
+
+function collectStaticImportSpecs(content) {
+  const specs = [];
+  const importRegex = /(?:\b(?:import|export)\s+(?:[^"'`]*?\s+from\s+)?|\bimport\s*)["'`]([^"'`]+)["'`]/g;
+  for (const match of stripCommentsForScanning(content).matchAll(importRegex)) specs.push(match[1]);
+  return specs;
+}
+
+function resolveCapabilityRelativeImport(vaultDir, importerPath, spec, extensions) {
+  if (!spec.startsWith("./") && !spec.startsWith("../")) return null;
+  if (spec.includes("?") || spec.includes("#") || path.isAbsolute(spec)) return null;
+  const absoluteBase = path.resolve(path.dirname(importerPath), spec);
+  const rel = path.relative(vaultDir, absoluteBase);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  const candidates = [absoluteBase];
+  if (!path.extname(absoluteBase)) {
+    for (const extension of extensions) candidates.push(`${absoluteBase}${extension}`);
+    for (const extension of extensions) candidates.push(path.join(absoluteBase, `index${extension}`));
+  }
+  return candidates.find((candidate) => fs.existsSync(candidate) && fs.lstatSync(candidate).isFile()) || null;
+}
+
+function collectGltfLocalUris(gltfPath, vaultDir, issues) {
+  let gltf;
+  try {
+    gltf = JSON.parse(fs.readFileSync(gltfPath, "utf8"));
+  } catch (error) {
+    issues.push(issue(BLOCKING, "capability-assets/invalid-gltf", `Cannot parse ${path.relative(vaultDir, gltfPath)}: ${error.message}.`, { file: path.relative(ROOT, gltfPath) }));
+    return [];
+  }
+  const uris = [...(gltf.buffers || []), ...(gltf.images || [])].map((entry) => entry?.uri).filter((uri) => typeof uri === "string");
+  const resolved = [];
+  for (const uri of uris) {
+    if (/^(?:[a-z]+:|\/\/|\/)/i.test(uri) || uri.includes("?") || uri.includes("#") || uri.split(/[\\/]/).includes("..")) {
+      issues.push(issue(BLOCKING, "capability-assets/remote-or-escaping-gltf-uri", `GLTF URI ${uri} must reference a local file inside the Mini App package.`, { file: path.relative(ROOT, gltfPath) }));
+      continue;
+    }
+    const target = path.resolve(path.dirname(gltfPath), uri);
+    const rel = path.relative(vaultDir, target);
+    if (rel.startsWith("..") || path.isAbsolute(rel) || !fs.existsSync(target) || !fs.lstatSync(target).isFile()) {
+      issues.push(issue(BLOCKING, "capability-assets/missing-gltf-resource", `GLTF URI ${uri} does not resolve to a package file.`, { file: path.relative(ROOT, gltfPath) }));
+      continue;
+    }
+    resolved.push(target);
+  }
+  return resolved;
+}
+
+function collectCapabilityImportGraphIssues(vaultDir, manifest) {
+  if (!isThreeR3FArtifact(manifest)) return [];
+  const issues = [];
+  const extensions = capabilityFileExtensions(manifest, ROOT);
+  const sourceExtensions = new Set(threeR3FProfile(ROOT).sourceExtensions);
+  const allFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink).map((item) => item.path);
+  const capabilityFiles = new Set(allFiles.filter((file) => extensions.has(path.extname(file).toLowerCase())));
+  const roots = [path.join(vaultDir, "Component.tsx"), path.join(vaultDir, "VaultABI.ts")].filter((file) => fs.existsSync(file));
+  const reachable = new Set(roots);
+  const queue = [...roots];
+  while (queue.length) {
+    const current = queue.shift();
+    const extension = path.extname(current).toLowerCase();
+    if (extension === ".gltf") {
+      for (const target of collectGltfLocalUris(current, vaultDir, issues)) {
+        if (!reachable.has(target)) {
+          reachable.add(target);
+          queue.push(target);
+        }
+      }
+      continue;
+    }
+    if (!sourceExtensions.has(extension)) continue;
+    const content = fs.readFileSync(current, "utf8");
+    for (const spec of collectStaticImportSpecs(content)) {
+      if (!spec.startsWith(".") && !spec.startsWith("/")) continue;
+      const target = resolveCapabilityRelativeImport(vaultDir, current, spec, extensions);
+      if (!target) {
+        issues.push(issue(BLOCKING, "imports-and-dependencies/unresolved-or-escaping-import", `Static import ${spec} from ${path.relative(vaultDir, current)} is missing, escapes the package, or has an unsupported extension.`, { file: path.relative(ROOT, current) }));
+        continue;
+      }
+      if (!reachable.has(target)) {
+        reachable.add(target);
+        queue.push(target);
+      }
+    }
+  }
+  for (const file of capabilityFiles) {
+    if (!reachable.has(file)) {
+      issues.push(issue(BLOCKING, "capability-assets/unreferenced-file", `${path.relative(vaultDir, file)} is not statically reachable from Component.tsx or VaultABI.ts.`, { file: path.relative(ROOT, file) }));
+    }
+  }
+  return issues;
+}
+
 function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   const issues = [];
   const requiresRiskStatus = manifest?.mode !== MINI_APP_MODE;
   const folderName = path.basename(vaultDir);
-  const declaredUrls = collectDeclaredUrls(manifest);
+  const declaredFetchUrls = collectDeclaredFetchUrls(manifest);
   const declaredFrames = collectDeclaredFrames(manifest);
   const contractPolicy = collectManifestContractPolicy(manifest);
   const abiFunctionOutputCounts = collectAbiFunctionOutputCounts(vaultDir);
   const oracleProvisionDetails = getRuntimeOracleProvisionDetails();
+  issues.push(...collectCapabilityImportGraphIssues(vaultDir, manifest));
   const sourceFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/));
+  const externalLinkI18nKeys = new Set();
+  for (const item of sourceFiles) {
+    const content = stripCommentsForScanning(fs.readFileSync(item.path, "utf8"));
+    for (const key of collectExternalLinkI18nKeys(collectExternalLinkUsages(content, path.relative(ROOT, item.path)))) {
+      externalLinkI18nKeys.add(key);
+    }
+  }
+  issues.push(...collectI18nResourceIssues(i18n, declaredFrames, contractPolicy, externalLinkI18nKeys));
   for (const item of sourceFiles) {
     const rel = path.relative(ROOT, item.path);
     const content = fs.readFileSync(item.path, "utf8");
+    issues.push(...collectSourceSyntaxIssues(rel, content));
     const scanContent = stripCommentsForScanning(content);
+    const directFetchUsages = collectDirectFetchUsages(content, rel, declaredFetchUrls);
+    const allowedDirectFetchTargetRanges = directFetchUsages.filter((usage) => usage.allowed && usage.targetRange).map((usage) => usage.targetRange);
+    const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
+    const externalLinkRanges = externalLinkUsages.map((usage) => [usage.tagStart, usage.tagEnd]);
+    const externalLinkUrlSourceRanges = collectExternalLinkUrlSourceRanges(content, rel, externalLinkUsages);
+    const externalLinkAllowedRanges = [...externalLinkRanges, ...externalLinkUrlSourceRanges];
+    const binanceImageAnalysis = collectBinanceImageUsageAnalysis(content, rel);
+    const approvedResourceRanges = [...externalLinkAllowedRanges, ...binanceImageAnalysis.allowedUrlRanges];
     if (manifest?.mode === MINI_APP_MODE && item.name === "Component.tsx" && !hasMiniAppFullHeightRoot(content)) {
       issues.push(
         issue(
@@ -2790,6 +4080,13 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
+    if (isThreeR3FArtifact(manifest) && item.name === "Component.tsx") {
+      for (const attribute of ["data-flap-3d-state", "data-flap-3d-renderer"]) {
+        if (!content.includes(attribute)) {
+          issues.push(issue(BLOCKING, "three-r3f/missing-deterministic-state", `3D artifact root must expose ${attribute} for host and E2E observability.`, { file: rel, attribute }));
+        }
+      }
+    }
     const checks = [
       [/\b(?:window|globalThis|global|self)\.(?:ethereum|web3|solana|BinanceChain|tronWeb|coinbaseWalletExtension|okxwallet|trustwallet)\b/, "forbidden-api/direct-window-ethereum", "Direct injected wallet provider access is not allowed."],
       [/\b(?:window|globalThis|global|self)\s*\[\s*["'`](?:ethereum|web3|solana|BinanceChain|tronWeb|coinbaseWalletExtension|okxwallet|trustwallet)["'`]\s*\]/, "forbidden-api/direct-window-ethereum", "Direct injected wallet provider access is not allowed."],
@@ -2799,6 +4096,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\b(?:request|send|sendAsync)\s*\(\s*(?:\{\s*method\s*:\s*)?["'`](?:eth_|wallet_|personal_)/, "forbidden-api/direct-window-ethereum", "Raw wallet RPC request/send calls are not allowed."],
       [/["'`](?:personal_sign|eth_sign(?:TypedData(?:_v[134])?)?|eth_sendTransaction|eth_requestAccounts|wallet_[A-Za-z0-9_]+|eth_decrypt|eth_getEncryptionPublicKey|eip6963:(?:requestProvider|announceProvider))["'`]/, "forbidden-api/direct-window-ethereum", "Wallet signing, transaction, permission, or provider-discovery RPC methods are not allowed."],
       [/\beval\s*\(/, "forbidden-api/eval", "eval() is not allowed."],
+      [/\(\s*0\s*,\s*eval\s*\)/, "forbidden-api/eval", "Indirect eval via the comma operator is not allowed."],
+      [/\(\s*0\s*,\s*fetch\s*\)/, "forbidden-api/browser-network", "Indirect fetch via the comma operator is not allowed inside Vault components."],
       [/\b(?:new\s+)?Function\s*\(/, "forbidden-api/function-constructor", "Function constructor usage is not allowed."],
       [/\.\s*constructor\s*\(\s*["'`]/, "forbidden-api/function-constructor", "Calling .constructor(...) as a Function-constructor escape is not allowed."],
       [/\b(?:window\.)?set(?:Timeout|Interval)\s*\(\s*["'`]/, "forbidden-api/eval", "String-based timer callbacks are eval-like and are not allowed."],
@@ -2812,6 +4111,9 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\.\s*insertAdjacentHTML\s*\(/, "forbidden-api/script", "HTML injection APIs are not allowed inside Vault components."],
       [/dangerouslySetInnerHTML/, "forbidden-api/dangerously-set-inner-html", "dangerouslySetInnerHTML needs explicit review and is blocked by default."],
       [/import\s*\(\s*["'`]https?:\/\//, "forbidden-api/remote-import", "Runtime remote import is not allowed inside Vault components."],
+      [/\bnavigator\s*(?:\?\.|\.)\s*clipboard\b/, "forbidden-api/clipboard", "Clipboard access and programmatic copy are not allowed inside Vault components."],
+      [/\bdocument\s*(?:\?\.|\.)\s*execCommand\s*\(\s*["'`]copy["'`]/i, "forbidden-api/clipboard", "document.execCommand(\"copy\") is not allowed inside Vault components."],
+      [/\bClipboardItem\b/, "forbidden-api/clipboard", "ClipboardItem is not allowed inside Vault components."],
       [/\b(?:window|globalThis|global|self|navigator|document)\s*\[[^\]\n]+\]/, "forbidden-api/browser-global-escape", "Computed browser global access is not allowed inside Vault components."],
       [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:window|globalThis|global|self|navigator|document)\b(?!\s*[.[\]])/, "forbidden-api/browser-global-escape", "Aliasing browser globals is not allowed inside Vault components."],
       [/\{\s*[^}\n]+\}\s*=\s*(?:window|globalThis|global|self|navigator|document)\b/, "forbidden-api/browser-global-escape", "Destructuring browser globals is not allowed inside Vault components."],
@@ -2868,9 +4170,9 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       [/\{\s*postMessage\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/cross-context-messaging", "Destructuring postMessage from browser globals is not allowed inside Vault components."],
       [/\baddEventListener\s*\(\s*["'`]message["'`]/, "forbidden-api/cross-context-messaging", "Listening to postMessage events is not allowed inside Vault components."],
       [/\b(?:window|globalThis|self)\.onmessage\s*=/, "forbidden-api/cross-context-messaging", "Listening to postMessage events is not allowed inside Vault components."],
-      [/\bnavigator\.(?:clipboard|geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Browser permission APIs are not allowed inside Vault components."],
-      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*navigator\.(?:clipboard|geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Aliasing browser permission APIs is not allowed inside Vault components."],
-      [/\{\s*(?:clipboard|geolocation|mediaDevices|permissions)\b[^}]*\}\s*=\s*navigator\b/, "forbidden-api/browser-permission", "Destructuring browser permission APIs from navigator is not allowed inside Vault components."],
+      [/\bnavigator\.(?:geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Browser permission APIs are not allowed inside Vault components."],
+      [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*navigator\.(?:geolocation|mediaDevices|permissions)\b/, "forbidden-api/browser-permission", "Aliasing browser permission APIs is not allowed inside Vault components."],
+      [/\{\s*(?:geolocation|mediaDevices|permissions)\b[^}]*\}\s*=\s*navigator\b/, "forbidden-api/browser-permission", "Destructuring browser permission APIs from navigator is not allowed inside Vault components."],
       [/\bNotification\.(?:requestPermission|permission)\b|\bnew\s+Notification\s*\(/, "forbidden-api/browser-permission", "Notification APIs are not allowed inside Vault components."],
       [/\b(?:const|let|var)\s+[$A-Z_a-z][$\w]*\s*=\s*(?:(?:window|globalThis|self)\.)?Notification\b/, "forbidden-api/browser-permission", "Aliasing Notification is not allowed inside Vault components."],
       [/\{\s*Notification\b[^}]*\}\s*=\s*(?:window|globalThis|self)\b/, "forbidden-api/browser-permission", "Destructuring Notification from browser globals is not allowed inside Vault components."],
@@ -2881,8 +4183,17 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         issues.push(issue(BLOCKING, ruleId, message, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
-    issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel));
+    if (isThreeR3FArtifact(manifest)) {
+      const createElementRegex = /\bdocument\s*(?:\?\.|\.)\s*createElement\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
+      for (const match of scanContent.matchAll(createElementRegex)) {
+        if (match[1].toLowerCase() !== "canvas") {
+          issues.push(issue(BLOCKING, "forbidden-api/browser-dom-creation", `3D Mini Apps may use document.createElement only for canvas, not ${match[1]}.`, { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
+        }
+      }
+    }
+    issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel, manifest));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
+    issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: approvedResourceRanges }));
     if (item.name === "Component.tsx") {
       issues.push(...collectHardcodedVisibleCopyIssues(content, rel));
       issues.push(...collectInlineSvgIssues(content, rel));
@@ -2891,16 +4202,19 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     for (const match of scanContent.matchAll(importRegex)) {
       const spec = match[1] || match[2];
       if (spec.startsWith("./") || spec.startsWith("../")) {
-        if (!ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
-          issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI may be imported from a Vault package. ${spec} is not allowed because src/vaults/${path.basename(vaultDir)} has a fixed file set.`, { file: rel }));
+        const importerDir = path.dirname(item.path);
+        const isMiniAppAudioImport = manifest?.mode === MINI_APP_MODE && isMiniAppAudioImportSpec(spec) && fs.existsSync(path.join(importerDir, spec));
+        const isCapabilityRelativeImport = isThreeR3FArtifact(manifest) && Boolean(resolveCapabilityRelativeImport(vaultDir, item.path, spec, capabilityFileExtensions(manifest, ROOT)));
+        if (!isMiniAppAudioImport && !isCapabilityRelativeImport && !ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
+          issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI may be imported from a default Vault package. Mini App mode may also import top-level reviewed audio assets. ${spec} is not allowed.`, { file: rel }));
         }
       } else if (FORBIDDEN_IMPORTS.some((blocked) => spec === blocked || spec.startsWith(`${blocked}/`))) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/forbidden-import", `Forbidden import ${spec}. Use Flap SDK/UI primitives instead.`, { file: rel }));
       } else if (sharedRuntimeImportRoot(spec)) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/deep-shared-runtime-import", `Deep import ${spec} is not allowed. Import from the shared ${sharedRuntimeImportRoot(spec)} barrel instead.`, { file: rel }));
-      } else if (/sdk/i.test(spec) && !isAllowedPackageImport(spec)) {
+      } else if (/sdk/i.test(spec) && !isAllowedPackageImport(spec) && !isCapabilityImportAllowed(spec, manifest, ROOT)) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/external-sdk-package", `External SDK-style import ${spec} is not allowed. Use the shared @/src/sdk and @/src/ui surfaces only.`, { file: rel }));
-      } else if (!isAllowedPackageImport(spec)) {
+      } else if (!isAllowedPackageImport(spec) && !isCapabilityImportAllowed(spec, manifest, ROOT)) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/unreviewed-import", `Import ${spec} is not in the approved allowlist.`, { file: rel }));
       }
     }
@@ -2926,12 +4240,35 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "media-policy/invalid-ipfs-image-cid",
-            "IpfsImage/IpfsBackground must receive a static image CID. URLs, ipfs:// values, metadata CIDs, and dynamic expressions are not allowed.",
+            "IpfsImage/IpfsBackground must receive a static image/directory CID. URLs, ipfs:// values, metadata CIDs, and dynamic CID expressions are not allowed.",
+            usage,
+          ),
+        );
+      }
+      const hasDynamicPath = usage.path === null;
+      const hasAnyPath = usage.path !== undefined;
+      const hasAnyValidationPath = usage.validationPath !== undefined;
+      const pathIsInvalid = typeof usage.path === "string" && !isValidIpfsImagePath(usage.path);
+      const validationPathIsInvalid = hasAnyValidationPath && !isValidIpfsImagePath(usage.validationPath);
+      const invalidPathContract =
+        (usage.component !== "IpfsImage" && (hasAnyPath || hasAnyValidationPath)) ||
+        pathIsInvalid ||
+        validationPathIsInvalid ||
+        (hasDynamicPath && !hasAnyValidationPath) ||
+        (!hasDynamicPath && hasAnyValidationPath);
+      if (invalidPathContract) {
+        issues.push(
+          issue(
+            BLOCKING,
+            "media-policy/invalid-ipfs-image-path",
+            "IpfsImage path must be a safe relative path. A dynamic path requires one static validationPath sample; static or missing paths must not declare validationPath. IpfsBackground does not support dynamic paths.",
             usage,
           ),
         );
       }
     }
+    issues.push(...collectNftMetadataImageUsageIssues(scanContent, rel));
+    issues.push(...binanceImageAnalysis.issues);
     const requireRegex = /\brequire\s*\(/g;
     for (const match of scanContent.matchAll(requireRegex)) {
       issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
@@ -2959,6 +4296,25 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
+    for (const usage of externalLinkUsages) {
+      if (typeof usage.url !== "string" || !usage.url) continue;
+      const parsedLink = parseUrl(usage.url);
+      issues.push(
+        issue(
+          INFO,
+          "manual-review/external-link",
+          `ExternalLink sends users to third-party destination ${usage.url}. Third-party links open behind a risk confirmation and are listed for Flap human review before publish.`,
+          {
+            url: usage.url,
+            origin: parsedLink?.origin ?? null,
+            pathname: parsedLink?.pathname ?? null,
+            queryParams: queryParamsForUrl(usage.url),
+            file: rel,
+            line: usage.line,
+          },
+        ),
+      );
+    }
     const externalUrlRegex = /\b(?:https?:\/\/|wss?:\/\/|ipfs:\/\/|ar:\/\/)[^\s"'`<>)]+/g;
     const dataUrlRegex = /\bdata:(?:image|video|audio|text\/html)[^\s"'`)]+/gi;
     const relativeFetchRegex = /\bfetch\s*\(\s*["'`]\/(?!\/)[^"'`)]*["'`]/g;
@@ -2979,30 +4335,26 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    const fetchCallRegex = /\bfetch\s*\(\s*([^,\n)]*)/g;
-    for (const match of scanContent.matchAll(fetchCallRegex)) {
-      const rawTarget = match[1]?.trim() ?? "";
-      const staticTarget = staticStringLiteral(rawTarget);
-      const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
-      if (!staticTarget || !parsedTarget || parsedTarget.protocol !== "https:" || parsedTarget.username || parsedTarget.password || !isDeclaredUrl(staticTarget, declaredUrls)) {
+    for (const usage of directFetchUsages) {
+      if (!usage.allowed) {
         issues.push(
           issue(
             BLOCKING,
             "endpoint-policy/direct-fetch",
             "fetch() targets inside Vault source must be static absolute HTTPS URLs without credentials and declared in manifest.endpoints for Flap review.",
-            { file: rel, line: lineForIndex(scanContent, match.index ?? -1) },
+            { file: rel, line: usage.line },
           ),
         );
       } else {
         issues.push(
-          issue(WARNING, "manual-review/external-endpoint", `fetch() uses declared external endpoint ${staticTarget}. External endpoint usage requires Flap review approval before publish.`, {
+          issue(WARNING, "manual-review/external-endpoint", `fetch() uses declared external endpoint ${usage.staticTarget}. External endpoint usage requires Flap review approval before publish.`, {
             source: "fetch",
-            url: staticTarget,
-            origin: parsedTarget.origin,
-            pathname: parsedTarget.pathname,
-            queryParams: queryParamsForUrl(staticTarget),
+            url: usage.staticTarget,
+            origin: usage.parsedTarget.origin,
+            pathname: usage.parsedTarget.pathname,
+            queryParams: queryParamsForUrl(usage.staticTarget),
             file: rel,
-            line: lineForIndex(scanContent, match.index ?? -1),
+            line: usage.line,
           }),
         );
       }
@@ -3015,7 +4367,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
             issue(
               BLOCKING,
               "navigation-policy/unapproved-external-navigation",
-              `External navigation ${url} is not allowed inside a Vault component. Keep user-facing navigation on the chain explorer only.`,
+              `External navigation ${url} is not allowed inside a Vault component. Keep user-facing navigation on the chain explorer or an approved external-link host, and use the ExternalLink component from @/src/ui for other third-party links.`,
               { file: rel, line: lineForIndex(scanContent, match.index) },
             ),
           );
@@ -3023,9 +4375,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     for (const match of scanContent.matchAll(externalUrlRegex)) {
+      if (isIndexWithinRanges(match.index, approvedResourceRanges) || isIndexWithinRanges(match.index, allowedDirectFetchTargetRanges)) continue;
       const url = sanitizeUrlLiteral(match[0]);
-      if (!isAllowlistedExternalUrl(url, declaredUrls, declaredFrames)) {
-        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not declared in manifest endpoints or externalFrames. Undeclared endpoints and external resources are rejected.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
+      if (!isAllowlistedExternalUrl(url, declaredFrames)) {
+        issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not an approved non-fetch resource. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets. For user-facing navigation, use ExternalLink; for images, use host media, BinanceImage for exact-host bin.bnbstatic.com, or IpfsImage/IpfsBackground.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
     for (const match of scanContent.matchAll(dataUrlRegex)) {
@@ -3055,8 +4408,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote media is not developer-declared in this template. Use Flap-controlled media/runtime policy instead.", { file: rel }));
     }
     for (const imageSrc of staticImgSrcUrls) {
-      if (/^(?:https?:\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(imageSrc.url)) {
-        issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote image sources must use IpfsImage or IpfsBackground with a static cid prop instead of a URL.", imageSrc));
+      if (/^(?:https?:\/\/|\/\/|ipfs:\/\/|ar:\/\/|data:)/i.test(imageSrc.url)) {
+        issues.push(issue(BLOCKING, "media-policy/remote-media", "Remote image sources must use BinanceImage for exact-host bin.bnbstatic.com URLs, or IpfsImage/IpfsBackground for controlled IPFS media. Raw remote <img> remains blocked.", imageSrc));
       }
     }
     const hardcodedAddressRegex = /["'`]0x[a-fA-F0-9]{40}["'`]/g;
@@ -3148,79 +4501,6 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   return issues;
 }
 
-function collectIpfsImageCidSources(vaultDir) {
-  return walk(vaultDir)
-    .filter((item) => !item.isDirectory && !item.isSymlink && item.name.match(/\.(ts|tsx|js|jsx)$/))
-    .flatMap((item) => {
-      const rel = path.relative(ROOT, item.path);
-      const content = stripCommentsForScanning(fs.readFileSync(item.path, "utf8"));
-      return collectIpfsImageCidUsages(content, rel)
-        .filter((source) => isValidIpfsImageCid(source.cid))
-        .map((source) => ({
-          ...source,
-          urls: ipfsImageUrlsForCid(source.cid),
-        }));
-    });
-}
-
-async function probeImageUrl(url) {
-  for (const method of ["HEAD", "GET"]) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: method === "GET" ? { Range: "bytes=0-0" } : undefined,
-        signal: controller.signal,
-      });
-      if (response.body) await response.body.cancel().catch(() => {});
-      const finalUrl = response.url || url;
-      const contentType = response.headers.get("content-type") ?? "";
-      if (response.ok && isAllowedIpfsImageGatewayUrl(finalUrl) && contentType.toLowerCase().startsWith("image/")) return null;
-      if (method === "HEAD" && (response.status === 405 || response.status === 403 || !contentType.toLowerCase().startsWith("image/"))) continue;
-      return { status: response.status, contentType, finalUrl };
-    } catch (error) {
-      if (method === "HEAD") continue;
-      return { error: error instanceof Error ? error.message : String(error) };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-  return { error: "image probe failed" };
-}
-
-async function collectIpfsImageValidationIssues(vaultDir) {
-  const seen = new Set();
-  const sources = collectIpfsImageCidSources(vaultDir).filter((source) => {
-    if (seen.has(source.cid)) return false;
-    seen.add(source.cid);
-    return true;
-  });
-  const issues = [];
-  for (const source of sources) {
-    const attempts = [];
-    let resolved = false;
-    for (const url of source.urls) {
-      const failure = await probeImageUrl(url);
-      if (!failure) {
-        resolved = true;
-        break;
-      }
-      attempts.push({ url, ...failure });
-    }
-    if (resolved) continue;
-    issues.push(
-      issue(
-        BLOCKING,
-        "media-policy/ipfs-image-unavailable",
-        `${source.component} cid ${source.cid} must resolve through at least one allowed Flap IPFS gateway with an image/* content-type.`,
-        { ...source, attempts },
-      ),
-    );
-  }
-  return issues;
-}
-
 function buildAgentNextActions(issues) {
   const blocking = issues.filter((item) => item.severity === BLOCKING);
   const warnings = issues.filter((item) => item.severity === WARNING);
@@ -3234,7 +4514,12 @@ function buildAgentNextActions(issues) {
     frameId: item.frameId,
     provider: item.provider,
     src: item.src,
+    address: item.address,
+    label: item.label,
+    chainId: item.chainId,
     url: item.url,
+    asset: item.asset,
+    bytes: item.bytes,
     oracleId: item.oracleId,
     locale: item.locale,
     key: item.key,
@@ -3287,6 +4572,30 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
+  const externalLinks = issues
+    .filter((item) => item.ruleId === "manual-review/external-link" && item.url)
+    .map((item) => ({
+      url: item.url,
+      origin: item.origin,
+      pathname: item.pathname,
+      queryParams: item.queryParams ?? {},
+      file: item.file,
+      line: item.line,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  const externalContracts = issues
+    .filter((item) => item.ruleId === "manual-review/external-contract" && item.address)
+    .map((item) => ({
+      chainId: item.chainId,
+      address: item.address,
+      label: item.label,
+      field: item.field,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
   const fullscreenLayouts = issues
     .filter((item) => item.ruleId === "manual-review/fullscreen-layout")
     .map((item) => ({
@@ -3296,7 +4605,44 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames, fullscreenLayouts };
+  const miniAppAudioAssets = issues
+    .filter((item) => item.ruleId === "manual-review/mini-app-audio-asset")
+    .map((item) => ({
+      asset: item.asset,
+      bytes: item.bytes,
+      file: item.file,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  const miniApp3D = issues
+    .filter((item) => item.ruleId === "manual-review/mini-app-3d")
+    .map((item) => ({
+      capability: item.capability,
+      dependencies: item.dependencies,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+  const vaultUI3D = issues
+    .filter((item) => item.ruleId === "manual-review/vault-ui-3d")
+    .map((item) => ({
+      capability: item.capability,
+      dependencies: item.dependencies,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  const miniApp3DFonts = issues
+    .filter((item) => item.ruleId === "manual-review/mini-app-3d-font")
+    .map((item) => ({
+      asset: item.asset,
+      bytes: item.bytes,
+      file: item.file,
+      severity: item.severity,
+      ruleId: item.ruleId,
+    }));
+
+  return { externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
 }
 
 function buildCheckReport(folderName, issues) {
@@ -3321,6 +4667,8 @@ function buildCheckReport(folderName, issues) {
       verdict: blocking > 0 ? "fix-blocking" : warning > 0 ? "review-warnings" : "package-ready",
       nextActions: buildAgentNextActions(issues),
       allowedVaultFiles: REQUIRED_FILES,
+      capabilityProfiles: loadMiniAppCapabilityConfig(ROOT).profiles,
+      allowedMiniAppAudioExtensions: MINI_APP_AUDIO_ASSET_EXTENSIONS,
       allowedLocalRelativeImports: [...ALLOWED_RELATIVE_IMPORTS],
       packageCommand: folderName ? `yarn vault:package ${folderName}` : "yarn vault:package <folder-name>",
     },
@@ -3396,8 +4744,7 @@ export async function runVaultCheckWithTokenContracts(folderName, options = {}) 
   const tokenIssues = await collectManifestErc20TokenIssues(manifest, {
     file: `src/vaults/${folderName}/manifest.json`,
   });
-  const ipfsImageIssues = await collectIpfsImageValidationIssues(path.join(ROOT, "src", "vaults", folderName));
-  const report = buildCheckReport(folderName, [...staticReport.issues, ...tokenIssues, ...ipfsImageIssues]);
+  const report = buildCheckReport(folderName, [...staticReport.issues, ...tokenIssues]);
   if (!options.silent) {
     console.log(JSON.stringify(report, null, 2));
   }

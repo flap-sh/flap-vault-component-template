@@ -1,4 +1,5 @@
 import type { Address } from "@/src/sdk";
+import { MAINNET_UI_TEST_TOKEN_ADDRESS } from "./previewCoinDetail";
 
 export interface PreviewRuntimeDefaults {
   chainId: number;
@@ -11,7 +12,7 @@ const previewRuntimeDefaults: Record<string, PreviewRuntimeDefaults> = {
   "community-buyback-example": {
     chainId: 56,
     factoryAddress: "0xC3e4EE8f3c616D16297fAfcB9daab122D31eFA9E",
-    tokenAddress: "0x091652ebc0a0238d7151a868f22d7cfd2a267777",
+    tokenAddress: MAINNET_UI_TEST_TOKEN_ADDRESS,
     vaultAddress: "0x5093579176Ce1E6061fE5F808DBf972782B61c7d",
   },
   "flapixel-example": {

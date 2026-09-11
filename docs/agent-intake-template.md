@@ -156,7 +156,7 @@ What states must the UI handle explicitly?
 | `unverified` | Not reviewed; user must acknowledge risk. |
 | `high-risk` | Irreversible, dangerous, or AI-generated actions. Show explicit risk gate. |
 
-Also confirm whether this is the default Vault UI or a token-scoped 8888-token Mini App. Default Vault UI should omit `manifest.mode` and must display `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel` within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, with a prominent warning/danger message if that value is unavailable. The UI must not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`. For a token-scoped 8888-token Mini App, set `manifest.mode` to `mini-app`; that mode skips only the risk-status tag checks.
+Also confirm whether this is the default Vault UI or a token-scoped Mini App for either a 7777 Tax Token or an 8888 zero-tax token. Default Vault UI should omit `manifest.mode` and must display `host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel` within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, with a prominent warning/danger message if that value is unavailable. The UI must not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`. For a token-scoped Mini App, set `manifest.mode` to `mini-app`; that mode skips only the risk-status tag checks. Never mix 7777 and 8888 bindings in one artifact. If 3D is requested, explicitly collect `three-r3f-v1` and follow `docs/mini-app-3d.md`; do not infer arbitrary npm or remote-resource permission.
 
 ---
 
@@ -176,7 +176,7 @@ Also confirm whether this is the default Vault UI or a token-scoped 8888-token M
 
 - Default: no. Prefer Flap SDK methods and on-chain reads.
 - If unavoidable: provide either one full HTTPS endpoint URL without username/password credentials or a list of those URLs. These are declared in `manifest.endpoints` and enter Flap review; declaration does not guarantee approval. Any direct `fetch(...)` must use a static absolute HTTPS string covered by that declaration.
-- Host-relative URLs (`/api/...`), dynamic fetch targets, credentialed URLs, non-HTTPS, `ipfs://` / gateway image URLs, Arweave, WebSocket, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are always blocked. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` with a static image CID instead of an image URL.
+- Host-relative URLs (`/api/...`), dynamic fetch targets, credentialed URLs, non-HTTPS, `ipfs://` / gateway image URLs, Arweave, WebSocket, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are always blocked. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` with a static image/directory CID instead of an image URL; dynamic NFT paths are limited to `IpfsImage` with a static `validationPath` sample.
 
 ### Q16: External chart frames (optional)
 

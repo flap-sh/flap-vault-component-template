@@ -1,20 +1,34 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  MINI_APP_CAPABILITY_CONFIG_PATH,
+  capabilityFileExtensions,
+  isThreeR3FArtifact,
+  manifestCapabilityIds,
+} from "./mini-app-capabilities.mjs";
 
 export const E2E_REPORT_KIND = "flap-vault-ui-e2e-report";
-export const E2E_REPORT_VERSION = 1;
+export const E2E_REPORT_VERSION = 2;
 export const E2E_REPORT_PACKAGE_PATH = "qa/e2e-report.json";
 export const E2E_REPORT_TOOL = "yarn vault:e2e";
 export const E2E_DIST_DIR = "dist/e2e";
 export const MANIFEST_SCHEMA_PATH = "schemas/manifest.schema.json";
+export { MINI_APP_CAPABILITY_CONFIG_PATH };
 export const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
+export const MINI_APP_MODE = "mini-app";
+export const MINI_APP_AUDIO_ASSET_EXTENSIONS = [".mp3", ".wav", ".ogg", ".m4a", ".aac"];
+export const MINI_APP_AUDIO_ASSET_RE = /^[a-z0-9][a-z0-9._-]{0,79}\.(?:mp3|wav|ogg|m4a|aac)$/;
+export const MINI_APP_AUDIO_MAX_BYTES = 5 * 1024 * 1024;
+export const MINI_APP_AUDIO_TOTAL_MAX_BYTES = 12 * 1024 * 1024;
 export const REQUIRED_VIEWPORTS = ["pc", "ipad", "h5"];
 export const REQUIRED_PHASES = ["default", "internal-market", "dex-listed"];
+const PACKAGE_TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".json", ".glsl", ".vert", ".frag", ".gltf"]);
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const REQUIRED_TEST_TOKEN_SUFFIXES = ["7777", "8888"];
 const REQUIRED_TEST_TOKEN_SUFFIX = REQUIRED_TEST_TOKEN_SUFFIXES.join(" or ");
+const SUPPORTED_E2E_CHAIN_IDS = new Set([56, 97, 4663, 46630]);
 const RESERVED_PLACEHOLDER_ADDRESSES = new Map([
   ["0x1000000000000000000000000000000000000001", "template factory placeholder"],
   ["0x2000000000000000000000000000000000000002", "template token placeholder"],
@@ -27,6 +41,16 @@ export function sha256Buffer(buffer) {
 
 export function sha256File(filePath) {
   return sha256Buffer(fs.readFileSync(filePath));
+}
+
+export function normalizePackageTextBuffer(buffer) {
+  return Buffer.from(buffer.toString("utf8").replace(/\r\n?/g, "\n"), "utf8");
+}
+
+export function readPackageFileBuffer(filePath) {
+  return PACKAGE_TEXT_EXTENSIONS.has(path.extname(filePath).toLowerCase())
+    ? normalizePackageTextBuffer(fs.readFileSync(filePath))
+    : fs.readFileSync(filePath);
 }
 
 export function normalizeAddress(value) {
@@ -47,12 +71,63 @@ export function requiredSourcePaths(folderName) {
   return REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`);
 }
 
+export function isMiniAppAudioAssetName(name) {
+  return MINI_APP_AUDIO_ASSET_RE.test(name);
+}
+
+function readManifest(root, folderName) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(root, "src", "vaults", folderName, "manifest.json"), "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+export function collectMiniAppAudioAssetPaths(root, folderName) {
+  if (readManifest(root, folderName)?.mode !== MINI_APP_MODE) return [];
+  const vaultDir = path.join(root, "src", "vaults", folderName);
+  try {
+    return fs
+      .readdirSync(vaultDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && isMiniAppAudioAssetName(entry.name))
+      .map((entry) => `src/vaults/${folderName}/${entry.name}`)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+function walkFiles(dir, files = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkFiles(fullPath, files);
+    else if (entry.isFile()) files.push(fullPath);
+  }
+  return files;
+}
+
+export function collectCapabilitySourcePaths(root, folderName) {
+  const manifest = readManifest(root, folderName);
+  if (!isThreeR3FArtifact(manifest) || manifestCapabilityIds(manifest).length === 0) return [];
+  const vaultDir = path.join(root, "src", "vaults", folderName);
+  const extensions = capabilityFileExtensions(manifest, root);
+  return walkFiles(vaultDir)
+    .filter((filePath) => extensions.has(path.extname(filePath).toLowerCase()))
+    .map((filePath) => path.relative(root, filePath).split(path.sep).join("/"))
+    .sort();
+}
+
+export function sourcePackagePaths(root, folderName) {
+  return [...new Set([...requiredSourcePaths(folderName), ...collectMiniAppAudioAssetPaths(root, folderName), ...collectCapabilitySourcePaths(root, folderName)])].sort();
+}
+
 export function collectSourceHashes(root, folderName) {
   const hashes = {};
-  for (const filePath of requiredSourcePaths(folderName)) {
-    hashes[filePath] = sha256File(path.join(root, filePath));
+  for (const filePath of sourcePackagePaths(root, folderName)) {
+    hashes[filePath] = sha256Buffer(readPackageFileBuffer(path.join(root, filePath)));
   }
-  hashes[MANIFEST_SCHEMA_PATH] = sha256File(path.join(root, MANIFEST_SCHEMA_PATH));
+  hashes[MANIFEST_SCHEMA_PATH] = sha256Buffer(readPackageFileBuffer(path.join(root, MANIFEST_SCHEMA_PATH)));
+  hashes[MINI_APP_CAPABILITY_CONFIG_PATH] = sha256Buffer(readPackageFileBuffer(path.join(root, MINI_APP_CAPABILITY_CONFIG_PATH)));
   return hashes;
 }
 
@@ -119,17 +194,24 @@ export function selectE2EBinding(manifest, overrides = {}) {
       vaultAddress: bindingVault(binding, overrides),
       factoryAddress: bindingFactory(binding, overrides),
     }))
-    .filter((item) => item.chainId === 97 || item.chainId === 56);
+    .filter((item) => SUPPORTED_E2E_CHAIN_IDS.has(item.chainId));
 
   const selected = candidates.find((item) => item.tokenAddress);
   if (selected) {
     return {
       ...selected,
-      tokenPolicy: selected.chainId === 97 ? "testnet" : "mainnet-fallback",
+      tokenPolicy:
+        selected.chainId === 97
+          ? "testnet"
+          : selected.chainId === 4663
+            ? "robinhood-mainnet"
+            : selected.chainId === 46630
+              ? "robinhood-testnet"
+              : "mainnet-fallback",
     };
   }
 
-  const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet or BNB mainnet";
+  const chainLabel = requestedChainId ? `chainId ${requestedChainId}` : "BNB testnet, BNB mainnet, Robinhood Chain, or Robinhood Testnet";
   throw new Error(
     `vault:e2e requires a real non-placeholder test token ending in ${REQUIRED_TEST_TOKEN_SUFFIX} for ${chainLabel}. Declare it in match.bindings[].tokenAddresses, or pass --token only for local self-test.`,
   );
@@ -200,6 +282,13 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
         actual: report.sourceSha256,
       });
     }
+    const componentPath = `src/vaults/${folderName}/Component.tsx`;
+    if (report.previewSource?.verified !== true || report.previewSource?.componentSha256 !== expectedHashes[componentPath]) {
+      addIssue("e2e-report/preview-source-unverified", "E2E report must prove that the preview server served the uploaded Component.tsx source.", {
+        expected: expectedHashes[componentPath],
+        actual: report.previewSource?.componentSha256,
+      });
+    }
   }
 
   if (typeof report.manifestSha256 !== "string" || report.manifestSha256 !== report.fileSha256?.[`src/vaults/${folderName}/manifest.json`]) {
@@ -207,20 +296,20 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   }
 
   const binding = report.binding ?? {};
-  if ((binding.chainId !== 97 && binding.chainId !== 56) || !normalizeAddress(binding.tokenAddress)) {
-    addIssue("e2e-report/missing-test-token", "E2E report must bind to a BNB chain token used for package testing.");
+  if (!SUPPORTED_E2E_CHAIN_IDS.has(binding.chainId) || !normalizeAddress(binding.tokenAddress)) {
+    addIssue("e2e-report/missing-test-token", "E2E report must bind to a supported-chain token used for package testing.");
   } else if (placeholderAddressLabel(binding.tokenAddress)) {
     addIssue("e2e-report/placeholder-test-token", "E2E report tokenAddress uses a reserved template placeholder instead of a real deployed token contract.", {
       field: "binding.tokenAddress",
       tokenAddress: binding.tokenAddress,
-      fixHint: `Use a real deployed BNB Chain token address, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+      fixHint: `Use a real deployed supported-chain token address, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
   } else if (!validTestToken(binding.tokenAddress)) {
     addIssue("e2e-report/invalid-test-token-suffix", `E2E report tokenAddress must end in ${REQUIRED_TEST_TOKEN_SUFFIX}.`, {
       field: "binding.tokenAddress",
       tokenAddress: binding.tokenAddress,
       requiredSuffix: REQUIRED_TEST_TOKEN_SUFFIX,
-      fixHint: `Use a real deployed BNB Chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
+      fixHint: `Use a real deployed supported-chain token address ending in ${REQUIRED_TEST_TOKEN_SUFFIX}, rerun ${E2E_REPORT_TOOL} ${folderName}, then regenerate the source package.`,
     });
   }
   if (binding.chainId === 97 && binding.tokenPolicy !== "testnet") {
@@ -228,6 +317,12 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
   }
   if (binding.chainId === 56 && binding.tokenPolicy !== "mainnet-fallback") {
     addIssue("e2e-report/token-policy-mismatch", "chainId 56 E2E reports must use tokenPolicy=mainnet-fallback.");
+  }
+  if (binding.chainId === 4663 && binding.tokenPolicy !== "robinhood-mainnet") {
+    addIssue("e2e-report/token-policy-mismatch", "chainId 4663 E2E reports must use tokenPolicy=robinhood-mainnet.");
+  }
+  if (binding.chainId === 46630 && binding.tokenPolicy !== "robinhood-testnet") {
+    addIssue("e2e-report/token-policy-mismatch", "chainId 46630 E2E reports must use tokenPolicy=robinhood-testnet.");
   }
   const manifestTokens = manifestTokenAddresses(manifest);
   const tokenAddress = normalizeAddress(binding.tokenAddress)?.toLowerCase();

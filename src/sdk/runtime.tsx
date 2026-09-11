@@ -1,11 +1,12 @@
 "use client";
 
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useBalance, useChainId, useConnect, useDisconnect, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
-import { formatUnits } from "viem";
+import { decodeFunctionResult, encodeFunctionData, formatUnits } from "viem";
 import { Alert } from "@/src/ui";
 import type {
   Address,
+  ContractEventRequest,
   ContractReadRequest,
   ContractWriteRequest,
   FlapI18n,
@@ -13,6 +14,9 @@ import type {
   FlapWallet,
   FlapVaultSdk,
   HostRuntimeResult,
+  NftMetadataReader,
+  NftMetadataReadRequest,
+  NftMetadataSnapshot,
   OracleReader,
   SimulateResult,
   TxReceipt,
@@ -22,8 +26,14 @@ import type {
 } from "./types";
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
+import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
+import { RuntimeContext } from "./runtimeStore";
+import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
+import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
+import { readContractEventsInBlockRanges } from "./contractEvents";
 
-const RuntimeContext = createContext<FlapVaultSdk | null>(null);
+export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
+
 type ToastLevel = "info" | "success" | "warning" | "error";
 
 interface ToastItem {
@@ -40,6 +50,25 @@ interface RuntimeProviderProps {
   hostRuntimeResult?: HostRuntimeResult | null;
   locale?: string;
   oracleReader?: OracleReader;
+  nftMetadataReader?: NftMetadataReader;
+}
+
+const defaultNftMetadataReader = createLocalNftMetadataReader();
+const NFT_METADATA_MAX_CONCURRENCY = 6;
+let activeNftMetadataReads = 0;
+const pendingNftMetadataReads: Array<() => void> = [];
+
+async function limitNftMetadataRead<T>(task: () => Promise<T>): Promise<T> {
+  if (activeNftMetadataReads >= NFT_METADATA_MAX_CONCURRENCY) {
+    await new Promise<void>((resolve) => pendingNftMetadataReads.push(resolve));
+  }
+  activeNftMetadataReads += 1;
+  try {
+    return await task();
+  } finally {
+    activeNftMetadataReads -= 1;
+    pendingNftMetadataReads.shift()?.();
+  }
 }
 
 function applyParams(value: string, params?: Record<string, string | number>) {
@@ -54,10 +83,12 @@ function getPreviewOracleEndpoint(extraConfig: Record<string, unknown> | undefin
   return typeof endpoint === "string" ? endpoint : undefined;
 }
 
-export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader }: RuntimeProviderProps) {
+export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader }: RuntimeProviderProps) {
   const [version, setVersion] = useState(0);
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
+  const nftMetadataCacheRef = useRef<Map<string, Promise<NftMetadataSnapshot>>>(new Map());
+  const vaultNftAddressCacheRef = useRef<Map<string, Promise<Address>>>(new Map());
   const { address: accountAddress, isConnected } = useAccount();
   const connectedChainId = useChainId();
   const { connect, connectors } = useConnect();
@@ -187,6 +218,27 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       if (!publicClient || !request.abi || !request.address) {
         throw new Error(`Contract read ${request.functionName} requires a public client, ABI, and address.`);
       }
+      if (request.gasPrice !== undefined) {
+        if (request.gasPrice <= 0n) throw new Error("Contract read gasPrice must be greater than zero.");
+        const data = encodeFunctionData({
+          abi: request.abi,
+          functionName: request.functionName,
+          args: request.args,
+        });
+        const response = await publicClient.call({
+          account: request.account,
+          to: request.address,
+          data,
+          gasPrice: request.gasPrice,
+        });
+        if (!response.data) throw new Error(`Contract read ${request.functionName} returned no data.`);
+        return decodeFunctionResult({
+          abi: request.abi,
+          functionName: request.functionName,
+          args: request.args,
+          data: response.data,
+        }) as T;
+      }
       return (await publicClient.readContract({
         address: request.address,
         abi: request.abi,
@@ -198,12 +250,53 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [publicClient],
   );
 
+  const getGasPrice = useCallback(async (): Promise<bigint> => {
+    if (!publicClient) throw new Error("Gas-price lookup requires a public client.");
+    const gasPrice = await publicClient.getGasPrice();
+    if (gasPrice <= 0n) throw new Error("The runtime returned an invalid network gas price.");
+    return gasPrice;
+  }, [publicClient]);
+
+  const getBlockNumber = useCallback(async (): Promise<bigint> => {
+    if (!publicClient) throw new Error("Block-number lookup requires a public client.");
+    const blockNumber = await publicClient.getBlockNumber();
+    if (blockNumber < 0n) throw new Error("The runtime returned an invalid block number.");
+    return blockNumber;
+  }, [publicClient]);
+
+  const getContractEvents = useCallback(
+    async <T,>(request: ContractEventRequest): Promise<T[]> => {
+      if (!publicClient || !request.abi || !request.address || !request.eventName.trim()) {
+        throw new Error("Contract event lookup requires a public client, ABI, address, and event name.");
+      }
+      const toBlock = typeof request.toBlock === "bigint" ? request.toBlock : await getBlockNumber();
+      return readContractEventsInBlockRanges<T>({
+        fromBlock: request.fromBlock,
+        toBlock,
+        readRange: async ({ fromBlock, toBlock: chunkToBlock }) => {
+          const events = await publicClient.getContractEvents({
+            address: request.address,
+            abi: request.abi,
+            eventName: request.eventName,
+            args: request.args,
+            fromBlock,
+            toBlock: chunkToBlock,
+            strict: request.strict,
+          } as never);
+          return events as unknown as T[];
+        },
+      });
+    },
+    [getBlockNumber, publicClient],
+  );
+
   const simulateContract = useCallback(
     async (request: ContractWriteRequest): Promise<SimulateResult> => {
       assertWalletWriteReady(`simulating ${request.functionName}`);
       if (!publicClient || !request.abi || !request.address) {
         throw new Error(`Contract simulation ${request.functionName} requires a public client, ABI, and address.`);
       }
+      const feeOverrides = await resolveSafeContractWriteFeeOverrides(request, getGasPrice);
       const simulation = await publicClient.simulateContract({
         account: accountAddress,
         address: request.address,
@@ -211,10 +304,11 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
         functionName: request.functionName,
         args: request.args,
         value: request.value,
+        ...feeOverrides,
       });
       return { request, result: simulation.result };
     },
-    [accountAddress, assertWalletWriteReady, publicClient],
+    [accountAddress, assertWalletWriteReady, getGasPrice, publicClient],
   );
 
   const writeContract = useCallback(
@@ -223,16 +317,18 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       if (!walletClient || !request.abi || !request.address) {
         throw new Error(`Contract write ${request.functionName} requires a wallet client, ABI, and address.`);
       }
+      const feeOverrides = await resolveSafeContractWriteFeeOverrides(request, getGasPrice);
       const hash = await walletClient.writeContract({
         address: request.address,
         abi: request.abi,
         functionName: request.functionName,
         args: request.args,
         value: request.value,
+        ...feeOverrides,
       });
       return hash as Address;
     },
-    [assertWalletWriteReady, walletClient],
+    [assertWalletWriteReady, getGasPrice, walletClient],
   );
 
   const waitForTx = useCallback(
@@ -265,6 +361,66 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [oracleReader, runtimeContext],
   );
 
+  const readNftMetadata = useCallback(
+    async (request: NftMetadataReadRequest): Promise<NftMetadataSnapshot> => {
+      if (request.tokenId < 0n) throw new Error("NFT tokenId must not be negative.");
+      const vaultAddress = runtimeContext.vaultAddress;
+      if (!isValidAddress(vaultAddress) || vaultAddress.toLowerCase() === ZERO_ADDRESS) {
+        throw new Error("Vault V2 NFT metadata requires a valid runtime Vault address.");
+      }
+      const cacheKey = `${runtimeContext.chainId}:${vaultAddress.toLowerCase()}:${request.tokenId.toString()}:${version}`;
+      const cached = nftMetadataCacheRef.current.get(cacheKey);
+      if (cached) return cached;
+      const pending = limitNftMetadataRead(async () => {
+        const nftAddressCacheKey = `${runtimeContext.chainId}:${vaultAddress.toLowerCase()}:${version}`;
+        let nftAddressPending = vaultNftAddressCacheRef.current.get(nftAddressCacheKey);
+        if (!nftAddressPending) {
+          nftAddressPending = readContract<Address>({
+            contract: "vault",
+            address: vaultAddress,
+            abi: vaultV2NftAbi,
+            functionName: "nft",
+          }).then((nftAddress) => {
+            if (!isValidAddress(nftAddress) || nftAddress.toLowerCase() === ZERO_ADDRESS) {
+              throw new Error("Vault V2 nft() returned an invalid NFT address.");
+            }
+            return nftAddress;
+          });
+          vaultNftAddressCacheRef.current.set(nftAddressCacheKey, nftAddressPending);
+          if (vaultNftAddressCacheRef.current.size > 32) {
+            const oldestNftAddressKey = vaultNftAddressCacheRef.current.keys().next().value;
+            if (oldestNftAddressKey) vaultNftAddressCacheRef.current.delete(oldestNftAddressKey);
+          }
+          nftAddressPending.catch(() => vaultNftAddressCacheRef.current.delete(nftAddressCacheKey));
+        }
+        const nftAddress = await nftAddressPending;
+        const tokenUri = await readContract<string>({
+          contract: "nft",
+          address: nftAddress,
+          abi: nftTokenUriAbi,
+          functionName: "tokenURI",
+          args: [request.tokenId],
+        });
+        if (typeof tokenUri !== "string" || !tokenUri.trim()) throw new Error("NFT tokenURI returned an empty value.");
+        return (nftMetadataReader ?? defaultNftMetadataReader)({
+          ...request,
+          chainId: runtimeContext.chainId,
+          nftAddress,
+          tokenUri: tokenUri.trim(),
+          context: runtimeContext,
+        });
+      });
+      nftMetadataCacheRef.current.set(cacheKey, pending);
+      if (nftMetadataCacheRef.current.size > 128) {
+        const oldestKey = nftMetadataCacheRef.current.keys().next().value;
+        if (oldestKey) nftMetadataCacheRef.current.delete(oldestKey);
+      }
+      pending.catch(() => nftMetadataCacheRef.current.delete(cacheKey));
+      return pending;
+    },
+    [nftMetadataReader, readContract, runtimeContext, version],
+  );
+
   const refetch = useCallback(async () => {
     setVersion((item) => item + 1);
   }, []);
@@ -283,16 +439,20 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       i18n: i18nApi,
       notify,
       wallet,
+      getGasPrice,
+      getBlockNumber,
+      getContractEvents,
       readContract,
       simulateContract,
       writeContract,
       waitForTx,
       readOracle,
+      readNftMetadata,
       refetch,
       refetchNonce: version,
       openExplorerTx,
     }),
-    [i18nApi, notify, openExplorerTx, readContract, readOracle, refetch, runtimeContext, simulateContract, version, waitForTx, wallet, writeContract],
+    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, readContract, readNftMetadata, readOracle, refetch, runtimeContext, simulateContract, version, waitForTx, wallet, writeContract],
   );
 
   return (
@@ -314,22 +474,4 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       </div>
     </RuntimeContext.Provider>
   );
-}
-
-export function useFlapSdk() {
-  const sdk = useContext(RuntimeContext);
-  if (!sdk) throw new Error("useFlapSdk must be used within VaultRuntimeProvider.");
-  return sdk;
-}
-
-export function useVaultContext() {
-  return useFlapSdk().context;
-}
-
-export function useFlapI18n() {
-  return useFlapSdk().i18n;
-}
-
-export function useFlapNotify() {
-  return useFlapSdk().notify;
 }

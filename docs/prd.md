@@ -27,7 +27,7 @@ src/vaults/{folder-name}/
 
 The Vault folder name is the local source folder and preview route. It must be 3-64 characters of lowercase kebab-case, for example `flap-nft-vault`. It is not the artifact identity.
 
-The folder may contain only:
+The default Vault UI folder may contain only:
 
 ```plain text
 Component.tsx
@@ -36,7 +36,7 @@ VaultABI.ts
 i18n.json
 ```
 
-No helpers, nested components, local assets, local docs, sample data, or extra folders are allowed inside the Vault package.
+No helpers, nested components, local docs, sample data, or extra folders are allowed inside the default Vault package. Default Vault UI cannot include local assets unless a mode-less 7777 artifact declares `three-r3f-v1`. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) for BGM or sound effects. The recursive source/asset exception supports either a 7777 Vault UI or a token-scoped 7777/8888 Mini App declaring `three-r3f-v1`; its complete supported surface and limits live in `docs/mini-app-3d.md`.
 
 ### Shell vs Vault Boundary
 
@@ -68,8 +68,10 @@ Allowed fields:
 
 - `artifactId`
 - `name`
+- `displayTitle` for Mini App only
 - `match`
 - `i18n`
+- `mode`
 - `layout`
 - `endpoints`
 - `externalFrames`
@@ -85,6 +87,10 @@ Disallowed developer fields:
 - `media`
 - `fallback`
 - `contracts`
+- `chainIds`
+- `restrictTokenAddresses`
+- global or match-level `tokenAddresses`
+- `caPolicy`
 
 `artifactId` is the stable unique identity for the source package/artifact family. It uses:
 
@@ -109,9 +115,9 @@ Vault matching intent is captured by explicit chain/factory pairs:
 
 In factory mode, the Vault address can be runtime-derived, and `tokenAddresses` is the manifest test-token source, not a production CA restriction. The test token must be a real deployed ERC20 address ending in `7777` or `8888`; collect the final real mainnet factory binding early. In no-factory mode, `match.bindings[].vaultAddresses` is optional unless the binding is Vault-scoped; if provided without factoryAddress it must contain exactly one non-zero Vault address. `tokenAddresses` may be used as the no-factory token-scoped target and may contain multiple token addresses. If a deployment needs a fixed non-token/non-Vault/non-factory contract target, it is declared only as `match.bindings[].externalContracts` with `address` and `label`. This `match` block is not the local route and does not auto-publish anything; it is a developer-facing binding declaration for deployment targets. Production CA restriction is decided in Workbench/registry by `caRestrictionMode`.
 
-`mode` is optional and currently accepts only `"mini-app"`. Omit it for the default Vault UI. Use it only for token-scoped 8888-token Mini App artifacts; this requires `match.bindings[].tokenAddresses` ending in `8888`, omits factory/Vault bindings, skips the default Vault UI risk-status tag checks, and keeps every other source-package, i18n, external resource, and contract-boundary rule.
+`mode` is optional and currently accepts only `"mini-app"`. Omit it for the default Vault UI. Use it only for token-scoped Mini App artifacts whose bindings are all 7777 Tax Tokens or all 8888 zero-tax tokens; factory/Vault bindings and mixed suffixes are invalid. Mini App requires `displayTitle.zh` and `displayTitle.en` for flap.sh pages, skips the default Vault UI risk-status tag checks, and keeps every other source-package, i18n, external resource, and contract-boundary rule. Mini App may include reviewed top-level local audio files. Standard 3D additionally requires `capabilities: ["three-r3f-v1"]`; see `docs/mini-app-3d.md`.
 
-`layout` is optional and currently accepts only `"fullscreen"`. Omit it for the standard 768px Vault body. Use it only when Flap explicitly requests a full-screen Vault body; `vault:check` emits `manual-review/fullscreen-layout`, and production `flap.sh` remains responsible for host-owned token/header constraints. `fullscreen` is not a free-form website container: the strict four-file package boundary, default Vault UI risk-status placement, i18n, external resource review, and contract boundary all still apply.
+`layout` is optional and currently accepts only `"fullscreen"`. Omit it for the standard 768px Vault body. Use it only when Flap explicitly requests a full-screen Vault body; `vault:check` emits `manual-review/fullscreen-layout`, and production `flap.sh` remains responsible for host-owned token/header constraints. `fullscreen` is not a free-form website container: the core package boundary, default Vault UI risk-status placement, i18n, external resource review, and contract boundary all still apply.
 
 ### i18n Policy
 
@@ -170,9 +176,9 @@ For new Vault packages, agents should run:
 yarn vault:scaffold <folder-name> --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory
 ```
 
-The scaffold command creates the strict four-file package and registers the folder name in `src/vaults/index.ts`.
+The scaffold command creates the strict core package and registers the folder name in `src/vaults/index.ts`.
 
-If an Agent generated the four Vault files from an existing manifest without running scaffold, it must run:
+If an Agent generated the four core Vault files from an existing manifest without running scaffold, it must run:
 
 ```bash
 yarn vault:register <folder-name>
@@ -194,10 +200,10 @@ The Agent workflow is not complete until blocking issues are zero, `yarn vault:e
 
 Oracle config is not declared in `manifest.json`.
 
-If component code calls `sdk.readOracle("id")`, `vault:check` reports the oracle id as an info item for Flap review/provisioning. The Flap Artifact Workbench/runtime owns endpoint and signing policy.
+If component code calls `sdk.readOracle("id")`, `vault:check` reports the oracle id for Flap review/provisioning: info/warning for provisioned built-in oracle ids that ship with the shared runtime, and blocking for unprovisioned or registry-only oracle ids that are not built into the shared runtime. The Flap Artifact Workbench/runtime owns endpoint and signing policy.
 
 Non-oracle external endpoints, one display-only external frame, and fixed extra contract targets are discouraged. If unavoidable, endpoints may be declared in `manifest.endpoints`, one display-only chart frame may be declared in `manifest.externalFrames`, and fixed extra contract targets may be declared in `match.bindings[].externalContracts`; declaration only makes them reviewable and does not guarantee approval.
-Endpoint declarations must be a single HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS target covered by that declaration. The external frame declaration is limited to TradingView, DexScreener, or CoinGecko Terminal/GeckoTerminal exact provider origins and must use one complete static HTTPS URL with fixed query string rendered through one `ReviewedFrame`. Host-relative, dynamic, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked. Raw iframe, more than one `ReviewedFrame`, `srcDoc`, dynamic frame URLs, WebSocket URLs, `ipfs://` / gateway image URLs, Arweave links, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are blocked inside Vault source by default so the template does not package code that the Workbench intake will reject. Immutable Vault-specific images use `IpfsImage` or `IpfsBackground` with a static image CID and are verified by `vault:check`.
+Endpoint declarations must be a single HTTPS URL string without username/password credentials or an array of those strings. Direct `fetch(...)` must use a static absolute HTTPS target covered by that declaration. The external frame declaration is limited to TradingView, DexScreener, or CoinGecko Terminal/GeckoTerminal exact provider origins and must use one complete static HTTPS URL with fixed query string rendered through one `ReviewedFrame`. Host-relative, dynamic, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked. Raw iframe, more than one `ReviewedFrame`, `srcDoc`, dynamic frame URLs, WebSocket URLs, `ipfs://` / gateway image URLs, Arweave links, embedded data URL media, CommonJS `require(...)`, symlinks, browser storage/navigation/worker/permission APIs, and direct browser network/media APIs are blocked inside Vault source by default so the template does not package code that the Workbench intake will reject. Immutable Vault-specific images use `IpfsImage` or `IpfsBackground` with a static image/directory CID; `IpfsImage` dynamic paths require a static validation sample and are verified by `vault:check`. Vault V2 contract-selected NFT media uses `NftMetadataImage`, which consumes shared SDK context internally and performs runtime-owned `Vault.nft()` plus `NFT.tokenURI(tokenId)` calls to resolve mode 0/1/2 without caller SDK/ABI/address props or component-owned dynamic fetch access.
 
 ### Packaging
 
@@ -217,7 +223,7 @@ The package output includes:
 
 The source zip is for the Flap Artifact Workbench. Runtime `component.mjs` is built by the Flap Artifact Workbench, not by project developers.
 
-The source zip must include `flap-vault-package.json` and `qa/e2e-report.json`, generated by `yarn vault:package <folder-name>` after `yarn vault:e2e <folder-name>`. Workbench validation should reject any manually assembled zip that is missing the marker or E2E proof, has a wrong package kind/version, lacks the runtime npm `gitHead` provenance, has an unexpected file list, has stale E2E source hashes, or has mismatched SHA-256 hashes.
+The source zip must include `flap-vault-package.json` and `qa/e2e-report.json`, generated by `yarn vault:package <folder-name>` after `yarn vault:e2e <folder-name>`. Workbench validation should reject any manually assembled zip that is missing the marker or E2E proof, has a wrong package kind/version, lacks current runtime npm `gitHead` provenance, carries a stale manifest schema, has an unexpected file list, has stale E2E source hashes, or has mismatched SHA-256 hashes.
 
 The template also provides a local Workbench-side verifier:
 
@@ -225,16 +231,16 @@ The template also provides a local Workbench-side verifier:
 yarn vault:verify-package dist/<folder-name>.zip
 ```
 
-It validates the package marker, package kind/version, runtime npm `gitHead` provenance, exact file list, metadata consistency, schema entry, and SHA-256 hashes. It is a local acceptance proxy; the Flap Artifact Workbench still owns production validation and review.
+It validates the package marker, package kind/version, current template/runtime provenance, current manifest schema, exact file list, metadata consistency, E2E proof, and SHA-256 hashes. It is a local acceptance proxy; the Flap Artifact Workbench still owns production validation and review. `--self-contained` is available only for inspecting old package internals.
 
 ## Implemented Acceptance Criteria
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Fixed Vault package file set | Done | `vault:check` blocks files outside `Component.tsx`, `manifest.json`, `VaultABI.ts`, `i18n.json`. |
+| Fixed Vault package file set | Done | `vault:check` blocks default Vault UI files outside `Component.tsx`, `manifest.json`, `VaultABI.ts`, `i18n.json`, and allows only reviewed top-level audio assets as the Mini App local-file exception. |
 | Folder route boundary | Done | `vault:check` requires 3-64 character lowercase kebab-case folder names for source folders and preview routes. |
 | Artifact identity | Done | `artifactId` is required, follows `vaultui_<folder-name>_<ULID>`, matches the Vault folder name, and is unique across Vault manifests. |
-| Minimal manifest | Done | Schema and check script allow only developer-facing fields, including optional `mode: "mini-app"` for token-scoped 8888-token Mini App artifacts and optional `layout: "fullscreen"` for Flap-requested fullscreen review. |
+| Minimal manifest | Done | Schema and check script allow only developer-facing fields, including optional `mode: "mini-app"` for token-scoped same-family 7777 or 8888 Mini App artifacts and optional `layout: "fullscreen"` for Flap-requested fullscreen review. |
 | CA policy boundary | Done | `vault:check` blocks global `restrictTokenAddresses`, global `tokenAddresses`, and `caPolicy`, while requiring every manifest to include at least one binding-scoped `match.bindings[].tokenAddresses` entry as its Workbench/E2E test token source. Factory-mode production CA restriction is a Workbench/registry `caRestrictionMode` decision, not a manifest field. |
 | No-factory binding variants | Done | Schema, `vault:check`, preview resolution, and packaging allow no-factory `chainId + vaultAddress`, `chainId + tokenAddress`, and `chainId + vaultAddress + tokenAddress` targets; no-factory token lists may contain multiple token addresses. |
 | Binding address safety | Done | `vault:check`, `vault:scaffold`, and the manifest schema block malformed, zero, and reserved template placeholder binding addresses so fake factory/Vault targets cannot pass into Workbench publish. |
@@ -254,7 +260,7 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Refetch interval guard | Done | `vault:check` blocks component query options that use a `refetchInterval` below 5000 ms. |
 | Preview shell | Done | `/example` and `/{folder-name}` render via `VaultPreviewClient`. |
 | Shell-owned header boundary | Done | Preview shell owns token header, close control, `Vault Information` frame, width, invalid-token fallback, and manifest panel; packaged Vault source is limited to business UI below that frame. |
-| Second example Vault | Done | `src/vaults/dex-listed-example` is a strict four-file package that demonstrates `dex-listed` stage gating and approve -> write with a no-factory neutral Vault binding. |
+| Second example Vault | Done | `src/vaults/dex-listed-example` is a strict four-file package that demonstrates `dex-listed` stage gating and approve -> write with a factory-scoped binding (chainId 56 + neutral fixture factory `0xC3e4EE8f...`). |
 | Multi-action example Vault | Done | `src/vaults/action-gallery-example` is a strict four-file package that demonstrates internal-market, DEX-listed, both-stage, and read-only action controls. |
 | Manifest display panel | Done | Current manifest is shown by the preview shell and homepage, outside Vault package source. |
 | Public-safe UI pattern snippets | Done | `docs/ui-pattern-snippets.md` provides sanitized layout, read/write, claim, quote, NFT/inventory, distribution, lending, prize/staking, submission/gallery, countdown, oracle, schema, risk, and error-state snippets without private names, addresses, endpoints, or copied private source. |
@@ -264,22 +270,22 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 | Token image preview capability | Done | Preview shell first asks the same-origin runtime proxy for host-owned token presentation data, then falls back to ERC20 `symbol()` / `name()` from `tokenAddress`; `/logo.png` is reserved for the neutral preview fixture only. |
 | Source package output path | Done | `vault:package` prints relative and absolute zip paths. |
 | Binding key metadata | Done | `vault:package` writes binding keys for factory, no-factory Vault, no-factory Vault+token, and no-factory token-only targets so Workbench/manual mapping can inspect the intended runtime bindings. |
-| Script-generated package marker | Done | `vault:package` writes format `4` `flap-vault-package.json`, npm `gitHead` provenance, file hashes, E2E report hash, and E2E summary for Workbench rejection of manual zips. |
+| Script-generated package marker | Done | `vault:package` writes format `6` `flap-vault-package.json`, npm `gitHead` provenance, recursive source/asset hashes, the capability profile, E2E report v2 hash, and matching E2E summary fields; legacy format 5 remains readable only without `capabilities`. |
 | Three-viewport E2E gate | Done | `yarn vault:e2e <folder-name>` covers PC / iPad / H5, `default` / `internal-market` / `dex-listed`, wrong-network state, layout overflow/overlap/covered controls, default Vault UI risk placement, and test-token binding before packaging through deterministic Playwright DOM/layout/state checks, without AI judgment. |
 | Playwright local install recovery | Done | `vault:e2e` starts the preview server with `yarn.cmd` on Windows and emits machine-readable `vault-e2e/playwright-browser-missing` when Chromium must be installed with `yarn playwright install chromium`. |
-| Workbench-side package verifier | Done | `yarn vault:verify-package <zip>` checks marker, package kind/version, runtime npm provenance, exact file list, metadata, E2E proof, and hashes. |
-| Template freshness gate | Done | `yarn vault:check`, `yarn build`, `yarn runtime:package`, and `yarn vault:package` verify that local `HEAD` exactly matches latest `origin/main`, then verify local version and git history against npm latest `@flapsdk/vault-runtime`, blocking behind/ahead/diverged branches, stale versions, and version-only edits. |
+| Workbench-side package verifier | Done | `yarn vault:verify-package <zip>` checks marker, package kind/version, current template/runtime provenance, current manifest schema, exact file list, metadata, E2E proof, and hashes. |
+| Template freshness gate | Done | As its first step, `yarn vault:package` fetches the official ref and automatically fast-forwards a checkout that is only behind while preserving non-conflicting local Vault work; conflicts and ahead/diverged branches stop without discarding changes. The latest package script, `yarn vault:check`, `yarn build`, and `yarn runtime:package` require local `HEAD` to exactly match latest `origin/main`, then verify local version and git history against npm latest `@flapsdk/vault-runtime`, blocking stale versions and version-only edits. |
 | Runtime artifact boundary | Done | Docs state that the Flap Artifact Workbench builds runtime JS. |
 | Shared runtime package proof | Done | `yarn runtime:package` and `yarn runtime:verify-package` produce and validate the local shared runtime package and machine-readable runtime contract. |
 | Oracle proxy runtime defaults | Done | Template preview includes local oracle proxy/runtime defaults for common `sdk.readOracle(...)` paths, while Workbench/runtime review still owns production oracle provisioning. |
 | AI Agent entrypoint | Done | `docs/ai-agent.md` and `agent-contract.json` define the stable Agent workflow. |
 | Common Agent entrypoint adapters | Done | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.windsurfrules`, `.github/copilot-instructions.md`, `.cursor/rules/flap-vault-ui.mdc`, `.cursorrules`, and `docs/agent-entrypoints.md` route common agents to the same source-of-truth contract. |
-| Scaffold command | Done | `yarn vault:scaffold` creates the four-file package and registers the folder name. |
+| Scaffold command | Done | `yarn vault:scaffold` creates the core package and registers the folder name. |
 | Preview registration command | Done | `yarn vault:register` registers manifest-first or already-generated packages for local preview without hand-editing `src/vaults/index.ts`. |
 | Agent-oriented check output | Done | `vault:check` emits `ok`, `agent.verdict`, and fix-focused `agent.nextActions`. |
 | Action-stage checker gate | Done | `vault:check` blocks when a component has a write path but no `marketPhase` / `isActionAvailableForPhase` usage. |
 | Agent-oriented CLI errors | Done | `vault:scaffold`, `vault:register`, and `vault:package` failures emit JSON with `code`, `fixHint`, and `agent.nextActions`. |
-| Checker regression selftest | Done | `yarn vault:check:selftest` verifies critical blocking rules for invalid folder names, CA policy, duplicate bindings and duplicate binding-scoped addresses, external contract declarations and undeclared fixed contract targets, malformed/credentialed endpoint declarations, endpoint-prefix escapes, hidden relative/dynamic/credentialed fetches, symlinks, CommonJS `require(...)`, browser-global escapes, browser storage/navigation/worker/permission APIs, IPFS-style resources, invalid `IpfsImage` / `IpfsBackground` CIDs, direct gateway image URLs, dynamic imports, multi-output ABI read shape, ERC20 ABI drift, registration formatting, unregister, and scaffold/check/e2e/package/verify positive flow. |
+| Checker regression selftest | Done | `yarn vault:check:selftest` verifies critical blocking rules for invalid folder names, CA policy, duplicate bindings and duplicate binding-scoped addresses, external contract declarations and undeclared fixed contract targets, malformed/credentialed endpoint declarations, endpoint-prefix escapes, hidden relative/dynamic/credentialed fetches, symlinks, CommonJS `require(...)`, browser-global escapes, browser storage/navigation/worker/permission APIs, IPFS-style resources, invalid `IpfsImage` / `IpfsBackground` CIDs, controlled `NftMetadataImage` props, direct gateway image URLs, dynamic imports, multi-output ABI read shape, ERC20 ABI drift, registration formatting, unregister, and scaffold/check/e2e/package/verify positive flow. |
 | CI validation gate | Done | `.github/workflows/ci.yml` runs `yarn ci` on pull requests and pushes to `main`, including full built-in example E2E/package/verify and `dist/e2e/**` artifact upload. |
 | Preview route/API smoke | Done | `yarn preview:smoke` starts the built app and checks `/example`, `/dex-listed-example`, and `/action-gallery-example`. `yarn preview:smoke:real` covers `/community-buyback-example` and `/flapixel-example`, validates their host-presentation proxy responses, and is part of the default `yarn ci` regression spine. |
 | Generated package hygiene | Done | `dist/` is ignored by git; source zips are generated by package commands and CI instead of committed. |
@@ -290,7 +296,7 @@ It validates the package marker, package kind/version, runtime npm `gitHead` pro
 - Direct developer upload of runtime `component.mjs`.
 - Free-form website pages inside Vault package folders.
 - Treating a developer-local tx hash or wallet trace as strong proof that a future write transaction originated from the local UI. That stronger assurance requires a platform-controlled Playwright + wallet runner.
-- Agent-generated helper modules, assets, docs, or local data files inside Vault package folders.
+- Agent-generated helper modules, docs, or local data files inside Vault package folders; local assets are allowed only for reviewed Mini App top-level audio files.
 - Agent-generated preview shell/header chrome or duplicate host summary banners inside Vault package source.
 - Developer-declared action registry in `manifest.json`.
 - Developer-declared oracle config in `manifest.json`.
@@ -303,4 +309,4 @@ These are not blockers for the current MVP:
 
 - Add a deeper browser/hydration smoke test if this template starts accepting frequent UI shell changes.
 - Add a documented Workbench-side build contract once the Flap Artifact Workbench has a stable external artifact API.
-- Add future example Vaults only when they teach a workflow not covered by the current built-in fixtures, and only if they stay within the same strict four-file package boundary.
+- Add future example Vaults only when they teach a workflow not covered by the current built-in fixtures, and only if default examples stay within the same strict four-file package boundary.

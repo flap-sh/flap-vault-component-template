@@ -2,6 +2,7 @@ export * from "./contract";
 export * from "./erc20";
 export * from "./format";
 export * from "./hostRead";
+export * from "./hostPresentation";
 export * from "./hostRuntime";
 export * from "./hostRuntimeConfig";
 export * from "./oracle";

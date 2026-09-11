@@ -13,8 +13,17 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+### Security
+
+- Hardened `vault:check` against obfuscation bypasses of the line-regex layer with a new AST-based, constant-folding security pass. It now blocks: hardcoded addresses and external URLs assembled from `+`/`` `${}` ``/`Array.join`/`String.fromCharCode` fragments; aliased and indirect `eval` (`const e = eval`, `(0, eval)`); string-variable `setTimeout`/`setInterval` callbacks; computed `["constructor"]` and `Reflect.construct`/`Reflect.apply` escapes; `Reflect`/comma-operator indirect `fetch`; `React.createElement("iframe"/"script")` including concatenated tags; computed `["innerHTML"]`/`["outerHTML"]`/`["insertAdjacentHTML"]` writes; bare injected-provider identifiers (`ethereum`, `BinanceChain`, `tronWeb`, …) and dynamic-method wallet RPC; and typed browser-global aliasing (`const g: any = window`).
+- `i18n.json` string values are now scanned as a source surface: embedded `javascript:`/`data:`/`vbscript:` schemes, hardcoded addresses, and undeclared external URLs in locale strings are blocked (`endpoint-policy/undeclared-url`, `security/hardcoded-address`).
+- `vault:check:selftest` adds obfuscation-resistance fixtures covering each closed bypass plus benign-concatenation negative cases; all five built-in examples remain at zero blocking issues.
+- The Flap Artifact Workbench server-side gate re-runs the full `vault:check` on uploaded source; the same hardening was ported to its checker so these bypasses are caught at publish time, not just locally.
+
 ### Added
 
+- Added the `ExternalLink` UI component to `@/src/ui` and the published `@flapsdk/vault-runtime` `./ui` entry. It is the sanctioned way to link to a non-allowlisted external site: it intercepts the click, shows a bilingual (EN/ZH) third-party risk-warning dialog that displays the destination host, and opens the destination in a new tab (with `noopener`/`noreferrer`) only after the user acknowledges the risk. The dialog is responsive across PC/iPad/H5. New rule: except for allowlisted hosts (chain explorer, `x.com`), every external link must use `ExternalLink`; `vault:check` allows its static-HTTPS `url` prop and blocks dynamic/non-HTTPS/`javascript:`/`data:` urls as `navigation-policy/invalid-external-link`, while raw external anchors/`window.open` stay blocked and are directed to the component. Each valid `ExternalLink` destination is non-blocking but is recorded as an `info` `manual-review/external-link` item (surfaced in `review.externalLinks`) so the Flap Artifact Workbench lists every third-party destination for human review before publish. The warning dialog renders through a `document.body` portal at the top z-index layer so a developer's own component cannot overlay or hide it, and its `540px` max-width and `z-index` are applied as inline styles so they hold even in host environments whose Tailwind build does not emit the SDK's arbitrary-value classes. The dialog is restored pixel-faithful to the Flap design (Figma node 1196:9797): JetBrains Mono type, `#414141` frame with `#484b51` header divider on a `#070808` surface, the pixel-art warning glyph exported from Figma, `#a0a3a7` body copy, and rectangular `#84888c`-outlined Close / olive `#536600`→lime `#d0ff00` Continue buttons — replacing the previous host-`--primary` (purple) border, lucide triangle, and bevel-cornered buttons The dialog header row is given an explicit inline height so a host page's global line-height cannot inflate it (published in `@flapsdk/vault-runtime@0.1.18`).
+- Added `x.com` (and its subdomains, HTTPS only) to the external-link allowlist so Vault components can link to official X/Twitter pages via `href` or `window.open` (with `noopener`/`noreferrer`). Approved external-link hosts are allowed for user-facing links only, not as `fetch`/data endpoints; lookalike domains such as `evilx.com` remain blocked.
 - Added built-in shared-runtime support for the official `v2-pool-reserves` Flap Oracle, routing chain `56` to `oracle.taxed.fun` and chain `97` to `oracle-testnet.taxed.fun`.
 - Added `yarn vault:e2e <folder-name>` for V1 PC / iPad / H5 Playwright coverage across `default`, `internal-market`, `dex-listed`, and wrong-network preview states.
 - E2E reports are written to `dist/e2e/<folder-name>/qa-report.json`, with screenshots and traces kept as CI artifacts under `dist/e2e/**`.
@@ -29,6 +38,8 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Fixed
 
+- Bumped `agent-contract.json` to version `34` and rebuilt `errorCodes` from the checker's authoritative fix-hint table: removed ~31 phantom keys that no longer matched any emitted code (e.g. `security/eval` → `forbidden-api/eval`, `manifest/ca-policy-not-in-manifest` → `manifest-binding/ca-policy-not-in-manifest`), added the ~170 real codes that were missing, and corrected severities so `manual-review/action-stage-gating`, `risk-status/*`, and `visual-policy/row-heavy-dashboard` are recorded as blocking. Renamed the misleading `checkerWarnings` section (its entries are blocking checks).
+- Removed the project-specific `src/vaults/cz-burn-dividend-vault-v1` package that had leaked into the public template, and deregistered it from `src/vaults/index.ts`.
 - `vault:e2e` now starts the local preview with `yarn.cmd` on Windows and reports missing Playwright Chromium as machine-readable JSON with the `yarn playwright install chromium` fix hint.
 
 ## [0.1.9] - 2026-06-12
@@ -59,7 +70,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Added
 
-- Added a built-in display-only `bnb-usd-price` runtime oracle for BNB-to-USD conversion, using the same Binance `avgPrice` primary source and Pyth fallback strategy already used by `beta-multichain`.
+- Added a built-in display-only `bnb-usd-price` runtime oracle for BNB-to-USD conversion. It now uses Binance `avgPrice` exclusively and fails closed when Binance is unavailable.
 - Standardized the built-in `bnb-usd-price` response shape as `{ price: number, symbol: string, timestamp: number, source: string }` so Vault UI source packages can consume it through `sdk.readOracle("bnb-usd-price")` without declaring external endpoints.
 
 ### Changed

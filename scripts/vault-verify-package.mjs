@@ -5,15 +5,20 @@ import path from "node:path";
 import process from "node:process";
 import zlib from "node:zlib";
 import { failAgent } from "./agent-error.mjs";
+import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
   E2E_REPORT_PACKAGE_PATH,
+  MINI_APP_CAPABILITY_CONFIG_PATH,
+  isMiniAppAudioAssetName,
+  readPackageFileBuffer,
   summarizeE2EReportForMarker,
   validateE2EReportObject,
 } from "./e2e-report-utils.mjs";
+import { capabilityFileExtensions, isThreeR3FArtifact, manifestCapabilityIds } from "./mini-app-capabilities.mjs";
 import { collectE2EReportErc20TokenIssues, collectManifestErc20TokenIssues } from "./erc20-token-validation.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 4;
+const PACKAGE_FORMAT_VERSION = 6;
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const PACKAGE_METADATA_FILE = "package-metadata.json";
 const SCHEMA_FILE = "schemas/manifest.schema.json";
@@ -23,6 +28,7 @@ const RUNTIME_PACKAGE_NAME = "@flapsdk/vault-runtime";
 const RUNTIME_CONTRACT_VERSION = 1;
 const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const FOLDER_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MINI_APP_MODE = "mini-app";
 
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
@@ -173,11 +179,40 @@ function readJsonEntry(entries, entryName) {
   }
 }
 
-function expectedSourceFiles(folderName) {
-  return REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`);
+function expectedSourceFiles(folderName, names, manifest) {
+  const required = REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`);
+  const prefix = `src/vaults/${folderName}/`;
+  const capabilityExtensions = capabilityFileExtensions(manifest, process.cwd());
+  const hasCapabilities = isThreeR3FArtifact(manifest) && manifestCapabilityIds(manifest).length > 0;
+  const audioFiles = manifest?.mode === MINI_APP_MODE
+    ? names
+        .filter((name) => {
+          if (!name.startsWith(prefix)) return false;
+          const localName = name.slice(prefix.length);
+          return isMiniAppAudioAssetName(localName);
+        })
+        .sort()
+    : [];
+  const capabilityFiles = hasCapabilities
+    ? names.filter((name) => name.startsWith(prefix) && capabilityExtensions.has(path.extname(name).toLowerCase()))
+    : [];
+  return [...new Set([...required, ...audioFiles, ...capabilityFiles])].sort();
 }
 
-async function verifyPackage(zipPath) {
+function readCurrentPackageVersion() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version;
+  } catch (error) {
+    failVerify({
+      code: "package-verify/package-json-unreadable",
+      message: "Cannot read local package.json while checking current template package compatibility.",
+      fixHint: "Run yarn vault:verify-package from the flap-vault-ui-template repository root.",
+      extra: { detail: error instanceof Error ? error.message : String(error) },
+    });
+  }
+}
+
+async function verifyPackage(zipPath, { selfContained = false } = {}) {
   const absolutePath = path.resolve(zipPath);
   if (!fs.existsSync(absolutePath)) {
     failVerify({
@@ -256,8 +291,71 @@ async function verifyPackage(zipPath) {
   }
 
   if (!issues.length) {
-    const sourceFiles = expectedSourceFiles(folderName);
-    const expectedFiles = new Set([PACKAGE_MARKER_FILE, PACKAGE_METADATA_FILE, SCHEMA_FILE, E2E_REPORT_PACKAGE_PATH, ...sourceFiles]);
+    const manifestPath = `src/vaults/${folderName}/manifest.json`;
+    const manifest = entries.has(manifestPath) ? readJsonEntry(entries, manifestPath) : undefined;
+    const sourceFiles = expectedSourceFiles(folderName, names, manifest);
+    const expectedFiles = new Set([PACKAGE_MARKER_FILE, PACKAGE_METADATA_FILE, SCHEMA_FILE, MINI_APP_CAPABILITY_CONFIG_PATH, E2E_REPORT_PACKAGE_PATH, ...sourceFiles]);
+    if (!selfContained) {
+      const currentVersion = readCurrentPackageVersion();
+      const freshness = await assertTemplateFresh({ folderName });
+      const currentRuntimeGitHead = freshness.checks?.npm?.latestGitHead;
+      const currentSchemaSha256 = sha256(readPackageFileBuffer(path.join(process.cwd(), SCHEMA_FILE)));
+      const packageSchemaSha256 = entries.has(SCHEMA_FILE) ? sha256(entries.get(SCHEMA_FILE)) : undefined;
+      const currentCapabilitySha256 = sha256(readPackageFileBuffer(path.join(process.cwd(), MINI_APP_CAPABILITY_CONFIG_PATH)));
+      const packageCapabilitySha256 = entries.has(MINI_APP_CAPABILITY_CONFIG_PATH) ? sha256(entries.get(MINI_APP_CAPABILITY_CONFIG_PATH)) : undefined;
+
+      if (marker.templateVersion !== currentVersion) {
+        issues.push(
+          jsonIssue(
+            "package-verify/template-version-not-current",
+            `Package marker templateVersion mismatch: expected current template ${currentVersion}, got ${marker.templateVersion ?? "<missing>"}.`,
+            "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout.",
+            { file: PACKAGE_MARKER_FILE, expected: currentVersion, actual: marker.templateVersion },
+          ),
+        );
+      }
+      if (marker.runtimePackageVersion !== currentVersion) {
+        issues.push(
+          jsonIssue(
+            "package-verify/runtime-version-not-current",
+            `Package marker runtimePackageVersion mismatch: expected current runtime ${currentVersion}, got ${marker.runtimePackageVersion ?? "<missing>"}.`,
+            "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout.",
+            { file: PACKAGE_MARKER_FILE, expected: currentVersion, actual: marker.runtimePackageVersion },
+          ),
+        );
+      }
+      if (currentRuntimeGitHead && marker.runtimePackageGitHead !== currentRuntimeGitHead) {
+        issues.push(
+          jsonIssue(
+            "package-verify/runtime-git-head-not-current",
+            "Package marker runtimePackageGitHead does not match npm latest @flapsdk/vault-runtime provenance.",
+            "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout.",
+            { file: PACKAGE_MARKER_FILE, expected: currentRuntimeGitHead, actual: marker.runtimePackageGitHead },
+          ),
+        );
+      }
+      if (packageSchemaSha256 && packageSchemaSha256 !== currentSchemaSha256) {
+        issues.push(
+          jsonIssue(
+            "package-verify/schema-not-current",
+            "Packaged manifest schema does not match the current Workbench-supported template schema.",
+            "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout; do not edit schema files inside the zip.",
+            { file: SCHEMA_FILE, expected: currentSchemaSha256, actual: packageSchemaSha256 },
+          ),
+        );
+      }
+      if (packageCapabilitySha256 && packageCapabilitySha256 !== currentCapabilitySha256) {
+        issues.push(
+          jsonIssue(
+            "package-verify/capability-profile-not-current",
+            "Packaged Mini App capability profiles do not match the current template contract.",
+            "Regenerate the source package with the current template; do not edit capability profile files inside the zip.",
+            { file: MINI_APP_CAPABILITY_CONFIG_PATH, expected: currentCapabilitySha256, actual: packageCapabilitySha256 },
+          ),
+        );
+      }
+    }
+
     if (marker.sourcePackage !== `src/vaults/${folderName}`) {
       issues.push(jsonIssue("package-verify/source-package-mismatch", "Package marker sourcePackage does not match folderName.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
     }
@@ -271,7 +369,7 @@ async function verifyPackage(zipPath) {
     }
     for (const name of names) {
       if (!expectedFiles.has(name)) {
-        issues.push(jsonIssue("package-verify/unexpected-entry", `Unexpected package entry ${name}.`, "Keep source packages limited to the four Vault files, schema, metadata, and package marker.", { file: name }));
+        issues.push(jsonIssue("package-verify/unexpected-entry", `Unexpected package entry ${name}.`, "Keep source packages limited to the default Vault files, Mini App audio assets when allowed, schema, metadata, and package marker.", { file: name }));
       }
     }
 
@@ -280,14 +378,14 @@ async function verifyPackage(zipPath) {
       issues.push(
         jsonIssue(
           "package-verify/source-file-list-mismatch",
-          "Package marker requiredSourceFiles does not match the strict Vault file set.",
-          "Regenerate with yarn vault:package <folder-name> from a valid four-file Vault package.",
+          "Package marker requiredSourceFiles does not match the source package file set.",
+          "Regenerate with yarn vault:package <folder-name> from a valid Vault package.",
           { file: PACKAGE_MARKER_FILE },
         ),
       );
     }
 
-    const filesToHash = [...sourceFiles, SCHEMA_FILE, E2E_REPORT_PACKAGE_PATH];
+    const filesToHash = [...sourceFiles, SCHEMA_FILE, MINI_APP_CAPABILITY_CONFIG_PATH, E2E_REPORT_PACKAGE_PATH];
     for (const file of filesToHash) {
       if (!entries.has(file)) continue;
       const expectedHash = marker.fileSha256?.[file];
@@ -297,15 +395,22 @@ async function verifyPackage(zipPath) {
       }
     }
 
-    let manifest;
-    if (entries.has(`src/vaults/${folderName}/manifest.json`)) {
-      manifest = readJsonEntry(entries, `src/vaults/${folderName}/manifest.json`);
+    if (manifest) {
       if (manifest.artifactId !== marker.artifactId) {
         issues.push(jsonIssue("package-verify/artifact-id-mismatch", "Package marker artifactId does not match manifest.json.", "Regenerate with yarn vault:package <folder-name> from the current source.", { file: "manifest.json" }));
       }
+      if ((marker.mode ?? undefined) !== (manifest.mode ?? undefined)) {
+        issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker mode does not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
+      }
+      if (JSON.stringify(marker.capabilities ?? null) !== JSON.stringify(manifest.capabilities ?? null)) {
+        issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker capabilities do not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
+      }
+      if (JSON.stringify(marker.displayTitle ?? null) !== JSON.stringify(manifest.displayTitle ?? null)) {
+        issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker displayTitle does not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
+      }
       issues.push(
         ...(await collectManifestErc20TokenIssues(manifest, {
-          file: `src/vaults/${folderName}/manifest.json`,
+          file: manifestPath,
         })),
       );
     }
@@ -314,7 +419,7 @@ async function verifyPackage(zipPath) {
     if (entries.has(E2E_REPORT_PACKAGE_PATH)) {
       e2eReport = readJsonEntry(entries, E2E_REPORT_PACKAGE_PATH);
       const expectedE2EFileHashes = Object.fromEntries(
-        [...sourceFiles, SCHEMA_FILE].filter((file) => entries.has(file)).map((file) => [file, sha256(entries.get(file))]),
+        [...sourceFiles, SCHEMA_FILE, MINI_APP_CAPABILITY_CONFIG_PATH].filter((file) => entries.has(file)).map((file) => [file, sha256(entries.get(file))]),
       );
       validateE2EReportObject(e2eReport, {
         folderName,
@@ -350,6 +455,9 @@ async function verifyPackage(zipPath) {
         metadata.runtimePackageVersion !== marker.runtimePackageVersion ||
         metadata.runtimePackageGitHead !== marker.runtimePackageGitHead ||
         metadata.runtimeContractVersion !== marker.runtimeContractVersion ||
+        (metadata.mode ?? undefined) !== (marker.mode ?? undefined) ||
+        JSON.stringify(metadata.capabilities ?? null) !== JSON.stringify(marker.capabilities ?? null) ||
+        JSON.stringify(metadata.displayTitle ?? null) !== JSON.stringify(marker.displayTitle ?? null) ||
         JSON.stringify(metadata.e2e) !== JSON.stringify(marker.e2e)
       ) {
         issues.push(
@@ -391,20 +499,35 @@ async function verifyPackage(zipPath) {
     artifactId: marker.artifactId,
     sha256: sha256(buffer),
     entries: names,
+    selfContained,
     message: "Source package marker, file list, metadata, and hashes are valid.",
   };
 }
 
+function parseCliArgs(argv) {
+  const selfContained = argv.includes("--self-contained");
+  const unknownFlag = argv.find((arg) => arg.startsWith("--") && arg !== "--self-contained");
+  const packagePath = argv.find((arg) => !arg.startsWith("--"));
+  return { selfContained, unknownFlag, packagePath };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const packagePath = process.argv[2];
+  const { selfContained, unknownFlag, packagePath } = parseCliArgs(process.argv.slice(2));
+  if (unknownFlag) {
+    failVerify({
+      code: "cli/unknown-option",
+      message: `Unknown option: ${unknownFlag}`,
+      fixHint: "Use yarn vault:verify-package dist/<folder-name>.zip, or add --self-contained only for historical package forensics.",
+    });
+  }
   if (!packagePath) {
     failVerify({
       code: "cli/missing-package-path",
-      message: "Usage: yarn vault:verify-package dist/<folder-name>.zip",
+      message: "Usage: yarn vault:verify-package dist/<folder-name>.zip [--self-contained]",
       fixHint: "Run yarn vault:package <folder-name>, then pass the generated sourcePackagePath.",
     });
   }
-  console.log(JSON.stringify(await verifyPackage(packagePath), null, 2));
+  console.log(JSON.stringify(await verifyPackage(packagePath, { selfContained }), null, 2));
 }
 
 export { verifyPackage };

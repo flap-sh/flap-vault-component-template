@@ -208,14 +208,21 @@ export interface ManifestExternalContract {
 
 export type VaultManifestLayout = "fullscreen";
 export type VaultManifestMode = "mini-app";
+export type VaultManifestCapability = "three-r3f-v1";
+export interface VaultManifestDisplayTitle {
+  zh: string;
+  en: string;
+}
 
 export interface VaultManifest {
   artifactId: string;
   name: string;
+  displayTitle?: VaultManifestDisplayTitle;
   match: {
     bindings: ManifestBindingEntry[];
   };
   mode?: VaultManifestMode;
+  capabilities?: VaultManifestCapability[];
   layout?: VaultManifestLayout;
   endpoints?: EndpointPolicy;
   i18n: string[];
@@ -265,6 +272,37 @@ export interface OracleReadRequest {
 
 export type OracleReader = <T = unknown>(request: OracleReadRequest) => Promise<T>;
 
+export type NftMetadataSource = "data-json" | "ipfs" | "https";
+
+export interface NftMetadataAttribute {
+  trait_type?: string;
+  display_type?: string;
+  value: string | number | boolean | null;
+}
+
+export interface NftMetadataSnapshot {
+  tokenUri: string;
+  source: NftMetadataSource;
+  name?: string;
+  description?: string;
+  attributes?: NftMetadataAttribute[];
+  imageDataUrl: string;
+  imageMediaType: string;
+}
+
+export interface NftMetadataReadRequest {
+  tokenId: bigint;
+}
+
+export interface NftMetadataReaderRequest extends NftMetadataReadRequest {
+  chainId: number;
+  nftAddress: Address;
+  tokenUri: string;
+  context: VaultRuntimeContext;
+}
+
+export type NftMetadataReader = (request: NftMetadataReaderRequest) => Promise<NftMetadataSnapshot>;
+
 export interface CreateVaultRuntimeContextInput {
   manifest: VaultManifest;
   connectedChainId?: number;
@@ -281,10 +319,26 @@ export interface ContractReadRequest {
   args?: unknown[];
   /** Optional call account for view functions that depend on msg.sender. */
   account?: Address;
+  /** Optional legacy gas price used as the eth_call transaction context. */
+  gasPrice?: bigint;
+}
+
+export interface ContractEventRequest {
+  /** Optional human-readable label for the target contract. */
+  contract?: string;
+  address: Address;
+  abi: Abi;
+  eventName: string;
+  args?: Record<string, unknown> | readonly unknown[];
+  fromBlock: bigint;
+  toBlock?: bigint | "latest";
+  strict?: boolean;
 }
 
 export interface ContractWriteRequest extends ContractReadRequest {
   value?: bigint;
+  /** Optional gas limit. The runtime rejects values above its component safety ceiling. */
+  gas?: bigint;
 }
 
 export interface SimulateResult {
@@ -330,11 +384,18 @@ export interface FlapVaultSdk {
   i18n: FlapI18n;
   notify: FlapNotify;
   wallet: FlapWallet;
+  /** Returns the current legacy gas-price suggestion for the runtime chain. */
+  getGasPrice(): Promise<bigint>;
+  /** Returns the latest block number visible to the runtime chain client. */
+  getBlockNumber(): Promise<bigint>;
+  /** Reads bounded, provider-friendly contract event ranges. */
+  getContractEvents<T = unknown>(request: ContractEventRequest): Promise<T[]>;
   readContract<T = unknown>(request: ContractReadRequest): Promise<T>;
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;
   waitForTx(hash: Address): Promise<TxReceipt>;
   readOracle<T = unknown>(oracleId: string, params?: Record<string, string>): Promise<T>;
+  readNftMetadata(request: NftMetadataReadRequest): Promise<NftMetadataSnapshot>;
   /**
    * Triggers a reload by incrementing `refetchNonce`. Components that want
    * automatic reloads should include `sdk.refetchNonce` in their effect deps.

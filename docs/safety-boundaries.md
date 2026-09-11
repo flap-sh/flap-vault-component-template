@@ -8,7 +8,8 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Hidden transaction target.
 - Hardcoded EVM addresses in Vault source unless the address is a binding-scoped factory/token/Vault reference or an explicitly declared `match.bindings[].externalContracts` target.
 - SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`.
-- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image CID that resolves to `image/*` through an allowed Flap IPFS gateway.
+- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. `IpfsImage` may append a safe relative path; dynamic paths require a static `validationPath` sample. The checker validates this contract statically without per-image network probes.
+- Component-owned NFT SDK/ABI/address/metadata resolution. Vault V2 media must use `NftMetadataImage` with token id; it consumes shared SDK context internally and the runtime owns `Vault.nft()` plus `NFT.tokenURI()` ABI calls. Direct `tokenURIBase` concatenation, dynamic metadata fetches, caller-supplied sdk/ABI/nftAddress/tokenURI/endpoints/src/imageUrl, and arbitrary metadata image rendering are blocked.
 - Host-relative endpoint calls such as `fetch("/api/...")`.
 - Runtime remote import.
 - Dynamic import expression.
@@ -19,15 +20,16 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Browser-global member access except safe timer APIs and reviewed explorer-only `window.open`.
 - Browser navigation APIs such as arbitrary `window.open`, bare `open(...)`, `location`, or `history` mutation. `window.open` is allowed only for current-chain explorer address/transaction URLs with `noopener` or `noreferrer`.
 - Worker and cross-context APIs such as `Worker`, `SharedWorker`, `navigator.serviceWorker`, `BroadcastChannel`, `postMessage`, or message event listeners.
-- Browser permission APIs such as `navigator.clipboard`, `navigator.geolocation`, `navigator.permissions`, or `Notification`.
+- All clipboard access and programmatic copy paths, including `navigator.clipboard`, `document.execCommand("copy")`, `ClipboardItem`, aliases, and string-indexed or variable-indexed computed browser-global access. Render the value only; the host owns copy actions.
+- Browser permission APIs such as `navigator.geolocation`, `navigator.permissions`, or `Notification`.
 - Raw iframe, iframe `srcDoc`, direct HTML replacement, or script injection, including `document.write`, `document.writeln`, `document.open`, `document.close`, `innerHTML`, `outerHTML`, and `insertAdjacentHTML`.
 - Unsafe inline SVG JSX, including script-capable or mixed-content nodes, event attributes, `foreignObject`, `image`, `use`, external URLs, non-local `url(...)`, `style` `url(...)` / `@import`, `href` / `src` except static local fragments, and spread attributes.
 - `eval`, string-based timer callbacks, the `Function` constructor, or constructor-based scope escapes.
 - Unapproved dependencies.
 - Additional SDK packages or SDK-like wrappers beyond the shared `@/src/sdk` and `@/src/ui` surfaces.
 - Missing i18n.
-- Remote image URLs inside Vault source. Immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid` and pass `vault:check`.
-- Arbitrary external navigation or hardcoded off-site jumps that are not the current chain explorer.
+- Remote image URLs inside Vault source. Immutable Vault-specific images must use controlled `IpfsImage cid/path` or CID-only `IpfsBackground` and pass `vault:check`.
+- Arbitrary external navigation or hardcoded off-site jumps (raw anchors, `window.open`, `location`) that are not the current chain explorer or an approved external-link host (currently `x.com` and its subdomains, HTTPS only). Every other external link must use the `ExternalLink` component from `@/src/ui` instead. Approved external-link hosts and `ExternalLink` are for user-facing links only, not as `fetch`/data endpoints.
 - Contract reads/writes, event watches, log/filter calls, or gas estimates to unrelated contracts such as routers, bridges, aggregators, or other app contracts outside the Vault/token/NFT/factory/declaration boundary.
 - Direct calls to dynamic module contracts such as wrap factories, routers, dividend distributors, staking wrappers, or trigger helpers when the same workflow can be exposed as Vault UI-facing views or public proxy actions on `context.vaultAddress`.
 - Operator/admin configuration methods such as `setConfig`, `setSwapPath`, and `setSplit` exposed from `Component.tsx`.
@@ -41,18 +43,26 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 
 ## Allowed
 
+### Versioned Mini App 3D exception
+
+A mode-less 7777 Vault UI or a token-scoped Mini App using only 7777 or only 8888 bindings may declare `capabilities: ["three-r3f-v1"]` and use the pinned Three/R3F imports and reviewed local assets. Mode-less 7777 keeps default risk-status, shell, audio, layout, and displayTitle restrictions; Mini App keeps token-only and same-suffix binding rules. This exception does not permit arbitrary npm packages, remote assets, network, wallet, storage, navigation, workers, or new contract targets.
+
+Three r185 is WebGL2-first. `webgl1` in `data-flap-3d-renderer` is an explicit low-spec fallback contract, not a promise that the r185 scene renders unchanged; a controlled WebGL1 implementation, 2D canvas, or static fallback is acceptable when WebGL2 is unavailable.
+
 - Local React state.
 - Small pure functions inside `Component.tsx`.
 - Local small components inside `Component.tsx`.
 - Component-scoped `<canvas>` surfaces that draw from local React state and Flap SDK/host data through a React ref. Keep required risk status ahead of large canvas visuals and keep canvas inside the Vault business panel rather than turning the package into a whiteboard/editor.
 - CSS/HTML card shapes and `lucide-react` icons before ad hoc SVG; search the official Lucide icon library first at `https://lucide.dev/icons/`. Handwritten inline SVG JSX is allowed only for static pure graphic nodes such as `svg`, `path`, `circle`, `rect`, and gradients with local fragment references.
+- User-facing links to non-allowlisted external sites through the `ExternalLink` component from `@/src/ui`. It intercepts the click, requires the user to acknowledge the third-party risk before opening the destination in a new tab, and runtime-validates the final destination as an absolute HTTPS URL without credentials. Static `ExternalLink` destinations are surfaced as `info` `manual-review/external-link` items and listed in the Flap Artifact Workbench for human review before publish.
 - Flap SDK contract reads/writes.
 - Reading Flap-provided `context.host` values for token info, parsed tax info, VaultPortal info, fee mode, render surface, and registry-selected Vault type.
 - `sdk.readOracle(...)` only when the Flap Artifact Workbench/runtime can review and provision the oracle id.
 - SDK contract writes using runtime context addresses such as `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress`, plus token/NFT addresses derived from runtime context or Vault reads and fixed targets declared in `match.bindings[].externalContracts`.
 - UI-facing Vault views and public proxy actions called through `context.vaultAddress`, including read-only state helpers and gated resolve/claim/deposit flows. Keep router/wrap/dividend/staking internals behind the Vault contract.
 - Explorer links through `context.explorerBaseUrl`, `AddressLink`, `sdk.openExplorerTx(...)`, or reviewed `window.open` calls that target `context.explorerBaseUrl` address/transaction URLs with `noopener` or `noreferrer`.
-- Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images may use only `IpfsImage` or `IpfsBackground` with a static image CID verified through the allowed Flap IPFS gateways.
+- Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images may use only `IpfsImage` or `IpfsBackground` with a static image/directory CID. Dynamic NFT paths are allowed only on `IpfsImage` with a static validation sample.
+- Vault V2 NFT art through `NftMetadataImage`, which reads `Vault.nft()` and `NFT.tokenURI(tokenId)` through runtime-owned minimal ABIs and returns only runtime-validated media after inline JSON parsing or host-proxied IPFS/HTTPS resolution.
 - One display-only `ReviewedFrame` chart from `@/src/ui` only when the exact static provider URL is declared in `manifest.externalFrames` and approved by Flap review.
 
 Declared non-oracle endpoints are review candidates, not automatic approvals. Avoid them by default. If a special non-oracle endpoint is unavoidable, it must be declared in the manifest and reviewed by Flap before publish. Endpoint URLs must not include username/password credentials. A declaration covers only the exact URL path or child paths on the same origin, never sibling paths or lookalike hosts. Direct `fetch(...)` calls must use static absolute HTTPS targets covered by that declaration. Oracle usage is detected by `vault:check` and provisioned outside the manifest. Anything not declared or provisioned is rejected.
@@ -74,4 +84,21 @@ Allowed only through Flap-controlled runtime/media policy:
 - token logo from Flap metadata
 - NFT metadata image through approved media handling
 - Flap official static asset
-- `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image CID verified by `vault:check`
+- `IpfsImage` with a static image/directory CID and optional controlled path, or CID-only `IpfsBackground`, verified by `vault:check`
+
+## Obfuscation Resistance
+
+The blocking checks are AST-based with constant folding, not only line-level regexes. These do not bypass the checks:
+
+- Splitting a value across `+`, template `${}`, `Array.join`, or `String.fromCharCode` to assemble a hardcoded address or external URL.
+- Aliasing a global (`const e = eval`, `const g: any = window`) or using the comma operator (`(0, eval)`, `(0, fetch)`).
+- Computed member access such as `x["innerHTML"]`, `["constructor"]`, `Reflect.construct`, or a dynamically built wallet RPC method.
+- Clipboard paths assembled through aliases or computed members, such as `window["navi" + "gator"]["clip" + "board"]`.
+- `React.createElement("iframe" | "script")`, including concatenated tag strings.
+- Bare injected-provider identifiers (`ethereum`, `BinanceChain`, `tronWeb`, …).
+
+Hardcoded addresses, unsafe schemes, and undeclared URLs are also detected inside `i18n.json` string values, because component code can consume those strings as `href`, `src`, or a transaction target.
+
+## Verification Boundary
+
+`yarn vault:verify-package` checks source-package format and integrity only — the marker, kind/version, exact file list, metadata, and SHA-256 hashes. It is not the security decision and does not re-run `vault:check`. The Flap Artifact Workbench is the authoritative gate: on upload it re-runs the full `vault:check` on the actual submitted source before publish, so it never trusts the packaged marker's recorded check result. Passing `verify-package` locally does not imply the source is publishable; zero blocking `vault:check` issues on the real source is still required.

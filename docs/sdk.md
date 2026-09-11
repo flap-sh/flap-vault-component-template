@@ -2,6 +2,8 @@
 
 The component should depend on the SDK contract, not on private `flap.sh` internals.
 
+The template supports Vault V2-standard NFT image display.
+
 ## Hooks
 
 ```ts
@@ -12,6 +14,9 @@ import { useFlapSdk, useVaultContext, useFlapI18n, useFlapNotify, useFlapWallet 
 
 ```ts
 sdk.readContract<T>(request)
+sdk.getGasPrice()
+sdk.getBlockNumber()
+sdk.getContractEvents<T>(request)
 sdk.simulateContract(request)
 sdk.writeContract(request)
 sdk.waitForTx(hash)
@@ -22,6 +27,49 @@ sdk.openExplorerTx(hash)
 ```
 
 `sdk.readContract(...)` accepts an optional `account` field. Use it when a view function depends on `msg.sender`, for example `sdk.readContract({ contract: "vault", address: context.vaultAddress, abi: vaultAbi, functionName: "myInfo", account: context.userAddress })`.
+
+Use `sdk.getBlockNumber()` and `sdk.getContractEvents(...)` for historical contract-event UI. Event requests require `address`, `abi`, `eventName`, and `fromBlock`; `args`, `toBlock`, and `strict` are optional. The runtime resolves `toBlock: "latest"` once, limits one call to a 20,000-block lookback, and splits it into provider-friendly ranges whose `toBlock - fromBlock` is at most 1,000 with at most four RPC requests in flight. Results preserve ascending block-range order. Keep longer history behind pagination or an indexed host service instead of repeatedly scanning an unbounded chain range.
+
+```ts
+const latestBlock = await sdk.getBlockNumber();
+const fromBlock = latestBlock > 20_000n ? latestBlock - 20_000n : 0n;
+const events = await sdk.getContractEvents({
+  address: context.vaultAddress,
+  abi: vaultAbi,
+  eventName: "RoundComputed",
+  args: { attemptId },
+  fromBlock,
+  toBlock: latestBlock,
+});
+```
+
+Do not use raw `eth_getLogs`, `getLogs`, `watchContractEvent`, or a component-owned RPC endpoint for this path. The host-provided SDK client is the source of truth and applies the shared provider limits.
+
+For a legacy transaction whose contract quote depends on `tx.gasprice`, read one current value with `sdk.getGasPrice()` and pass that exact `gasPrice` through the quote read, simulation, and write. `readContract(...)` forwards `gasPrice` as the `eth_call` transaction context; `simulateContract(...)` and `writeContract(...)` forward both optional `gasPrice` and `gas` fields. Do not use unrelated fixed gas-price tables for a live quote.
+
+```ts
+const gasPrice = await sdk.getGasPrice();
+const nativeFee = await sdk.readContract<bigint>({
+  contract: "vault",
+  address: context.vaultAddress,
+  abi: vaultAbi,
+  functionName: "quoteNativeFee",
+  gasPrice,
+});
+
+const request = {
+  contract: "vault",
+  address: context.vaultAddress,
+  abi: vaultAbi,
+  functionName: "execute",
+  value: nativeFee,
+  gasPrice,
+};
+await sdk.simulateContract(request);
+const hash = await sdk.writeContract(request);
+```
+
+Explicit write overrides are opt-in and guarded by the runtime. `gasPrice` must be positive and no more than two times the current network suggestion; `gas`, when supplied, must be positive and no more than 5,000,000. A component should normally omit `gas` so the wallet can estimate it. These fields describe transaction execution; they do not replace the native `value` required by a contract for VRF or other protocol fees.
 
 ABI methods with multiple return values are tuple arrays at runtime. Even if the ABI names the outputs, `returns (uint256 currentPool, uint256 totalReceived)` should be read as `readonly [currentPool: bigint, totalReceived: bigint]`, then mapped into object-shaped UI state if that is easier to render. Do not type a multi-output `sdk.readContract` call as an object interface. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
 
@@ -39,7 +87,7 @@ import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
 </VaultRuntimeProvider>
 ```
 
-`createLocalOracleReader()` targets the same-origin runtime proxy at `/api/runtime/oracle/{oracleId}`. In this template, local preview now ships with built-in runtime defaults for `example-reward-oracle`, the display-only `bnb-usd-price` price oracle, and the official `v2-pool-reserves` Flap Oracle path. `bnb-usd-price` returns `{ price: number, symbol: string, timestamp: number, source: string }` for BNB-to-USD display conversion. `v2-pool-reserves` forwards `{ pool }` to the mainnet or testnet Flap Oracle endpoint based on the current runtime `chainId`. If a host/runtime needs to override an oracle id with a reviewed upstream URL, it should register that in the host integration layer rather than exposing endpoint config to Vault authors. The older `context.extraConfig.oracleEndpoints` map remains a legacy preview fallback only. Source package validation accepts built-in runtime oracle ids only; registry-only ids remain blocking so template packages cannot pass locally and then fail in Workbench production.
+`createLocalOracleReader()` targets the same-origin runtime proxy at `/api/runtime/oracle/{oracleId}`. In this template, local preview now ships with built-in runtime defaults for `example-reward-oracle`, the display-only `bnb-usd-price` price oracle, the official `v2-pool-reserves` Flap Oracle path, and the `x-verifier` Gift Vault proof relay. `bnb-usd-price` returns `{ price: number, symbol: string, timestamp: number, source: string }` for BNB-to-USD display conversion. `v2-pool-reserves` forwards `{ pool }` to the mainnet or testnet Flap Oracle endpoint based on the current runtime `chainId`. `x-verifier` accepts `{ tax_token, tweet_id }` params and the runtime posts them to the reviewed X proof relay. If a host/runtime needs to override an oracle id with a reviewed upstream URL, it should register that in the host integration layer rather than exposing endpoint config to Vault authors. The older `context.extraConfig.oracleEndpoints` map remains a legacy preview fallback only. Source package validation accepts built-in runtime oracle ids only; registry-only ids remain blocking so template packages cannot pass locally and then fail in Workbench production.
 
 For the same-origin runtime proxy, reviewed oracle ids can be previewed with `FLAP_RUNTIME_ORACLE_REGISTRY`. The value is a JSON object keyed by oracle id:
 
@@ -99,6 +147,34 @@ import { erc20Abi, standardErc20Abi } from "@/src/sdk";
 Use it for normal token reads and approvals such as `balanceOf`, `allowance`, `approve`, `decimals`, `symbol`, `transfer`, and `transferFrom`.
 
 Do not copy standard ERC20 ABI fragments into `src/vaults/{folder-name}/VaultABI.ts`. Only add token ABI fragments there when a token has custom non-standard methods or special mechanics.
+
+## Utilities
+
+The public `@/src/sdk` barrel also exports pure formatting, tx-error, IPFS, and oracle-helper utilities that Vault components can import directly:
+
+```ts
+import {
+  formatTokenAmount,
+  parseTokenAmount,
+  formatPercentBps,
+  formatCountdown,
+  shortenAddress,
+  getTxErrorKind,
+  handleTxError,
+  isIpfsImageCid,
+  resolveIpfsImageUrl,
+  resolveIpfsImageUrls,
+  buildLocalOracleUrl,
+  fetchOracleJson,
+  fetchProvisionedOracle,
+  createLocalOracleReader,
+} from "@/src/sdk";
+```
+
+- Formatting: `formatTokenAmount` / `parseTokenAmount` convert between display strings and on-chain `bigint` amounts, `formatPercentBps` renders basis points as a percent, `formatCountdown` renders a remaining-time value, and `shortenAddress` renders a truncated address.
+- Tx errors: `getTxErrorKind` classifies a caught error into a `TxErrorKind`, and `handleTxError` maps it to a user-facing notification path. Prefer these over ad hoc string matching on wallet/RPC errors.
+- IPFS: `isIpfsImageCid` validates an image/directory CID, `normalizeIpfsImagePath` validates a safe relative path, and `resolveIpfsImageUrl` / `resolveIpfsImageUrls` resolve the CID plus optional path to allowed Flap gateway URLs. Vault-specific media should render through controlled `IpfsImage` / `IpfsBackground` from `@/src/ui`.
+- Oracle: `createLocalOracleReader`, `buildLocalOracleUrl`, `fetchOracleJson`, and `fetchProvisionedOracle` back the runtime oracle provisioning path described above.
 
 ## i18n
 
@@ -162,7 +238,34 @@ import { IpfsImage } from "@/src/ui";
 />
 ```
 
-The CID must be the image CID, not a metadata CID. If an image must be pinned through Flap instead of a personal Pinata gateway, use the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) outside the Vault package. The `https://funcs.flap.sh/api/upload` `create(file, meta)` response `data.create` is the metadata CID used for Portal launch `meta`; read that metadata JSON and extract the `image` field before using `IpfsImage` or `IpfsBackground`. Strip any gateway URL or `ipfs://` prefix before using the value. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic expression. `vault:check` verifies the static CID resolves as `image/*` through the allowed Flap IPFS gateways.
+The CID must be an image CID or an uploaded collection-directory CID, not a metadata CID. If an NFT collection is pinned as one IPFS directory, keep `cid` static and select the file with a relative `path`:
+
+```tsx
+<IpfsImage
+  cid="bafy...collection-directory-cid"
+  path={`nfts/${tokenId.toString()}.png`}
+  validationPath="nfts/1.png"
+  alt={i18n.t("media.nftAlt")}
+/>
+```
+
+`validationPath` is required only when `path` is dynamic; it names one real representative image that `vault:check` probes before packaging. Static `path="nfts/1.png"` is probed directly and must not include `validationPath`. Paths are limited to relative alphanumeric/`.`/`_`/`-`/`~` segments with `/` separators; traversal, query strings, hashes, schemes, encoded escapes, leading/trailing slashes, and empty segments resolve to no image. `IpfsBackground` remains CID-only.
+
+### Vault V2 NFT metadata
+
+Use `NftMetadataImage` for the universal Vault V2 image path. The caller does not supply an SDK prop, ABI, or NFT address:
+
+```tsx
+import { NftMetadataImage } from "@/src/ui";
+
+<NftMetadataImage tokenId={tokenId} alt={i18n.t("media.nftAlt")} />
+```
+
+The component consumes `useFlapSdk()` internally and calls `sdk.readNftMetadata({ tokenId })`. The SDK first reads `Vault.nft()` from `context.vaultAddress`, then reads `NFT.tokenURI(tokenId)`, using runtime-owned minimal ABIs for both calls. Mode 0/1 `data:application/json` metadata is decoded locally; mode 2 IPFS/HTTPS JSON and any external image bytes use the host-owned `/api/runtime/nft-metadata` resolver. The returned `NftMetadataSnapshot` contains sanitized `name`, `description`, up to 100 primitive attributes, `source`, `imageMediaType`, and a validated `imageDataUrl`.
+
+Do not add `nft()` or `tokenURI()` to project `VaultABI.ts` only for media, call `Vault.tokenURIFor`, inspect `tokenURIBase`, or concatenate `tokenId + ".json"` in UI source. Do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, or spread props to `NftMetadataImage`. The runtime caches the Vault NFT address and each `chainId + vaultAddress + tokenId` result per refetch generation, and limits metadata work to six concurrent items; collection UIs must still paginate or mount only their visible token ids.
+
+If an image must be pinned through Flap instead of a personal Pinata gateway, use the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) outside the Vault package. The `https://funcs.flap.sh/api/upload` `create(file, meta)` response `data.create` is the metadata CID used for Portal launch `meta`; read that metadata JSON and extract the `image` field before using `IpfsImage` or `IpfsBackground`. Strip any gateway URL or `ipfs://` prefix before using the value. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic CID. `vault:check` validates the CID/path contract statically without per-image gateway availability probes.
 
 ## Taxinfo Host Context
 
@@ -213,27 +316,11 @@ In local preview, token metadata and token lifecycle are separate concerns:
 - To override lifecycle state intentionally, pass `marketPhase`, `isListed`, `status`, or `tokenStatusCode`.
 - If you pass `taxInfo=1` with a valid `tokenAddress`, the preview host seeds an existing-token taxinfo surface only when no real chain host data is available or when you intentionally want fixture data.
 
-For host/runtime integrations, the public SDK also exports the chain-read helpers used by preview:
-
-```ts
-import {
-  createLocalHostPresentationFetcher,
-  loadTokenRuntimeSnapshot,
-  readErc20TokenMetadata,
-  runHostRuntime,
-} from "@/src/sdk";
-
-const metadata = await readErc20TokenMetadata(publicClient, tokenAddress);
-const snapshot = await loadTokenRuntimeSnapshot(publicClient, chainId, tokenAddress);
-const runtime = await runHostRuntime({
-  publicClient,
-  chainId,
-  tokenAddress,
-  presentationFetcher: createLocalHostPresentationFetcher(),
-});
-```
+The preview shell and production host resolve this snapshot with chain-read helpers such as `readErc20TokenMetadata(...)`, `loadTokenRuntimeSnapshot(...)`, `runHostRuntime(...)`, and `createLocalHostPresentationFetcher(...)`. These are host/runtime-side helpers defined in the runtime package, not part of the Vault-importable `@/src/sdk` surface. A Vault Component must not import them from `@/src/sdk`; it consumes the already-resolved result through `context.host` and `readTaxVaultHostContext(context.host)`. Host/runtime integrations that need those helpers import them from the shared runtime `host` export (`@flapsdk/vault-runtime/host`), never from Vault source.
 
 `readErc20TokenMetadata(...)` reads ERC20 `symbol()` / `name()` directly from chain. `loadTokenRuntimeSnapshot(...)` reuses the same public chain-read path as preview: ERC20 metadata plus, on supported chains, `Portal.getTokenV7`, helper tax info, VaultPortal info, and a normalized `host` snapshot. `runHostRuntime(...)` adds the full-host/on-chain/unavailable policy layer on top, and `createLocalHostPresentationFetcher()` is the preview-side adapter that resolves host-owned token presentation through the same-origin runtime proxy.
+
+Robinhood Testnet chain `46630` is supported by these host/runtime helpers starting in `@flapsdk/vault-runtime@0.1.23`. Its host config uses the flap.sh `robinhood-testnet` slug plus the deployed Portal, tax helper, VaultPortal, wrapped native token, explorer, and network label. Standard Robinhood manifest/E2E proof tokens are listed in `docs/robinhood-testnet.md`.
 
 For action gating, import the stage helper from the SDK:
 
@@ -250,14 +337,12 @@ Do not hide a supported action only because the token is in the wrong phase. Ren
 
 Wrong-network gating is separate from market-phase gating. If a component can write on only one chain, keep the write section visible, disable the write path when `sdk.wallet.isWrongNetwork === true`, and offer a clear switch-network state through `sdk.wallet.switchChain()`.
 
-The SDK exports pure helpers for the host/runtime side:
+The runtime side owns the pure parsing/resolution helpers that mirror Flap's stable taxinfo/feeinfo shape, for example:
 
-```ts
+```plain text
 parsePortalTokenInfo(rawGetTokenV7)
 parseTaxTokenInfo(rawTaxInfo, rawTaxInfoV2, options)
 parseVaultPortalInfo(rawTryGetVault)
-resolveTokenMarketPhase(tokenInfo)
-isActionAvailableForPhase(stage, marketPhase)
 resolveFeeMode(taxInfo, giftVaultFactory)
 isManifestRuntimeMatch(manifest, runtime)
 createTaxInfoHostContext(input)
@@ -265,7 +350,7 @@ readErc20TokenMetadata(publicClient, tokenAddress)
 loadTokenRuntimeSnapshot(publicClient, chainId, tokenAddress)
 ```
 
-These helpers mirror Flap's stable taxinfo/feeinfo parsing shape while keeping chain registry data and private configuration outside the public template. Custom Vault source should still import only `@/src/sdk`, `@/src/ui`, and `./VaultABI`.
+These are host/runtime-side helpers. They are NOT re-exported by the Vault-facing `@/src/sdk` barrel, so a Vault Component cannot import them from `@/src/sdk`; any example that does will not compile. From the Vault-importable surface, only the phase helpers `resolveTokenMarketPhase(tokenInfo)` and `isActionAvailableForPhase(stage, marketPhase)` (plus `readTaxVaultHostContext(context.host)`) are available. The parsing helpers keep chain registry data and private configuration outside the public template and live in the shared runtime package for hosts to import from `@flapsdk/vault-runtime/host`. Custom Vault source should still import only `@/src/sdk`, `@/src/ui`, and `./VaultABI`, and consume host state through `context.host` + `readTaxVaultHostContext(context.host)`.
 
 Local preview includes a right-side "Token phase self-test" panel. `Real` restores the live host phase resolved from `chainId + tokenAddress`; `Internal` and `Listing` apply temporary local overrides without editing code or depending on an external SDK. `unknown` remains a runtime value and can still appear in readout when host data is missing, but it is no longer a primary phase tab.
 

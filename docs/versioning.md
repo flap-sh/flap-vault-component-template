@@ -7,7 +7,9 @@ This template has four compatibility surfaces:
 3. `flap-vault-package.json` package format for Flap Artifact Workbench intake.
 4. `dist/vault-runtime/runtime-contract.json` for the shared runtime package extraction contract.
 
-The root `package.json` version is also the local template/runtime package version. Local validation first requires local `HEAD` to exactly match latest `origin/main`, then checks the version against npm latest `@flapsdk/vault-runtime` and verifies that the local git history contains the npm latest package's published `gitHead`. A behind, ahead, or diverged checkout, a checkout with a lower version, or a manually edited version string without the matching source commit is blocked before `vault:check`, `build`, `runtime:package`, or `vault:package` can succeed.
+The root `package.json` version is also the local template/runtime package version. As its first step, `vault:package` runs the complete Git/npm freshness preflight, fetches the official template, and automatically fast-forwards a checkout that is only behind `origin/main`, while preserving non-conflicting local Vault work; conflicts, ahead branches, and diverged branches stop without discarding changes. If npm becomes newer during that preflight, the command re-fetches `origin/main` before deciding the checkout is stale. When npm latest points to a source commit that is not yet available on `origin/main`, the machine-readable `template-freshness/npm-outdated` result marks `releaseSyncPending: true` and tells the developer to wait for the maintainer to finish the release instead of editing the local version. The latest package script otherwise requires local `HEAD` to exactly match `origin/main`, checks the version against npm latest `@flapsdk/vault-runtime`, and verifies that local git history contains the npm latest package's published `gitHead`. A checkout with a lower version or a manually edited version string without the matching source commit is blocked before `vault:check`, `build`, `runtime:package`, or `vault:package` can succeed.
+
+Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exists only for pre-merge consumer testing: it requires clean committed source, generates `<base>-canary.<gitHead>` with `private: true`, verifies and npm-packs it under `dist/npm`, and records the tarball SHA-256. It must never be published or used as the package provenance in a Vault source ZIP. After merge, increment the root version as required and rebuild the publishable package with `yarn runtime:package` plus `yarn runtime:verify-package` from official `main`.
 
 ## Agent Contract Version
 
@@ -49,7 +51,7 @@ Examples:
 
 The Flap Artifact Workbench should reject unsupported future versions and should explicitly decide whether to keep accepting older versions. Do not silently accept unknown package kinds or unknown format versions.
 
-Current source packages use format version `4`, which requires `qa/e2e-report.json`, marker/metadata `e2e` summary fields, and source-hash-bound E2E proof before Workbench upload.
+Current source packages use format version `6` and E2E report v2. Format 6 hashes all recursively packaged source and assets, carries the machine-readable capability profile contract, and requires matching marker/metadata E2E summaries. Workbench may keep reading legacy format 5 only when `capabilities` is absent; every `three-r3f-v1` package must use format 6.
 
 ## Runtime Contract Version
 

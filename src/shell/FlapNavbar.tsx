@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { ChevronDown, Menu, Plus, Search, X } from "lucide-react";
+import { ChevronDown, Github, Menu, Plus, Search, X } from "lucide-react";
 import type { VaultManifest } from "@/src/sdk";
 import EN from "@/res/content.json";
 import ZH from "@/res/content_zh.json";
@@ -207,6 +207,15 @@ export function FlapNavbar({ manifest }: FlapNavbarProps) {
         <CreateTokenButton />
         <ChainSelectorButton />
         <LanguageSelectorButton />
+        <a
+          href="https://github.com/flap-sh/flap-vault-component-template"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View Flap Vault UI Template on GitHub"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] border border-[#303236] bg-black text-[#D4D4D4] transition-colors hover:border-[#D0FF00] hover:text-[#D0FF00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D0FF00] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+        >
+          <Github className="h-5 w-5" aria-hidden="true" />
+        </a>
         <div className="flex h-10 shrink-0 items-center overflow-visible">
           <WalletButton />
         </div>

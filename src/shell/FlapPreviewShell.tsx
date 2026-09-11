@@ -1,10 +1,10 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Copy, ExternalLink, X } from "lucide-react";
+import { AlertTriangle, Copy, ExternalLink, Maximize2, Minimize2, ShieldCheck, Sparkles, X } from "lucide-react";
 import { useChainId, usePublicClient } from "wagmi";
 import type { Address, FeeMode, PaymentToken, TokenMarketPhase, VaultHostContext, VaultManifest, VaultRenderSurface, VaultRuntimeContextOverrides } from "@/src/sdk";
 import {
@@ -30,7 +30,7 @@ import { useLang } from "@/src/i18n/useLang";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/ui/Card";
 import { FlapNavbar } from "./FlapNavbar";
 import { ManifestPanel } from "./ManifestPanel";
-import { PREVIEW_TOKEN_ADDRESS, PREVIEW_TOKEN_IMAGE_URL, PREVIEW_VAULT_ADDRESS } from "./previewCoinDetail";
+import { getDefaultVaultPreviewTokenAddress, PREVIEW_TOKEN_ADDRESS, PREVIEW_TOKEN_IMAGE_URL, PREVIEW_VAULT_ADDRESS } from "./previewCoinDetail";
 import { getPreviewRuntimeDefaults } from "./previewRuntimeDefaults";
 
 interface FlapPreviewShellProps {
@@ -338,7 +338,8 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
   );
   const publicClient = usePublicClient({ chainId: previewChainId });
   const [hostRuntime, setHostRuntime] = useState<HostRuntimeResult | null>(null);
-  const runtimeTokenAddress = requestedTokenAddress ?? previewDefaults?.tokenAddress ?? resolvedBinding?.tokenAddresses?.[0] ?? PREVIEW_TOKEN_ADDRESS;
+  const runtimeTokenAddress =
+    requestedTokenAddress ?? previewDefaults?.tokenAddress ?? resolvedBinding?.tokenAddresses?.[0] ?? getDefaultVaultPreviewTokenAddress(previewChainId);
   const usingNeutralPreviewFixture =
     runtimeTokenAddress === PREVIEW_TOKEN_ADDRESS && !requestedVaultAddress && !previewDefaults?.vaultAddress && !resolvedBinding?.vaultAddresses?.[0];
   const runtimePolicy: HostRuntimePolicy = "prefer-full-host";
@@ -486,7 +487,7 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
       <div className="min-h-screen bg-background">
         <FlapNavbar manifest={manifest} />
         <div className={isFullscreenLayout ? undefined : "xl:pr-[408px]"}>
-          <div data-vault-e2e-scope="vault-preview">
+          <div>
             <PreviewTaxInfoFrame fullscreen={isFullscreenLayout}>{children}</PreviewTaxInfoFrame>
           </div>
         </div>
@@ -525,15 +526,15 @@ function isValidTokenAddress(address?: string) {
 
 function resolveChainFactoryAddress(snapshot?: TokenRuntimeSnapshot | null) {
   const vaultFactory = snapshot?.vaultInfo?.found ? snapshot.vaultInfo.vaultFactory : undefined;
-  const helperFactory = snapshot?.taxInfo?.vaultInfo?.factory;
-  if (vaultFactory && isValidAddress(vaultFactory)) return vaultFactory;
-  if (helperFactory && isValidAddress(helperFactory)) return helperFactory;
+  const helperFactory = snapshot?.taxInfo?.vaultInfo?.isVault === true ? snapshot.taxInfo.vaultInfo.factory : undefined;
+  if (vaultFactory && isValidTokenAddress(vaultFactory)) return vaultFactory;
+  if (helperFactory && isValidTokenAddress(helperFactory)) return helperFactory;
   return undefined;
 }
 
 function resolveChainVaultAddress(snapshot?: TokenRuntimeSnapshot | null) {
   const portalVault = snapshot?.vaultInfo?.found ? snapshot.vaultInfo.vault : undefined;
-  const helperVault = snapshot?.taxInfo?.vaultInfo?.addr;
+  const helperVault = snapshot?.taxInfo?.vaultInfo?.isVault === true ? snapshot.taxInfo.vaultInfo.addr : undefined;
   if (portalVault && isValidTokenAddress(portalVault)) return portalVault;
   if (helperVault && isValidTokenAddress(helperVault)) return helperVault;
   return undefined;
@@ -551,11 +552,21 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
   const { lang } = useLang();
   const searchParams = useSearchParams();
   const context = useVaultContext();
+  const shellRef = useRef<HTMLElement | null>(null);
+  const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);
   const homeHref = "/";
   const tokenSymbol = context.tokenSymbol || "TOKEN";
   const tokenName = context.tokenName || readExtraString(context.extraConfig, "tokenName") || `${tokenSymbol} Preview Token`;
   const tokenImageUrl = context.tokenImageUrl || readExtraString(context.extraConfig, "tokenImageUrl");
   const tokenDetailHref = readExtraString(context.extraConfig, "tokenDetailHref");
+  const previewCopy = lang.preview as typeof lang.preview & {
+    taxInfo?: string;
+    facVerified?: string;
+    innovationTag?: string;
+  };
+  const taxInfoLabel = previewCopy.taxInfo || lang.preview.vault;
+  const facVerifiedLabel = previewCopy.facVerified || "FAC";
+  const innovationLabel = previewCopy.innovationTag || "Innovation";
   const explorerAddressUrl = context.explorerBaseUrl
     ? `${context.explorerBaseUrl.replace(/\/$/, "")}/address/${context.tokenAddress}`
     : "#";
@@ -575,72 +586,271 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
     }
   };
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsBrowserFullscreen(document.fullscreenElement === shellRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    handleFullscreenChange();
+
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleBrowserFullscreen = async () => {
+    const shell = shellRef.current;
+    if (!fullscreen || !shell) return;
+
+    try {
+      if (document.fullscreenElement === shell) {
+        await document.exitFullscreen();
+      } else {
+        await shell.requestFullscreen();
+      }
+    } catch {
+      // Browser fullscreen can be blocked outside direct user gestures.
+    }
+  };
+
+  if (!fullscreen) {
+    return (
+      <main data-vault-layout="standard" className="mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden bg-[#010202] px-3 pb-6 pt-8 font-mono sm:px-4 sm:py-8">
+        <Card className="mx-auto w-full max-w-full overflow-visible rounded-none border-0 bg-transparent text-white shadow-none sm:max-w-[800px]">
+          <CardHeader className="px-0 pb-5 pt-0">
+            <div className="space-y-[19px]">
+              <div className="flex min-w-0 items-center gap-1 text-[14px] leading-[1.4] text-[#A0A3A7]">
+                <Link href={homeHref} className="transition-colors hover:text-white">
+                  {lang.preview.tokens}
+                </Link>
+                <span aria-hidden="true" className="text-[12px]">›</span>
+                {tokenDetailHref ? (
+                  <Link href={tokenDetailHref} className="min-w-0 truncate transition-colors hover:text-white">
+                    {tokenSymbol || tokenName || "Token"}
+                  </Link>
+                ) : (
+                  <span className="min-w-0 truncate">{tokenSymbol || tokenName || "Token"}</span>
+                )}
+                <span aria-hidden="true" className="text-[12px]">›</span>
+                <span className="text-white">{lang.preview.vault}</span>
+              </div>
+              <div className="border border-[#484B51]">
+                <div className="flex h-[26px] items-center border-b border-[#484B51] bg-[#010202] px-2" aria-hidden="true">
+                  <div className="flex gap-2">
+                    {["#F7594B", "#FECF00", "#2BC235"].map((color) => (
+                      <span key={color} className="flex h-2.5 w-2.5 flex-col justify-between">
+                        {[0, 1, 2, 3].map((line) => (
+                          <span key={line} className="h-px w-full" style={{ backgroundColor: color }} />
+                        ))}
+                      </span>
+                    ))}
+                  </div>
+                  <div
+                    className="ml-6 h-2.5 min-w-0 flex-1 bg-[repeating-linear-gradient(105deg,transparent_0,transparent_6px,#D0FF00_6px,#D0FF00_7px)] sm:ml-[110px]"
+                    style={{
+                      maskImage: "linear-gradient(to right, transparent, black)",
+                      WebkitMaskImage: "linear-gradient(to right, transparent, black)",
+                    }}
+                  />
+                </div>
+                <div className="min-h-[167px] bg-[#131516] px-4 py-7 sm:px-[21px] sm:py-[29px]">
+                  <div className="flex min-w-0 items-start gap-5">
+                    <div className="relative h-[72px] w-[72px] shrink-0">
+                      {["left-0 top-0 border-l border-t", "right-0 top-0 border-r border-t", "bottom-0 left-0 border-b border-l", "bottom-0 right-0 border-b border-r"].map((position) => (
+                        <span key={position} aria-hidden="true" className={`absolute h-2 w-2 border-white ${position}`} />
+                      ))}
+                      <div className="absolute left-1 top-1 h-16 w-16 border border-solid border-[#484B51]">
+                        {tokenImageUrl ? (
+                          <Image src={tokenImageUrl} alt={tokenSymbol} width={64} height={64} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-[#303236] text-[18px] font-black uppercase text-white">
+                            {tokenSymbol.slice(0, 2)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1 pt-2">
+                      <div className="flex min-w-0 items-baseline gap-x-[13px]">
+                        <CardTitle className="min-w-0 break-words text-[20px] font-medium leading-[1.4] text-white">{tokenSymbol || tokenName || "Token"}</CardTitle>
+                        {tokenName ? (
+                          <span title={tokenName} className="inline-flex min-w-0 flex-1 text-[13px] leading-[1.4] text-[#84888C]">
+                            <span aria-hidden="true" className="shrink-0">(</span>
+                            <span className="min-w-0 truncate whitespace-nowrap">{tokenName}</span>
+                            <span aria-hidden="true" className="shrink-0">)</span>
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-[11px] flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="inline-flex h-7 items-center gap-1.5 border border-[#D0FF00]/50 bg-[#D0FF00]/10 px-2 text-[12px] font-semibold leading-none text-[#D0FF00]">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          {facVerifiedLabel}
+                        </span>
+                        <span className="inline-flex h-7 items-center gap-1.5 border border-[#2ADFFF]/50 bg-[#2ADFFF]/10 px-2 text-[12px] font-semibold leading-none text-[#75EFFF]">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          {innovationLabel}
+                        </span>
+                      </div>
+                    </div>
+                    <Link href={homeHref} className="grid h-9 w-9 shrink-0 place-items-center border border-[#484B51] text-[#8D8D8D] transition-colors hover:border-white hover:text-white" title={lang.preview.close}>
+                      <X className="h-4 w-4" />
+                    </Link>
+                  </div>
+                  <div className="mt-[18px] flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+                    <Link href={explorerAddressUrl} target="_blank" rel="noopener noreferrer" className="min-w-0 break-all font-mono text-sm text-cyan-200 hover:text-cyan-100">
+                      {shortenAddress(context.tokenAddress)}
+                    </Link>
+                    <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-white/35" aria-hidden="true" />
+                    <button type="button" onClick={copyAddress} className="rounded p-1 text-white/35 transition-colors hover:bg-white/10 hover:text-white/80" title={lang.preview.copyAddress} aria-label={lang.preview.copyAddress}>
+                      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-0 pb-0 pt-0">
+            <div className="space-y-4">
+              <h3 className="text-[16px] font-semibold leading-none text-white">{lang.preview.vaultInformation}</h3>
+              {isTokenUnavailable ? (
+                <div data-vault-token-unavailable="true" className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-300" />
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-sm font-semibold text-yellow-100">{lang.preview.tokenUnavailableTitle}</p>
+                      <p className="text-sm leading-6 text-yellow-100/76">{lang.preview.tokenUnavailableDescription}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div data-vault-e2e-scope="vault-preview" className="border border-[#484B51] bg-transparent p-4 sm:p-6">{children}</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
   return (
     <main
+      ref={shellRef}
       data-vault-layout={fullscreen ? "fullscreen" : "standard"}
-      className="mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden px-0 py-0 sm:px-4 sm:py-8"
+      className={fullscreen ? "vault-preview-taxinfo-shell mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden bg-[#010202] font-mono" : "mx-auto h-full w-full min-w-0 overflow-y-auto overflow-x-hidden bg-[#010202] px-3 pb-6 pt-8 font-mono sm:px-4 sm:py-8"}
     >
       <Card
         className={
-          fullscreen
-            ? "mx-auto w-full max-w-full overflow-hidden rounded-none border-x-0 bg-[#050914] sm:rounded-lg sm:border-x"
-            : "mx-auto w-full max-w-full overflow-hidden rounded-none border-x-0 bg-[#050914] sm:max-w-[768px] sm:rounded-lg sm:border-x"
+          fullscreen ? "mx-auto w-full max-w-full overflow-visible rounded-none border-0 bg-transparent text-white shadow-none" : "mx-auto w-full max-w-full overflow-visible rounded-none border-0 bg-transparent text-white shadow-none sm:max-w-[800px]"
         }
       >
-        <CardHeader className="px-4 py-5 sm:p-6">
-          <div className="relative flex flex-col space-y-4">
-            <Link href={homeHref} className="absolute right-0 top-0 p-2 text-gray-400 transition-colors hover:text-white" title={lang.preview.close}>
-              <X className="h-5 w-5" />
-            </Link>
-
-            <div className="flex min-w-0 flex-wrap items-center gap-2 pr-10 text-sm text-gray-400">
-              <Link href={homeHref} className="hover:text-gray-200">
+        <CardHeader className="px-3 pb-4 pt-3 sm:px-8 sm:pb-6 sm:pt-7 lg:px-10">
+          <div className="space-y-[19px]">
+            <div className="flex min-w-0 items-center gap-1 text-[14px] leading-[1.4] text-[#A0A3A7]">
+              <Link href={homeHref} className="transition-colors hover:text-white">
                 {lang.preview.tokens}
               </Link>
-              <span>›</span>
+              <span aria-hidden="true" className="text-[12px]">›</span>
               {tokenDetailHref ? (
-                <Link href={tokenDetailHref} className="hover:text-gray-200">
-                  {tokenSymbol}
+                <Link href={tokenDetailHref} className="min-w-0 truncate transition-colors hover:text-white">
+                  {tokenSymbol || tokenName || "Token"}
                 </Link>
               ) : (
-                <span>{tokenSymbol}</span>
+                <span className="min-w-0 truncate">{tokenSymbol || tokenName || "Token"}</span>
               )}
-              <span>›</span>
-              <span className="text-gray-200">{lang.preview.vault}</span>
+              <span aria-hidden="true" className="text-[12px]">›</span>
+              <span className="text-white">{taxInfoLabel}</span>
             </div>
-
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center gap-3">
-                {tokenImageUrl ? (
-                  <Image src={tokenImageUrl} alt={tokenSymbol} width={40} height={40} className="h-10 w-10 shrink-0 rounded-md bg-gray-800 object-cover" />
-                ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-[#705ef3] to-[#15e897] text-sm font-black uppercase text-white">
-                    {tokenSymbol.slice(0, 2)}
-                  </div>
-                )}
-                <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-                  <CardTitle className="min-w-0 break-words text-xl sm:text-2xl">{tokenSymbol}</CardTitle>
-                  <span className="min-w-0 break-words text-sm font-semibold text-gray-400">({tokenName})</span>
+            <div className="border border-[#484B51]">
+              <div className="flex h-[26px] items-center border-b border-[#484B51] bg-[#010202] px-2" aria-hidden="true">
+                <div className="flex gap-2">
+                  {["#F7594B", "#FECF00", "#2BC235"].map((color) => (
+                    <span key={color} className="flex h-2.5 w-2.5 flex-col justify-between">
+                      {[0, 1, 2, 3].map((line) => (
+                        <span key={line} className="h-px w-full" style={{ backgroundColor: color }} />
+                      ))}
+                    </span>
+                  ))}
                 </div>
+                <div
+                  className="ml-6 h-2.5 min-w-0 flex-1 bg-[repeating-linear-gradient(105deg,transparent_0,transparent_6px,#D0FF00_6px,#D0FF00_7px)] sm:ml-[110px]"
+                  style={{
+                    maskImage: "linear-gradient(to right, transparent, black)",
+                    WebkitMaskImage: "linear-gradient(to right, transparent, black)",
+                  }}
+                />
               </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="min-w-0 break-all font-mono text-xs text-gray-500">{shortenAddress(context.tokenAddress)}</span>
-                <button type="button" onClick={copyAddress} className="text-gray-400 transition-colors hover:text-blue-400" title={lang.preview.copyAddress}>
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-                <Link href={explorerAddressUrl} target="_blank" className="text-gray-400 transition-colors hover:text-blue-400" title={lang.preview.viewOnExplorer}>
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Link>
+              <div className="min-h-[167px] bg-[#131516] px-4 py-7 sm:px-[21px] sm:py-[29px]">
+                <div className="flex min-w-0 items-start gap-5">
+                  <div className="relative h-[72px] w-[72px] shrink-0">
+                    {["left-0 top-0 border-l border-t", "right-0 top-0 border-r border-t", "bottom-0 left-0 border-b border-l", "bottom-0 right-0 border-b border-r"].map((position) => (
+                      <span key={position} aria-hidden="true" className={`absolute h-2 w-2 border-white ${position}`} />
+                    ))}
+                    <div className="absolute left-1 top-1 h-16 w-16 border border-solid border-[#484B51]">
+                      {tokenImageUrl ? (
+                        <Image src={tokenImageUrl} alt={tokenSymbol} width={64} height={64} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-[#303236] text-[18px] font-black uppercase text-white">
+                          {tokenSymbol.slice(0, 2)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1 pt-2">
+                    <div className="flex min-w-0 items-baseline gap-x-[13px]">
+                      <CardTitle className="min-w-0 break-words text-[20px] font-medium leading-[1.4] text-white">{tokenSymbol || tokenName || "Token"}</CardTitle>
+                      {tokenName ? (
+                        <span title={tokenName} className="inline-flex min-w-0 flex-1 text-[13px] leading-[1.4] text-[#84888C]">
+                          <span aria-hidden="true" className="shrink-0">(</span>
+                          <span className="min-w-0 truncate whitespace-nowrap">{tokenName}</span>
+                          <span aria-hidden="true" className="shrink-0">)</span>
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-[11px] flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="inline-flex h-7 items-center gap-1.5 border border-[#D0FF00]/50 bg-[#D0FF00]/10 px-2 text-[12px] font-semibold leading-none text-[#D0FF00]">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        {facVerifiedLabel}
+                      </span>
+                      <span className="inline-flex h-7 items-center gap-1.5 border border-[#2ADFFF]/50 bg-[#2ADFFF]/10 px-2 text-[12px] font-semibold leading-none text-[#75EFFF]">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {innovationLabel}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2 self-start">
+                    <button
+                      type="button"
+                      onClick={toggleBrowserFullscreen}
+                      className="grid h-9 w-9 place-items-center border border-[#484B51] text-[#8D8D8D] transition-colors hover:border-[#D0FF00] hover:text-[#D0FF00]"
+                      title={isBrowserFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen}
+                      aria-label={isBrowserFullscreen ? lang.preview.exitFullscreen : lang.preview.fullscreen}
+                    >
+                      {isBrowserFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                    </button>
+                    <Link href={homeHref} className="grid h-9 w-9 place-items-center border border-[#484B51] text-[#8D8D8D] transition-colors hover:border-white hover:text-white" title={lang.preview.close}>
+                      <X className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+                <div className="mt-[18px] flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+                  <Link href={explorerAddressUrl} target="_blank" rel="noopener noreferrer" className="min-w-0 break-all font-mono text-sm text-cyan-200 hover:text-cyan-100">
+                    {shortenAddress(context.tokenAddress)}
+                  </Link>
+                  <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-white/35" aria-hidden="true" />
+                  <button type="button" onClick={copyAddress} className="rounded p-1 text-white/35 transition-colors hover:bg-white/10 hover:text-white/80" title={lang.preview.copyAddress} aria-label={lang.preview.copyAddress}>
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="px-4 pb-6 sm:px-6">
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-white">{lang.preview.vaultInformation}</h3>
+        <CardContent className="px-0 pb-0 pt-0">
+          <div className="space-y-0">
+            <div className="px-3 pb-3 sm:px-8 lg:px-10">
+              <h3 className="text-[16px] font-semibold leading-none text-white">{lang.preview.vaultInformation}</h3>
+            </div>
             {isTokenUnavailable ? (
-              <div data-vault-token-unavailable="true" className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4">
+              <div data-vault-token-unavailable="true" className="mx-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 sm:mx-8 lg:mx-10">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-300" />
                   <div className="min-w-0 space-y-1">
@@ -650,7 +860,7 @@ function PreviewTaxInfoFrame({ children, fullscreen = false }: { children: React
                 </div>
               </div>
             ) : (
-              children
+              <div data-vault-e2e-scope="vault-preview" className="min-h-[420px] w-full min-w-0 border border-[#484B51] bg-transparent p-4 sm:p-6">{children}</div>
             )}
           </div>
         </CardContent>

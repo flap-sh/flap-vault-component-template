@@ -1,0 +1,105 @@
+# 7777 Vault UI and 7777/8888 Mini App 3D capability
+
+Flap supports standard 3D experiences through the versioned `three-r3f-v1` capability on three explicit surfaces: a mode-less 7777 Vault UI, a token-scoped 7777 Tax Token Mini App, or a token-scoped 8888 zero-tax Mini App. It is opt-in and does not widen any unrelated Vault UI permission.
+
+`three-r3f-v1` is a stable capability and security boundary, not a dependency-major label. Current source authoring and new Workbench builds use the `react19-r3f9` dependency revision. Existing format-6 source packages and already-published artifacts that record the original `react18-r3f8` revision remain supported; they do not need to rename the capability or change product code solely for this migration.
+
+A mode-less 7777 3D Vault UI may use factory, single-Vault, or token bindings, must keep every declared proof token on the 7777 suffix, remains in the default Vault shell, and keeps the host risk-status requirement. A 7777 or 8888 3D Mini App must set `mode: "mini-app"`, use token-only bindings, render a full-height root, provide bilingual `displayTitle`, and follow Mini App audio review. One Mini App artifact must use only 7777 or only 8888 bindings; mixed suffixes are blocked.
+
+## Live examples
+
+- `http://localhost:3230/flap-gamefi-arena` — playable GameFi-style energy arena with keyboard/touch movement, boost, collectible cores, score/progress, completion/restart states, Flap logo, and the `Play the curve. Shape the world.` slogan. It is an original code-built adaptation of the movement and spatial-interaction ideas demonstrated by the official Three.js `games_fps` example; it does not copy that example's assets.
+- `http://localhost:3230/flap-skies-showcase` — polished Flap-branded showcase with the visible `Flap Showcase Only` mark.
+- `http://localhost:3230/three-r3f-example` — compact technical fixture covering the complete build and validation path.
+- The public Template Mini App tab links all three 3D previews prominently: `https://flap-vault-component-template.vercel.app/?tab=mini-app`.
+- Flap Farm remains on that page as the original non-3D Mini App shell and interaction guide.
+
+Choose the example by purpose: start with `flap-gamefi-arena` for interactive gameplay patterns, use `flap-skies-showcase` for visual polish, and use `three-r3f-example` for the smallest capability-integration fixture.
+
+## Capability matrix
+
+| Area | `three-r3f-v1` support |
+| --- | --- |
+| Eligibility | Either mode omitted with only real deployed `7777` proof tokens and factory/Vault/token bindings, or `manifest.mode: "mini-app"` with token-only bindings that are all `7777` or all `8888`; all surfaces declare `capabilities: ["three-r3f-v1"]` |
+| Missing project test token | A 7777 Vault UI or 7777 Mini App must pass an explicit real deployed `--token 0x...7777`. An 8888 Mini App may omit `--token`; scaffold then uses Flap's deployed standard 8888 Mini App preview token for preview/E2E proof only. |
+| Current pinned packages | `react@19.2.8`, `three@0.185.1`, `@react-three/fiber@9.7.0`, `@react-three/drei@10.7.8`, `@react-three/postprocessing@3.0.4` (`react19-r3f9`) |
+| Accepted legacy revision | Existing packages/artifacts with `react@18.3.1`, `three@0.185.1`, `@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, and `@react-three/postprocessing@2.19.1` (`react18-r3f8`) remain valid under the same `three-r3f-v1` capability. |
+| Source | Recursive, statically reachable `.ts` and `.tsx` inside the current Vault folder |
+| Shaders | `.glsl`, `.vert`, and `.frag`, bundled as text |
+| Local assets | GLB/GLTF/BIN models; PNG/JPEG/WebP/AVIF/KTX2/Basis textures; HDR/EXR environments; TTF/OTF/WOFF/WOFF2 fonts; controlled decoder/transcoder WASM |
+| Rendering APIs | WebGL2, explicit WebGL1/2D/static fallback, 2D canvas, request/cancelAnimationFrame, ResizeObserver, devicePixelRatio, controlled canvas creation, FontFace/document.fonts, matchMedia, and read-only display/hardware signals |
+| Runtime helpers | Artifact-relative asset URLs and Draco/KTX2 decoder URLs; no Drei/CDN default fallback |
+| Packaging | Source format 6, E2E report v2, recursive source/asset hashes, shaders and pinned dependencies in `component.mjs`, content-addressed binary assets under `assets/**` |
+| Deterministic state | Root exposes `data-flap-3d-state="loading|ready|fallback|error"` and `data-flap-3d-renderer="webgl2|webgl1|2d"` |
+| Review | Mode-less 7777 Vault UI emits `manual-review/vault-ui-3d`; both 7777 and 8888 Mini Apps emit `manual-review/mini-app-3d`; all surface font license/provenance and performance/fallback review signals |
+
+## What remains blocked
+
+The capability does not allow arbitrary npm packages, dynamic imports, path escape, symlinks, unreferenced files, remote URLs/assets, network calls, storage, navigation, permission APIs, direct wallet APIs, Worker creation, script injection, arbitrary DOM queries, or undeclared contract targets. Business contract calls remain limited to the existing SDK and manifest binding/external-contract rules.
+
+Three r185 is WebGL2-first. `webgl1` is an explicit low-spec fallback state, not a promise that the WebGL2 scene renders unchanged. A controlled WebGL1 implementation, 2D canvas renderer, or clear static fallback is valid.
+
+## Static asset imports
+
+Every local source and asset must be reachable from `Component.tsx` through static imports. Passing a relative string directly to a Three/Drei loader does not add the file to the validated import graph and is blocked as `capability-assets/unreferenced-file`.
+
+```tsx
+import { useGLTF } from "@react-three/drei";
+import modelUrl from "./assets/model.glb";
+
+export function Model() {
+  const model = useGLTF(modelUrl);
+  return <primitive object={model.scene} />;
+}
+```
+
+Do not use `useGLTF("./assets/model.glb")`. The same rule applies to textures, fonts, environments, shaders, and decoder resources.
+
+Raster image imports have two host shapes: Next preview exposes `StaticImageData`, while the Workbench artifact emits a URL string. Normalize once before passing a raster asset to Three or a DOM image:
+
+```tsx
+import textureAsset from "./assets/texture.png";
+
+const textureUrl = typeof textureAsset === "string" ? textureAsset : textureAsset.src;
+```
+
+## Profile limits
+
+- Up to 200 source/package files.
+- Zip no larger than 25 MiB and extracted package no larger than 64 MiB.
+- Single asset no larger than 32 MiB and total assets no larger than 60 MiB.
+- Single font no larger than 2 MiB and total fonts no larger than 4 MiB.
+- Performance guidance may warn before the security limit blocks the package.
+
+## Authoring and proof
+
+For a 7777 Vault UI, keep `manifest.mode` omitted. Provide an explicit real deployed `7777` proof token; scaffold does not substitute the standard 8888 Mini App preview token for this surface.
+
+```bash
+yarn vault:scaffold my-3d-vault \
+  --name "My 3D Vault UI" \
+  --capability three-r3f-v1 \
+  --chain 56 \
+  --factory 0xRealFactory \
+  --token 0xRealDeployedTokenEnding7777 \
+  --locales en,zh
+```
+
+For a 7777 Tax Token or 8888 zero-tax Mini App, add `--mode mini-app`, use token-only bindings, and keep every token on the same suffix:
+
+```bash
+yarn vault:scaffold my-3d-app \
+  --mode mini-app \
+  --capability three-r3f-v1 \
+  --chain 56 \
+  --token 0xRealDeployedTokenEnding7777Or8888 \
+  --display-title-zh "三维应用" \
+  --display-title-en "3D App"
+
+yarn vault:check my-3d-app
+yarn vault:e2e my-3d-app
+yarn vault:package my-3d-app
+yarn vault:verify-package dist/my-3d-app.zip
+```
+
+The E2E proof must cover PC, iPad, and H5; ready canvas size and first frame; WebGL2; resize and DPR; reduced motion; WebGL2-unavailable fallback; context loss; and zero undeclared external requests.

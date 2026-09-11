@@ -140,6 +140,11 @@ export function parsePortalTokenInfo(tokenData: TupleLike): FlapTokenInfo | null
   };
 }
 
+/** Converts the Portal contract's zero-based token-version enum to its public version number. */
+export function normalizeOnchainPortalTokenVersion(tokenVersion: number) {
+  return Number.isInteger(tokenVersion) && tokenVersion >= 0 ? tokenVersion + 1 : tokenVersion;
+}
+
 export function parseFeeVaultInfo(vaultInfo: TupleLike): FlapFeeVaultInfo | null {
   if (!vaultInfo) return null;
 

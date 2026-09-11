@@ -39,9 +39,26 @@ chainId + tokenAddress
 
 For factory-scoped UI, `factoryAddress` must be the real non-zero deployed factory contract address for that chain. `0x0000000000000000000000000000000000000000` and reserved template placeholder addresses such as `0x1000000000000000000000000000000000000001` are invalid. For UI without a factory, omit `factoryAddress` and provide either exactly one real non-zero Vault address in `match.bindings[].vaultAddresses` or one or more real non-zero token addresses in `match.bindings[].tokenAddresses`.
 
-Every binding-scoped `tokenAddresses` entry must be a real deployed ERC20 token address ending in `7777` or `8888`, including entries placed on factory bindings. In factory mode, `tokenAddresses` is package proof input, not the production CA restriction. Production CA restriction is a Workbench/registry `caRestrictionMode` decision: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` may write the production token restriction only after review checks. In no-factory mode `tokenAddresses` can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
+Every binding-scoped `tokenAddresses` entry must be a real deployed ERC20 token address ending in `7777` or `8888`, including entries placed on factory bindings. In factory mode, `tokenAddresses` is package proof input, not the production CA restriction. Robinhood proof may use a real token-scoped address on chain `4663` or a real testnet token on chain `46630`; standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. Production CA restriction is a Workbench/registry `caRestrictionMode` decision: `none` does not restrict production CA, `reserved` locks a future CA but cannot publish/route, and `verified` may write the production token restriction only after review checks. In no-factory mode `tokenAddresses` can be paired with a single Vault address or used as the token-scoped binding target, and it may contain multiple token addresses.
 
-Mini App mode is token-address-bound. A manifest with `mode: "mini-app"` must provide a no-factory token-scoped `match.bindings[].tokenAddresses` entry ending in `8888`; factory and Vault bindings are invalid for Mini App artifacts.
+Mini App mode is token-address-bound. A manifest with `mode: "mini-app"` must provide no-factory token-scoped `match.bindings[].tokenAddresses` entries that all end in `7777` for Tax Token or all end in `8888` for zero-tax token; factory and Vault bindings are invalid, and the two suffix families cannot be mixed in one artifact.
+
+When a Mini App project has no supplied test token, use Flap's deployed standard Mini App preview token for that chain (BNB mainnet: `0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888`). This address is the preview/E2E proof binding, not the project's production CA restriction. It must pass the normal deployed-ERC20 checks; zero-like placeholders and validation exemptions are invalid.
+
+### Versioned 3D capability
+
+The complete developer-facing support matrix, limits, three live 3D previews, and proof checklist are maintained in `docs/mini-app-3d.md`.
+
+Full 3D is opt-in on a mode-less 7777 Vault UI or a token-scoped 7777/8888 Mini App:
+
+```json
+{
+  "mode": "mini-app",
+  "capabilities": ["three-r3f-v1"]
+}
+```
+
+Current `three-r3f-v1` authoring uses dependency revision `react19-r3f9`: `three@0.185.1`, `@react-three/fiber@9.7.0`, `@react-three/drei@10.7.8`, and `@react-three/postprocessing@3.0.4`. Workbench also accepts existing format-6 packages that record the original `react18-r3f8` pins (`@react-three/fiber@8.18.0`, `@react-three/drei@9.122.0`, and `@react-three/postprocessing@2.19.1`) under the same capability. It permits package-local recursive static imports for TS/TSX, shaders, models, textures, HDR/EXR, fonts, and controlled decoder WASM. Every auxiliary file must be reachable from `Component.tsx`/`VaultABI.ts`; dynamic import, parent traversal, symlinks, unreferenced files, remote URLs, CDN decoders, and extra npm packages remain blocked. Three r185 is WebGL2-first, so WebGL2 failure must enter a clear WebGL1, 2D, or static fallback rather than promising identical WebGL1 rendering.
 
 Do not mix `factoryAddress` and `vaultAddresses` in the same binding. In factory mode the Vault address is runtime-derived by Flap. In no-factory mode, `vaultAddresses` is the Vault-scoped binding target and `tokenAddresses` can be the token-scoped binding target.
 
@@ -170,7 +187,8 @@ Example:
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `mode` | No | Omit it for the default Vault UI. Use `"mini-app"` only for token-scoped 8888-token Mini App artifacts; it keeps the normal source-package boundary, is strongly bound to `match.bindings[].tokenAddresses` ending in `8888`, and skips the Vault risk-status tag checks. |
+| `displayTitle` | Mini App only | Required when `mode` is `"mini-app"`. This is the bilingual title shown on flap.sh Mini App pages and tabs. Use separate values, for example `{ "zh": "蝴蝶农场", "en": "Butterfly Farm" }`. Do not use it for the default Vault UI. |
+| `mode` | No | Omit it for the default Vault UI. Use `"mini-app"` only for token-scoped Mini App artifacts whose bindings all end in `7777` or all end in `8888`; it keeps the four core source files with an extra reviewed top-level audio-asset exception and skips the Vault risk-status tag checks. |
 | `layout` | No | Optional internal-review layout request. Omit it for the standard 768px Vault business body. Use `"fullscreen"` only when Flap explicitly asks for a full-screen Vault body; `vault:check` emits `manual-review/fullscreen-layout`, and production host constraints remain owned by `flap.sh`. |
 | `endpoints` | No | Optional non-oracle external endpoint declarations. Use a single absolute HTTPS URL string without username/password credentials or an array of those strings. Avoid by default; declared endpoints enter Flap review and must be approved before publish. |
 | `externalFrames` | No | Optional reviewed display-only chart iframe declaration. At most one entry is allowed. Use only for `tradingview`, `dexscreener`, or `coingecko-terminal` provider embeds with a complete static HTTPS `src` URL and fixed query string. |
@@ -181,6 +199,10 @@ Mini App example:
 {
   "artifactId": "vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N",
   "name": "My Mini App",
+  "displayTitle": {
+    "zh": "示例 Mini App",
+    "en": "Example Mini App"
+  },
   "mode": "mini-app",
   "match": {
     "bindings": [
@@ -194,7 +216,20 @@ Mini App example:
 }
 ```
 
-Do not write `mode` for the default Vault UI. `mini-app` is the only allowed value, and it must be paired with token-scoped `8888` bindings because Mini App routing is tied to the token address.
+Do not write `mode` for the default Vault UI. `mini-app` is the only allowed value, and it must be paired with token-scoped bindings that are purely `7777` or purely `8888` because Mini App routing is tied to token addresses.
+
+Mini App display title SOP:
+
+1. Keep `manifest.name` as the Workbench internal name.
+2. Put the flap.sh page title in `manifest.displayTitle.zh` and `manifest.displayTitle.en`.
+3. The Mini APP preview shell reads the active language and shows `displayTitle.zh` for Chinese and `displayTitle.en` for English in the page title and tab.
+4. If a Mini App component must render the same title inside the artifact area, read `context.manifest.displayTitle` from `useFlapSdk()` and select by `sdk.i18n.locale`:
+
+```tsx
+const { context, i18n } = useFlapSdk();
+const titles = context.manifest.displayTitle;
+const appTitle = i18n.locale.startsWith("zh") ? titles?.zh ?? titles?.en : titles?.en ?? titles?.zh;
+```
 
 Fullscreen example:
 
@@ -216,7 +251,7 @@ Fullscreen example:
 }
 ```
 
-Do not use `fullwidth`, `fullwide`, or other layout names. `fullscreen` does not turn a Vault package into a free-form website container: the four-file package boundary, default Vault UI risk-status placement, i18n, endpoint/frame review, and contract-boundary rules still apply.
+Do not use `fullwidth`, `fullwide`, or other layout names. `fullscreen` does not turn a Vault package into a free-form website container: the core package boundary, default Vault UI risk-status placement, i18n, endpoint/frame review, and contract-boundary rules still apply.
 
 ## Do Not Declare
 
@@ -295,7 +330,17 @@ import { erc20Abi, standardErc20Abi } from "@/src/sdk";
 
 Use the SDK-provided ERC20 ABI for standard `balanceOf`, `allowance`, `approve`, `decimals`, `symbol`, `transfer`, and `transferFrom` flows. Add token ABI fragments to `VaultABI.ts` only when the token uses custom non-standard methods or special mechanics that are not part of standard ERC20.
 
-The Vault package file set is fixed. Do not add `helpers`, nested components, folders, assets, docs, or any other files under `src/vaults/{folder-name}`. The only local relative import allowed from `Component.tsx` is `./VaultABI`.
+The default Vault package file set is fixed. Do not add `helpers`, nested components, folders, assets, docs, or any other files under `src/vaults/{folder-name}`. The only local relative import allowed from a default Vault UI `Component.tsx` is `./VaultABI`.
+
+Mini App mode has one local asset exception for BGM and sound effects. A `manifest.mode: "mini-app"` package may include reviewed top-level audio files directly under `src/vaults/{folder-name}`:
+
+- allowed extensions: `.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`
+- lowercase top-level file names only; no nested folders
+- max 5 MiB per file and 12 MiB total
+- import statically from `Component.tsx`, for example `import bgmUrl from "./bgm.mp3";`
+- remote audio, data URLs, hidden autoplay, and audio for default Vault UI remain blocked
+
+`vault:check` surfaces each packaged Mini App audio file as `manual-review/mini-app-audio-asset`; Flap human review must check source/license, play timing, visible mute/pause controls, fallback behavior, and mobile impact before publish.
 
 ## Runtime Artifact Name
 
@@ -379,7 +424,9 @@ Or:
 ```
 
 A declared endpoint enters Flap review; it is not automatically approved and can still be rejected. Undeclared external URLs in Vault source are blocking check issues.
-Endpoint declarations must be valid absolute HTTPS URL strings without username/password credentials. A declaration covers only that URL path or child paths on the same origin; it does not allow sibling paths or lookalike hosts. Direct `fetch(...)` calls must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked. IPFS/Arweave links, WebSocket URLs, embedded data URL media, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, symlinks, and CommonJS `require(...)` are also blocked inside Vault source by default. Full gateway image URLs are blocked in Vault source; immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image CID, and the CID must pass `vault:check` image validation.
+Endpoint declarations must be valid absolute HTTPS URL strings without username/password credentials. A declaration covers only that URL path or child paths on the same origin; it does not allow sibling paths or lookalike hosts. Direct `fetch(...)` calls must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked. IPFS/Arweave links, WebSocket URLs, embedded data URL media, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, symlinks, and CommonJS `require(...)` are also blocked inside Vault source by default. Full gateway image URLs are blocked in Vault source; immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. Only `IpfsImage` may append a safe relative path, and a dynamic path requires a static `validationPath` image sample.
+
+Vault V2 NFT metadata is not a developer-declared endpoint or project-supplied SDK/ABI path. Use `NftMetadataImage` with token id; it consumes shared SDK context internally. The runtime owns the minimal ABI calls to `Vault.nft()` and `NFT.tokenURI(tokenId)`, and the host-owned resolver handles external IPFS/HTTPS metadata; do not declare or fetch `tokenURIBase` from `Component.tsx`.
 
 ## External Frames
 

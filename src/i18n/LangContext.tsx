@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import EN from "@/res/content.json";
 import ZH from "@/res/content_zh.json";
 import {
@@ -45,6 +46,10 @@ function writeLanguagePreference(languageCode: LanguageCode) {
   }
 }
 
+function readQueryLanguageCode(searchParams: { get: (name: string) => string | null }) {
+  return normalizeLanguageCode(searchParams.get("lang") ?? searchParams.get("language") ?? searchParams.get("locale"));
+}
+
 type LangContextType = {
   currentLang: Language;
   currentLanguageCode: LanguageCode;
@@ -68,10 +73,15 @@ export function LangProvider({
   hasInitialLanguageCookie?: boolean;
   initialLanguageCode?: LanguageCode;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryLanguageCode = readQueryLanguageCode(searchParams);
   const normalizedInitialLanguageCode = normalizeLanguageCode(initialLanguageCode) ?? DEFAULT_LANGUAGE_CODE;
   const [currentLanguageCode, setCurrentLanguageCode] = useState<LanguageCode>(normalizedInitialLanguageCode);
 
   useEffect(() => {
+    if (queryLanguageCode) return;
     if (hasInitialLanguageCookie) return;
 
     const storedLanguageCode = readStoredLanguageCode();
@@ -79,7 +89,14 @@ export function LangProvider({
 
     setCurrentLanguageCode(storedLanguageCode);
     writeLanguagePreference(storedLanguageCode);
-  }, [hasInitialLanguageCookie, normalizedInitialLanguageCode]);
+  }, [hasInitialLanguageCookie, normalizedInitialLanguageCode, queryLanguageCode]);
+
+  useEffect(() => {
+    if (!queryLanguageCode) return;
+
+    setCurrentLanguageCode(queryLanguageCode);
+    writeLanguagePreference(queryLanguageCode);
+  }, [queryLanguageCode]);
 
   useEffect(() => {
     document.documentElement.lang = currentLanguageCode;
@@ -88,7 +105,11 @@ export function LangProvider({
   const setLanguageCode = useCallback((languageCode: LanguageCode) => {
     setCurrentLanguageCode(languageCode);
     writeLanguagePreference(languageCode);
-  }, []);
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("lang", languageCode);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   const setLanguage = useCallback(
     (lang: Language) => {

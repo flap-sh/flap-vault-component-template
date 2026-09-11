@@ -1,0 +1,26 @@
+{
+  "artifactId": "vaultui_flap-gamefi-arena_01KZ70MTET41KZDXXZ4A8S2F8D",
+  "name": "Flap Energy Arena",
+  "displayTitle": {
+    "zh": "Flap 能量竞技场",
+    "en": "Flap Energy Arena"
+  },
+  "mode": "mini-app",
+  "capabilities": [
+    "three-r3f-v1"
+  ],
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "tokenAddresses": [
+          "0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888"
+        ]
+      }
+    ]
+  },
+  "i18n": [
+    "en",
+    "zh"
+  ]
+}

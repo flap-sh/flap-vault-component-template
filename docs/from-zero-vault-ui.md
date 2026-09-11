@@ -13,7 +13,7 @@ Before asking an Agent to build anything, collect these inputs:
 | Folder name | `my-vault` | Creates `src/vaults/my-vault` and preview route `/my-vault`. |
 | Display name | `My Vault UI` | Written to `manifest.json` for Workbench display. |
 | Binding target | Complete factory case: `chainId 97 + testnet factory 0x...` plus `chainId 56 + final mainnet factory 0x...`; no-factory case: `chainId 56 + vault 0x...` | Controls which runtime Vault can use this UI. Collect the final mainnet factory early to avoid later binding edits. |
-| Test token address | Real deployed `7777`/`8888`-suffix token on testnet when possible | Required for package proof. This is not a production CA restriction in factory mode. |
+| Test token address | Real deployed `7777`/`8888`-suffix token on testnet when possible | Required for package proof. For Robinhood, use token scope on chain `4663` or a real test token on chain `46630`; standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. This is not a production CA restriction in factory mode. |
 | CA restriction mode | `none`, `reserved`, or `verified` | Workbench/registry production policy. Do not put production CA policy in `manifest.json`. |
 | Minimal Vault ABI | `function claim()`, `function info(address)` | The UI can only call methods it knows. |
 | Reads and writes | `info`, `deposit`, `claim` | Defines the actual business workflow. |
@@ -64,7 +64,7 @@ yarn vault:scaffold my-vault \
 
 Replace placeholder addresses with real deployment addresses before running scaffold. The token address is required because `vault:check` and Workbench use manifest `match.bindings[].tokenAddresses` as the package's E2E test token source; it must be a real deployed ERC20 address ending in `7777` or `8888`. In factory mode, this token does not restrict production CA. Production CA restriction belongs to Workbench/registry `caRestrictionMode`: `none`, `reserved`, or `verified`.
 
-`vault:scaffold` creates the four-file package and registers the preview route. Do not add helper files, assets, nested folders, or extra local imports.
+`vault:scaffold` creates the core package and registers the preview route. Do not add helper files, nested folders, or extra local imports. Default Vault UI cannot add local assets; Mini App mode may add only reviewed top-level audio files.
 
 ## Step 3: Give The Agent A Complete Prompt
 
@@ -92,7 +92,7 @@ Build a controlled Flap Vault UI for:
 - empty/error states:
 - preview URL addresses:
 
-Use only the four files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, do not call private token metadata APIs, do not add external navigation, and do not add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`.
+Use the four core files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, call private token metadata APIs, add external navigation, or add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`. Mini Apps may add reviewed top-level audio. A mode-less 7777 Vault UI or token-scoped 7777/8888 Mini App declaring `three-r3f-v1` may recursively add profile-approved source, shaders, and local 3D assets; use `yarn vault:scaffold {folder-name} --capability three-r3f-v1 ...` and keep every file statically reachable from `Component.tsx`.
 
 If I do not explicitly request a UI style, use the scaffold default surface / NiePan-style abstract template as the only visual default. Use built-in examples for behavior only, not visual styling.
 
@@ -115,7 +115,7 @@ For the first version, keep the scaffolded default surface and replace placehold
 - Show two or three Vault-specific metrics, not every possible contract field.
 - Keep one primary action area visible. Include input, quote/proof state, warnings, and the approve/write button there.
 - Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for phase gating.
-- For default Vault UI, read current risk status from `readTaxVaultHostContext(context.host)`, place it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a prominent warning if it is missing. For a token-scoped 8888-token Mini App, set `manifest.mode` to `mini-app`; this skips only the risk-status tag checks.
+- For default Vault UI, read current risk status from `readTaxVaultHostContext(context.host)`, place it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block, and render a prominent warning if it is missing. For a token-scoped 7777 or 8888 Mini App, set `manifest.mode` to `mini-app`; this skips only the risk-status tag checks.
 - Do not add manual `Low risk` / `低风险` labels; low-risk copy is allowed only when selected from host `riskLevel === 1`.
 - Use the host token name, symbol, and image from `context.tokenName`, `context.tokenSymbol`, and `context.tokenImageUrl`.
 - Use `sdk.wallet.isWrongNetwork` and `sdk.wallet.switchChain()` before writes.
@@ -142,7 +142,7 @@ Check these before packaging:
 - The page renders under the host-owned `Vault Information` frame.
 - The component does not duplicate the token breadcrumb, token header, close control, or shell summary.
 - Risk status is visible within the first three business UI rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block.
-- Default Vault UI missing risk status shows a warning; `mode: "mini-app"` is the token-scoped 8888-token Mini App exception.
+- Default Vault UI missing risk status shows a warning; token-scoped 7777 or 8888 Mini Apps set `mode: "mini-app"` and are the exception.
 - English and Chinese copy both render if both locales are declared.
 - Wrong-network state blocks writes.
 - Market phase gating is visible in `Real`, `Internal`, and `Listing` preview modes when relevant.
@@ -195,4 +195,4 @@ The package is not ready if:
 - The oracle, proof, read, or write path was never tested.
 - The UI hides unavailable actions instead of explaining why they are disabled.
 - The component does not render host risk status within the first three business UI rows/blocks or places it after a preview, hero, banner, showcase, media, chart, or large visual block.
-- The Vault folder contains anything beyond `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
+- A default Vault folder contains anything beyond `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`, or a Mini App folder contains anything beyond those four core files plus reviewed top-level audio assets.

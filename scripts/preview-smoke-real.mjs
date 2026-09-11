@@ -6,7 +6,7 @@ import process from "node:process";
 const HOST = "127.0.0.1";
 const PORT = process.env.PORT ? Number(process.env.PORT) : await findAvailablePort(3220);
 const BASE_URL = `http://${HOST}:${PORT}`;
-const COMMUNITY_TOKEN = "0x091652ebc0a0238d7151a868f22d7cfd2a267777";
+const COMMUNITY_TOKEN = "0x286184b2660a2822671a33f24c4517f593947777";
 const FLAPIXEL_TOKEN = "0x6BcC641D1eF33c4d7A2C9536a3E0356F77Ff7777";
 
 async function readOptionalJson(url, label) {

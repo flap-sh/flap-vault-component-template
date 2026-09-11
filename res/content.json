@@ -16,7 +16,9 @@
     "wrongNetwork": "Wrong network",
     "current": "Current",
     "bnbChain": "BNB Chain",
-    "bnbTestnet": "BNB Testnet"
+    "bnbTestnet": "BNB Testnet",
+    "robinhoodChain": "Robinhood Chain",
+    "robinhoodTestnet": "Robinhood Testnet"
   },
   "home": {
     "sop": {
@@ -25,11 +27,18 @@
       "label": "SOP",
       "title": "Start here: customize one Vault UI.",
       "description": "Use this SOP to create, register, implement, preview, check, and package a controlled Vault UI without reading the whole repository first. Most implementation work happens in one Vault folder.",
+      "modeTabs": {
+        "customLabel": "Custom UI",
+        "customDescription": "Default Vault Information shell. 7777 tokens can request controlled 3D and fullscreen layout.",
+        "miniAppLabel": "Mini App",
+        "miniAppDescription": "8888-token binding, Mini APP shell, broader creative space with stricter human review."
+      },
       "quickStart": {
         "kicker": "AI Agent Quick Start",
+        "title": "Give your Agent one prompt, and it can generate a controlled Vault UI.",
         "description": "Paste this prompt into your AI coding agent, replace the placeholders, and it can generate a controlled custom Vault UI from this repository.",
         "promptLabel": "Prompt template",
-        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, binding mode is <factory | Vault without factory | token without factory>, factoryAddress is <0x... | none>, Vault address is <0x... | none>, Workbench/E2E test tokenAddress is <real deployed ERC20 0x... ending in 7777>, preview tokenAddress is <same as test token | another real token | optional>. Production caRestrictionMode is <none | reserved | verified>, and production restricted CAs are <none | 0x..., 0x... for Workbench/registry only, not public manifest>. Note: any match.bindings[].tokenAddresses, including tokenAddresses inside a factory binding, must be real readable ERC20 addresses ending in 7777; in factory mode they are test-token proof only, not production CA restriction. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>. If I do not explicitly request a UI style, use the scaffold default surface / NiePan-style abstract template as the only visual default; built-in examples are behavior references only. My minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then scaffold, implement, preview, run vault:check, and package."
+        "prompt": "Please generate a custom Flap Vault UI in this repository. My folder name is <your-vault-name>, UI name is <My Vault UI>, target network is <BNB Chain mainnet | BNB Testnet>, binding mode is <factory | Vault without factory | token without factory>, factoryAddress is <0x... | none>, Vault address is <0x... | none>, Workbench/E2E test tokenAddress is <real deployed ERC20 0x... ending in 7777>, preview tokenAddress is <same as test token | another real token | optional>. Production caRestrictionMode is <none | reserved | verified>, and production restricted CAs are <none | 0x..., 0x... for Workbench/registry only, not public manifest>. Note: any match.bindings[].tokenAddresses, including tokenAddresses inside a factory binding, must be real readable ERC20 addresses ending in 7777; in factory mode they are test-token proof only, not production CA restriction. If this 7777 Vault UI needs 3D, declare capabilities: [\"three-r3f-v1\"], keep manifest.mode omitted, import every local 3D source/asset statically from Component.tsx, and render host risk status before the 3D visual. If Flap explicitly asks for fullscreen, set layout: \"fullscreen\" and keep the default Vault UI shell/risk/i18n/security rules. Fixed extra contract targets are <none | address + label + purpose>. If needed, write them to match.bindings[].externalContracts. Action availability is <internal-market | dex-listed | both | read-only>. If I do not explicitly request a UI style, use the scaffold default surface / NiePan-style abstract template as the only visual default; built-in examples are behavior references only. My minimal Vault ABI plus UI workflow is: <paste ABI, primary reads/writes, approve spender, native value, refetch points, empty states>. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, docs/ui-pattern-snippets.md, and docs/mini-app-3d.md if 3D is requested, then scaffold, implement, preview, run vault:check, and package."
       },
       "developerEntry": {
         "kicker": "Developer Entry",
@@ -56,7 +65,7 @@
           },
           {
             "title": "Implement here",
-            "body": "Each Vault UI owns exactly four source files. Registration is handled by script.",
+            "body": "Default Vault UI owns four core source files. Mini App may also include reviewed top-level audio files. Registration is handled by script.",
             "items": [
               "src/vaults/{folder-name}/Component.tsx",
               "src/vaults/{folder-name}/manifest.json",
@@ -79,21 +88,227 @@
         "doneTitle": "Done means",
         "doneBody": "blocking is 0, registration exists, /{folder-name} previews, package succeeds, and the zip contains the script-generated flap-vault-package.json marker with runtimePackageGitHead."
       },
+      "miniApp": {
+        "label": "Mini App SOP",
+        "title": "Mini App is a fullscreen business component bound to a 7777 or 8888 token.",
+        "description": "Mini App is still a Flap controlled source package: it ships the same four core Vault files, may additionally package reviewed top-level audio assets, and still runs vault:check, vault:e2e, and vault:package. The difference is that it uses the Mini APP preview shell instead of the default Vault Information shell, and routing is bound by token address. Use a real 7777 token for the Tax Token path or a real 8888 token for the zero-tax path; one artifact must not mix the two suffix families. Mini App allows broader external capabilities and creative expression within Flap's supported range, but publish review is stricter and more human-led; the code checker is an assistive gate, not the full approval decision.",
+        "quickStart": {
+          "kicker": "Mini App Quick Start",
+          "title": "Tell the Agent the mode, token family, and Mini APP preview shell up front.",
+          "description": "Mini App is not a free-form webpage container. When you paste this prompt, make token-only binding, the 7777 Tax Token or 8888 zero-tax token family, a full-height root layout, and the human-review notes for external capabilities explicit.",
+          "promptLabel": "Mini App Prompt Template",
+          "prompt": "Please generate a Flap Mini App source package in this repository. Folder name is <mini-app-folder>, Workbench internal UI name is <My Mini App>, flap.sh displayTitle is {\"zh\":\"<中文名>\",\"en\":\"<English Name>\"}; manifest.mode must be mini-app. Target network is <BNB Testnet | BNB Chain>. Token family is <7777 Tax Token | 8888 zero-tax token>. Binding must use only chainId + match.bindings[].tokenAddresses. tokenAddress is <real deployed ERC20 0x... ending in the selected 7777 or 8888 suffix>; do not write factoryAddress, vaultAddresses, global tokenAddresses, restrictTokenAddresses, or caPolicy, and never mix suffix families in one artifact. The Component root layout must include min-h-[100vh], min-h-screen, min-h-full, or h-full. Preview uses the Mini APP shell, factoryAddress and vaultAddress are zero addresses, and the artifact area is fullscreen. For 7777, treat buy tax, sell tax, and Marketing Wallet as live host/on-chain data; do not hardcode values or claim 100% allocation unless marketBps is exactly 10000. Within Flap's supported range, Mini App can carry broader creative ideas and broader external capabilities, but the checker is only an assistive code gate and publish requires stricter human review; list every external endpoint, resource, frame, external link, fixed contract target, and audio/visual asset with purpose, data source, license, risk, and fallback. If BGM or sound effects are needed, put lowercase top-level audio files directly under src/vaults/<folder> and statically import them from Component.tsx; allowed extensions are .mp3, .wav, .ogg, .m4a, and .aac. Do not use remote audio or hidden autoplay; provide visible mute/pause controls and mobile fallback. Mini App only skips the default Vault UI host risk-status tag check; every other source-package, i18n, contract-boundary, and E2E rule still applies. Read AGENTS.md, agent-contract.json, docs/ai-agent.md, and docs/ui-pattern-snippets.md first, then implement, preview, run vault:check, vault:e2e, vault:package, and vault:verify-package."
+        },
+        "summary": {
+          "kicker": "Mode Definition",
+          "title": "In one line: Mini App = token-scoped 7777 or 8888 artifact, not factory/Vault-scoped UI.",
+          "description": "When writing a Mini App, treat it as a controlled Vault UI package with stronger binding and a larger display area. It can feel like a game, campaign screen, or more creative interaction inside the artifact area. Use 7777 for the Tax Token path and 8888 for the zero-tax path. Within Flap's supported range, external capabilities are broader than the default Custom UI path, but review is more human-led.",
+          "items": [
+            "Manifest must set `mode: \"mini-app\"` and bind only through `match.bindings[].tokenAddresses` using real tokens that all end in 7777 or all end in 8888.",
+            "7777 Tax Token and 8888 zero-tax Mini Apps both require case-by-case manual review/audit.",
+            "Local preview uses the `/mini-app`-style shell: the header shows `MINI APP`, and the artifact content area can be fullscreen.",
+            "Only the default Vault UI host risk-status tag check is skipped; all other validation, file-boundary, and package rules still apply.",
+            "External capabilities, resources, links, frames, endpoints, and fixed contract targets can be requested within the allowed range, but they must go through stricter human review."
+          ]
+        },
+        "requirementsKicker": "Mini App Inputs",
+        "requirementsTitle": "Mini App needs these extra creative inputs.",
+        "requirementsDescription": "These are not required for the default Vault UI. The default Vault UI stays focused on Vault business workflows; when Mini App needs a small-app-like experience, describe these capabilities early so the template can constrain them and reviewers can inspect them.",
+        "requirements": [
+          {
+            "title": "App name",
+            "body": "`manifest.name` remains the Workbench internal UI name. Mini App also requires `manifest.displayTitle.zh` and `manifest.displayTitle.en`, for example `{ \"zh\": \"蝴蝶农场\", \"en\": \"Butterfly Farm\" }`. This display title appears on flap.sh Mini App pages and tabs; `MINI APP` is only the mode label. The default Vault UI still uses the Vault Information shell."
+          },
+          {
+            "title": "Animation",
+            "body": "Mini App may request richer animation. Prefer CSS transitions/keyframes, React state, and already allowed UI/icon capabilities. Complex animation, external animation resources, or extra dependencies must document purpose and risk for human review; default Vault UI does not require animation config."
+          },
+          {
+            "title": "BGM / sound",
+            "body": "If a Mini App needs BGM or sound effects, put lowercase top-level audio files directly under `src/vaults/<folder>` and import them from `Component.tsx`. Provide source, license, play timing, visible mute/pause controls, failure fallback, and mobile impact. Remote audio and hidden autoplay are not allowed; default Vault UI does not allow local audio assets."
+          },
+          {
+            "title": "Visual space",
+            "body": "Mini App gets a fullscreen artifact area and may use larger visuals, but the first screen should not be meaningless whitespace or an oversized middle image. Explain where core gameplay, primary action, and state live. Large images, backgrounds, canvas, and external visual resources need review."
+          },
+          {
+            "title": "SDK usage",
+            "body": "The SDK is a set of small functions and hooks, not something developers should rebuild. Requirements should name the needed `@/src/sdk` capabilities, primary reads/writes, refetch points, wallet/network states, and fallback behavior; do not create an SDK-like wrapper."
+          }
+        ],
+        "examples": {
+          "kicker": "Shared 3D Examples",
+          "title": "7777 Vault UI and 7777/8888 Mini App support the same controlled 3D capability.",
+          "description": "Explore Butterfly Farm, Flap Energy Arena, Flap Skies, and the developer-focused 7777 Vault UI fixture. The three 3D demos use the same standard three-r3f-v1 profile across both supported surfaces.",
+          "capabilityLabel": "3D supported · 7777 Vault UI + 7777/8888 Mini App · three-r3f-v1",
+          "capabilityFeatures": [
+            "Three r185",
+            "React Three Fiber",
+            "Drei",
+            "Postprocessing",
+            "WebGL2",
+            "Shaders",
+            "Runtime 2D Canvas textures",
+            "Responsive 2D/static fallback"
+          ],
+          "farmBadge": "Start here",
+          "farmTitle": "Butterfly Farm",
+          "farmDescription": "A Mini App shell and manifest guide card with the Farm preview screenshot. Use the playable arena route for the live local example.",
+          "farmCta": "Open playable example",
+          "skiesBadge": "Branded 3D world",
+          "skiesTitle": "Flap Skies",
+          "skiesDescription": "A polished Flap-branded miniature world with motion and exploration, built entirely inside the approved 3D profile with no remote assets.",
+          "skiesCta": "Explore Flap Skies",
+          "gameBadge": "Playable GameFi",
+          "gameTitle": "Flap Energy Arena",
+          "gameDescription": "A hands-on GameFi demo: steer with keyboard or touch, collect seven energy cores, use boost, finish the run, and restart.",
+          "gameCta": "Play Energy Arena",
+          "technicalBadge": "7777 Vault UI",
+          "technicalTitle": "Three/R3F Example",
+          "technicalDescription": "A default 7777 Vault UI reference for host risk status before 3D, nested components, shaders, local assets, runtime Canvas textures, and postprocessing.",
+          "technicalCta": "Open 3D reference"
+        },
+        "comparisonKicker": "Mini App / Custom UI",
+        "comparisonTitle": "Main Differences Between Mini App and Custom Vault UI.",
+        "comparisonDescription": "Custom UI remains the default view. Mini App is a separate mode: not an unlimited webpage container, but the same controlled source package with a different binding mode, preview shell, external-capability boundary, and review strategy.",
+        "comparisonTopicHeader": "Topic",
+        "comparisonCustomHeader": "Custom Vault UI",
+        "comparisonMiniAppHeader": "Mini App",
+        "comparisonRows": [
+          {
+            "topic": "Host shell",
+            "custom": "Uses the default `Vault Information` preview shell. The host owns token header, breadcrumb, close control, width, and shared summary.",
+            "miniApp": "Uses the Mini APP preview shell. Page title and tab use `manifest.displayTitle.zh/en` according to the active language, which is shown on flap.sh Mini App pages; `MINI APP` is only the mode label."
+          },
+          {
+            "topic": "Binding",
+            "custom": "Supports `chainId + factoryAddress`, `chainId + vaultAddresses[0]`, or token-scoped no-factory binding.",
+            "miniApp": "Token-scoped only: `chainId + match.bindings[].tokenAddresses`. Do not write factory or Vault bindings."
+          },
+          {
+            "topic": "Token rule",
+            "custom": "Package proof token must be real deployed ERC20. Standard 7777 Vault UI proof uses `7777`; a 7777 3D Vault UI must keep every proof token on `7777`.",
+            "miniApp": "Bound tokens must be real deployed ERC20 contracts and must all end in `7777` or all end in `8888`."
+          },
+          {
+            "topic": "Current stage",
+            "custom": "Default Custom Vault UI moves through the Vault business requirement, declared bindings, and checker rules.",
+            "miniApp": "7777 Tax Token and 8888 zero-tax Mini Apps are supported; publish is case by case and requires manual review/audit."
+          },
+          {
+            "topic": "Risk status",
+            "custom": "Must read and render host Vault/TaxInfo riskLevel, with warning/danger copy when missing.",
+            "miniApp": "Skips the default Vault risk-status tag check only. Security, resource, contract, and i18n checks still apply."
+          },
+          {
+            "topic": "External capability",
+            "custom": "Avoid external endpoints, external resources, externalFrames, arbitrary outbound links, and fixed extra contract targets by default.",
+            "miniApp": "Broader within Flap's supported range, but every external capability must document purpose, source, risk, and fallback for human review."
+          },
+          {
+            "topic": "Review model",
+            "custom": "`vault:check`, E2E, and package proof are the main gates; human review focuses on exceptions.",
+            "miniApp": "The checker only assists with code issues. Final approval depends more on human review of creativity, external dependencies, interaction boundaries, and launch risk."
+          },
+          {
+            "topic": "Creative range",
+            "custom": "Best for controlled Vault business flows: reads, status, actions, claims, approve/write.",
+            "miniApp": "Creative experiences are encouraged within the allowed range, but cannot bypass Flap review, package boundaries, or safety floors."
+          },
+          {
+            "topic": "Animation / sound",
+            "custom": "Does not require animation, BGM, or sound-effect config by default; usually stays static, compact, and business-first.",
+            "miniApp": "May request animation, BGM, and sound effects. Audio can be packaged as reviewed top-level files under `src/vaults/<folder>`, with resources, license, controls, and fallback declared for human review."
+          },
+          {
+            "topic": "SDK usage",
+            "custom": "Declare fixed Vault workflow reads/writes, approve, marketPhase, riskLevel, and related states.",
+            "miniApp": "Still uses the small `@/src/sdk` function set, but requirements must name the gameplay functions and states clearly; do not create an SDK-like wrapper."
+          },
+          {
+            "topic": "Layout",
+            "custom": "Default is a 768px Vault body; 7777 Vault UI can also use `layout: \"fullscreen\"` when Flap explicitly asks for a reviewed full-screen Vault body.",
+            "miniApp": "The Component outer root must include `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full`."
+          },
+          {
+            "topic": "Runtime addresses",
+            "custom": "Runtime may include token, factory, and Vault addresses; preview matches manifest bindings conservatively.",
+            "miniApp": "Preview uses token address as the core context; factory/Vault runtime addresses are zero addresses."
+          },
+          {
+            "topic": "Delivery",
+            "custom": "Four-file source package, then check/e2e/package/verify before submitting the zip.",
+            "miniApp": "Same four core files plus optional reviewed top-level audio assets, and the same check/e2e/package/verify path before submitting the zip."
+          }
+        ],
+        "preview": {
+          "kicker": "Preview Screenshot",
+          "title": "Flap Farm Mini App preview mode",
+          "description": "This screenshot comes from the flap-farm-vault E2E preview. It documents the Mini APP shell, fullscreen artifact area, and host/manifest self-test panel; the live local CTA opens a registered playable example instead of the archived Farm source.",
+          "imageAlt": "Flap Farm Mini App preview mode screenshot",
+          "caption": "The screenshot explains preview mode; the linked local route is a registered live example.",
+          "routeLabel": "Preview route",
+          "route": "/flap-gamefi-arena"
+        },
+        "workflowTitle": "Agent Workflow",
+        "workflow": [
+          "Confirm this is a Mini App, not the default custom Vault UI.",
+          "Confirm the real deployed `8888` token address and chainId; do not commit placeholder addresses.",
+          "Confirm the requirement fits the current 8888 no-tax / U-pool test-stage scope; otherwise pause for manual evaluation before implementing.",
+          "Set manifest `mode: \"mini-app\"` and use only token-scoped binding.",
+          "Set `manifest.displayTitle.zh` and `manifest.displayTitle.en` to the real display titles, for example `{ \"zh\": \"蝴蝶农场\", \"en\": \"Butterfly Farm\" }`; it is shown on flap.sh Mini App pages.",
+          "Add a full-height class to the Component root; do not rebuild the host navbar, wallet connect, or Mini APP shell.",
+          "If animation, BGM, sound effects, or large visual resources are needed, list source, license, controls, fallback, and mobile impact first. Audio files may be placed directly under `src/vaults/<folder>` only for Mini App mode.",
+          "Describe SDK usage: which `@/src/sdk` function or hook, read/write method, state, and error fallback the app needs.",
+          "If external capabilities are used, list the purpose, data, risk, and fallback for each endpoint, resource, frame, external link, or externalContracts target for human review.",
+          "Keep the four core files, i18n, SDK/UI import rules, and contract boundaries unchanged; Mini App audio is the only local-asset exception.",
+          "Run `yarn vault:check <folder-name>` and follow JSON code / fixHint / agent.nextActions until blocking is 0.",
+          "Run `yarn vault:e2e <folder-name>`, `yarn vault:package <folder-name>`, and `yarn vault:verify-package dist/<folder-name>.zip`."
+        ],
+        "rulesTitle": "Limit Rules",
+        "rules": [
+          "`mode` may only be `mini-app`; default custom UI must omit mode.",
+          "Mini App binding may use only `tokenAddresses`; do not write factoryAddress or vaultAddresses.",
+          "Every Mini App token must be a real deployed ERC20 and all bindings must consistently end in either `7777` or `8888`.",
+          "Use 7777 for Tax Token Mini Apps and 8888 for zero-tax Mini Apps; both need manual evaluation and cannot ship on checker pass alone.",
+          "Mini App must provide `manifest.displayTitle.zh` and `manifest.displayTitle.en`; this is shown on flap.sh Mini App pages.",
+          "The root layout must be full-height; missing that class is blocked by `mini-app-layout/missing-full-height-root`.",
+          "Animation should prefer local CSS/React. Extra animation libraries, audio, external media, or complex visual resources require human review.",
+          "BGM/sound may be submitted as reviewed top-level audio files under `src/vaults/<folder>` in Mini App mode only; do not use hidden autoplay, and provide visible mute/pause controls plus unavailable-state fallback.",
+          "Do not treat Mini App as an arbitrary webpage container; direct wallet APIs, iframe, eval, undeclared endpoints, and undeclared fixed contract targets are still blocked.",
+          "Mini App can request broader external capabilities within the supported range, but those items require stricter human review and cannot ship on checker pass alone.",
+          "Mini App only skips the default Vault UI risk-status tag check. It does not skip source-package, E2E, manifest, i18n, or security rules."
+        ],
+        "doneTitle": "Done means",
+        "doneBody": "manifest.mode=mini-app, token-only same-family 7777 or 8888 bindings, full-height root layout, vault:check blocking=0, E2E covers PC/iPad/H5 plus phase/wrong-network states, and package + verify-package both pass. If broader external capabilities are used, the matching human review must also be complete.",
+        "vault7777Title": "7777 Vault UI also supports 3D and fullscreen.",
+        "vault7777Items": [
+          "Use `capabilities: [\"three-r3f-v1\"]` with manifest.mode omitted for a 7777 Vault UI; it supports the same pinned Three/R3F profile as 7777/8888 Mini App.",
+          "A 7777 3D Vault UI may bind by factory, single Vault, or token, but every proof token must be a real deployed ERC20 ending in `7777`.",
+          "Keep the default Vault Information shell, host-derived risk status before the 3D scene, normal i18n/security/contract boundaries, and no Mini App audio/displayTitle/risk exemption.",
+          "Use `layout: \"fullscreen\"` only when Flap explicitly asks for a full-screen Vault body; this is available to default Vault UI as a reviewed layout option, not only Mini App."
+        ]
+      },
       "scopeTitle": "Development Scope",
+      "scopeDescription": "Customize the Vault UI within the component structure provided by the template.",
       "scopeItems": [
         "Build the Vault UI inside the component structure provided by this template.",
+        "Vault V2-standard NFT image display is supported.",
+        "7777 Vault UI can declare `three-r3f-v1` for controlled 3D with the same pinned Three/R3F stack as 7777/8888 Mini App, while keeping the default shell, risk-status, i18n, and security rules.",
+        "7777 Vault UI can use `layout: \"fullscreen\"` when Flap explicitly requests a reviewed full-screen Vault body; fullscreen is not limited to Mini App.",
         "Use the folder name only for the folder and preview route; vault:scaffold generates the manifest artifactId automatically.",
         "Declare Vault UI binding targets in the manifest with chain plus either factory address or a single Vault address. If a deployment needs a token CA reference list or fixed extra contract targets, declare them only inside the relevant match.bindings[] entry.",
         "Avoid external endpoints, external resources, and fixed extra contract targets; special cases must be declared and approved by Flap review before publish.",
-        "Keep the Vault package folder limited to Component.tsx, manifest.json, VaultABI.ts, and i18n.json.",
+        "Keep default Vault UI folders limited to Component.tsx, manifest.json, VaultABI.ts, and i18n.json. Mini App may additionally include reviewed top-level audio files.",
         "Register local preview routing with vault:scaffold or vault:register; do not hand-edit registration unless the script cannot parse the index file.",
-        "Do not add helpers, nested components, local assets, docs, or any other files under the Vault package.",
+        "Do not add helpers, nested components, non-audio local assets, docs, or any other files under the Vault package.",
         "Local preview renders with safe default fixture addresses and accepts real runtime addresses through URL params.",
         "Submission packages keep source files; production runtime JS is built by the Flap Artifact Workbench."
       ],
       "agentGuide": {
+        "kicker": "AI Agent / Skill",
         "title": "AI Agent / Skill Usage",
-        "description": "Agents should work only around the entry files, four Vault files, and check output. Do not let the Agent expand the folder structure.",
+        "description": "Agents should work only around the entry files, core Vault files, allowed Mini App audio assets, and check output. Do not let the Agent expand the folder structure.",
         "skillTitle": "Required Skill",
         "skillName": "flap-vault-ui-generator",
         "skillPath": "skills/flap-vault-ui-generator/SKILL.md",
@@ -141,13 +356,17 @@
           "Read the required docs and Skill first, then pick the closest pattern.",
           "When no UI style is specified, use the scaffold default surface / NiePan-style abstract template as the only visual default; examples are behavior references only.",
           "For a new Vault package, run yarn vault:scaffold {folder-name} with chain/factory for factory mode, or chain/Vault plus optional token for no-factory mode; it generates artifactId automatically.",
-          "Implement only inside the four core Vault files; do not add helpers, subcomponents, images, local docs, or sample data.",
+          "Implement only inside the four core Vault files; Mini App may add reviewed top-level audio files. Do not add helpers, subcomponents, images, local docs, or sample data.",
           "Run yarn vault:register {folder-name} when scaffold did not create the package, then preview /{folder-name}.",
-          "Use only @/src/sdk and @/src/ui for shared capabilities; the only local relative import allowed is ./VaultABI.",
+          "Use only @/src/sdk and @/src/ui for shared capabilities; default Vault UI may locally import only ./VaultABI, while Mini App may also statically import reviewed top-level audio files.",
+          "For 7777 3D Vault UI, declare three-r3f-v1, keep mode omitted, use a real 7777 proof token, statically import all local 3D files, and place host risk status before the 3D visual.",
           "Use safe preview defaults for first render, then pass real runtime data through URL params such as chainId, tokenAddress, and vaultAddress.",
           "Run yarn vault:check {folder-name} and follow agent.nextActions until blocking issues are zero, then run yarn vault:package {folder-name}."
         ]
       },
+      "stepsLabel": "Workflow",
+      "stepsTitle": "Complete one Vault UI in seven steps.",
+      "stepsDescription": "Follow these steps in order, from installing dependencies to packaging for Artifact Workbench.",
       "steps": [
         {
           "title": "Install dependencies",
@@ -188,6 +407,7 @@
             "Use @/src/sdk for chain, wallet, contract, oracle, i18n, notification, parsing, and transaction utilities.",
             "Use @/src/ui for shared UI primitives.",
             "Do not add extra files or subfolders under src/vaults/{folder-name}.",
+            "For 7777 3D Vault UI, declare three-r3f-v1, keep mode omitted, use a real 7777 proof token, statically import all local 3D files, and place host risk status before the 3D visual.",
             "Routes render with safe preview defaults; pass real preview addresses through URL params such as chainId, tokenAddress, and vaultAddress when testing a specific Vault.",
             "Use public aliases for shared capabilities. The only local relative import allowed is ./VaultABI; do not use ./helpers, ../VaultABI, nested component imports, local asset imports, or dynamic imports.",
             "Reuse one UI across testnet, mainnet, or other factories when the logic is the same; the binding list only describes which deployments the shared UI is intended for.",
@@ -221,6 +441,7 @@
         }
       ],
       "rulesTitle": "Submission Requirements",
+      "rulesDescription": "Check each item before delivery.",
       "rules": [
         "Use a 3-64 character lowercase kebab-case folder name for folder and route.",
         "Preview registration is local wiring only; use yarn vault:register {folder-name} when scaffold did not register the folder.",
@@ -234,6 +455,7 @@
         "You must run yarn vault:check {folder-name} before packaging and follow agent.nextActions until blocking is zero.",
         "You must use yarn vault:package {folder-name}; Workbench accepts only script-generated zips with flap-vault-package.json, runtimePackageGitHead, and matching hashes.",
         "The Vault package folder may contain only Component.tsx, manifest.json, VaultABI.ts, and i18n.json; no helpers, assets, nested folders, docs, sample data, symlinks, or extra files.",
+        "A mode-less 7777 Vault UI may add only the recursively statically reachable files allowed by `three-r3f-v1`; this does not grant Mini App audio, displayTitle, or risk-status exemptions.",
         "Manifest fields are limited to artifactId, name, match, i18n, and optional endpoints. Binding-scoped tokenAddresses, vaultAddresses, and externalContracts live only under match.bindings[]. Do not add chainIds, id, owner, version, sdkVersion, actions, oracles, media, fallback, contracts, global tokenAddresses, restrictTokenAddresses, or caPolicy.",
         "match.bindings must contain unique targets: chainId + factoryAddress, chainId + exactly one vaultAddress, or chainId + tokenAddress. Optional tokenAddresses belong only inside each binding entry; no-factory bindings may contain multiple tokens. Duplicate addresses are rejected.",
         "No-factory manifests must remain valid for Vault-only, token-only, and Vault+token mappings. Vault+token mappings may carry multiple tokenAddresses and should emit one binding key per token for Workbench/flap.sh mapping review.",
@@ -243,7 +465,7 @@
         "Do not use direct wallet APIs, eval, the Function constructor, iframe, script injection, dangerouslySetInnerHTML, or runtime remote imports.",
         "Do not use direct browser network, media, storage, navigation, Worker, cross-context messaging, permission APIs, or browser-global aliasing/destructuring/computed access.",
         "Direct fetch() targets must be static absolute HTTPS URLs without credentials and covered by manifest.endpoints. Host-relative, dynamic, HTTP, credentialed, or undeclared fetch targets are blocked.",
-        "Do not add third-party images, remote media URLs, data URLs, Arweave, WebSocket, or non-HTTPS resources. Token media must come from Flap-controlled runtime context such as context.tokenImageUrl; immutable Vault-specific images must use IpfsImage with a static image CID.",
+        "Do not add third-party images, remote media URLs, data URLs, Arweave, WebSocket, or non-HTTPS resources. Token media must come from Flap-controlled runtime context such as context.tokenImageUrl; immutable Vault-specific images use IpfsImage with a static image/directory CID. Vault V2-standard NFT image display is supported.",
         "Component-owned links must stay on the active chain explorer through context.explorerBaseUrl or shared explorer helpers; arbitrary external navigation is blocked.",
         "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay inside the Vault/token/NFT/factory/declaration boundary and use runtime context, Vault-derived addresses, or declared externalContracts. Routers, bridges, aggregators, or unrelated app contracts are blocked.",
         "Do not hardcode EVM addresses in Vault source. Use context.vaultAddress, context.tokenAddress, or approved runtime context values.",
@@ -265,6 +487,9 @@
   "preview": {
     "tokens": "Tokens",
     "vault": "Vault",
+    "taxInfo": "Tax Info",
+    "facVerified": "FAC verified",
+    "innovationTag": "Innovation",
     "vaultInformation": "Vault Information",
     "bindingHint": "chain + factory",
     "badge": "Preview",

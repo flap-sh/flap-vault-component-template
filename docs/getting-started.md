@@ -2,6 +2,8 @@
 
 This is the human developer quick-start. AI agents should use `agent-contract.json` and `docs/ai-agent.md` as the required workflow contract, then use this file only as supporting setup and preview context.
 
+The template supports Vault V2-standard NFT image display.
+
 ## 1. Install
 
 ```bash
@@ -43,7 +45,7 @@ Open:
 http://localhost:3000/example
 ```
 
-Live reviewed example routes:
+Additional example routes:
 
 ```plain text
 http://localhost:3000/community-buyback-example
@@ -69,11 +71,11 @@ The preview shell includes the Flap-style header, real RainbowKit/wagmi wallet c
 - DEX-listed action gating with `http://localhost:3000/example?tokenAddress=0x...&vaultAddress=0x...&factoryAddress=0x...&marketPhase=dex-listed`
 - no-factory single-Vault matching with `http://localhost:3000/example?tokenAddress=0x...&vaultAddress=0x...&marketPhase=internal-market`
 - taxinfo host context with `http://localhost:3000/example?tokenAddress=0x...&vaultAddress=0x...&factoryAddress=0x...&taxInfo=1&marketBps=10000&vaultType=myVault&marketPhase=internal-market`
-- live Community Approved Buyback flow with `http://localhost:3000/community-buyback-example`
+- Community Approved Buyback flow with `http://localhost:3000/community-buyback-example`
 - live FLAPixel NFT flow with `http://localhost:3000/flapixel-example`
-- wrong-network warnings and chain switching on write-capable real examples
+- wrong-network warnings and chain switching on write-capable examples
 
-The two live routes above are reviewed real examples, not neutral fixtures. Their chain state can move over time, but they are still part of the default regression spine now. The live smoke script checks both routes plus their host-presentation proxy responses:
+The `community-buyback-example` route currently binds to the same shared neutral preview fixture factory and token as the other workflow examples, so treat it as a workflow fixture rather than a live project binding. `flapixel-example` uses its own distinct reviewed binding. Both routes' chain state can move over time, but they are still part of the default regression spine now. The live smoke script checks both routes plus their host-presentation proxy responses:
 
 ```bash
 yarn preview:smoke:real
@@ -89,7 +91,7 @@ Recommended for AI agents and repeatable local setup:
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
 ```
 
-This creates the strict four-file package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`. Use a real deployed ERC20 test token ending in `7777` or `8888` for package proof and keep the final real mainnet factory binding in the same manifest. In factory mode, `tokenAddresses` is not the production CA restriction; Workbench/registry owns `caRestrictionMode`.
+This creates the strict core package, generates `manifest.artifactId`, and registers `my-vault` in `src/vaults/index.ts`. Use a real deployed ERC20 test token ending in `7777` or `8888` for package proof and keep the final real mainnet factory binding in the same manifest. In factory mode, `tokenAddresses` is not the production CA restriction; Workbench/registry owns `caRestrictionMode`.
 
 `my-vault` is the folder name. It becomes both the source folder and the preview route. Folder names must use 3-64 characters of lowercase kebab-case: letters/numbers separated by single hyphens. Do not use spaces, underscores, uppercase letters, leading/trailing hyphens, or nested folders.
 
@@ -105,7 +107,7 @@ src/vaults/my-vault/
   i18n.json
 ```
 
-The Vault folder is strict. Do not add extra source files, nested folders, local assets, README files, or other documents under `src/vaults/my-vault`. The file set is fixed to `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`.
+The default Vault folder is strict. Do not add extra source files, nested folders, local assets, README files, or other documents under `src/vaults/my-vault`. The core file set is `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) that are statically imported from `Component.tsx`. The only recursive source/asset exception is `three-r3f-v1`, available to a mode-less 7777 Vault UI or token-scoped 7777/8888 Mini App; read `docs/mini-app-3d.md` and use the live examples before authoring one.
 
 If those four files already exist because an Agent generated them from a manifest first, register the local preview route with:
 
@@ -134,7 +136,7 @@ Use:
 - `@/src/ui` for Flap UI primitives.
 - `lucide-react` for icons before ad hoc SVG. Search the official Lucide icon library first: `https://lucide.dev/icons/` (main site: `https://lucide.dev/`).
 - `./VaultABI` as the only allowed local relative import.
-- `manifest.json` for required `artifactId`, match fields, i18n, at least one binding-scoped real `7777`/`8888`-suffix `tokenAddresses` entry per manifest for Workbench/E2E testing, optional `mode: "mini-app"` only for token-scoped 8888-token Mini App artifacts, optional per-binding `externalContracts`, optional `layout: "fullscreen"` only when Flap explicitly asks for a full-screen Vault body, optional non-oracle endpoints, and optional reviewed `externalFrames`. Omit `mode` for the default Vault UI. Each binding needs `chainId` plus either non-zero `factoryAddress`, exactly one non-zero `vaultAddresses` entry when there is no factory, or token-only binding via `tokenAddresses`; production CA restriction is Workbench/registry `caRestrictionMode`, not a manifest field.
+- `manifest.json` for required `artifactId`, match fields, i18n, and a real `7777`/`8888` proof token. Use `mode: "mini-app"` only for token-only bindings that are all 7777 or all 8888; omit it for default Vault UI. Mini App requires bilingual `displayTitle` and cannot mix suffix families.
 
 Do not copy standard ERC20 ABI into `VaultABI.ts`. Add token ABI fragments there only when a token has custom non-standard methods or a special mechanism.
 
@@ -143,7 +145,9 @@ Use `context.host?.marketPhase` or the normalized `readTaxVaultHostContext(conte
 Wrong-network handling is separate from market-phase handling. Use `sdk.wallet.isWrongNetwork` to keep write buttons visible but disabled, then prompt `sdk.wallet.switchChain()` or show a clear switch-network state before any write.
 Do not fetch private token metadata or image APIs from the Vault component. If token media is needed, read `context.tokenImageUrl`, `context.tokenName`, and `context.tokenSymbol`; the template preview shell now injects these host values through the same-origin runtime proxy when available, then falls back to on-chain ERC20 metadata. Production Flap host should inject equivalent data.
 
-For a Vault-specific immutable image that cannot come from host token media, use CID-only `IpfsImage`; for a decorative full-area background, use CID-only `IpfsBackground`. Upload and pin the image outside the Vault UI package. Prefer the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) when the image must be available through Flap's gateway rather than a developer's personal Pinata gateway. Call `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation; the returned `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` / `IpfsBackground` value. Fetch that metadata JSON and read its `image` field; from an `image` value such as `https://.../ipfs/<imageCid>` or `ipfs://<imageCid>`, keep only `<imageCid>`. Do not use the metadata CID as the image CID.
+For a Vault-specific immutable image that cannot come from host token media, use `IpfsImage` with a static image or directory CID; for a decorative full-area background, use CID-only `IpfsBackground`. Upload and pin the image or complete NFT image directory outside the Vault UI package. Prefer the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) when the image must be available through Flap's gateway rather than a developer's personal Pinata gateway. Call `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation; the returned `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` / `IpfsBackground` value. Fetch that metadata JSON and read its `image` field; from an `image` value such as `https://.../ipfs/<imageCid>` or `ipfs://<imageCid>`, keep only `<imageCid>`. Do not use the metadata CID as the image CID.
+
+Vault V2 contract-selected NFT media does not use that static-CID shortcut. Render `NftMetadataImage` with `tokenId`; it consumes shared SDK context internally, so no caller SDK prop, project-supplied image ABI, or NFT address is required. The runtime calls `Vault.nft()` from `context.vaultAddress`, then `NFT.tokenURI(tokenId)`, and therefore follows mode 0/1 on-chain data JSON and mode 2 external JSON without inspecting `tokenURIBase` or constructing `.json` paths in UI code. External JSON and image bytes are resolved only through the host-owned metadata route with public-network, redirect, timeout, size, MIME, and SVG safety limits. Paginate token lists or mount only visible ids.
 
 Minimal image upload example:
 
@@ -166,7 +170,18 @@ import { IpfsImage } from "@/src/ui";
 />
 ```
 
-Do not pass a full gateway URL, an `ipfs://` value, the metadata CID, a CSS `url(...)`, an `imageUrl` prop, or a runtime variable/expression into the image source. If a generator collects an `imageCid` from the user, emit it as the static string literal in the `cid` prop. `vault:check` resolves each CID through the allowed Flap IPFS gateways and blocks packaging unless at least one response is a real `image/*` asset. The Vault UI does not upload or pin images; it only reads and verifies the already-pinned image CID. For default Vault UI, keep required host risk status before any large or visually prominent image; `mode: "mini-app"` is the token-scoped 8888-token Mini App exception.
+For an NFT directory, append the id only through the controlled path prop:
+
+```tsx
+<IpfsImage
+  cid="bafy...collection-directory-cid"
+  path={`${tokenId.toString()}.png`}
+  validationPath="1.png"
+  alt={i18n.t("media.nftAlt")}
+/>
+```
+
+The dynamic path stays under the static CID; `validationPath` gives `vault:check` one real image to probe. Static paths are probed directly and do not use `validationPath`. Do not pass a full gateway URL, an `ipfs://` value, the metadata CID, a CSS `url(...)`, an `imageUrl` prop, or a runtime variable/expression into `cid`. Paths reject traversal, schemes, query/hash values, encoded escapes, leading/trailing slashes, and empty segments. The Vault UI does not upload or pin images; it reads already-pinned content only. For default Vault UI, keep required host risk status before any large or visually prominent image; token-scoped 7777 or 8888 Mini Apps set `mode: "mini-app"` and are the exception.
 
 Avoid external endpoints, resources, and frames. If a special non-oracle endpoint is unavoidable, declare it in `manifest.json` as a single absolute HTTPS URL string without username/password credentials or an array of those strings; it will enter Flap review and must be approved before publish. Direct `fetch(...)` targets must be static absolute HTTPS URLs covered by that declaration. If a display-only chart iframe is unavoidable, declare at most one entry in `manifest.externalFrames[]` and render it only through one `ReviewedFrame` from `@/src/ui`; providers are limited to TradingView, DexScreener, and CoinGecko Terminal/GeckoTerminal, and the `src` must be a complete static HTTPS URL with fixed query params. Oracle usage is detected by `vault:check` and provisioned by the Flap Artifact Workbench/runtime, not declared in the manifest. Declaration does not guarantee approval, and undeclared, host-relative, dynamic, HTTP, credentialed, raw iframe, or multiple `ReviewedFrame` usage is rejected.
 
@@ -219,8 +234,8 @@ yarn playwright install chromium
 The missing-browser failure is reported as machine-readable JSON code `vault-e2e/playwright-browser-missing`. CI installs Chromium with `npx playwright install --with-deps chromium`.
 The package command runs `vault:check` first and rejects missing, failed, or stale E2E reports. Send the zip under `dist/` to the Flap Artifact Workbench after it passes.
 The command output prints the generated zip location in `sourcePackagePath` and `sourcePackageAbsolutePath`.
-Do not hand-zip files. `yarn vault:package` writes format `4` `flap-vault-package.json`, `runtimePackageGitHead`, `qa/e2e-report.json`, E2E summary, and hashes into the zip; the Flap Artifact Workbench should reject packages missing this script marker, proof, provenance, or matching hashes.
-Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, runtime npm provenance, expected file list, metadata, and hashes from the Workbench acceptance side.
+Do not hand-zip files. `yarn vault:package` writes current format `6` `flap-vault-package.json`, `runtimePackageGitHead`, E2E report v2, recursive source/asset hashes, capability profile data, and matching summary fields into the zip. Workbench reads legacy format 5 only without `capabilities`; every `three-r3f-v1` package requires format 6.
+Run `yarn vault:verify-package dist/<folder-name>.zip` after packaging to check the marker, current template/runtime provenance, current manifest schema, expected file list, metadata, and hashes from the Workbench acceptance side. Use `--self-contained` only for historical package inspection, not handoff.
 
 If you changed shared runtime surfaces such as `src/sdk/*`, `src/ui/*`, the runtime proxy, or the host-runtime package boundary, also verify the shared runtime package:
 

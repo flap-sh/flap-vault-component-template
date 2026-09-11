@@ -7,8 +7,12 @@ import archiver from "archiver";
 import { failAgent } from "./agent-error.mjs";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
+  collectSourceHashes,
   E2E_REPORT_PACKAGE_PATH,
   findE2EReportPath,
+  MINI_APP_CAPABILITY_CONFIG_PATH,
+  readPackageFileBuffer,
+  sourcePackagePaths,
   summarizeE2EReportForMarker,
   validateE2EReportObject,
 } from "./e2e-report-utils.mjs";
@@ -16,13 +20,12 @@ import { runVaultCheckWithTokenContracts } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 4;
+const PACKAGE_FORMAT_VERSION = 6;
 const PACKAGE_TOOL = "yarn vault:package";
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const TEMPLATE_NAME = "flap-vault-ui-template";
 const RUNTIME_PACKAGE_NAME = "@flapsdk/vault-runtime";
 const RUNTIME_CONTRACT_VERSION = 1;
-const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const folderName = process.argv[2];
 const rootPackage = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const templateVersion = rootPackage.version;
@@ -120,25 +123,19 @@ const output = fs.createWriteStream(outFile);
 const archive = archiver("zip", { zlib: { level: 9 } });
 
 archive.pipe(output);
-archive.directory(vaultDir, `src/vaults/${folderName}`, (entry) => {
-  const blocked = [".env", ".env.local", "node_modules", ".git", ".vercel", "package-lock.json", "pnpm-lock.yaml"];
-  if (blocked.some((part) => entry.name.includes(part))) return false;
-  return entry;
-});
-archive.file(path.join(ROOT, "schemas", "manifest.schema.json"), { name: "schemas/manifest.schema.json" });
-
 const packagedAt = new Date().toISOString();
-const sourceFileHashes = Object.fromEntries(
-  REQUIRED_SOURCE_FILES.map((file) => {
-    const packagePath = `src/vaults/${folderName}/${file}`;
-    return [packagePath, hashFile(path.join(vaultDir, file))];
-  }),
-);
+const sourceFiles = sourcePackagePaths(ROOT, folderName);
+const sourceFileHashes = collectSourceHashes(ROOT, folderName);
 const schemaPath = "schemas/manifest.schema.json";
-const schemaSha256 = hashFile(path.join(ROOT, schemaPath));
 const e2eReportSha256 = crypto.createHash("sha256").update(e2eReportRaw).digest("hex");
 const checkSummary = summarizeCheck(result.issues);
 const e2eSummary = summarizeE2EReportForMarker(e2eReport);
+
+for (const sourceFile of sourceFiles) {
+  archive.append(readPackageFileBuffer(path.join(ROOT, sourceFile)), { name: sourceFile });
+}
+archive.append(readPackageFileBuffer(path.join(ROOT, schemaPath)), { name: schemaPath });
+archive.append(readPackageFileBuffer(path.join(ROOT, MINI_APP_CAPABILITY_CONFIG_PATH)), { name: MINI_APP_CAPABILITY_CONFIG_PATH });
 
 function bindingKeysForEntry(binding) {
   if (binding.factoryAddress) {
@@ -172,18 +169,19 @@ const packageMarker = {
   runtimeContractVersion: RUNTIME_CONTRACT_VERSION,
   artifactId: manifest.artifactId,
   folderName,
+  ...(manifest.displayTitle ? { displayTitle: manifest.displayTitle } : {}),
   sourcePackage: `src/vaults/${folderName}`,
   ...(manifest.mode ? { mode: manifest.mode } : {}),
+  ...(manifest.capabilities ? { capabilities: manifest.capabilities } : {}),
   packagedAt,
   check: {
     passed: checkSummary.blocking === 0,
     summary: checkSummary,
   },
   e2e: e2eSummary,
-  requiredSourceFiles: REQUIRED_SOURCE_FILES.map((file) => `src/vaults/${folderName}/${file}`),
+  requiredSourceFiles: sourceFiles,
   fileSha256: {
     ...sourceFileHashes,
-    [schemaPath]: schemaSha256,
     [E2E_REPORT_PACKAGE_PATH]: e2eReportSha256,
   },
 };
@@ -203,10 +201,12 @@ const metadata = {
   artifactId: manifest.artifactId,
   folderName,
   name: manifest.name,
+  ...(manifest.displayTitle ? { displayTitle: manifest.displayTitle } : {}),
   ...(manifest.mode ? { mode: manifest.mode } : {}),
+  ...(manifest.capabilities ? { capabilities: manifest.capabilities } : {}),
   bindingKeys: (manifest.match?.bindings || []).flatMap(bindingKeysForEntry),
   packagedAt,
-  manifestSha256: hashFile(path.join(vaultDir, "manifest.json")),
+  manifestSha256: sourceFileHashes[`src/vaults/${folderName}/manifest.json`],
   sourcePackage: `src/vaults/${folderName}`,
   checkSummary,
   e2e: e2eSummary,

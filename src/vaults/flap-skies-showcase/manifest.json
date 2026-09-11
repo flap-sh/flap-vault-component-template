@@ -1,0 +1,19 @@
+{
+  "artifactId": "vaultui_flap-skies-showcase_01K9V9Z0P0BBBBBBBBBBBBBBBB",
+  "name": "Flap Skies Showcase",
+  "displayTitle": {
+    "zh": "Flap 天际展示",
+    "en": "Flap Skies Showcase"
+  },
+  "mode": "mini-app",
+  "capabilities": ["three-r3f-v1"],
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "tokenAddresses": ["0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888"]
+      }
+    ]
+  },
+  "i18n": ["en", "zh"]
+}

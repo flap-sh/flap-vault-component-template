@@ -35,7 +35,7 @@ Avoid:
 - Treating legacy example layouts or `action-gallery-example` as the visual default. `/example` mirrors the compact scaffold direction, but the scaffold default and this document still define the source of truth for new UI structure.
 - Row-heavy dashboard layouts with multiple sibling `Card` sections before the primary action. If a generated UI starts with overview cards, dividend cards, staking cards, and action cards, it has copied the old sample-dashboard shape.
 - `vault:check` blocks row-heavy dashboard shapes for new Vault folders. Restructure them into one compact business card with a small metric strip, one visible primary action panel, and lower runtime facts.
-- Third-party images or external media. If a Vault-specific immutable image is unavoidable, use `IpfsImage` from `@/src/ui`; for a decorative full-area background, use `IpfsBackground` from `@/src/ui`. Both require a static image CID that `vault:check` can verify.
+- Uncontrolled third-party images or external media. Individual images from exact-host `https://bin.bnbstatic.com` may use `BinanceImage` from `@/src/ui` with any pathname; paginate or virtualize large result sets. If another Vault-specific immutable image is unavoidable, use `IpfsImage` from `@/src/ui`; for a decorative full-area background, use `IpfsBackground`. Both IPFS primitives require a static image/directory CID. `IpfsImage` alone may use a safe dynamic in-directory path with a static `validationPath` sample.
 - Ad hoc SVG when CSS/HTML or a `lucide-react` icon can express the same mark. If inline SVG is necessary, keep it to safe static pure shape nodes and local fragment refs only.
 - Turning `<canvas>` into a full-screen whiteboard, background scene, or shell replacement.
 - Hardcoded addresses or private endpoints.
@@ -1044,6 +1044,28 @@ Every generated Vault UI should explicitly handle:
 {paused ? <Alert tone="warning">{t("states.paused")}</Alert> : null}
 {error ? <Alert tone="danger">{error}</Alert> : null}
 ```
+
+## External Links
+
+Vault UIs may not send users to arbitrary sites with raw anchors or `window.open`. Only the current chain explorer and approved external-link hosts (currently `x.com` and its subdomains) may be linked directly. Every other external link must use the `ExternalLink` component, which intercepts the click, shows a third-party risk confirmation, and opens the destination in a new tab only after the user acknowledges the risk.
+
+```tsx
+import { ExternalLink } from "@/src/ui";
+import { useFlapSdk } from "@/src/sdk";
+
+const { i18n } = useFlapSdk();
+
+// The warning copy is bilingual and follows i18n.locale.
+<ExternalLink url="https://third-party-dapp.example/vault" locale={i18n.locale}>
+  {t("links.projectSite")}
+</ExternalLink>
+```
+
+- The `url` may be static or dynamic. The runtime component opens only absolute HTTPS destinations without credentials after the user acknowledges the risk prompt.
+- The destination host is shown to the user inside the warning dialog.
+- `ExternalLink` is for user-facing links only. It is not a data channel; use `manifest.endpoints` + `fetch`/`sdk.readOracle` for reviewed data fetches.
+- Static `ExternalLink` destinations are listed for Flap human review: `vault:check` emits an `info` `manual-review/external-link` item (surfaced in `review.externalLinks`) and the Workbench displays each destination for a reviewer before publish. Dynamic destinations rely on the runtime risk prompt and HTTPS-only guard.
+- Copy is built-in English/Chinese, selected from the `locale` prop; pass individual `copy` overrides only if you need custom wording.
 
 ## Agent Checklist
 

@@ -4,8 +4,11 @@ export * from "./contract";
 export * from "./erc20";
 export * from "./format";
 export * from "./ipfsImage";
+export * from "./nftMetadata";
 export * from "./oracle";
-export { VaultRuntimeProvider, useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtime";
+export * from "./three";
+export { VaultRuntimeProvider } from "./runtime";
+export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
 export { ZERO_ADDRESS, isActionAvailableForPhase, isCustomVaultTaxToken, isValidAddress, readTaxVaultHostContext, resolveTokenMarketPhase } from "./taxInfo";
 export { getTxErrorKind, handleTxError } from "./txError";
 export { useFlapChain } from "./useFlapChain";
@@ -13,6 +16,7 @@ export { useFlapWallet } from "./useFlapWallet";
 export type {
   ActionAvailabilityStage,
   Address,
+  ContractEventRequest,
   ContractReadRequest,
   ContractWriteRequest,
   FeeMode,
@@ -25,6 +29,12 @@ export type {
   FlapVaultSdk,
   FlapWallet,
   ManifestBindingEntry,
+  NftMetadataAttribute,
+  NftMetadataReader,
+  NftMetadataReaderRequest,
+  NftMetadataReadRequest,
+  NftMetadataSnapshot,
+  NftMetadataSource,
   OracleProvision,
   OracleReadRequest,
   OracleReader,

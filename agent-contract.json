@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 32,
+  "version": 48,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
       "agent-contract.json",
       "AGENTS.md",
       "docs/ai-agent.md",
+      "docs/mini-app-3d.md",
       "docs/agent-entrypoints.md",
       "docs/ui-pattern-snippets.md",
       "skills/flap-vault-ui-generator/SKILL.md"
@@ -23,6 +24,40 @@
     "index": "docs/agent-entrypoints.md"
   },
   "packageManager": "yarn",
+  "miniAppCapabilities": {
+    "profileConfig": "config/mini-app-capability-profiles.json",
+    "documentation": "docs/mini-app-3d.md",
+    "liveExamples": ["/flap-gamefi-arena", "/flap-skies-showcase", "/three-r3f-example"],
+    "manifestField": "capabilities",
+    "profiles": {
+      "three-r3f-v1": {
+        "surfaces": ["vault-ui-7777", "mini-app-7777", "mini-app-8888"],
+        "sourcePackageFormat": 6,
+        "e2eReportVersion": 2,
+        "dependencyRevision": "react19-r3f9",
+        "hostReact": ">=19 <19.3",
+        "dependencies": {
+          "three": "0.185.1",
+          "@react-three/fiber": "9.7.0",
+          "@react-three/drei": "10.7.8",
+          "@react-three/postprocessing": "3.0.4"
+        },
+        "acceptedLegacyDependencyRevisions": [
+          {
+            "id": "react18-r3f8",
+            "hostReact": "^18.3.1",
+            "dependencies": {
+              "three": "0.185.1",
+              "@react-three/fiber": "8.18.0",
+              "@react-three/drei": "9.122.0",
+              "@react-three/postprocessing": "2.19.1"
+            }
+          }
+        ],
+        "rules": "Allows recursively statically reachable TS/TSX, shader, and reviewed local 3D assets for a mode-less 7777 Vault UI or a token-scoped Mini App whose proof tokens are all 7777 or all 8888. The mode-less 7777 Vault UI may use factory, single-Vault, or token bindings and must retain host risk status before the 3D visual; Mini App surfaces keep token-only bindings, full-height layout, bilingual displayTitle, audio review, and the risk-tag exemption. Every local source and asset must use a static import reachable from Component.tsx; string paths passed directly to loaders do not count. Mixed 7777/8888 Mini App artifacts are blocked. No arbitrary npm packages, remote resources, network, storage, navigation, wallet, worker, or contract-target expansion. WebGL2 failure must fall back explicitly to webgl1, 2d, or static UI."
+      }
+    }
+  },
   "uiPatternReference": {
     "path": "docs/ui-pattern-snippets.md",
     "rule": "Read before implementing Component.tsx. Use snippets as sanitized layout and state-flow references only; do not copy private Flap source code, private names, addresses, endpoints, or constants."
@@ -51,7 +86,9 @@
     "tokenMetadataSource": ["context.tokenImageUrl", "context.tokenName", "context.tokenSymbol"],
     "tokenMetadataPreviewCapability": "The template preview shell first asks the same-origin host proxy for token presentation data, then falls back to public SDK ERC20 symbol() and name() reads from the preview tokenAddress. The mocked /logo.png image is reserved for the neutral preview fixture unless tokenImageUrl is explicitly overridden.",
     "allowedIpfsImageGateways": ["https://flap.mypinata.cloud", "https://magenta-naval-penguin-822.mypinata.cloud"],
-    "ipfsImageRule": "Vault source may render immutable Vault-specific images only through IpfsImage from @/src/ui, or decorative full-area/background images through IpfsBackground from @/src/ui, with a static image CID in the cid prop. vault:check validates that each CID resolves through at least one allowed Flap IPFS gateway to image/* before packaging. Full gateway URLs, ipfs:// values, metadata CIDs, CSS url(...), fetch targets, dynamic image URLs, upload flows, and non-allowlisted gateway URLs remain blocked.",
+    "binanceImageRule": "Vault source may render individual Binance-hosted images through BinanceImage from @/src/ui. The runtime accepts only absolute HTTPS URLs whose exact hostname is bin.bnbstatic.com, with no credentials or alternate port; every pathname is allowed. The component forces lazy loading, async decoding, and referrerPolicy=no-referrer and rejects srcSet/loading/decoding/referrerPolicy overrides. Dynamic API-returned src values are allowed because the runtime revalidates every value. Do not use raw <img>, CSS url(...), subdomains, lookalike domains, or BinanceImage for bulk eager rendering; paginate or virtualize large result sets.",
+    "ipfsImageRule": "Vault source may render immutable Vault-specific images only through IpfsImage from @/src/ui, or decorative full-area/background images through IpfsBackground from @/src/ui, with a static image or directory CID in the cid prop. IpfsImage may append a safe relative path under that CID; a dynamic path such as an NFT id-derived filename requires one static validationPath representative image. vault:check validates CID/path syntax without probing every image over the network. Full gateway URLs, ipfs:// values, metadata CIDs, CSS url(...), fetch targets, dynamic CIDs, path traversal/query/hash values, upload flows, and non-allowlisted gateway URLs remain blocked. IpfsBackground remains CID-only. This static-CID path is not the Vault V2 tokenURI path.",
+    "nftMetadataImageRule": "Vault V2 NFT media must render through NftMetadataImage from @/src/ui with tokenId and localized alt. The component consumes the shared SDK context internally. This generic path requires no caller-supplied SDK prop, project image ABI, or NFT address: the shared runtime owns the minimal Vault.nft() and NFT.tokenURI(tokenId) ABIs, parses mode 0/1 data:application/json metadata locally, and routes mode 2 IPFS/HTTPS metadata plus external image bytes through the host-owned /api/runtime/nft-metadata resolver. The resolver enforces public HTTPS/IPFS routing, binds each socket lookup to a validated public DNS address, revalidates redirects, caps images at 3,000,000 bytes, sanitizes metadata fields and SVG, and returns only a validated data image. Valid Pinata dedicated-gateway /ipfs/<CID>/... URLs are normalized by CID/path to Pinata's public gateway before DNS/fetch. Vault source must not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid/path, or spread props to NftMetadataImage and must not fetch metadata itself. Render only visible/paginated token ids instead of mounting an unbounded collection at once.",
     "shellOwnedUi": [
       "Flap header and wallet connect",
       "token breadcrumb, image, symbol/name, CA, copy, explorer link",
@@ -68,20 +105,29 @@
     "marketPhaseRule": "The template preview host and production Flap host derive marketPhase from Portal token state: existing tokens with tokenInfo.status < 2 are internal-market; existing tokens with tokenInfo.status >= 2 are dex-listed; missing token info is unknown. In preview, taxInfo=1 is only a fixture seed when no real chain host data is available or when an explicit override is desired.",
     "actionAvailabilityHelper": "isActionAvailableForPhase(stage, context.host?.marketPhase ?? \"unknown\")",
     "riskStatusSource": "readTaxVaultHostContext(context.host).vaultInfo.riskLevel or readTaxVaultHostContext(context.host).taxInfo.vaultInfo.riskLevel",
-    "riskStatusRule": "Default Vault UI packages must read and visibly render the current contract risk status from host Vault/TaxInfo context. The risk status must be placed within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block. If the risk level is unavailable, render a prominent warning/danger message that risk-status integration is required. Do not hardcode or unconditionally render Low risk / 低风险 labels, badges, summaries, or reassuring copy; a low-risk label may appear only when selected from the host-derived riskLevel === 1 branch. vault:check blocks Component.tsx files that do not reference host riskLevel and a visible UI primitive, blocks risk status placed too low or after large visuals, and blocks manual low-risk labels that are not derived from host riskLevel. The only exception is manifest.mode=\"mini-app\" for token-scoped 8888-token Mini App artifacts; mini-app mode skips these risk-status tag checks.",
+    "riskStatusRule": "Default Vault UI packages must read and visibly render the current contract risk status from host Vault/TaxInfo context. The risk status must be placed within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block. If the risk level is unavailable, render a prominent warning/danger message that risk-status integration is required. Do not hardcode or unconditionally render Low risk / 低风险 labels, badges, summaries, or reassuring copy; a low-risk label may appear only when selected from the host-derived riskLevel === 1 branch. vault:check blocks Component.tsx files that do not reference host riskLevel and a visible UI primitive, blocks risk status placed too low or after large visuals, and blocks manual low-risk labels that are not derived from host riskLevel. The only exception is manifest.mode=\"mini-app\" for token-scoped 7777 or 8888 Mini App artifacts; mini-app mode skips these risk-status tag checks.",
     "backwardsCompatibleListedFlag": "context.host.isListed",
     "wrongNetworkCapability": "sdk.wallet exposes isWrongNetwork, requiredChainId, requiredChainLabel, canSwitchChain, isSwitchingChain, and switchChain() so write-capable Vault UIs can render a switch-network state before attempting writes."
   },
   "vaultPackage": {
     "rootPattern": "src/vaults/{folder-name}",
+    "sourceSyntaxRule": "Every TypeScript, TSX, JavaScript, and JSX source file in the Vault package must parse without diagnostics. vault:check blocks source-syntax/invalid-typescript before E2E or packaging.",
+    "e2ePreviewSourceRule": "vault:e2e must verify /api/runtime/e2e-source and record preview-source attestation that binds the tested preview server to the current Component.tsx hash. Stale or unrelated base URLs are blocking and their reports cannot be packaged.",
     "folderNameRule": "The Vault folder name is the source folder and preview route. User-facing docs and outputs should call it folder name. Use 3-64 characters of lowercase kebab-case: /^[a-z0-9]+(-[a-z0-9]+)*$/.",
     "previewRegistrationRule": "Local preview uses src/vaults/index.ts as a static module map. vault:scaffold registers the folder automatically. If the four files already exist, run yarn vault:register {folder-name}; do not hand-edit registration unless the script cannot parse the index file.",
     "requiredFiles": ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"],
     "allowedFiles": ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"],
+    "allowedMiniAppAudioAssets": {
+      "mode": "mini-app only",
+      "placement": "Top-level files directly under src/vaults/{folder-name}; nested audio folders are not allowed.",
+      "extensions": [".mp3", ".wav", ".ogg", ".m4a", ".aac"],
+      "filenameRule": "Lowercase letters, numbers, dots, underscores, and hyphens only; max 80 characters before extension policy enforcement.",
+      "sizeLimit": "Each file must be at most 5 MiB and total Mini App audio must be at most 12 MiB. Audio files are packaged, hashed, and surfaced as manual-review/mini-app-audio-asset warnings."
+    },
     "registrationFile": "src/vaults/index.ts"
   },
   "allowedImports": {
-    "localRelative": ["./VaultABI"],
+    "localRelative": ["./VaultABI", "Mini App mode may also import top-level reviewed audio assets such as ./bgm.mp3"],
     "packagePrefixes": ["react", "viem", "decimal.js", "lucide-react"],
     "sharedRuntimeModules": ["@/src/sdk", "@/src/ui"],
     "sharedRuntimeOnlyRule": "Do not introduce any additional SDK package or SDK-like runtime wrapper. Vault source may use only exact imports from the shared @/src/sdk and @/src/ui barrel surfaces plus the explicit default allowlist; deep imports such as @/src/sdk/format or @/src/ui/Button are not allowed.",
@@ -102,40 +148,46 @@
     "recharts"
   ],
   "manifest": {
-    "allowedTopLevelFields": ["artifactId", "name", "match", "i18n", "mode", "layout", "endpoints", "externalFrames"],
+    "allowedTopLevelFields": ["artifactId", "name", "displayTitle", "match", "i18n", "mode", "capabilities", "layout", "endpoints", "externalFrames"],
     "requiredTopLevelFields": ["artifactId", "name", "match", "i18n"],
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
-    "bindingsRule": "match.bindings is a non-empty array of unique runtime targets. Each entry must declare chainId plus either a non-zero, non-placeholder factoryAddress for factory-scoped UI, exactly one non-zero, non-placeholder vaultAddresses entry for Vault-scoped UI without a factory, or one or more non-zero, non-placeholder tokenAddresses entries for token-scoped UI without a factory. A zero factoryAddress or reserved template placeholder address is invalid; omit factoryAddress for no-factory mode. Every tokenAddresses entry under any binding, including factory bindings, must be a real deployed ERC20 address ending in 7777 or 8888. Also collect the final real mainnet factoryAddress for the production binding early. Preview/runtime should prefer exact chainId + factoryAddress, chainId + vaultAddress (+ optional tokenAddress), or chainId + tokenAddress matches, treat partial hints as valid only when unambiguous, and use the first binding as a preview default only when the route provides no runtime hints.",
-    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 or 8888 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
+    "bindingsRule": "match.bindings is a non-empty array of unique runtime targets. Each entry must declare chainId plus either a non-zero, non-placeholder factoryAddress for factory-scoped UI, exactly one non-zero, non-placeholder vaultAddresses entry for Vault-scoped UI without a factory, or one or more non-zero, non-placeholder tokenAddresses entries for token-scoped UI without a factory. A zero factoryAddress or reserved template placeholder address is invalid; omit factoryAddress for no-factory mode. Every tokenAddresses entry under any binding, including factory bindings, must be a real deployed ERC20 address ending in 7777 or 8888. Robinhood packages may prove E2E through a token-scoped Robinhood mainnet binding on chain 4663 or a real Robinhood Testnet proof token on chain 46630. Also collect the final real mainnet factoryAddress for the production binding early. Preview/runtime should prefer exact chainId + factoryAddress, chainId + vaultAddress (+ optional tokenAddress), or chainId + tokenAddress matches, treat partial hints as valid only when unambiguous, and use the first binding as a preview default only when the route provides no runtime hints.",
+    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 or 8888 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. A Mini App without a project test token uses Flap's deployed standard Mini App preview token for its chain; this is preview/E2E proof only, not a production CA restriction, and never bypasses ERC20 validation. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
-    "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped 8888-token Mini App artifacts; mini-app mode is strongly bound to the token address, keeps the same source-package boundary, and requires match.bindings[].tokenAddresses ending in 8888, but does not require the Vault risk-status tag checks.",
+    "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped Mini App artifacts whose match.bindings[].tokenAddresses entries all end in 7777 or all end in 8888; mini-app mode is strongly bound to token addresses, keeps the same core source-package boundary with an extra top-level reviewed audio-asset exception, requires bilingual displayTitle, and skips Vault risk-status tag checks. Never mix 7777 and 8888 in one Mini App artifact.",
+    "threeR3FRule": "three-r3f-v1 accepts three surfaces: mode omitted with every proof token ending in 7777 for default Vault UI, mode=mini-app with only 7777 Tax Token bindings, or mode=mini-app with only 8888 zero-tax bindings. The mode-less 7777 Vault UI supports factory, single-Vault, and token bindings and keeps default Vault risk, shell, audio, layout, and displayTitle rules; both Mini App surfaces are token-only and keep Mini App rules.",
     "miniAppLayoutRule": "Mini App Component.tsx must put a full-height class or inline height on the outermost returned layout element, for example min-h-[100vh], min-h-screen, min-h-full, or h-full.",
     "layoutRule": "Omit manifest.layout for the standard 768px Vault body. Set layout to fullscreen only when Flap explicitly requests a full-screen Vault body; this triggers manual-review/fullscreen-layout and flap.sh remains responsible for host-owned token/header constraints.",
     "disallowedTopLevelFields": ["id", "owner", "version", "sdkVersion", "actions", "oracles", "media", "fallback", "contracts", "chainIds", "restrictTokenAddresses", "tokenAddresses", "caPolicy"],
     "localeRule": "manifest.i18n entries must be locale strings with at least two characters. Only locales declared by manifest.i18n are required and compared.",
     "oracleRule": "Do not declare oracle config in manifest.json. Source packages may use only built-in runtime oracle ids before packaging. FLAP_RUNTIME_ORACLE_REGISTRY is for host/runtime preview diagnostics and does not make a custom oracle id packageable. vault:check prints oracle id, endpoint/provisioning details, allowed/fixed params, and source file location in review.oracles[] for Workbench human review.",
-    "endpointRule": "Avoid endpoints. Non-oracle fetch targets must be static absolute HTTPS URLs without username/password credentials and declared in manifest.endpoints as a single URL string or an array of URL strings for review. Dynamic, relative, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked.",
+    "endpointRule": "Avoid endpoints. Non-oracle fetch targets must be static absolute HTTPS URLs without username/password credentials and declared in manifest.endpoints as a single URL string or an array of URL strings for review. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets; it does not authorize images, ordinary URL constants, i18n URL values, or other non-fetch resources. Dynamic, relative, HTTP, credentialed, undeclared, aliased, destructured, or computed browser-global fetch targets are blocked.",
     "externalFrameRule": "Avoid external frames. If a display-only market chart is unavoidable, declare at most one entry in manifest.externalFrames with id, provider, src, and title. Providers are limited to tradingview, dexscreener, and coingecko-terminal. src must be a complete static HTTPS provider URL with a fixed non-empty query string, no credentials, and no hash. Component code may render at most one ReviewedFrame from @/src/ui with static string literal frameId, provider, src, and title props that exactly match the manifest declaration. Do not build iframe URLs dynamically or use srcDoc.",
     "externalFrameReviewOutputRule": "vault:check must print the valid external frame src in the manual-review/external-frame warning and in review.externalFrames[] so Workbench can display the exact iframe src value for human review.",
     "externalEndpointReviewOutputRule": "vault:check must print declared and used external endpoint URLs in review.externalEndpoints[] with URL, origin, path, query params, manifest field or source location, and severity so Workbench can display the exact data dependency for human review.",
-    "navigationRule": "Component-owned navigation should stay on the active chain explorer only. Do not send users to arbitrary websites from a Vault package.",
+    "navigationRule": "Component-owned navigation should stay on the active chain explorer or an approved external-link host (currently x.com and its subdomains, HTTPS only). Use noopener/noreferrer for window.open. Every other external link must use the ExternalLink component from @/src/ui, which intercepts navigation and shows a third-party risk confirmation before opening the destination. ExternalLink may receive dynamic destinations; the runtime component opens only absolute HTTPS URLs without credentials. Do not use raw anchors, window.open, or location for non-allowlisted external destinations. Approved external-link hosts and ExternalLink are for user-facing links only, not as fetch/data endpoints.",
     "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
   },
   "securityBoundaries": {
-    "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. For complex Vault modules, expose UI-facing views and public proxy actions on the Vault contract, then call those methods through context.vaultAddress. Do not interact with routers, bridges, aggregators, dynamic module contracts, or unrelated app contracts from a Vault package, and do not expose operator/admin config methods such as setConfig, setSwapPath, or setSplit in Component.tsx.",
-    "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations are allowed directly from component source. Other hosts must go through manifest endpoint review for data fetches, not user-facing navigation.",
+    "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Historical event UI must use sdk.getBlockNumber() plus sdk.getContractEvents(...) with a lookback of at most 20,000 blocks; the runtime owns RPC chunking and concurrency. For complex Vault modules, expose UI-facing views and public proxy actions on the Vault contract, then call those methods through context.vaultAddress. Do not interact with routers, bridges, aggregators, dynamic module contracts, or unrelated app contracts from a Vault package, and do not expose operator/admin config methods such as setConfig, setSwapPath, or setSplit in Component.tsx.",
+    "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations and approved external-link hosts (currently x.com and its subdomains, HTTPS only) may be raw links directly from component source. Every other external link must go through the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination and runtime-validates the final destination before opening. Endpoints for data fetches are separate and must be declared in manifest.endpoints, not turned into user-facing navigation.",
     "externalFrameBoundaryRule": "ReviewedFrame is the only iframe path and may be used at most once per Vault UI. External frames are display-only review candidates and must not connect wallets, drive quotes, route trades, influence risk/settlement, receive postMessage data, or replace SDK/on-chain/oracle reads.",
     "canvasRule": "Canvas is allowed only as a component-scoped business visualization inside the Vault body. Use a React ref with local or SDK/host-derived data, keep required host risk status before large canvas visuals, and do not turn the package into a free-form whiteboard/editor or rely on browser-global DOM queries, workers, direct browser network/media APIs, or external assets.",
     "inlineSvgRule": "Handwritten inline SVG JSX is allowed only for static pure graphic nodes: svg, g, defs, path, circle, rect, line, polyline, polygon, ellipse, linearGradient, radialGradient, stop, clipPath, mask, title, and desc. It must not use script, event attributes, foreignObject, image, use, external URLs, non-local url(...), style url()/@import, href/src except static local fragments, or spread attributes.",
-    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, direct browser-global member access except safe window timers and reviewed explorer-only window.open, injected wallet providers, wallet RPC request/send/signing/transaction methods, wallet-client signing utilities, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, script injection APIs such as document.write/writeln and document.open/close, unsafe inline SVG JSX, raw iframe/srcDoc usage outside ReviewedFrame, cross-context messaging APIs including postMessage listeners and EIP-6963 provider discovery, and browser permission APIs before packaging."
+    "workbenchParityRule": "The template checker is intentionally a Workbench-intake safety-floor superset: it must block symlinks, CommonJS require, dynamic imports, credentialed endpoints, unsafe fetch targets, browser-global aliasing/destructuring/computed access, all clipboard access and programmatic copy paths, direct browser-global member access except safe window timers and reviewed explorer-only window.open, injected wallet providers, wallet RPC request/send/signing/transaction methods, wallet-client signing utilities, direct browser network/media APIs, browser storage/cookie/cache APIs, navigation/history APIs, Worker/ServiceWorker APIs, script injection APIs such as document.write/writeln and document.open/close, unsafe inline SVG JSX, raw iframe/srcDoc usage outside ReviewedFrame, cross-context messaging APIs including postMessage listeners and EIP-6963 provider discovery, and browser permission APIs before packaging.",
+    "obfuscationResistanceRule": "The security checks are AST-based with constant folding, not just line regexes: addresses/URLs assembled from string fragments, aliased or indirect eval, string-variable timer callbacks, computed .constructor / Reflect.construct escapes, comma-operator or Reflect indirect fetch, aliased or computed navigator.clipboard access, React.createElement iframe/script tags, computed innerHTML/outerHTML writes, and bare injected-provider identifiers are all blocked. i18n.json string values are scanned as a source surface for unsafe schemes, hardcoded addresses, and undeclared URLs.",
+    "sourcePackageVerificationRule": "yarn vault:verify-package is a source-package format and integrity check (marker, kind/version, exact file list, metadata, and SHA-256 hashes); it is not the security decision and does not re-run vault:check. The Flap Artifact Workbench is the authoritative gate: it re-runs the full vault:check on the actual uploaded source before publish, so it does not trust the packaged marker's check result. Package acceptance still requires zero blocking vault:check issues on the real source."
   },
   "commands": {
     "install": "yarn",
     "freshness": "node scripts/check-template-fresh.mjs",
     "scaffold": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh",
+    "scaffoldRobinhood": "Use token scope on chain 4663 with its real 7777/8888 token, or use --chain 46630 with the real Robinhood Testnet factory/token after those addresses are known. Never substitute a valid-looking placeholder token.",
     "scaffoldSingleVault": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh",
+    "scaffoldThreeR3FVaultUI": "yarn vault:scaffold {folder-name} --capability three-r3f-v1 --chain 56 --factory 0xRealFactory --token 0xReal7777Token --locales en,zh",
+    "scaffoldThreeR3FMiniApp": "yarn vault:scaffold {folder-name} --mode mini-app --capability three-r3f-v1 --chain 56 --token 0xReal7777Or8888Token --display-title-zh \"三维应用\" --display-title-en \"3D App\" --locales en,zh",
     "aiContext": "yarn vault:ai-context [example-folder] --out vault-ai-context.md",
     "installPlaywrightChromium": "yarn playwright install chromium",
     "register": "yarn vault:register {folder-name}",
@@ -143,11 +195,14 @@
     "preview": "yarn dev",
     "check": "yarn vault:check {folder-name}",
     "checkSelftest": "yarn vault:check:selftest",
+    "freshnessSelftest": "yarn template:freshness:selftest",
     "e2e": "yarn vault:e2e {folder-name}",
     "package": "yarn vault:package {folder-name}",
     "verifyPackage": "yarn vault:verify-package dist/{folder-name}.zip",
     "runtimePackage": "yarn runtime:package",
     "runtimeVerifyPackage": "yarn runtime:verify-package",
+    "runtimePackCanary": "yarn runtime:pack:canary",
+    "runtimeTestCanaryConsumer": "yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/consumer --script typecheck --script build",
     "previewSmoke": "yarn preview:smoke",
     "previewSmokeReal": "yarn preview:smoke:real",
     "ci": "yarn ci",
@@ -161,350 +216,211 @@
     "agentFields": ["verdict", "nextActions"],
     "rule": "Agents must parse command failures, fix agent.nextActions, and avoid retrying the same command without changes."
   },
-  "checkerWarnings": {
+  "commonBlockingChecks": {
     "manual-review/action-stage-gating": "Component has a write path but no marketPhase or isActionAvailableForPhase usage. Add explicit internal-market / DEX-listed button gating and visible unavailable-state copy.",
     "visual-policy/row-heavy-dashboard": "Component uses a row-heavy dashboard shape. Replace stacked sample cards and large metric grids with the scaffold default surface / NiePan-style compact template.",
-    "risk-status/missing-host-risk-state": "Default Vault UI component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add riskLevel handling and a prominent unavailable-risk warning, or use manifest.mode=mini-app only for a token-scoped 8888-token Mini App.",
+    "risk-status/missing-host-risk-state": "Default Vault UI component does not visibly render the current contract risk status from host Vault/TaxInfo context. Add riskLevel handling and a prominent unavailable-risk warning; token-scoped 7777 or 8888 Mini Apps use manifest.mode=mini-app and are exempt from this tag check.",
     "risk-status/not-prominent-placement": "Default Vault UI component renders host risk status too low in the Vault business UI or after a large visual block. Move it within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block.",
     "risk-status/manual-low-risk-label": "Default Vault UI component renders Low risk / 低风险 copy without selecting it from host riskLevel === 1. Remove the manual label or map the host-derived risk level explicitly."
   },
   "errorCodes": {
-    "template-freshness/npm-outdated": {
-      "severity": "blocking",
-      "fixAction": "Update this checkout so package.json version is at least the npm latest @flapsdk/vault-runtime version before running vault:check, build, runtime:package, or vault:package."
-    },
-    "template-freshness/npm-fetch-failed": {
-      "severity": "blocking",
-      "fixAction": "Fix npm registry or network access so the latest @flapsdk/vault-runtime version can be verified."
-    },
-    "template-freshness/invalid-version": {
-      "severity": "blocking",
-      "fixAction": "Use valid semver versions in package.json and the published @flapsdk/vault-runtime package."
-    },
-    "template-freshness/npm-git-head-mismatch": {
-      "severity": "blocking",
-      "fixAction": "Update this source checkout so its git history contains the npm latest @flapsdk/vault-runtime published commit."
-    },
-    "template-freshness/behind": {
-      "severity": "blocking",
-      "fixAction": "Run git pull --ff-only so this checkout exactly matches latest origin/main before running vault:check, build, runtime:package, or vault:package."
-    },
-    "template-freshness/diverged": {
-      "severity": "blocking",
-      "fixAction": "Switch, reset, rebase, or merge so this checkout exactly matches the official origin/main head before running vault:check, build, runtime:package, or vault:package."
-    },
-    "template-freshness/ahead": {
-      "severity": "blocking",
-      "fixAction": "Run validation and packaging from latest origin/main exactly; push and merge local template changes to origin/main or switch/reset this checkout to origin/main first."
-    },
-    "template-freshness/fetch-failed": {
-      "severity": "blocking",
-      "fixAction": "Fix git or network access so the official template ref can be fetched before running validation or packaging."
-    },
-    "template-freshness/ref-missing": {
-      "severity": "blocking",
-      "fixAction": "Run from a checkout that tracks origin/main, or set the official template freshness ref."
-    },
-    "template-freshness/not-git-repo": {
-      "severity": "blocking",
-      "fixAction": "Run validation and packaging from the official flap-vault-ui-template git checkout."
-    },
-    "template-freshness/git-head-unverified": {
-      "severity": "blocking",
-      "fixAction": "Run from a valid flap-vault-ui-template git checkout so the npm latest published commit can be verified."
-    },
-    "template-freshness/package-json-unreadable": {
-      "severity": "blocking",
-      "fixAction": "Run the command from the flap-vault-ui-template repository root with a readable package.json."
-    },
-    "package/runtime-git-head-missing": {
-      "severity": "blocking",
-      "fixAction": "Publish the runtime package from git so npm exposes gitHead provenance, then regenerate the source package."
-    },
-    "package/e2e-report-missing": {
-      "severity": "blocking",
-      "fixAction": "Run yarn vault:e2e {folder-name} to generate dist/e2e/{folder-name}/qa-report.json before packaging."
-    },
-    "package/e2e-report-invalid": {
-      "severity": "blocking",
-      "fixAction": "Fix the E2E report issues, rerun yarn vault:e2e {folder-name}, then regenerate the source package."
-    },
-    "package-verify/missing-runtime-git-head": {
-      "severity": "blocking",
-      "fixAction": "Regenerate the source package with a current yarn vault:package script that records runtimePackageGitHead."
-    },
-    "vault-e2e/playwright-browser-missing": {
-      "severity": "blocking",
-      "fixAction": "Run yarn playwright install chromium, then rerun yarn vault:e2e {folder-name}. In Linux CI, install with npx playwright install --with-deps chromium."
-    },
-    "vault-e2e/dev-server-command-missing": {
-      "severity": "blocking",
-      "fixAction": "Install Yarn and ensure it is available on PATH. On Windows, vault:e2e starts the preview server with yarn.cmd."
-    },
-    "vault-e2e/browser-launch-failed": {
-      "severity": "blocking",
-      "fixAction": "Fix the local Playwright/Chromium installation, then rerun yarn vault:e2e {folder-name}."
-    },
-    "preview-registration/missing-vault-module": {
-      "severity": "blocking",
-      "fixAction": "Run yarn vault:register {folder-name} to add the local preview mapping to src/vaults/index.ts."
-    },
-    "manifest/missing-artifact-id": {
-      "severity": "blocking",
-      "fixAction": "Add artifactId to manifest.json. Format: vaultui_<folder-name>_<26-char ULID>. Use vault:scaffold to generate it automatically."
-    },
-    "manifest/invalid-artifact-id": {
-      "severity": "blocking",
-      "fixAction": "artifactId must match vaultui_<folder-name>_<ULID> and the embedded folder-name segment must equal the Vault folder name. Regenerate with vault:scaffold or correct manually."
-    },
-    "manifest/duplicate-artifact-id": {
-      "severity": "blocking",
-      "fixAction": "artifactId is already used by another vault in src/vaults/*/manifest.json. Generate a new ULID segment to make it unique."
-    },
-    "manifest-binding/duplicate-binding": {
-      "severity": "blocking",
-      "fixAction": "Remove duplicate match.bindings entries with the same runtime target. Merge any reference tokenAddresses or vaultAddresses into one binding entry."
-    },
-    "manifest-binding/zero-factory-address": {
-      "severity": "blocking",
-      "fixAction": "Omit factoryAddress for no-factory mode and provide exactly one non-zero vaultAddresses entry or one or more tokenAddresses, or replace it with the real deployed factory contract address for factory mode."
-    },
-    "manifest-binding/placeholder-address": {
-      "severity": "blocking",
-      "fixAction": "Replace the reserved template placeholder with the real reviewed deployment address before packaging or Workbench publish."
-    },
-    "manifest-binding/mixed-binding-target": {
-      "severity": "blocking",
-      "fixAction": "Use factoryAddress for factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI. Do not include factoryAddress and vaultAddresses in one binding."
-    },
-    "manifest-binding/mixed-chain-scope": {
-      "severity": "blocking",
-      "fixAction": "Do not declare factory-scoped and no-factory bindings for the same chain in one manifest. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode."
-    },
-    "manifest-binding/missing-test-token": {
-      "severity": "blocking",
-      "fixAction": "Add at least one real deployed ERC20 test token ending in 7777 or 8888 under any match.bindings[] entry's tokenAddresses. This manifest token is required for Workbench/vault:e2e test coverage and is not a production CA restriction. Local --token overrides do not satisfy vault:check."
-    },
-    "manifest-binding/invalid-test-token-suffix": {
-      "severity": "blocking",
-      "fixAction": "Replace the manifest test token with a real deployed ERC20 token address ending in 7777 or 8888, then rerun vault:check and regenerate E2E/package proof."
-    },
-    "manifest-schema/invalid-mode": {
-      "severity": "blocking",
-      "fixAction": "Omit manifest.mode for the default Vault UI, or set it exactly to mini-app for a token-scoped 8888-token Mini App with match.bindings[].tokenAddresses."
-    },
-    "manifest-binding/invalid-mini-app-binding": {
-      "severity": "blocking",
-      "fixAction": "Mini App mode is token-address-bound. Use only token-scoped match.bindings[].tokenAddresses; remove factoryAddress and vaultAddresses, or omit manifest.mode for default Vault UI."
-    },
-    "manifest-binding/invalid-mini-app-token": {
-      "severity": "blocking",
-      "fixAction": "Use manifest.mode=mini-app only with a token-scoped match.bindings[].tokenAddresses entry ending in 8888; Mini App artifacts must provide the bound token address."
-    },
-    "mini-app-layout/missing-full-height-root": {
-      "severity": "blocking",
-      "fixAction": "Add min-h-[100vh], min-h-screen, min-h-full, or h-full to the outermost returned Mini App layout element."
-    },
-    "visual-policy/row-heavy-dashboard": {
-      "severity": "blocking",
-      "fixAction": "Use the scaffold default surface / NiePan-style compact template: one primary business card, a small metric strip, one visible primary action panel, and compact runtime facts lower in the card."
-    },
-    "risk-status/missing-host-risk-state": {
-      "severity": "blocking",
-      "fixAction": "Read riskLevel from readTaxVaultHostContext(context.host).vaultInfo or .taxInfo.vaultInfo, display it prominently, and show a warning/danger message when the host risk level is unavailable."
-    },
-    "risk-status/manual-low-risk-label": {
-      "severity": "blocking",
-      "fixAction": "Remove hardcoded or unconditional Low risk / 低风险 copy. Low-risk labels may appear only in the host-derived riskLevel === 1 render branch."
-    },
-    "risk-status/not-prominent-placement": {
-      "severity": "blocking",
-      "fixAction": "Move the host-derived risk status within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block."
-    },
-    "contract-abi/human-readable-requires-parse-abi": {
-      "severity": "blocking",
-      "fixAction": "Import parseAbi from viem and wrap human-readable ABI signature arrays with parseAbi([...]), or replace them with full object ABI fragments."
-    },
-    "contract-abi/multiple-outputs-require-tuple-read": {
-      "severity": "blocking",
-      "fixAction": "For ABI methods with multiple return values, type sdk.readContract as a tuple/array result and map indexes into object-shaped UI state after the read. Do not type multi-output reads as an object."
-    },
-    "manifest-binding/missing-binding-target": {
-      "severity": "blocking",
-      "fixAction": "Add either a non-zero factoryAddress or exactly one non-zero vaultAddresses entry to the binding."
-    },
-    "manifest/ca-policy-not-in-manifest": {
-      "severity": "blocking",
-      "fixAction": "Remove global tokenAddresses, restrictTokenAddresses, and caPolicy fields. Use match.bindings[].tokenAddresses only for manifest test tokens or no-factory token-scoped bindings. Production CA restrictions belong in Workbench/registry caRestrictionMode configuration, not in public manifest top-level fields."
-    },
-    "manifest/type-field-binding": {
-      "severity": "blocking",
-      "fixAction": "Remove vaultType or vaultTypes from the manifest match block. Registry binding intent must use match.bindings chain/factory or chain/Vault targets only."
-    },
-    "manifest/invalid-folder-name": {
-      "severity": "blocking",
-      "fixAction": "Rename the Vault folder to 3-64 characters of lowercase kebab-case matching /^[a-z0-9]+(-[a-z0-9]+)*$/. No spaces, underscores, uppercase, leading/trailing hyphens, or nested folders."
-    },
-    "manifest/invalid-external-contract": {
-      "severity": "blocking",
-      "fixAction": "Each match.bindings[].externalContracts entry must include only address and label. Use it only for fixed non-token/non-Vault/non-factory contract targets."
-    },
-    "manifest/endpoint-missing-required-field": {
-      "severity": "blocking",
-      "fixAction": "manifest.endpoints must be either one absolute HTTPS URL string without credentials or a non-empty array of those strings. Fix or remove the invalid endpoint declaration."
-    },
-    "package/extra-files": {
-      "severity": "blocking",
-      "fixAction": "Remove all files and folders from src/vaults/{folder-name} that are not Component.tsx, manifest.json, VaultABI.ts, or i18n.json."
-    },
-    "package/missing-files": {
-      "severity": "blocking",
-      "fixAction": "Add the missing required files. All four are required: Component.tsx, manifest.json, VaultABI.ts, and i18n.json."
-    },
-    "import/forbidden-relative": {
-      "severity": "blocking",
-      "fixAction": "Remove the local relative import. Only ./VaultABI is allowed. Replace with @/src/sdk or @/src/ui for shared surfaces."
-    },
-    "import/dynamic-import": {
-      "severity": "blocking",
-      "fixAction": "Remove dynamic import(). Only static imports are allowed inside Vault source."
-    },
-    "import/forbidden-package": {
-      "severity": "blocking",
-      "fixAction": "Remove the forbidden dependency. Allowed package prefixes: react, viem, decimal.js, lucide-react. Shared runtime imports must be exactly @/src/sdk or @/src/ui, plus ./VaultABI as the only local relative import."
-    },
-    "import/external-sdk-package": {
-      "severity": "blocking",
-      "fixAction": "Remove the extra SDK package. Vault source may use only exact imports from the shared @/src/sdk and @/src/ui runtime surfaces."
-    },
-    "security/direct-wallet-access": {
-      "severity": "blocking",
-      "fixAction": "Remove window.ethereum, window.solana, web3/currentProvider, EIP-6963 provider discovery, viem wallet-client/account signing utilities, and raw provider request/send/signing/transaction methods. Use sdk.wallet, sdk.writeContract, and sdk.simulateContract from @/src/sdk."
-    },
-    "security/eval": {
-      "severity": "blocking",
-      "fixAction": "Remove eval(), string-based timer callbacks, Function constructor, and constructor-constructor escapes. Runtime code execution is not allowed inside Vault source."
-    },
-    "security/iframe-or-script-injection": {
-      "severity": "blocking",
-      "fixAction": "Remove raw iframe elements and script injection. If a display-only TradingView, DexScreener, or CoinGecko Terminal chart is unavoidable, use manifest.externalFrames plus ReviewedFrame with a static src after review."
-    },
-    "svg-policy/unsafe-inline-svg": {
-      "severity": "blocking",
-      "fixAction": "Prefer CSS/HTML card shapes or lucide-react icons. If inline SVG JSX is necessary, keep it to static pure graphic nodes with only local fragment refs such as url(#gradient); remove scripts, event attributes, foreignObject, image, use, external URLs, style url()/@import, and spread attributes."
-    },
-    "frame-policy/invalid-frames": {
-      "severity": "blocking",
-      "fixAction": "Set manifest.externalFrames to a non-empty array of reviewed frame declarations, or remove it."
-    },
-    "frame-policy/invalid-frame-declaration": {
-      "severity": "blocking",
-      "fixAction": "Each manifest.externalFrames entry must include only id, provider, src, and title. src must be a complete static HTTPS provider URL with a fixed query string."
-    },
-    "frame-policy/unsupported-provider": {
-      "severity": "blocking",
-      "fixAction": "Use provider tradingview, dexscreener, or coingecko-terminal only."
-    },
-    "frame-policy/unsupported-origin": {
-      "severity": "blocking",
-      "fixAction": "Use only the exact reviewed provider origins for TradingView, DexScreener, or CoinGecko Terminal."
-    },
-    "frame-policy/dynamic-frame-src": {
-      "severity": "blocking",
-      "fixAction": "Pass a complete static string literal src to ReviewedFrame. Do not compose provider, path, or query params from runtime data."
-    },
-    "frame-policy/undeclared-frame-src": {
-      "severity": "blocking",
-      "fixAction": "Declare the exact ReviewedFrame src in manifest.externalFrames with the same frameId and provider, or remove the frame."
-    },
-    "frame-policy/too-many-reviewed-frames": {
-      "severity": "blocking",
-      "fixAction": "Keep at most one manifest.externalFrames entry and one ReviewedFrame usage per Vault UI."
-    },
-    "manual-review/external-frame": {
-      "severity": "warning",
-      "fixAction": "The external frame requires Flap review before production publish. Confirm the frame is display-only and cannot affect quotes, risk, settlement, or transactions."
-    },
-    "security/undeclared-url": {
-      "severity": "blocking",
-      "fixAction": "Declare data fetch URLs in manifest.endpoints, declare the reviewed display-only chart frame in manifest.externalFrames, or remove the URL and use sdk.readContract or sdk.readOracle instead."
-    },
-    "security/host-relative-fetch": {
-      "severity": "blocking",
-      "fixAction": "Remove fetch('/api/...') and all host-relative calls. They can accidentally target private Flap app routes. Use sdk.readOracle for oracle data or declare a full HTTPS endpoint in manifest.endpoints."
-    },
-    "security/non-https-resource": {
-      "severity": "blocking",
-      "fixAction": "Remove non-HTTPS, credentialed, IPFS scheme, Arweave, WebSocket, browser-global, browser-storage, browser-navigation, browser-worker, browser-permission, or embedded data URL resources. Only declared credential-free HTTPS endpoints are allowed; immutable Vault-specific images must use IpfsImage or IpfsBackground with a static image CID."
-    },
-    "security/hardcoded-address": {
-      "severity": "blocking",
-      "fixAction": "Replace hardcoded EVM addresses with runtime context values: context.vaultAddress, context.tokenAddress, context.factoryAddress, or other context fields."
-    },
-    "security/remote-media": {
-      "severity": "blocking",
-      "fixAction": "Remove remote image URLs from Vault source. Token media should come from context.tokenImageUrl; immutable Vault-specific images must use IpfsImage or IpfsBackground with a static image CID."
-    },
-    "media-policy/invalid-ipfs-image-cid": {
-      "severity": "blocking",
-      "fixAction": "Pass only a static image CID to IpfsImage/IpfsBackground cid. Do not pass gateway URLs, metadata CIDs, ipfs:// values, or dynamic expressions."
-    },
-    "media-policy/ipfs-image-unavailable": {
-      "severity": "blocking",
-      "fixAction": "Use an image CID that exists and returns image/* through at least one allowed Flap IPFS gateway, or remove the image. Developers must upload/pin externally; the Vault package only reads and verifies the image."
-    },
-    "security/unapproved-navigation": {
-      "severity": "blocking",
-      "fixAction": "Remove the off-site navigation. Only current-chain explorer links are allowed directly from component source; reviewed metadata/oracle exceptions must be allowlisted outside the public package."
-    },
-    "contract/missing-label": {
-      "severity": "blocking",
-      "fixAction": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the target."
-    },
-    "contract/disallowed-label": {
-      "severity": "blocking",
-      "fixAction": "Limit contract labels to vault/token/nft-related targets. Do not call routers, bridges, aggregators, or unrelated app contracts from a Vault package."
-    },
-    "contract/disallowed-address-source": {
-      "severity": "blocking",
-      "fixAction": "Keep contract targets on context.vaultAddress, context.tokenAddress, context.factoryAddress, token/NFT-related runtime addresses, or declared externalContracts only."
-    },
-    "contract/undeclared-address": {
-      "severity": "blocking",
-      "fixAction": "Declare intentional fixed non-token/non-Vault/non-factory contract targets under match.bindings[].externalContracts, or replace the target with a runtime context address."
-    },
-    "contract-boundary/operator-method-exposed": {
-      "severity": "blocking",
-      "fixAction": "Remove operator/admin configuration calls from Component.tsx. Expose only user-facing Vault methods such as read-only views, resolve/claim/deposit flows, and leave setConfig, setSwapPath, setSplit, and similar controls to reviewed operator tooling."
-    },
-    "i18n/missing-locale": {
-      "severity": "blocking",
-      "fixAction": "Add the missing locale to i18n.json. All locales declared in manifest.i18n must have a corresponding object in i18n.json."
-    },
-    "i18n/missing-key": {
-      "severity": "blocking",
-      "fixAction": "Add the missing i18n key to the locale in i18n.json. All keys must be present in every locale declared by manifest.i18n."
-    },
-    "i18n/hardcoded-visible-copy": {
-      "severity": "blocking",
-      "fixAction": "Remove hardcoded user-facing copy from Component.tsx. Put locale text, countdown units, preview fallback names, labels, notices, and button text in i18n.json and render them with t(...) or i18n.t(...)."
-    },
-    "abi/erc20-in-vault-abi": {
-      "severity": "blocking",
-      "fixAction": "Remove standard ERC20 ABI fragments from VaultABI.ts and replace with erc20Abi or standardErc20Abi imported from @/src/sdk."
-    },
-    "manual-review/action-stage-gating": {
-      "severity": "blocking",
-      "fixAction": "Add explicit marketPhase and isActionAvailableForPhase usage. Gate write actions by internal-market or dex-listed stage. Show unavailable buttons with clear copy instead of hiding them."
-    },
-    "manual-review/declared-endpoint": {
-      "severity": "warning",
-      "fixAction": "The declared endpoint requires Flap review before production publish. Ensure the endpoint is truly necessary. Declaration does not guarantee approval."
-    },
-    "manual-review/oracle-usage": {
-      "severity": "blocking",
-      "fixAction": "Use a built-in runtime oracle id before packaging, promote the oracle to the shared runtime, or remove sdk.readOracle usage. Do not rely on FLAP_RUNTIME_ORACLE_REGISTRY to make a source package pass. Do not add oracle config to manifest.json. Workbench must display review.oracles[] with endpoint and params details for human review."
-    }
+    "ai-context/invalid-example-folder": { "severity": "blocking", "fixAction": "Pass a registered Vault example folder such as action-gallery-example, example, dex-listed-example, community-buyback-example, or flapixel-example." },
+    "ai-context/missing-file": { "severity": "blocking", "fixAction": "Run the command from the flap-vault-ui-template repository root and choose an example folder that contains the four core Vault files." },
+    "ai-context/missing-output-path": { "severity": "blocking", "fixAction": "Pass --out vault-ai-context.md or redirect stdout instead." },
+    "ai-context/output-exists": { "severity": "blocking", "fixAction": "Pass a different --out path, delete the old file, or rerun with --force." },
+    "cli/invalid-boolean": { "severity": "blocking", "fixAction": "Pass --${key} true, --${key} false, or omit the flag." },
+    "cli/invalid-folder-name": { "severity": "blocking", "fixAction": "Use a 3-64 character lowercase kebab-case folder name, for example my-vault." },
+    "cli/missing-folder-name": { "severity": "blocking", "fixAction": "Run yarn vault:check <folder-name> with a registered Vault folder name." },
+    "cli/missing-package-path": { "severity": "blocking", "fixAction": "Run yarn vault:package <folder-name>, then pass the generated sourcePackagePath." },
+    "cli/missing-slug": { "severity": "blocking", "fixAction": "Run yarn vault:check <slug> with a registered Vault slug." },
+    "cli/unknown-option": { "severity": "blocking", "fixAction": "Use yarn vault:verify-package dist/<folder-name>.zip, or add --self-contained only for historical package forensics." },
+    "contract-abi/human-readable-requires-parse-abi": { "severity": "blocking", "fixAction": "Wrap human-readable ABI string arrays with parseAbi([...]) from viem, or use full object ABI fragments. Do not export raw function/event signature strings as the runtime ABI." },
+    "contract-abi/multiple-outputs-require-tuple-read": { "severity": "blocking", "fixAction": "Read ABI methods with multiple return values as tuple/array results, then map indexes into object-shaped UI state. Do not type sdk.readContract for multi-output methods as an object." },
+    "contract-abi/number-bigint": { "severity": "blocking", "fixAction": "Keep token amounts as bigint/Decimal and avoid Number(...) for transaction math." },
+    "contract-abi/standard-erc20-in-vault-abi": { "severity": "blocking", "fixAction": "Use erc20Abi or standardErc20Abi from @/src/sdk for standard ERC20 methods. Add token ABI fragments to VaultABI.ts only for custom token mechanics." },
+    "contract-boundary/disallowed-contract-address-source": { "severity": "blocking", "fixAction": "Keep contract targets on context.vaultAddress, context.tokenAddress, context.factoryAddress, token/NFT-related runtime addresses, or declared externalContracts only." },
+    "contract-boundary/disallowed-contract-label": { "severity": "blocking", "fixAction": "Limit contract labels to vault/token/nft-related targets. Do not interact with routers, bridges, aggregators, or unrelated app contracts from a Vault package." },
+    "contract-boundary/missing-contract-label": { "severity": "blocking", "fixAction": "Add a human-readable contract label such as vault, token, or nft so review and static checks can classify the call target." },
+    "contract-boundary/operator-method-exposed": { "severity": "blocking", "fixAction": "Do not expose operator/admin configuration methods from Component.tsx. Keep public UI actions on Vault user-facing methods such as resolve/claim/deposit flows, and leave config changes to reviewed operator tooling." },
+    "contract-boundary/undeclared-contract-address": { "severity": "blocking", "fixAction": "Use runtime context addresses for Vault/token/factory targets. If this is an intentional fixed external contract, declare it under match.bindings[].externalContracts." },
+    "endpoint-policy/direct-fetch": { "severity": "blocking", "fixAction": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints." },
+    "endpoint-policy/https-required": { "severity": "blocking", "fixAction": "Use an HTTPS endpoint URL string, or remove the endpoint." },
+    "endpoint-policy/invalid-endpoint-declaration": { "severity": "blocking", "fixAction": "Endpoint declarations must be valid absolute HTTPS URL strings only." },
+    "endpoint-policy/invalid-endpoints": { "severity": "blocking", "fixAction": "Set manifest.endpoints to a single HTTPS URL string, a non-empty array of HTTPS URL strings, or remove it when no endpoint is needed." },
+    "endpoint-policy/no-credentials": { "severity": "blocking", "fixAction": "Remove username/password credentials from endpoint URLs. Workbench endpoint declarations must be bearerless HTTPS URLs." },
+    "endpoint-policy/relative-endpoint": { "severity": "blocking", "fixAction": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint." },
+    "endpoint-policy/undeclared-url": { "severity": "blocking", "fixAction": "Remove the URL. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets; use ExternalLink, approved host media, BinanceImage for exact-host bin.bnbstatic.com images, or IpfsImage/IpfsBackground for other approved image paths." },
+    "forbidden-api/clipboard": { "severity": "blocking", "fixAction": "Remove clipboard access and programmatic copy, including navigator.clipboard, document.execCommand(\"copy\"), aliases, and computed property access. Render the value only; the host owns copy actions." },
+    "forbidden-api/browser-global-escape": { "severity": "blocking", "fixAction": "Use explicit Flap SDK/runtime APIs instead of computed browser-global access." },
+    "forbidden-api/browser-navigation": { "severity": "blocking", "fixAction": "Do not navigate, open windows, or mutate browser history from a Vault component. The host owns routing." },
+    "forbidden-api/browser-network": { "severity": "blocking", "fixAction": "Use Flap SDK/readOracle, or a static absolute HTTPS fetch target declared in manifest.endpoints." },
+    "forbidden-api/browser-permission": { "severity": "blocking", "fixAction": "Do not request browser permissions from a Vault component. The host/runtime owns permissioned browser capabilities." },
+    "forbidden-api/browser-storage": { "severity": "blocking", "fixAction": "Use local React state or Flap-provided runtime state instead of browser storage APIs." },
+    "forbidden-api/browser-worker": { "severity": "blocking", "fixAction": "Do not spawn workers or service workers from a Vault component." },
+    "forbidden-api/cross-context-messaging": { "severity": "blocking", "fixAction": "Do not use cross-context messaging from a Vault component." },
+    "forbidden-api/dangerously-set-inner-html": { "severity": "blocking", "fixAction": "Render structured React content instead of raw HTML." },
+    "forbidden-api/direct-window-ethereum": { "severity": "blocking", "fixAction": "Use sdk.wallet and SDK contract methods instead of direct wallet/provider APIs. Do not call injected provider request, send, signing, or transaction methods." },
+    "forbidden-api/eval": { "severity": "blocking", "fixAction": "Remove eval and implement the logic as normal TypeScript." },
+    "forbidden-api/function-constructor": { "severity": "blocking", "fixAction": "Remove Function constructor usage and implement the logic as normal TypeScript." },
+    "forbidden-api/iframe": { "severity": "blocking", "fixAction": "Do not embed raw iframe UI inside a Vault component. Use ReviewedFrame only for manifest.externalFrames review candidates." },
+    "forbidden-api/remote-import": { "severity": "blocking", "fixAction": "Remove runtime remote imports. Use only approved local package imports." },
+    "forbidden-api/script": { "severity": "blocking", "fixAction": "Do not inject scripts inside a Vault component." },
+    "forbidden-files/disallowed-entry": { "severity": "blocking", "fixAction": "Remove environment, dependency, git, or build output files from the Vault package." },
+    "forbidden-files/symlink": { "severity": "blocking", "fixAction": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed." },
+    "frame-policy/duplicate-frame-id": { "severity": "blocking", "fixAction": "Use a unique lowercase kebab-case id for each external frame declaration." },
+    "frame-policy/dynamic-frame-src": { "severity": "blocking", "fixAction": "Use a static string literal src prop on ReviewedFrame. Do not compose frame URLs dynamically." },
+    "frame-policy/fixed-query-required": { "severity": "blocking", "fixAction": "Declare the complete frame URL with a fixed non-empty query string. Do not derive query params at runtime." },
+    "frame-policy/https-required": { "severity": "blocking", "fixAction": "Use a static absolute HTTPS frame URL without credentials." },
+    "frame-policy/invalid-frame-declaration": { "severity": "blocking", "fixAction": "Each externalFrames entry must include id, provider, src, and title only." },
+    "frame-policy/invalid-frames": { "severity": "blocking", "fixAction": "Set manifest.externalFrames to a non-empty array of reviewed frame declarations, or remove it." },
+    "frame-policy/invalid-reviewed-frame-usage": { "severity": "blocking", "fixAction": "Use ReviewedFrame with static string literal frameId, provider, src, and title props." },
+    "frame-policy/too-many-reviewed-frames": { "severity": "blocking", "fixAction": "Use at most one ReviewedFrame and one manifest.externalFrames entry per Vault UI." },
+    "frame-policy/undeclared-frame-src": { "severity": "blocking", "fixAction": "Declare the exact static ReviewedFrame src in manifest.externalFrames with the same provider and frameId." },
+    "frame-policy/unsupported-origin": { "severity": "blocking", "fixAction": "Use only the exact reviewed provider origins: TradingView, DexScreener, or GeckoTerminal." },
+    "frame-policy/unsupported-provider": { "severity": "blocking", "fixAction": "Use provider tradingview, dexscreener, or coingecko-terminal." },
+    "i18n-policy/duplicate-manifest-locale": { "severity": "blocking", "fixAction": "Remove duplicate locale entries from manifest.i18n." },
+    "i18n-policy/hardcoded-visible-copy": { "severity": "blocking", "fixAction": "Move user-facing copy out of Component.tsx and into i18n.json, then render it with t(...) or i18n.t(...)." },
+    "i18n-policy/invalid-json": { "severity": "blocking", "fixAction": "Fix JSON syntax in i18n.json." },
+    "i18n-policy/manifest-locales": { "severity": "blocking", "fixAction": "Declare at least one locale in manifest.i18n, using locale strings with at least two characters." },
+    "i18n-policy/missing-locale": { "severity": "blocking", "fixAction": "Add the locale object to i18n.json or remove that locale from manifest.i18n." },
+    "i18n-policy/missing-locale-key": { "severity": "blocking", "fixAction": "Add the missing key to each locale declared by manifest.i18n." },
+    "i18n-policy/used-key-missing-locale": { "severity": "blocking", "fixAction": "Every key used by t(...) or i18n.t(...) must exist in each declared locale." },
+    "imports-and-dependencies/deep-shared-runtime-import": { "severity": "blocking", "fixAction": "Import shared runtime helpers from the @/src/sdk or @/src/ui barrel. Do not import @/src/sdk/* or @/src/ui/* deep paths." },
+    "imports-and-dependencies/disallowed-relative-import": { "severity": "blocking", "fixAction": "Inline small helpers in Component.tsx or use @/src/sdk and @/src/ui. The only local relative import is ./VaultABI." },
+    "imports-and-dependencies/dynamic-import": { "severity": "blocking", "fixAction": "Use static imports only." },
+    "imports-and-dependencies/external-sdk-package": { "severity": "blocking", "fixAction": "Do not introduce additional SDK packages. Use only the shared @/src/sdk and @/src/ui runtime surfaces." },
+    "imports-and-dependencies/forbidden-import": { "severity": "blocking", "fixAction": "Use Flap SDK/UI primitives instead of host wallet, app, or heavy UI dependencies." },
+    "imports-and-dependencies/require-call": { "severity": "blocking", "fixAction": "Use static ESM imports only. CommonJS require() is not allowed in Vault source." },
+    "imports-and-dependencies/unreviewed-import": { "severity": "blocking", "fixAction": "Remove the dependency unless Flap explicitly approves it." },
+    "manifest-binding/ca-policy-not-in-manifest": { "severity": "blocking", "fixAction": "Remove global CA policy fields. Use match.bindings[].tokenAddresses only for test tokens or no-factory token-scoped bindings; production CA restriction belongs in Workbench/registry caRestrictionMode configuration." },
+    "manifest-binding/chain-factory-count-mismatch": { "severity": "blocking", "fixAction": "Provide exactly one --factory for each --chain, in the same order. Example: --chain 97 --factory 0xTestnetFactory --chain 56 --factory 0xMainnetFactory" },
+    "manifest-binding/chain-token-count-mismatch": { "severity": "blocking", "fixAction": "Provide at most one --token per --chain in the same order. Prefer putting the testnet binding first when only the testnet token is ready, then add the final mainnet factory binding without treating the test token as a production CA restriction." },
+    "manifest-binding/chain-vault-count-mismatch": { "severity": "blocking", "fixAction": "Provide exactly one --vault for each --chain in the same order. Example: --chain 56 --vault 0xAAA --chain 97 --vault 0xBBB" },
+    "manifest-binding/disallowed-binding-field": { "severity": "blocking", "fixAction": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, and optional externalContracts." },
+    "manifest-binding/duplicate-address": { "severity": "blocking", "fixAction": "Remove duplicate addresses from the binding-scoped reference list." },
+    "manifest-binding/duplicate-binding": { "severity": "blocking", "fixAction": "Remove duplicate match.bindings entries with the same runtime target. Merge any binding-scoped reference lists into one entry." },
+    "manifest-binding/invalid-address": { "severity": "blocking", "fixAction": "Use a full 20-byte EVM address matching 0x plus 40 hex characters." },
+    "manifest-binding/invalid-binding-entry": { "severity": "blocking", "fixAction": "Each match.bindings entry must be an object with chainId plus factoryAddress, vaultAddresses, or tokenAddresses." },
+    "manifest-binding/invalid-chain-id": { "severity": "blocking", "fixAction": "chainId must be a positive integer, for example 56 for BNB Chain, 97 for BNB Testnet, 4663 for Robinhood Chain, or 46630 for Robinhood Testnet." },
+    "manifest-binding/invalid-chain-ids": { "severity": "blocking", "fixAction": "Pass --chain 56 for a single chain. For multiple chains repeat --chain with one --factory or --vault target per chain." },
+    "manifest-binding/invalid-erc20-token": { "severity": "blocking", "fixAction": "Use a real deployed ERC20 token contract on the declared chain. The checker must read bytecode plus standard ERC20 metadata before packaging." },
+    "manifest-binding/invalid-external-contract-entry": { "severity": "blocking", "fixAction": "Each externalContracts entry must be an object with address and label only." },
+    "manifest-binding/invalid-external-contract-list": { "severity": "blocking", "fixAction": "Use a non-empty externalContracts array only when this binding needs fixed non-token/non-Vault/non-factory contract targets." },
+    "manifest-binding/invalid-mini-app-binding": { "severity": "blocking", "fixAction": "Mini App mode is token-address-bound. Use only token-scoped 7777 or 8888 tokenAddresses; omit factoryAddress and vaultAddresses." },
+    "manifest-binding/invalid-mini-app-token": { "severity": "blocking", "fixAction": "Mini App mode must provide tokenAddresses entries ending consistently in either 7777 or 8888. Omit mode for default Vault UI packages." },
+    "manifest-binding/mixed-mini-app-token-suffixes": { "severity": "blocking", "fixAction": "Use only 7777 tokens or only 8888 tokens in one Mini App artifact." },
+    "manifest-binding/invalid-test-token-suffix": { "severity": "blocking", "fixAction": "Use a real deployed ERC20 test token address ending in 7777 or 8888. Non-7777/8888 tokenAddresses are not accepted as package proof." },
+    "manifest-binding/invalid-token-address-list": { "severity": "blocking", "fixAction": "Use a non-empty array of valid non-zero EVM addresses, or omit it when no token CA list is needed." },
+    "manifest-binding/invalid-vault-address-list": { "severity": "blocking", "fixAction": "Use a non-empty array of valid non-zero EVM addresses. No-factory Vault bindings may contain exactly one Vault address." },
+    "manifest-binding/missing-binding-target": { "severity": "blocking", "fixAction": "Add a non-zero factoryAddress, exactly one vaultAddresses entry, or one or more tokenAddresses to this binding." },
+    "manifest-binding/missing-bindings": { "severity": "blocking", "fixAction": "Add match.bindings as a non-empty array. Each entry needs chainId plus a non-zero factoryAddress, exactly one vaultAddresses entry, or one or more tokenAddresses." },
+    "manifest-binding/missing-test-token": { "severity": "blocking", "fixAction": "Declare at least one real deployed ERC20 test token ending in 7777 or 8888 in match.bindings[].tokenAddresses. Workbench vault:check does not accept local-only vault:e2e --token overrides as package proof. Keep the final real mainnet factoryAddress in its own production binding." },
+    "manifest-binding/mixed-binding-target": { "severity": "blocking", "fixAction": "Use factoryAddress for a factory-scoped UI, or omit factoryAddress for Vault/token-scoped no-factory UI." },
+    "manifest-binding/mixed-chain-scope": { "severity": "blocking", "fixAction": "Do not split one chain into factory and no-factory bindings. Put tokenAddresses on the factory binding, or remove the factory binding for no-factory mode." },
+    "manifest-binding/no-type-based-binding": { "severity": "blocking", "fixAction": "Remove vaultType/vaultTypes from manifest matching. Binding intent must use chain and factory targets." },
+    "manifest-binding/placeholder-address": { "severity": "blocking", "fixAction": "Replace the template placeholder with a real deployment address. If the factory or Vault is not deployed yet, leave the package unpublished and do not use a placeholder binding." },
+    "manifest-binding/zero-factory-address": { "severity": "blocking", "fixAction": "Omit factoryAddress for no-factory mode, or use the real deployed non-zero factory contract address for factory mode." },
+    "manifest-schema/artifact-id-folder-name-mismatch": { "severity": "blocking", "fixAction": "Make the artifactId folder-name segment match the src/vaults/<folder-name> folder name." },
+    "manifest-schema/disallowed-field": { "severity": "blocking", "fixAction": "Remove internal runtime fields. Developer manifest fields are artifactId, name, displayTitle for Mini App only, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries." },
+    "manifest-schema/display-title-mini-app-only": { "severity": "blocking", "fixAction": "Use displayTitle only with manifest.mode=mini-app, or remove it from the default Vault UI manifest." },
+    "manifest-schema/disallowed-match-field": { "severity": "blocking", "fixAction": "Keep match limited to bindings. Use match.bindings[].tokenAddresses for test tokens or no-factory token-scoped bindings only; production CA restriction belongs in Workbench/registry configuration." },
+    "manifest-schema/duplicate-artifact-id": { "severity": "blocking", "fixAction": "Generate a new artifactId; each Vault package in the repo must have a unique artifactId." },
+    "manifest-schema/invalid-artifact-id": { "severity": "blocking", "fixAction": "Use artifactId format vaultui_<folder-name>_<26-char ULID>, for example vaultui_my-vault_01HZY7J4S9D0W5XJ8H2Q3K4M5N." },
+    "manifest-schema/invalid-json": { "severity": "blocking", "fixAction": "Fix JSON syntax in manifest.json." },
+    "manifest-schema/invalid-layout": { "severity": "blocking", "fixAction": "Remove manifest.layout, or set it exactly to fullscreen when Flap explicitly asks for a full-screen Vault body." },
+    "manifest-schema/invalid-match": { "severity": "blocking", "fixAction": "Set manifest.match to an object with bindings (array of factory-scoped, single-Vault, or token-scoped binding entries)." },
+    "manifest-schema/invalid-mode": { "severity": "blocking", "fixAction": "Remove manifest.mode for the default Vault UI, or set it exactly to \"mini-app\" for a token-scoped 7777 or 8888 Mini App with same-suffix match.bindings[].tokenAddresses." },
+    "manifest-schema/invalid-name": { "severity": "blocking", "fixAction": "Set manifest.name to a human-readable string with at least two characters." },
+    "manifest-schema/mini-app-display-title-requires-bilingual": { "severity": "blocking", "fixAction": "Set manifest.displayTitle to an object with separate zh and en values, for example {\"zh\":\"蝴蝶农场\",\"en\":\"Butterfly Farm\"}. This is the title shown on flap.sh Mini App pages." },
+    "manifest-schema/missing-field": { "severity": "blocking", "fixAction": "Add the required manifest field." },
+    "manual-review/action-stage-gating": { "severity": "blocking", "fixAction": "Add context.host?.marketPhase and isActionAvailableForPhase(...) for internal-market vs DEX-listed button gating. Preview both marketPhase=internal-market and marketPhase=dex-listed." },
+    "manual-review/external-endpoint": { "severity": "warning", "fixAction": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review." },
+    "manual-review/external-frame": { "severity": "warning", "fixAction": "External frames are review candidates only. Keep the frame display-only and wait for Flap review approval before publish." },
+    "manual-review/external-link": { "severity": "info", "fixAction": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it." },
+    "manual-review/fullscreen-layout": { "severity": "warning", "fixAction": "Fullscreen layout is an internal-review candidate. Keep host-owned token/header constraints in flap.sh and complete the extra fullscreen review before publish." },
+    "manual-review/mini-app-audio-asset": { "severity": "warning", "fixAction": "Mini App audio files are packaged and hashed, but require Flap human review for source/license, play timing, visible mute/pause controls, fallback, and mobile impact before publish." },
+    "manual-review/oracle-usage": { "severity": "info", "fixAction": "Do not add oracle config to manifest. Source packages may use only built-in runtime oracle ids before packaging; FLAP_RUNTIME_ORACLE_REGISTRY is for host/runtime preview diagnostics and does not make a custom oracle id packageable. Built-in oracle ids still require review.oracles[] endpoint and params review before publish." },
+    "media/invalid-mini-app-audio-asset": { "severity": "blocking", "fixAction": "Use a top-level lowercase Mini App audio file with one of these extensions: .mp3, .wav, .ogg, .m4a, .aac. Do not add nested audio folders." },
+    "media/mini-app-audio-only": { "severity": "blocking", "fixAction": "Remove the audio file from the default Vault UI package, or set manifest.mode=mini-app with a valid 8888 token-scoped binding." },
+    "media/mini-app-audio-too-large": { "severity": "blocking", "fixAction": "Keep each Mini App audio file at or below 5 MiB and total Mini App audio at or below 12 MiB." },
+    "media-policy/invalid-ipfs-image-cid": { "severity": "blocking", "fixAction": "Pass only a static image or directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions." },
+    "media-policy/invalid-ipfs-image-path": { "severity": "blocking", "fixAction": "Use a safe relative IpfsImage path. If path is dynamic, add a static validationPath naming one representative image under the same CID. Do not use path on IpfsBackground." },
+    "media-policy/invalid-nft-metadata-image": { "severity": "blocking", "fixAction": "Use NftMetadataImage with tokenId and localized alt; it consumes shared SDK context internally. Remove caller-supplied sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, and spread props." },
+    "media-policy/invalid-binance-image": { "severity": "blocking", "fixAction": "Import BinanceImage from @/src/ui. Pass src and localized alt without spread props or srcSet/loading/decoding/referrerPolicy overrides. Static URLs must use HTTPS on the exact bin.bnbstatic.com host; paths are unrestricted." },
+    "media-policy/remote-media": { "severity": "blocking", "fixAction": "Remove uncontrolled remote media URLs. Use host-provided token media, BinanceImage for exact-host bin.bnbstatic.com images, controlled IpfsImage cid/path for immutable Vault/NFT images, or CID-only IpfsBackground." },
+    "media/local-asset": { "severity": "blocking", "fixAction": "Move local media outside the Vault package. Only Mini App mode may include reviewed top-level audio assets." },
+    "mini-app-layout/missing-full-height-root": { "severity": "blocking", "fixAction": "Add min-h-[100vh], min-h-screen, min-h-full, or h-full to the outermost returned Mini App layout element." },
+    "navigation-policy/invalid-external-link": { "severity": "blocking", "fixAction": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials." },
+    "navigation-policy/unapproved-external-navigation": { "severity": "blocking", "fixAction": "Do not navigate users to arbitrary external sites. Keep component-owned links on the current chain explorer only, and use host-reviewed allowlists for any exceptional metadata/oracle origin during review." },
+    "package-structure/disallowed-vault-file": { "severity": "blocking", "fixAction": "Move helpers, nested components, docs, sample data, and non-audio assets outside src/vaults/<folder-name> or inline small code in Component.tsx. Mini App may include only reviewed top-level audio files." },
+    "package-structure/missing-required-file": { "severity": "blocking", "fixAction": "Keep Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder. Mini App may additionally include reviewed top-level audio assets." },
+    "package-structure/missing-vault-dir": { "severity": "blocking", "fixAction": "Create the package with yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory or yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x..., or add src/vaults/<folder-name>." },
+    "package-structure/vault-dir-exists": { "severity": "blocking", "fixAction": "Use a different folder name, edit the existing package, or pass --force only when overwriting scaffold-managed files is intentional." },
+    "package-verify/artifact-id-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name> from the current source." },
+    "package-verify/check-not-passed": { "severity": "blocking", "fixAction": "Fix source issues and regenerate with yarn vault:package <folder-name>." },
+    "package-verify/duplicate-entry": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name>; duplicate entries are not accepted." },
+    "package-verify/e2e-marker-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:e2e <folder-name> and yarn vault:package <folder-name>; metadata must not be hand-edited." },
+    "package-verify/hash-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name>; do not modify zips after packaging." },
+    "package-verify/header-name-mismatch": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name>; do not hand-build zips." },
+    "package-verify/invalid-folder-name": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name> from a valid Vault folder." },
+    "package-verify/invalid-format-version": { "severity": "blocking", "fixAction": "Use a compatible Flap Artifact Workbench verifier or regenerate the package with this template version." },
+    "package-verify/invalid-generator": { "severity": "blocking", "fixAction": "Regenerate the package with the current yarn vault:package script." },
+    "package-verify/invalid-generator-tool": { "severity": "blocking", "fixAction": "Regenerate the package with the current yarn vault:package script." },
+    "package-verify/invalid-json": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name>." },
+    "package-verify/invalid-kind": { "severity": "blocking", "fixAction": "Regenerate the package with the current yarn vault:package script." },
+    "package-verify/invalid-runtime-contract": { "severity": "blocking", "fixAction": "Regenerate with the current yarn vault:package script." },
+    "package-verify/invalid-runtime-package": { "severity": "blocking", "fixAction": "Regenerate with the current yarn vault:package script." },
+    "package-verify/invalid-template-name": { "severity": "blocking", "fixAction": "Regenerate the package with the current yarn vault:package script." },
+    "package-verify/invalid-zip": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name>." },
+    "package-verify/metadata-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited." },
+    "package-verify/missing-entry": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name>; do not hand-edit package contents." },
+    "package-verify/missing-marker": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name>; manually assembled zips are not accepted." },
+    "package-verify/missing-package": { "severity": "blocking", "fixAction": "Run yarn vault:package <folder-name>, then pass the generated dist/<folder-name>.zip path." },
+    "package-verify/missing-runtime-git-head": { "severity": "blocking", "fixAction": "Regenerate with the current yarn vault:package script after npm latest exposes gitHead provenance." },
+    "package-verify/missing-template-version": { "severity": "blocking", "fixAction": "Regenerate with the current yarn vault:package script." },
+    "package-verify/package-json-unreadable": { "severity": "blocking", "fixAction": "Run yarn vault:verify-package from the flap-vault-ui-template repository root." },
+    "package-verify/path-traversal": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name>; do not hand-build zips." },
+    "package-verify/runtime-git-head-not-current": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout." },
+    "package-verify/runtime-version-mismatch": { "severity": "blocking", "fixAction": "Regenerate with the current yarn vault:package script." },
+    "package-verify/runtime-version-not-current": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout." },
+    "package-verify/schema-not-current": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout; do not edit schema files inside the zip." },
+    "package-verify/source-file-list-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name> from a valid Vault source package. Default Vault UI has four core files; Mini App may also include reviewed top-level audio assets." },
+    "package-verify/source-package-mismatch": { "severity": "blocking", "fixAction": "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited." },
+    "package-verify/template-version-not-current": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name> from the latest flap-vault-ui-template checkout." },
+    "package-verify/unexpected-entry": { "severity": "blocking", "fixAction": "Keep source packages limited to the four core Vault files, allowed Mini App top-level audio assets, schema, metadata, E2E report, and package marker." },
+    "package-verify/unsupported-compression": { "severity": "blocking", "fixAction": "Regenerate the source package with yarn vault:package <folder-name>." },
+    "package/check-blocking": { "severity": "blocking", "fixAction": "Fix agent.nextActions from vault:check, rerun yarn vault:check <folder-name>, then rerun yarn vault:package <folder-name>." },
+    "package/e2e-report-invalid": { "severity": "blocking", "fixAction": "Fix E2E issues, rerun yarn vault:e2e ${folderName}, then rerun yarn vault:package ${folderName}." },
+    "package/e2e-report-missing": { "severity": "blocking", "fixAction": "Run yarn vault:e2e ${folderName}, then rerun yarn vault:package ${folderName}." },
+    "package/runtime-git-head-missing": { "severity": "blocking", "fixAction": "Publish the runtime package from git so npm exposes gitHead, then rerun yarn vault:package <folder-name>." },
+    "performance/refetch-too-fast": { "severity": "blocking", "fixAction": "Use a refetch interval of at least 5000ms unless Flap approves a faster polling path." },
+    "preview-registration/missing-vault-module": { "severity": "blocking", "fixAction": "Register the folder name in src/vaults/index.ts with loadComponent, loadManifest, and loadI18n entries." },
+    "source-syntax/invalid-typescript": { "severity": "blocking", "fixAction": "Fix the reported TypeScript/TSX syntax error before running vault:check, vault:e2e, or vault:package again." },
+    "preview-registration/register-failed": { "severity": "blocking", "fixAction": "Fix src/vaults/index.ts so it matches the expected vaultModules shape, then rerun yarn vault:register <folder-name>." },
+    "preview-registration/unregister-failed": { "severity": "blocking", "fixAction": "Fix src/vaults/index.ts so it matches the expected vaultModules shape, then rerun yarn vault:register <folder-name> --remove." },
+    "preview-smoke-real/failed": { "severity": "blocking", "fixAction": "Run yarn build, then yarn preview:smoke:real locally. Check the live example routes and server logs." },
+    "preview-smoke/failed": { "severity": "blocking", "fixAction": "Run yarn build, then yarn preview:smoke locally. Check the preview routes and server logs." },
+    "risk-status/manual-low-risk-label": { "severity": "blocking", "fixAction": "Do not hardcode or unconditionally render Low risk / 低风险 labels. A low-risk label is allowed only when selected from the host-derived riskLevel === 1 branch." },
+    "risk-status/missing-host-risk-state": { "severity": "blocking", "fixAction": "Read the current contract risk level from context.host via readTaxVaultHostContext(context.host), render it prominently, and show a clear danger/warning notice when the host risk level is unavailable." },
+    "risk-status/not-prominent-placement": { "severity": "blocking", "fixAction": "Place the contract risk status within the first three Vault business rows, before any preview, hero, banner, showcase, media, chart, or large visual block." },
+    "runtime-package/build-failed": { "severity": "blocking", "fixAction": "Fix the runtime package entrypoints or tsup config, then rerun yarn runtime:package." },
+    "runtime-package/canary-consumer-failed": { "severity": "blocking", "fixAction": "Fix the reported consumer or canary package failure. Confirm the previous installed runtime was restored; dependency files are never edited by this helper." },
+    "runtime-package/canary-dirty": { "severity": "blocking", "fixAction": "Commit the intended runtime changes and remove unrelated untracked files, then rerun yarn runtime:pack:canary." },
+    "runtime-package/canary-pack-failed": { "severity": "blocking", "fixAction": "Fix the canary build or verifier failure, keep the worktree clean and committed, then rerun yarn runtime:pack:canary." },
+    "runtime-package/verify-failed": { "severity": "blocking", "fixAction": "Build the runtime package first, then verify the generated exports, metadata, and npm pack preview." },
+    "security/hardcoded-address": { "severity": "blocking", "fixAction": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts." },
+    "svg-policy/unsafe-inline-svg": { "severity": "blocking", "fixAction": "Prefer CSS/HTML card shapes or lucide-react icons. If inline SVG JSX is necessary, keep it to static pure graphic nodes, local fragment refs such as url(#gradient), and no script/event/image/use/foreignObject/external URL/style url()/@import." },
+    "template-freshness/fetch-failed": { "severity": "blocking", "fixAction": "Fix git/network access, run git pull --ff-only, then rerun yarn vault:package <folder-name>." },
+    "template-freshness/git-head-unverified": { "severity": "blocking", "fixAction": "Run from the official flap-vault-ui-template git checkout, update it to the latest source, then rerun the command." },
+    "template-freshness/invalid-version": { "severity": "blocking", "fixAction": "Use valid semver versions in package.json and the published npm runtime package, then rerun the command." },
+    "template-freshness/not-git-repo": { "severity": "blocking", "fixAction": "Run yarn vault:package from the official flap-vault-ui-template git checkout." },
+    "template-freshness/npm-fetch-failed": { "severity": "blocking", "fixAction": "Fix npm registry/network access, update to the latest template package, then rerun the command." },
+    "template-freshness/npm-git-head-mismatch": { "severity": "blocking", "fixAction": "Pull or switch to a source checkout that contains the npm latest published commit, then rerun local checks, builds, or packaging." },
+    "template-freshness/npm-outdated": { "severity": "blocking", "fixAction": "Update this checkout to ${latestVersion} or newer before running local checks, builds, or packaging." },
+    "template-freshness/package-json-unreadable": { "severity": "blocking", "fixAction": "Run the command from the flap-vault-ui-template repository root, then retry." },
+    "template-freshness/ref-missing": { "severity": "blocking", "fixAction": "Set the official upstream ref or run from a checkout that tracks origin/main." },
+    "ui/invalid-tx-button-state": { "severity": "blocking", "fixAction": "Use a valid TxButtonState: idle, approving, writing, confirming, success, failed. Replace legacy pending with writing or confirming, and error with failed." },
+    "visual-policy/row-heavy-dashboard": { "severity": "blocking", "fixAction": "Use the scaffold default surface / NiePan-style compact template: one primary business card, a small metric strip, one visible primary action panel, and compact runtime facts lower in the card." }
   },
   "requiredInputs": {
     "description": "All inputs an agent must collect before generating a new Vault UI. See docs/agent-intake-template.md for the structured Q&A conversation guide.",
@@ -522,6 +438,11 @@
         "required": true,
         "description": "Human-readable UI name shown in the Flap Artifact Workbench. Example: My Vault UI."
       },
+      "displayTitle": {
+        "type": "object",
+        "required": "mini-app only",
+        "description": "Mini App display title shown on flap.sh pages. Required when manifest.mode is mini-app and must provide separate Chinese and English values, for example {\"zh\":\"蝴蝶农场\",\"en\":\"Butterfly Farm\"}."
+      },
       "bindings": {
         "type": "array",
         "required": true,
@@ -530,7 +451,7 @@
           "type": "object",
           "required": ["chainId"],
           "properties": {
-            "chainId": { "type": "integer", "description": "EVM chain ID. Example: 56 for BNB Chain mainnet, 97 for testnet." },
+            "chainId": { "type": "integer", "description": "EVM chain ID. Example: 56 for BNB Chain mainnet, 97 for BNB Testnet, 4663 for Robinhood Chain, or 46630 for Robinhood Testnet." },
             "factoryAddress": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$", "description": "Non-zero, non-placeholder factory contract address on this chain for factory-scoped UI. For mainnet production, collect the final real factory address early and pair package proof with a testnet token when possible." },
             "vaultAddresses": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" }, "description": "Vault address list for this binding. If provided without factoryAddress, it must contain exactly one non-zero, non-placeholder address." },
             "tokenAddresses": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}(?:7777|8888)$" }, "description": "Binding-scoped token list for Workbench/vault:e2e proof or no-factory token scoping; every token must be a real deployed ERC20 address ending in 7777 or 8888. In factory mode this is not a production CA restriction. In no-factory mode this may be the binding target and may contain multiple non-zero, non-placeholder token addresses." }
@@ -549,7 +470,7 @@
         "required": true,
         "minItems": 1,
         "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}(?:7777|8888)$" },
-        "description": "Real deployed ERC20 tokens ending in 7777 or 8888 used only for local preview, vault:check, vault:e2e, and Workbench package proof. These values are written under match.bindings[].tokenAddresses and do not by themselves restrict production CA."
+        "description": "Real deployed ERC20 tokens ending in 7777 or 8888 used only for local preview, vault:check, vault:e2e, and Workbench package proof. These values are written under match.bindings[].tokenAddresses and do not by themselves restrict production CA. Robinhood may use a token-scoped chain 4663 token or a chain 46630 testnet proof token; standard Robinhood proof tokens are documented in docs/robinhood-testnet.md."
       },
       "productionFactoryAddress": {
         "type": "string",
@@ -667,11 +588,11 @@
     },
     {
       "step": "create-source-package",
-      "description": "Use scaffold-first or manifest-first. For factory-scoped mainnet launch, use a real deployed 7777/8888-suffix testnet token for --token and keep the final real mainnet factoryAddress in the production binding. Scaffold-first runs yarn vault:scaffold {folder-name} ...; manifest-first writes the four Vault files, then runs yarn vault:register {folder-name}."
+      "description": "Use scaffold-first or manifest-first. For factory-scoped mainnet launch, use a real deployed 7777/8888-suffix testnet token for --token and keep the final real mainnet factoryAddress in the production binding. Scaffold-first runs yarn vault:scaffold {folder-name} ...; manifest-first writes the four core Vault files, optionally adds reviewed Mini App top-level audio assets when manifest.mode is mini-app, then runs yarn vault:register {folder-name}."
     },
     {
       "step": "implement-vault-ui",
-      "description": "Select a pattern from docs/ui-pattern-snippets.md, then edit only Component.tsx, manifest.json, VaultABI.ts, and i18n.json inside src/vaults/{folder-name}."
+      "description": "Select a pattern from docs/ui-pattern-snippets.md, then edit Component.tsx, manifest.json, VaultABI.ts, and i18n.json inside src/vaults/{folder-name}. Mini App mode may also include top-level reviewed audio files that are statically imported by Component.tsx."
     },
     {
       "step": "preview-local-route",
@@ -680,19 +601,33 @@
     {
       "step": "validate-and-package",
       "description": "Run yarn vault:check {folder-name}; fix all blocking issues; run yarn vault:e2e {folder-name}; then run yarn vault:package {folder-name} and yarn vault:verify-package dist/{folder-name}.zip."
+    },
+    {
+      "step": "validate-shared-runtime-canary",
+      "description": "When shared runtime code changes on a feature branch, commit it, run yarn runtime:pack:canary, then test the same generated private .tgz in every affected consumer with yarn runtime:test:canary. Canary evidence never replaces official-main release packaging or publish approval."
     }
   ],
+  "runtimeCanary": {
+    "packCommand": "yarn runtime:pack:canary",
+    "consumerCommand": "yarn runtime:test:canary dist/npm/<generated-package>.tgz --consumer /absolute/path/to/consumer --script <package-script>",
+    "sourceRule": "Canary packaging requires a clean committed feature-branch worktree so package gitHead provenance is exact.",
+    "publishRule": "The generated package uses a commit-bound prerelease version, private=true, no public publishConfig, and must never be published or recorded as release provenance.",
+    "consumerRule": "The helper validates the exact tarball through an isolated npm install, swaps only the consumer's installed runtime while running named scripts, and restores it afterward without editing package.json or yarn.lock.",
+    "releaseBoundary": "After merge and the required version bump, run yarn runtime:package and yarn runtime:verify-package from official main before any npm publish or rollout."
+  },
   "sourcePackage": {
     "requiredMarkerFile": "flap-vault-package.json",
     "requiredE2EReportFile": "qa/e2e-report.json",
     "packageKind": "flap-vault-ui-source-package",
-    "formatVersion": 4,
+    "formatVersion": 6,
+    "legacyWorkbenchAcceptedFormatVersion": 5,
     "generatedBy": "yarn vault:package",
     "verifyCommand": "yarn vault:verify-package dist/{folder-name}.zip",
-    "acceptanceRule": "Flap Artifact Workbench should reject manually assembled zips, zips missing the marker, zips missing qa/e2e-report.json, failed or stale E2E proofs, zips with duplicate entries, zips with mismatched hashes, unexpected entries, missing runtimePackageGitHead provenance, and zips with an unsupported package kind or format version.",
+    "historicalVerifyCommand": "yarn vault:verify-package dist/{folder-name}.zip --self-contained",
+    "acceptanceRule": "Flap Artifact Workbench should reject manually assembled zips, zips missing the marker, zips missing qa/e2e-report.json, failed or stale E2E proofs, zips with duplicate entries, zips with mismatched hashes, unexpected entries, stale template/runtime provenance, stale manifest schema, missing runtimePackageGitHead provenance, and zips with an unsupported package kind or format version. The --self-contained verifier mode is only for historical package inspection.",
     "markerSchema": {
       "kind": "flap-vault-ui-source-package",
-      "formatVersion": 4,
+      "formatVersion": 6,
       "generatedBy": "yarn vault:package",
       "generator": "flap-vault-ui-template",
       "artifactId": "vaultui_<folder-name>_<26-char ULID>",
@@ -726,20 +661,23 @@
         "src/vaults/<folder-name>/Component.tsx",
         "src/vaults/<folder-name>/manifest.json",
         "src/vaults/<folder-name>/VaultABI.ts",
-        "src/vaults/<folder-name>/i18n.json"
+        "src/vaults/<folder-name>/i18n.json",
+        "src/vaults/<folder-name>/<optional-mini-app-audio>.mp3"
       ],
       "fileSha256": {
         "src/vaults/<folder-name>/Component.tsx": "<sha256>",
         "src/vaults/<folder-name>/manifest.json": "<sha256>",
         "src/vaults/<folder-name>/VaultABI.ts": "<sha256>",
         "src/vaults/<folder-name>/i18n.json": "<sha256>",
+        "src/vaults/<folder-name>/<optional-mini-app-audio>.mp3": "<sha256>",
         "schemas/manifest.schema.json": "<sha256>",
         "qa/e2e-report.json": "<sha256>"
       }
     }
   },
   "e2ePolicy": {
-    "v1": "yarn vault:e2e is a deterministic Playwright gate for DOM rendering, responsive layout, phase states, wrong-network states, and source-hash-bound proof. It must not depend on AI image judgment.",
+    "supportedProofChains": { "56": "mainnet-fallback", "97": "testnet", "4663": "robinhood-mainnet", "46630": "robinhood-testnet" },
+    "v2": "yarn vault:e2e is a deterministic Playwright gate for DOM rendering, responsive layout, phase states, wrong-network states, and recursive source/asset-hash-bound proof. It must not depend on AI image judgment.",
     "localInstall": "First-time local and Windows environments may need yarn playwright install chromium before vault:e2e can launch Chromium. Missing-browser failures must be emitted as machine-readable JSON.",
     "writeUiOrigin": "A local tx hash, wallet trace, or report can prove that a transaction exists and targets the expected token/Vault, but it cannot cryptographically prove that the transaction was initiated by the developer's local UI. Strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner that replays the source package and verifies the tx by RPC."
   },
@@ -762,7 +700,7 @@
     "default Vault UI contract risk status appears within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block",
     "default Vault UI has no Low risk / 低风险 label or reassuring low-risk copy unless selected from host riskLevel === 1",
     "write-capable flows preview a wrong-network state and render a switch-network path instead of sending writes on the wrong chain",
-    "Vault folder contains only the four allowed files",
+    "Default Vault folder contains only the four core files; Mini App may add reviewed top-level audio, and only three-r3f-v1 may add recursively statically reachable profile-approved source and 3D assets",
     "Component.tsx follows a public-safe pattern from docs/ui-pattern-snippets.md",
     "action availability stage is decided and reflected in visible enabled/disabled states",
     "all Component.tsx user-facing copy is in i18n.json, with no hardcoded locale text, countdown units, preview fallback names, labels, notices, or button text in Component.tsx",

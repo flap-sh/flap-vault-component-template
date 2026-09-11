@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+`three-r3f-v1` 支持两种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI，以及 token-scoped `8888` Mini App。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
+
 [English](./README.md)
 
 ## 目录
@@ -15,6 +17,10 @@
 - [许可证](#许可证)
 
 这个仓库是一个公开模板，用于构建受控的 Flap Vault UI 组件。
+
+模板支持按 Vault V2 标准展示 NFT 图片。
+
+标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。7777 Vault UI 可使用 factory、单 Vault 或 token binding，但必须保持默认 Vault 壳并在 3D 大视觉前展示宿主风险状态；8888 Mini App 继续使用 token-only binding、双语 `displayTitle` 和完整 Mini App 规则。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源；每个本地文件都必须从 `Component.tsx` 依赖图静态导入，直接把相对路径字符串传给 loader 不会被计入。档案同时要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；首页公共示例区会展示蝴蝶农场、能量竞技场、Flap Skies 和 7777 `three-r3f-example`。
 
 它不是自由网站容器。Vault UI 组件必须运行在 Flap 控制的运行时边界内：
 
@@ -34,7 +40,7 @@
 
 这是开发者在借助 AI 的同时仍然自己掌握 Vault 事实和本地测试的最短安全路径。
 
-1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且 `7777` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。提前提供主网最终真实 factory 地址。
+1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且以 `7777` 或 `8888` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。提前提供主网最终真实 factory 地址。Robinhood 可选主网 `4663` token scope，或使用测试网 `46630` 的真实测试 token；标准 Robinhood proof token 详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)。
 2. 将这些输入和本仓库上下文一起交给 AI Agent。如果 AI 不能直接读取仓库，可先生成可粘贴上下文包：
 
 ```bash
@@ -69,7 +75,7 @@ yarn vault:package my-vault
 yarn vault:verify-package dist/my-vault.zip
 ```
 
-`vault:e2e` 会用确定性的 V1 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的真实可读 `7777` 后缀测试 token；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
+`vault:e2e` 会用确定性的 v2 Playwright 门禁在 PC / iPad / H5 三端覆盖 real/default、internal-market、DEX-listed 和 wrong-network 状态。它直接检查 DOM、布局和状态规则，不依赖 AI 看图判断。它必须绑定 manifest `match.bindings[].tokenAddresses` 中声明的真实可读 `7777`/`8888` 后缀测试 token；支持 Robinhood 主网 `4663` 和测试网 `46630`。标准 Robinhood proof token 详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)；本地 `--token 0x...` 只能用于开发者自测，不能替代 `vault:check` 或 Workbench intake 所需的 manifest 测试 token。
 
 首次运行的本地机器，尤其是 Windows 机器，可能需要先安装一次 Playwright 浏览器：
 
@@ -174,9 +180,9 @@ yarn vault:package flapixel-example
 yarn vault:verify-package dist/flapixel-example.zip
 ```
 
-`vault:package` 会先运行 `vault:check`，校验当前 `dist/e2e/<folder-name>/qa-report.json`，并在写 zip 前执行官方 git freshness 检查。只有 blocking issue 全部通过且 E2E 证明未过期后，zip 才会写入 `dist/`。
+`vault:package` 的第一步会拉取官方模板引用。若本地仅落后于 `origin/main`，命令会在保留不冲突 Vault 修改的前提下自动 fast-forward，然后启动最新的打包脚本；若本地修改与上游冲突，或分支处于 ahead/diverged 状态，则输出机器可读的 freshness 错误并停止，绝不会丢弃本地工作。最新打包脚本随后运行 `vault:check`、校验当前 `dist/e2e/<folder-name>/qa-report.json`，并仅在 blocking issue 全部通过且 E2E 证明未过期后把 zip 写入 `dist/`。
 命令输出会包含 `sourcePackagePath` 和 `sourcePackageAbsolutePath`，用于明确生成 zip 的位置。
-只提交 `yarn vault:package <folder-name>` 生成的 zip。该脚本会写入 format-version `4` 的 `flap-vault-package.json` marker、npm latest `@flapsdk/vault-runtime` 的 `gitHead` provenance、source/schema/E2E 文件 hash、`qa/e2e-report.json` 和 `e2e` 摘要；Flap Artifact Workbench 应拒绝没有 marker、没有证明或 hash 不匹配的手工 zip。
+只提交 `yarn vault:package <folder-name>` 生成的 zip。该脚本会写入 format-version `6` 的 `flap-vault-package.json` marker、npm latest `@flapsdk/vault-runtime` 的 `gitHead` provenance、递归 source/schema/E2E 文件 hash、可选 Mini App 音频与 capability profile 资源 hash、`qa/e2e-report.json` 和 `e2e` 摘要；Flap Artifact Workbench 应拒绝没有 marker、证明、profile contract 或 hash 不匹配的手工 zip。Workbench 仅在没有 `capabilities` 时兼容旧 format 5。
 `dist/` 被 git 忽略。请在本地或 CI 生成 source zip，不要把生成包提交到模板仓库。
 `yarn vault:verify-package <zip>` 从 Workbench 侧验证 marker、文件列表、metadata 和 SHA-256 hash。
 
@@ -346,6 +352,7 @@ Vault folder 是严格 source package 边界，只能包含：
 - 未声明的外部 URL、endpoint、external frame 或外部资源
 - dynamic、relative、HTTP、credentialed、aliased、destructured 或 computed browser-global `fetch(...)` target
 - browser storage、navigation、worker、cross-context messaging（包括 postMessage listener）和 permission API
+- 所有剪贴板访问或程序化复制路径，包括 `navigator.clipboard`、`document.execCommand("copy")`、别名和 computed browser-global access
 - `XMLHttpRequest`、`WebSocket`、`EventSource`、`navigator.sendBeacon`、`new Image()` 等直接 browser network / media API
 - 任意站外导航或 phishing-sensitive 外部跳转
 - 隐藏交易 target
@@ -353,7 +360,8 @@ Vault folder 是严格 source package 边界，只能包含：
 - shared runtime surface 之外的额外 SDK package 或 SDK-like wrapper
 - manifest 声明但缺失的 locale
 - 任一 manifest locale 缺失 i18n key
-- Vault source 中的远端图片 URL；不可避免的 Vault 专属不可变图片必须用 `@/src/ui` 的 `IpfsImage` 并只传静态图片 CID
+- Vault source 中的远端图片 URL；不可避免的 Vault 专属不可变图片必须用 `@/src/ui` 的 `IpfsImage` 并传静态图片/目录 CID。NFT 目录内的动态路径只有在同时提供静态 `validationPath` 样本时才允许
+- Component 自己传 SDK、提供 Vault V2 ABI、读取 metadata 或拼接 `tokenURIBase`；应使用 `NftMetadataImage`，只传入 token id，由组件内部读取共享 runtime context，再统一调用 `Vault.nft()` 与 `NFT.tokenURI(tokenId)` 并兼容 mode 0/1/2
 - 合约 read / write、event watch、log / filter call 或 gas estimate 指向 Vault / token / NFT / factory / declaration 边界之外的 router、bridge、aggregator 或无关合约
 - 用 type field 绑定，而不是 registry 控制的 chain / factory 或 chain / Vault target
 - Vault package 内的额外文件、目录或 symlink
@@ -361,9 +369,11 @@ Vault folder 是严格 source package 边界，只能包含：
 
 如果可通过 Flap SDK 或链上读取实现，就应避免外部 endpoint、oracle usage、第三方图片、额外固定合约 target 和其他外部资源。非 oracle endpoint 声明在 `manifest.json`；固定的非 token / 非 Vault / 非 factory 合约 target 声明在 `match.bindings[].externalContracts`；不可避免的 Vault 专属不可变图片使用 `IpfsImage cid` 并由 `vault:check` 校验；oracle config、media policy、actions、fallback、artifact id 和 version 属于 Flap Artifact Workbench / runtime。
 
-自定义不可变图片的路径是：先在 Vault package 外部上传并 pin 图片，再只把真实图片 CID 传给 `<IpfsImage cid="...">`。如果上传流程返回的是 metadata CID，需要先读取该 metadata JSON，从 `image` 字段里拿图片地址，再去掉 gateway URL 或 `ipfs://` 前缀，只保留图片 CID。不要在包里放 `imageUrl`、完整 gateway URL、metadata CID、CSS `url(...)` 或动态图片表达式。
+自定义不可变图片的路径是：先在 Vault package 外部上传并 pin 图片，再只把真实图片 CID 传给 `<IpfsImage cid="...">`。NFT 图片集合应整体上传为一个 IPFS 目录，然后用 `path={tokenId.toString() + ".png"}` 动态选择目录内图片，并提供一个真实静态样本 `validationPath="1.png"` 供 `vault:check` 验证。如果上传流程返回的是 metadata CID，需要先读取该 metadata JSON，从 `image` 字段里拿图片地址，再去掉 gateway URL 或 `ipfs://` 前缀，只保留图片 CID。不要在包里放 `imageUrl`、完整 gateway URL、metadata CID、CSS `url(...)`、动态 CID 或包含目录穿越/query/hash 的路径。
 
-Component-owned navigation 应只停留在当前链 explorer。如果必须直接 fetch NFT metadata base URL 或另一个 reviewed non-oracle host，请在 `manifest.endpoints` 中声明该 base URL；不要把 endpoint declaration 当作站外用户导航的后门。Internal Oracle endpoint 通常应留在 `sdk.readOracle(...)` 和 host / runtime provisioning 后面，而不是把 raw URL literal 放入 Vault source。
+Vault V2 合约决定的 NFT 图片使用 `<NftMetadataImage tokenId={tokenId} ... />`。这是通用图片方案，组件内部直接读取 `VaultRuntimeProvider`，不需要业务侧传 `sdk`、NFT 地址或 Vault V2 图片 ABI。共享 runtime 内置最小 `Vault.nft()` 与 `NFT.tokenURI(tokenId)` ABI。Component 不读取 `tokenURIBase`、不判断 `.json`、不拼 URL。Mode 0/1 的 data JSON 在共享 runtime 内解析；mode 2 的 IPFS/HTTPS metadata 通过 host resolver，并将 HTTPS 连接绑定到已验证的公网 DNS 地址，同时执行 redirect、timeout、3,000,000 字节图片上限、MIME 和 SVG 安全限制。合法的 Pinata 专属网关 IPFS URL 会先按 CID/path 改写到 Pinata 公共网关。NFT 列表需要分页或只挂载可见 token id。Mint、sell、价格等其他业务函数仍使用项目自己的最小 `VaultABI.ts`。
+
+Component-owned navigation 应只停留在当前链 explorer。Reviewed non-oracle business-data host 可以声明在 `manifest.endpoints`，但 NFT metadata 必须走 `NftMetadataImage`，不能把 endpoint declaration 当成绕过路径。Internal Oracle endpoint 通常应留在 `sdk.readOracle(...)` 和 host / runtime provisioning 后面，而不是把 raw URL literal 放入 Vault source。
 
 ## 产物模型
 
@@ -409,6 +419,8 @@ Host 会在 custom Vault component 加载前解析 taxinfo / feeinfo preflight d
 
 合约交互应停留在 `context.vaultAddress`、`context.tokenAddress`、`context.factoryAddress`、runtime payment / quote / dividend token 地址、从 Vault reads 派生的 token / NFT 地址，或 `match.bindings[].externalContracts` 声明的固定 target 上。不要让 Vault package 调用无关 router、bridge、aggregator 或其他 app contract。
 
+质押池、拍卖合约、router、分红分发器、wrapper、trigger helper 等动态 Vault 内部模块，不要由 UI 先从 Vault 读取模块地址，再直接调用返回的合约。应由 Vault 合约提供面向 UI 的 view 方法和公开 proxy action，`VaultABI.ts` 只保留这些 Vault-facing 方法，`Component.tsx` 统一通过 `context.vaultAddress` 调用。`match.bindings[].externalContracts` 只用于无法由 runtime Vault / token / factory 边界表示的、真正固定且独立的额外合约；声明只代表进入审核，不能用来绕过动态模块边界。详细判断和质押/拍卖示例见 [Dynamic modules: staking, auctions, routers, and helpers](./docs/ai-agent.md#dynamic-modules-staking-auctions-routers-and-helpers)。
+
 本地相对 import surface 固定：`Component.tsx` 只能 import `./VaultABI`。不要 import `./helpers`、`../VaultABI`、嵌套组件、本地 assets 或其他本地文件。使用 `@/src/sdk` 和 `@/src/ui` 等公开 alias 访问 shared runtime surface。
 
 Shared runtime package 可通过以下命令在 `dist/vault-runtime` 下构建：
@@ -443,7 +455,7 @@ yarn preview:smoke:real
 yarn ci
 ```
 
-`yarn vault:e2e <folder-name>` 会写入 `dist/e2e/<folder-name>/qa-report.json` 以及 screenshots/traces。它证明当前 source hash 的 V1 渲染布局/状态门禁通过；它不证明未来某笔钱包写交易一定由开发者本地 UI 发起。本地 tx hash 或钱包 trace 只能证明交易存在并打到预期 token/Vault；强 write-UI 发起保证需要由平台控制的 Playwright + 钱包 runner 复跑。`yarn vault:package <folder-name>` 会输出生成的 source zip 路径 `sourcePackagePath` / `sourcePackageAbsolutePath`、package marker `packageMarkerFile` 和 npm runtime provenance `runtimePackageGitHead`。
+`yarn vault:e2e <folder-name>` 会写入 `dist/e2e/<folder-name>/qa-report.json` 以及 screenshots/traces。它证明当前递归 source/asset hash 的 v2 渲染布局/状态门禁通过；它不证明未来某笔钱包写交易一定由开发者本地 UI 发起。本地 tx hash 或钱包 trace 只能证明交易存在并打到预期 token/Vault；强 write-UI 发起保证需要由平台控制的 Playwright + 钱包 runner 复跑。`yarn vault:package <folder-name>` 会输出生成的 source zip 路径 `sourcePackagePath` / `sourcePackageAbsolutePath`、package marker `packageMarkerFile` 和 npm runtime provenance `runtimePackageGitHead`。
 
 ## 许可证
 
