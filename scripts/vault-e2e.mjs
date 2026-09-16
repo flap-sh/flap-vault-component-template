@@ -28,8 +28,14 @@ const HOST_OWNED_EXTERNAL_ORIGINS = new Set([
   "https://pulse.walletconnect.org",
   "https://api.web3modal.org",
   "https://bsc-dataseed.bnbchain.org",
+  "https://bsc-dataseed-public.bnbchain.org",
   "https://bsc-dataseed.binance.org",
   "https://bsc-rpc.publicnode.com",
+  "https://bsc-testnet-dataseed.bnbchain.org",
+  "https://bsc-testnet.bnbchain.org",
+  "https://bsc-prebsc-dataseed.bnbchain.org",
+  "https://rpc.mainnet.chain.robinhood.com",
+  "https://rpc.testnet.chain.robinhood.com",
 ]);
 const folderName = process.argv[2];
 
