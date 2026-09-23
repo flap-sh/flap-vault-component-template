@@ -3498,6 +3498,13 @@ export default function SelftestVault(_props: VaultComponentProps) {
   });
   passed.push("vault:e2e console filter ignores transient network-changed resource errors only");
 
+  execFileSync(process.execPath, ["scripts/vault-e2e.mjs"], {
+    cwd: ROOT,
+    env: { ...process.env, VAULT_E2E_EXTERNAL_ORIGIN_SELFTEST: "1" },
+    stdio: "pipe",
+  });
+  passed.push("vault:e2e ignores exact host-owned BSC Testnet RPC origins while blocking lookalikes");
+
   const rowHeavyDashboardSlug = `${FIXTURE_PREFIX}-row-heavy-dashboard`;
   writeVault(rowHeavyDashboardSlug, {
     component: `"use client";

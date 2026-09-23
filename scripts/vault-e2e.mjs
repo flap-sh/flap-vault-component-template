@@ -30,6 +30,9 @@ const HOST_OWNED_EXTERNAL_ORIGINS = new Set([
   "https://bsc-dataseed.bnbchain.org",
   "https://bsc-dataseed.binance.org",
   "https://bsc-rpc.publicnode.com",
+  "https://bsc-testnet-dataseed.bnbchain.org",
+  "https://bsc-testnet.bnbchain.org",
+  "https://bsc-prebsc-dataseed.bnbchain.org",
 ]);
 const folderName = process.argv[2];
 
@@ -156,11 +159,49 @@ function isBlockingConsoleMessage(message) {
   return !/^Failed to load resource: net::ERR_NETWORK_CHANGED\b/.test(message.text);
 }
 
+function isUndeclaredExternalRequest(requestUrl, previewBaseUrl) {
+  try {
+    const parsedRequestUrl = new URL(requestUrl);
+    const parsedPreviewUrl = new URL(previewBaseUrl);
+    return (
+      !["data:", "blob:"].includes(parsedRequestUrl.protocol) &&
+      parsedRequestUrl.origin !== parsedPreviewUrl.origin &&
+      !HOST_OWNED_EXTERNAL_ORIGINS.has(parsedRequestUrl.origin)
+    );
+  } catch {
+    return true;
+  }
+}
+
 if (process.env.VAULT_E2E_CONSOLE_FILTER_SELFTEST === "1") {
   const transient = { type: "error", text: "Failed to load resource: net::ERR_NETWORK_CHANGED" };
   const realError = { type: "error", text: "Unhandled Runtime Error: boom" };
   if (isBlockingConsoleMessage(transient) || !isBlockingConsoleMessage(realError)) {
     throw new Error("vault:e2e console filter selftest failed");
+  }
+  process.exit(0);
+}
+
+if (process.env.VAULT_E2E_EXTERNAL_ORIGIN_SELFTEST === "1") {
+  const previewBaseUrl = "http://127.0.0.1:3230";
+  const hostOwnedRequests = [
+    "https://bsc-testnet-dataseed.bnbchain.org/",
+    "https://bsc-testnet.bnbchain.org/path",
+    "https://bsc-prebsc-dataseed.bnbchain.org/?id=1",
+  ];
+  const undeclaredRequests = [
+    "https://bsc-testnet-dataseed.bnbchain.org.evil.example/",
+    "https://unknown-rpc.example/",
+    "not-a-valid-url",
+  ];
+  if (
+    hostOwnedRequests.some((url) => isUndeclaredExternalRequest(url, previewBaseUrl)) ||
+    isUndeclaredExternalRequest(`${previewBaseUrl}/api/runtime/token-presentation`, previewBaseUrl) ||
+    isUndeclaredExternalRequest("data:image/png;base64,AA==", previewBaseUrl) ||
+    isUndeclaredExternalRequest("blob:http://127.0.0.1:3230/test", previewBaseUrl) ||
+    undeclaredRequests.some((url) => !isUndeclaredExternalRequest(url, previewBaseUrl))
+  ) {
+    throw new Error("vault:e2e external origin selftest failed");
   }
   process.exit(0);
 }
@@ -467,13 +508,7 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
   });
   page.on("pageerror", (error) => pageErrors.push(error.message.slice(0, 500)));
   page.on("request", (request) => {
-    try {
-      const requestUrl = new URL(request.url());
-      const previewUrl = new URL(baseUrl);
-      if (!["data:", "blob:"].includes(requestUrl.protocol) && requestUrl.origin !== previewUrl.origin && !HOST_OWNED_EXTERNAL_ORIGINS.has(requestUrl.origin)) externalRequests.push(request.url());
-    } catch {
-      externalRequests.push(request.url());
-    }
+    if (isUndeclaredExternalRequest(request.url(), baseUrl)) externalRequests.push(request.url());
   });
   const url = buildPreviewUrl(baseUrl, binding, phase, wrongNetwork, launchConfig);
   const issues = [];

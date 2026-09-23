@@ -38,6 +38,7 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ### Fixed
 
+- `vault:e2e` now treats the runtime-owned BSC Testnet RPC origins as host requests, preventing 3D Mini Apps on chain `97` from receiving a false `3d/external-request`; unknown and lookalike origins remain blocked.
 - Bumped `agent-contract.json` to version `34` and rebuilt `errorCodes` from the checker's authoritative fix-hint table: removed ~31 phantom keys that no longer matched any emitted code (e.g. `security/eval` → `forbidden-api/eval`, `manifest/ca-policy-not-in-manifest` → `manifest-binding/ca-policy-not-in-manifest`), added the ~170 real codes that were missing, and corrected severities so `manual-review/action-stage-gating`, `risk-status/*`, and `visual-policy/row-heavy-dashboard` are recorded as blocking. Renamed the misleading `checkerWarnings` section (its entries are blocking checks).
 - Removed the project-specific `src/vaults/cz-burn-dividend-vault-v1` package that had leaked into the public template, and deregistered it from `src/vaults/index.ts`.
 - `vault:e2e` now starts the local preview with `yarn.cmd` on Windows and reports missing Playwright Chromium as machine-readable JSON with the `yarn playwright install chromium` fix hint.
