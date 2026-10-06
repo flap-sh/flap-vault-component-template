@@ -23,7 +23,8 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - missing or non-`7777`/`8888` manifest test token in `match.bindings[].tokenAddresses`
 - invalid `manifest.mode` value (`manifest-schema/invalid-mode`); the only allowed value is `mini-app`
 - Mini App binding that is not token-scoped (`manifest-binding/invalid-mini-app-binding`); `mode: "mini-app"` must omit factory/Vault bindings and use `match.bindings[].tokenAddresses`
-- Mini App token that does not end in `8888` (`manifest-binding/invalid-mini-app-token`)
+- Mini App with no `7777`/`8888` token address, or a token address with another suffix (`manifest-binding/invalid-mini-app-token`)
+- Mini App artifact mixing `7777` Tax Token and `8888` zero-tax token bindings (`manifest-binding/mixed-mini-app-token-suffixes`)
 - Mini App component missing a full-height root (`mini-app-layout/missing-full-height-root`); the outermost returned layout element must set `min-h-[100vh]`, `min-h-screen`, `min-h-full`, or `h-full`
 - legacy `chainIds` top-level field present (removed; chain IDs must live inside `match.bindings` entries)
 - disallowed fields at `match` level (only `bindings` is allowed)
@@ -44,7 +45,7 @@ The output is JSON and includes `ok`, `summary`, `agent.verdict`, `agent.nextAct
 - non-HTTPS, `ipfs://` / gateway image URL, Arweave, WebSocket, or embedded data URL resource usage in Vault source; exact-host `https://bin.bnbstatic.com` images may use controlled `BinanceImage` with any pathname, while immutable Vault-specific images must use controlled `IpfsImage` or CID-only `IpfsBackground`, and dynamic NFT paths require a static `validationPath` sample
 - missing or invalid locale declarations in `manifest.i18n`; locale strings must be at least two characters
 - i18n key missing from any locale declared by `manifest.i18n`
-- missing current contract risk-status integration from host `riskLevel` for default Vault UI, including the prominent unavailable-risk warning state; `manifest.mode: "mini-app"` is the only token-scoped 8888-token Mini App exception
+- missing current contract risk-status integration from host `riskLevel` for default Vault UI, including the prominent unavailable-risk warning state; `manifest.mode: "mini-app"` is the only exception, for token-scoped Mini App artifacts whose token bindings are all `7777` or all `8888`
 - default Vault UI current contract risk status placed after the first three Vault-specific business rows or after preview/hero/media/chart visuals
 - default Vault UI manual `Low risk` / `低风险` labels, badges, summaries, or reassuring copy that are not selected from the host-derived `riskLevel === 1` branch
 - object result types on `sdk.readContract` calls for ABI methods with multiple return values; read those methods as tuple arrays and map indexes into UI state

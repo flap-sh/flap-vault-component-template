@@ -1,6 +1,6 @@
 # Flap Vault UI Template
 
-`three-r3f-v1` 支持两种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI，以及 token-scoped `8888` Mini App。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
+`three-r3f-v1` 支持三种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI、token-scoped `7777` Tax Token Mini App，以及 token-scoped `8888` 零税 Mini App。两种 Mini App 都必须显式使用 `--mode mini-app`，采用 token-only binding，且同一 artifact 的 token 后缀必须全部为 `7777` 或全部为 `8888`，不能混用。7777 Vault UI 和 7777 Mini App 都必须显式提供真实已部署的 `--token`。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
 
 [English](./README.md)
 
@@ -21,7 +21,7 @@
 
 模板支持按 Vault V2 标准展示 NFT 图片。
 
-标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。7777 Vault UI 可使用 factory、单 Vault 或 token binding，但必须保持默认 Vault 壳并在 3D 大视觉前展示宿主风险状态；8888 Mini App 继续使用 token-only binding、双语 `displayTitle` 和完整 Mini App 规则。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源；每个本地文件都必须从 `Component.tsx` 依赖图静态导入，直接把相对路径字符串传给 loader 不会被计入。档案同时要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；首页公共示例区会展示Flap 街头、蝴蝶农场、能量竞技场、Flap Skies 和 7777 `three-r3f-example`。
+标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。省略 `mode` 的 7777 Vault UI 可使用 factory、单 Vault 或 token binding，但必须保持默认 Vault 壳并在 3D 大视觉前展示宿主风险状态；7777 和 8888 Mini App 都使用 token-only binding、双语 `displayTitle`、全高布局和完整 Mini App 规则，并豁免默认 Vault 风险状态标签检查。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源；每个本地文件都必须从 `Component.tsx` 依赖图静态导入，直接把相对路径字符串传给 loader 不会被计入。档案同时要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；首页公共示例区会展示Flap 街头、蝴蝶农场、能量竞技场、Flap Skies 和 7777 `three-r3f-example`。
 
 体验[Flap 街头测试版 Demo](https://utter.cash/bnb/0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888/mini-app?artifactPath=vaultui_flap-streets_01M48AXN0QXNAFVAFBFG6CJNVY%2Fv20261006175534959_flap-streets_ea7c7aedf0c6)，或在本地打开随模板提供的 `/flap-streets` 新版 Flap 街头源码预览。测试链接指向已发布的 Flap 街头音频优化版本。这个原创的程序化城市驾驶示例包含键盘/触屏操控、追车镜头、碰撞火花、刹车灯、轮胎痕迹、开始即播放的原创循环背景音乐与引擎/轮胎/碰撞音效、三张可切换地图、人行道行人、带警笛和后视操作的警车追逐、限时检查点和可玩的 2D 降级；分数只保留在本局，没有代币奖励。源码结构与更新流程见 [3D 示例说明](./docs/mini-app-3d.md#flap-streets-implementation-and-reuse)。
 
