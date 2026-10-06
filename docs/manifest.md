@@ -2,6 +2,12 @@
 
 `manifest.json` is intentionally small. It is only the developer-facing match and review boundary, not the place to configure Flap internal runtime behavior.
 
+## Choosing a Test CA
+
+Ordinary factory-scoped Vault UI can start with a same-chain public test CA when there is no project token yet. See [Test CA and Factory Setup](./vault-ui-test-ca.md) ([中文](./vault-ui-test-ca.zh-CN.md)) for BNB `97`/`56` addresses, scaffold commands, preview URLs and mainnet steps. The addresses are maintained in `src/shell/previewCoinDetail.ts`; they are deployed proof tokens, not fake placeholders.
+
+A testnet-only factory binding is sufficient to begin; mainnet is needed only when that network is in scope. Explicitly declare the proof CA in `match.bindings[].tokenAddresses`. A preview fallback or `vault:e2e --token` override cannot replace that declaration. Normal ERC20 and live factory/Vault matching still apply. Public tokens do not establish project relationships or prove business behavior. In no-factory token scope, CA participates in runtime matching; do not apply the factory-mode proof-only rule to that scope.
+
 ## Folder Name And Artifact ID
 
 Folder name is the Vault source directory and local preview route. It is not stored as a manifest field:
@@ -68,7 +74,7 @@ Preview/runtime resolution should respect those explicit bindings. Prefer an exa
 
 ## Required Fields
 
-Complete factory-scoped case: testnet proof token plus final mainnet factory binding.
+When both networks are needed: testnet proof token plus final mainnet factory binding. For testnet-only development, omit the chain `56` entry; a mainnet factory is not required to start.
 
 ```json
 {
@@ -79,7 +85,7 @@ Complete factory-scoped case: testnet proof token plus final mainnet factory bin
       {
         "chainId": 97,
         "factoryAddress": "0xTestnetFactoryRequired",
-        "tokenAddresses": ["0xReal7777TestToken"]
+        "tokenAddresses": ["0xf8ac72e7adefbce6ff22d9a9238512933e247777"]
       },
       { "chainId": 56, "factoryAddress": "0xMainnetFactoryRequired" }
     ]
@@ -99,7 +105,7 @@ For a UI that supports both mainnet and testnet with different factory addresses
       {
         "chainId": 97,
         "factoryAddress": "0xTestnetFactoryRequired",
-        "tokenAddresses": ["0xReal7777TestToken"]
+        "tokenAddresses": ["0xf8ac72e7adefbce6ff22d9a9238512933e247777"]
       },
       { "chainId": 56, "factoryAddress": "0xMainnetFactoryRequired" }
     ]

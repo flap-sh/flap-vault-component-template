@@ -41,6 +41,7 @@ Then act:
 7. Collect all required inputs using `docs/agent-intake-template.md` before generating.
 8. Use `yarn` as the package manager.
 9. Use `yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory` for new factory-scoped Vault packages that will launch on mainnet, or `--vault 0x... --token 0x...` for no-factory packages. The `--token` value must be a real deployed ERC20 test token ending in `7777` or `8888`; collect the final real mainnet factory binding early. In factory mode `tokenAddresses` is not the production CA restriction.
+   For ordinary Vault UI without a project token, first offer a suitable same-chain public `7777` test CA from `src/shell/previewCoinDetail.ts`; see `docs/vault-ui-test-ca.md`. Do not require token issuance for UI preview/E2E. A testnet-only start needs only its real testnet factory, while mainnet is added when in scope. Keep explicit `--token`, all validation, and a separate real business-integration step.
    For Robinhood, use either a real token-scoped binding on chain `4663` or a real Robinhood Testnet proof token on chain `46630`. Standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`; agents must not invent placeholder addresses.
    For a standard 3D Mini App, first read `docs/mini-app-3d.md`, then use `yarn vault:scaffold <folder-name> --capability three-r3f-v1 --chain 56 --token 0x...8888 --display-title-zh "..." --display-title-en "..."`. Follow `src/vaults/flap-streets` for vehicle simulation and a playable 2D fallback, `src/vaults/flap-skies-showcase` for experience quality, `src/vaults/flap-gamefi-arena` for keyboard/touch GameFi interaction, `src/vaults/three-r3f-example` for the compact technical fixture, and the machine-readable capability profile for enforcement.
 10. Ask for `caRestrictionMode`: `none` means production does not restrict CA, `reserved` locks a future CA but cannot publish/route, and `verified` is applied only by Workbench/registry after validation. Do not write production CA restriction into public manifest fields.
@@ -57,6 +58,7 @@ The V1 E2E report is deterministic Playwright DOM/layout/state evidence, not AI 
 
 These docs are not required reading for every task but are available for detail:
 
+- `docs/vault-ui-test-ca.md` ([中文](./vault-ui-test-ca.zh-CN.md)) — ordinary Vault UI public test CA, factory binding, E2E and mainnet setup
 - `docs/manifest.md` — manifest field rules and ABI policy
 - `docs/sdk.md` — full SDK surface and context fields
 - `docs/safety-boundaries.md` — blocking and allowed behavior reference

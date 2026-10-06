@@ -5,6 +5,7 @@
 ## Table of Contents
 
 - [From Zero To Verified Zip](#from-zero-to-verified-zip)
+- [Test CA and Factory Setup](./docs/vault-ui-test-ca.md)
 - [Quick Start](#quick-start)
 - [AI Agent Entry Point](#ai-agent-entry-point)
 - [Add a Vault UI](#add-a-vault-ui)
@@ -44,6 +45,8 @@ It is not a free-form website container. A Vault UI component must run inside Fl
 
 This is the shortest safe path for a developer who wants AI help but still owns the Vault facts and local testing.
 
+**No project token yet? You can start ordinary Vault UI preview/E2E with a same-chain public test CA.** For BNB Testnet (`97`), use `0xf8ac72e7adefbce6ff22d9a9238512933e247777` with your real testnet factory; mainnet (`56`) uses `0x286184b2660a2822671a33f24c4517f593947777`. You do not need to issue a token first or configure mainnet for testnet-only development. Public CAs do not create or bind a project Vault and do not prove business reads/writes. Follow [Test CA and Factory Setup](./docs/vault-ui-test-ca.md) for commands, binding examples, mainnet configuration and troubleshooting.
+
 1. Prepare real inputs: folder name, display name, binding targets, factory address or single Vault address, `caRestrictionMode`, real deployed `7777`/`8888`-suffix manifest test token address, minimal Vault ABI, reads, writes, approval spender, action stage, risk posture, and preview addresses. For factory-scoped mainnet launch, collect both the testnet proof binding and the final real mainnet factory address early. Robinhood proof may use token scope on `4663` or a real test token on `46630`; see [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md).
 2. Give those inputs to an AI Agent with this repository context. If the AI cannot read the repo directly, generate a pasteable context pack:
 
@@ -51,10 +54,10 @@ This is the shortest safe path for a developer who wants AI help but still owns 
 yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
-3. Scaffold the Vault package. Factory-scoped mainnet launch example:
+3. Scaffold the Vault package. Start with a testnet-only factory binding for UI testing:
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xf8ac72e7adefbce6ff22d9a9238512933e247777 --locales en,zh
 ```
 
 Single-Vault example without a factory:
@@ -63,15 +66,15 @@ Single-Vault example without a factory:
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
-Replace placeholder addresses with real deployment addresses before running these commands.
+Replace factory/Vault placeholders with real deployment addresses before running these commands. In the single-Vault example, supply a suitable same-chain test token and retain real relationship checks. For factory-mode mainnet or dual-chain setup, follow [the CA guide](./docs/vault-ui-test-ca.md#5-configure-and-test-bnb-mainnet); add the final real mainnet factory only when that network is in scope.
 
 4. For a default Vault UI, edit only the four package files under `src/vaults/my-vault`: `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. A factory-scoped artifact declaring the `launch-config` surface may additionally include `LaunchConfig.tsx`. A mode-less 7777 Vault UI or token-scoped 7777/8888 Mini App declaring `three-r3f-v1` may instead add only recursively statically reachable files allowed by that capability profile.
    Keep the scaffolded default business card structure unless the Vault needs a different pattern. When no UI style is specified, use the scaffold default / NiePan-style abstract template; built-in examples are behavior references, not the default visual style.
    For icons, use `lucide-react` first and choose icons from the official Lucide icon library: `https://lucide.dev/icons/`.
-5. Preview the route and test the actual workflow:
+5. Preview the UI with the same testnet inputs; use the project's actual associated CA, Vault and factory for business integration:
 
 ```plain text
-http://localhost:3000/my-vault?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...
+http://localhost:3000/my-vault?chainId=97&factoryAddress=0xTestnetFactory&tokenAddress=0xf8ac72e7adefbce6ff22d9a9238512933e247777
 ```
 
 6. Package only after validation passes:
@@ -248,7 +251,7 @@ docs/agent-intake-template.md
 
 The full input schema is also machine-readable in `agent-contract.json` under `requiredInputs`.
 
-For a new Vault UI, prefer the scaffold command:
+For a new factory-scoped Vault UI with mainnet launch intent, use the dual-chain scaffold command below; see the quick start above for testnet-only development:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh

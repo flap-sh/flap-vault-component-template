@@ -7,6 +7,7 @@
 ## 目录
 
 - [从零到已验证 Zip](#从零到已验证-zip)
+- [测试 CA 与工厂配置](./docs/vault-ui-test-ca.zh-CN.md)
 - [快速开始](#快速开始)
 - [AI Agent 入口](#ai-agent-入口)
 - [添加一个 Vault UI](#添加一个-vault-ui)
@@ -42,17 +43,19 @@
 
 这是开发者在借助 AI 的同时仍然自己掌握 Vault 事实和本地测试的最短安全路径。
 
-1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且以 `7777` 或 `8888` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。提前提供主网最终真实 factory 地址。Robinhood 可选主网 `4663` token scope，或使用测试网 `46630` 的真实测试 token；标准 Robinhood proof token 详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)。
+**还没有项目 token？普通 Vault UI 可以先使用同链公共测试 CA 做界面预览和 E2E。** BNB 测试网（`97`）可使用 `0xf8ac72e7adefbce6ff22d9a9238512933e247777`，主网（`56`）使用 `0x286184b2660a2822671a33f24c4517f593947777`，配合自己的真实工厂。无需为此先发币；只做测试网开发时也不需要先配置主网。公共 CA 不会创建或绑定项目 Vault，也不证明业务读写成功。完整命令、配置示例、主网步骤和排错见[测试 CA 与工厂配置](./docs/vault-ui-test-ca.zh-CN.md)。
+
+1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且以 `7777` 或 `8888` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。计划主网上线时，提前提供主网最终真实 factory 地址；只做测试网开发时无需先配置主网。Robinhood 可选主网 `4663` token scope，或使用测试网 `46630` 的真实测试 token；标准 Robinhood proof token 详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)。
 2. 将这些输入和本仓库上下文一起交给 AI Agent。如果 AI 不能直接读取仓库，可先生成可粘贴上下文包：
 
 ```bash
 yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
-3. Scaffold Vault 包。Factory-scoped 示例：
+3. 创建 Vault 包。先用测试网工厂和公共测试 CA 开始界面测试：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xf8ac72e7adefbce6ff22d9a9238512933e247777 --locales en,zh
 ```
 
 单 Vault、无 factory 示例：
@@ -61,11 +64,13 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnet
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
+执行前，把 factory/Vault 占位符替换为对应链上的真实部署地址。单 Vault 示例还需要合适的同链测试 CA，并保留真实关系校验。主网或双链工厂配置详见[测试 CA 与工厂配置](./docs/vault-ui-test-ca.zh-CN.md)；只有主网进入本次范围时才添加真实主网工厂。
+
 4. 只编辑 `src/vaults/my-vault` 下的四个包文件：`Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json`。除非 Vault 需要不同组织方式，否则保留 scaffold 默认业务卡片结构；没有明确 UI 风格时，只能使用 scaffold default / 涅槃风格抽象模板。内置 example route 是行为参考，不是默认视觉风格。需要图标时优先使用 `lucide-react`，先从 Lucide 官方图标库选择：`https://lucide.dev/icons/`。
-5. 预览路由并测试真实 workflow：
+5. 使用同一组测试网参数预览界面；真实业务联调时换用项目实际关联的 CA、Vault 和工厂：
 
 ```plain text
-http://localhost:3000/my-vault?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...
+http://localhost:3000/my-vault?chainId=97&factoryAddress=0xTestnetFactory&tokenAddress=0xf8ac72e7adefbce6ff22d9a9238512933e247777
 ```
 
 6. 只有验证通过后再打包：
@@ -235,7 +240,7 @@ docs/agent-intake-template.md
 
 完整输入 schema 也以机器可读形式记录在 `agent-contract.json` 的 `requiredInputs` 中。
 
-对于新 Vault UI，优先使用 scaffold 命令：
+对于计划主网上线的新工厂模式 Vault UI，可使用双链 scaffold 命令；测试网起步见上方快速流程：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
@@ -247,7 +252,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnet
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
-这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把真实可读 `7777` 后缀测试 token 写入 `match.bindings[].tokenAddresses`。提前提供主网最终真实 factory；factory 模式下这里的 `tokenAddresses` 不是生产限制 CA。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
+这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把真实可读 `7777` 后缀测试 token 写入 `match.bindings[].tokenAddresses`。计划主网上线时，提前提供主网最终真实 factory；factory 模式下这里的 `tokenAddresses` 不是生产限制 CA。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
 
 ```bash
 yarn vault:register my-vault
@@ -274,10 +279,10 @@ Token media 使用 host context：`context.tokenImageUrl`、`context.tokenName` 
 
 ## 添加一个 Vault UI
 
-推荐方式（单链）：
+测试网起步（单链，使用公共测试 CA；替换真实测试网工厂）：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xf8ac72e7adefbce6ff22d9a9238512933e247777
 ```
 
 Mainnet + testnet 可为每个目标重复 `--chain` / `--factory`。推荐把测试网 binding 放在前面，让唯一的 `--token` 落到测试网，同时保留主网最终真实 factory：
