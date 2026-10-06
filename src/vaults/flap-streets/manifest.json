@@ -1,0 +1,27 @@
+{
+  "artifactId": "vaultui_flap-streets_01M48AXN0QXNAFVAFBFG6CJNVY",
+  "name": "Flap Streets",
+  "displayTitle": {
+    "zh": "Flap 街头",
+    "en": "Flap Streets"
+  },
+  "mode": "mini-app",
+  "capabilities": [
+    "three-r3f-v1"
+  ],
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "tokenAddresses": [
+          "0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888"
+        ]
+      }
+    ]
+  },
+  "i18n": [
+    "en",
+    "zh",
+    "ko"
+  ]
+}

@@ -22,6 +22,8 @@ The template supports Vault V2-standard NFT image display.
 
 Standard 3D uses the versioned `three-r3f-v1` profile on a mode-less 7777 Vault UI, a token-scoped 7777 Tax Token Mini App, or a token-scoped 8888 zero-tax Mini App. Mode-less 7777 keeps factory/Vault/token bindings and host risk status; Mini App uses token-only same-suffix bindings, bilingual displayTitle, and full-height layout. See `docs/mini-app-3d.md` for the complete contract.
 
+Play [Flap Streets test demo](https://utter.cash/bnb/0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888/mini-app?artifactPath=vaultui_flap-streets_01M48AXN0QXNAFVAFBFG6CJNVY%2Fv20261006175534959_flap-streets_ea7c7aedf0c6), or preview the updated **Flap Streets** source at `/flap-streets`. The test link pins the published Flap Streets audio-optimization version. This original procedural city-driving example covers keyboard/touch controls, a chase camera, collision sparks, brake lights, tire marks, original looping music and sound enabled on Start, three selectable districts, sidewalk pedestrians, police pursuit with a siren and rear view, timed checkpoints, and a playable 2D fallback. Scores are local to each run and there are no token rewards. See [the 3D example guide](./docs/mini-app-3d.md#flap-streets-implementation-and-reuse) for source structure and the update workflow.
+
 For new Mini App scaffolds, pass `--mode mini-app`. A 7777 Tax Token Mini App must provide an explicit deployed `7777` token. An 8888 Mini App may omit `--token` and use Flap's standard 8888 preview token; that fallback is preview/E2E proof only, not a production CA restriction.
 
 It is not a free-form website container. A Vault UI component must run inside Flap's controlled runtime boundary:

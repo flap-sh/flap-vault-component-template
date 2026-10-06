@@ -27,7 +27,7 @@
   "miniAppCapabilities": {
     "profileConfig": "config/mini-app-capability-profiles.json",
     "documentation": "docs/mini-app-3d.md",
-    "liveExamples": ["/flap-gamefi-arena", "/flap-skies-showcase", "/three-r3f-example"],
+    "liveExamples": ["/flap-streets", "/flap-gamefi-arena", "/flap-skies-showcase", "/three-r3f-example"],
     "manifestField": "capabilities",
     "profiles": {
       "three-r3f-v1": {

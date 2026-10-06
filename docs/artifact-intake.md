@@ -8,7 +8,7 @@ Use `Artifact Workbench` as the platform name. It is the internal Flap workbench
 
 Current packages use source format 6 and E2E report v2. Workbench keeps a transition reader for legacy format 5 packages that do not declare `capabilities`; any package declaring `three-r3f-v1` must be format 6 and include either the current `react19-r3f9` profile or the recognized original `react18-r3f8` profile. Format 6 hashes every recursively reachable source and asset file, normalizing text line endings while hashing binary resources byte-for-byte.
 
-For the complete `three-r3f-v1` authoring, browser API, asset, fallback, limit, example, and E2E matrix, read `docs/mini-app-3d.md`. The live references are `flap-skies-showcase` for polished presentation, `flap-gamefi-arena` for keyboard/touch gameplay, and `three-r3f-example` for compact technical integration.
+For the complete `three-r3f-v1` authoring, browser API, asset, fallback, limit, example, and E2E matrix, read `docs/mini-app-3d.md`. The live references are `flap-streets` for vehicle simulation and a playable 2D fallback, `flap-skies-showcase` for polished presentation, `flap-gamefi-arena` for keyboard/touch gameplay, and `three-r3f-example` for compact technical integration.
 
 There are two different outputs:
 
