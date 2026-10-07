@@ -16,3 +16,4 @@ export * from "./ReviewedFrame";
 export * from "./StatusBadge";
 export * from "./TxButton";
 export * from "./VaultBanner";
+export * from "./VideoSessionPlayer";
