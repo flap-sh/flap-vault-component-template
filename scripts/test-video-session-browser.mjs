@@ -51,7 +51,7 @@ globalThis.renderClips([]);`,
   const page = await browser.newPage({ viewport: { width: 720, height: 720 } });
   const errors = [];
   const requests = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", (error) => errors.push(error.stack || error.message));
   page.on("request", (request) => requests.push(request.url()));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   const state = (expected) => page.waitForFunction((value) => document.querySelector("[data-flap-video-session-state]")?.dataset.flapVideoSessionState === value, expected, { timeout: 45_000 });
@@ -63,8 +63,21 @@ globalThis.renderClips([]);`,
 
   await page.evaluate((value) => renderClips(value), clips.slice(0, 1));
   await state("ready");
+  // Metadata can arrive before the target bytes. This fixture tests append
+  // restoration, so establish a buffered seek before capturing its position.
+  await page.waitForFunction(() => {
+    const video = document.querySelector("video");
+    if (!video) return false;
+    for (let index = 0; index < video.buffered.length; index++) {
+      if (video.buffered.start(index) <= 2 && video.buffered.end(index) > 2) return true;
+    }
+    return false;
+  }, undefined, { timeout: 45_000 });
   await page.evaluate(async () => { const video = document.querySelector("video"); await video.play(); video.pause(); video.currentTime = 2; });
-  await page.waitForFunction(() => Math.abs(document.querySelector("video").currentTime - 2) < 0.2);
+  await page.waitForFunction(() => {
+    const video = document.querySelector("video");
+    return video && !video.seeking && Math.abs(video.currentTime - 2) < 0.2;
+  });
   const originalSrc = await page.locator("video").getAttribute("src");
   await page.evaluate((value) => renderClips(value), clips.slice(0, 1));
   // Two animation frames let React flush the re-render without a fixed sleep.
