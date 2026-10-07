@@ -83,8 +83,8 @@ function readManifest(root, folderName) {
   }
 }
 
-export function collectMiniAppAudioAssetPaths(root, folderName) {
-  if (readManifest(root, folderName)?.mode !== MINI_APP_MODE) return [];
+// Audio files are shared by ordinary Vault UI and Mini App packages.
+export function collectAudioAssetPaths(root, folderName) {
   const vaultDir = path.join(root, "src", "vaults", folderName);
   try {
     return fs
@@ -96,6 +96,9 @@ export function collectMiniAppAudioAssetPaths(root, folderName) {
     return [];
   }
 }
+
+// Retain the historical export for existing package-tool consumers.
+export const collectMiniAppAudioAssetPaths = collectAudioAssetPaths;
 
 export function collectSurfaceSourcePaths(root, folderName) {
   const manifest = readManifest(root, folderName);
@@ -128,7 +131,7 @@ export function sourcePackagePaths(root, folderName) {
     ...new Set([
       ...requiredSourcePaths(folderName),
       ...collectSurfaceSourcePaths(root, folderName),
-      ...collectMiniAppAudioAssetPaths(root, folderName),
+      ...collectAudioAssetPaths(root, folderName),
       ...collectCapabilitySourcePaths(root, folderName),
     ]),
   ].sort();
