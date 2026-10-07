@@ -4,6 +4,17 @@ Use this walkthrough when the developer is new to the template or is using an AI
 
 The goal is not to understand every internal rule by hand. The goal is to give the Agent accurate Vault requirements, keep the source package inside the template boundary, test the result locally, and hand off only a verified zip.
 
+## No Project Token Yet?
+
+For ordinary tax-token Vault UI, a suitable public test CA can supply preview/E2E token context; issuing a project token is not a prerequisite. Use your own real factory, and pass `--token` explicitly. Public CAs do not create a Vault, associate it with your factory, or certify project reads/writes.
+
+| Network | Chain | Public test CA |
+| --- | --- | --- |
+| BNB Testnet | `97` | `0xf8ac72e7adefbce6ff22d9a9238512933e247777` |
+| BNB mainnet | `56` | `0x286184b2660a2822671a33f24c4517f593947777` |
+
+These values come from `src/shell/previewCoinDetail.ts`; prefer a suitable developer-supplied project token when available. A testnet-only start needs only its testnet factory. For the full flow, read [Test CA and Factory Setup](./vault-ui-test-ca.md) ([中文](./vault-ui-test-ca.zh-CN.md)). Normal ERC20 and live binding checks still apply, and missing project data must remain visibly unavailable.
+
 ## What You Must Provide
 
 Before asking an Agent to build anything, collect these inputs:
@@ -12,8 +23,8 @@ Before asking an Agent to build anything, collect these inputs:
 | --- | --- | --- |
 | Folder name | `my-vault` | Creates `src/vaults/my-vault` and preview route `/my-vault`. |
 | Display name | `My Vault UI` | Written to `manifest.json` for Workbench display. |
-| Binding target | Complete factory case: `chainId 97 + testnet factory 0x...` plus `chainId 56 + final mainnet factory 0x...`; no-factory case: `chainId 56 + vault 0x...` | Controls which runtime Vault can use this UI. Collect the final mainnet factory early to avoid later binding edits. |
-| Test token address | Real deployed `7777`/`8888`-suffix token on testnet when possible | Required for package proof. For Robinhood, use token scope on chain `4663` or a real test token on chain `46630`; standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. This is not a production CA restriction in factory mode. |
+| Binding target | Start with `chainId 97 + real testnet factory`; add `chainId 56 + real mainnet factory` when needed. No-factory UI needs a real Vault or token-scoped target. | Controls runtime matching. Mainnet is not a prerequisite for testnet-only development. |
+| Test token address | Suitable project token or the same-chain public `7777` test CA above | Required for package proof. For Robinhood, use token scope on chain `4663` or a real test token on chain `46630`; standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. This is not a production CA restriction in factory mode. |
 | CA restriction mode | `none`, `reserved`, or `verified` | Workbench/registry production policy. Do not put production CA policy in `manifest.json`. |
 | Minimal Vault ABI | `function claim()`, `function info(address)` | The UI can only call methods it knows. |
 | Reads and writes | `info`, `deposit`, `claim` | Defines the actual business workflow. |
@@ -41,18 +52,19 @@ This confirms the template runs and shows the compact default visual baseline be
 
 ## Step 2: Create The Package
 
-Factory-scoped UI with mainnet launch intent:
+Testnet-only factory-scoped UI, using the public CA:
 
 ```bash
 yarn vault:scaffold my-vault \
   --name "My Vault UI" \
   --chain 97 --factory 0xTestnetFactory \
-  --token 0xReal7777TestToken \
-  --chain 56 --factory 0xMainnetFactory \
+  --token 0xf8ac72e7adefbce6ff22d9a9238512933e247777 \
   --locales en,zh
 ```
 
-Single-Vault UI without a factory:
+For mainnet-only or dual-chain factory setup, follow [the CA guide](./vault-ui-test-ca.md#5-configure-and-test-bnb-mainnet). Do not add an undeployed mainnet factory just to start testnet development.
+
+Single-Vault UI without a factory (requires a real Vault and a suitable same-chain test token):
 
 ```bash
 yarn vault:scaffold my-vault \
@@ -78,7 +90,7 @@ Build a controlled Flap Vault UI for:
 - display name:
 - binding target:
 - caRestrictionMode:
-- real deployed `7777`/`8888`-suffix test token address:
+- test token address and source: project token, or a suitable same-chain public `7777` CA for ordinary Vault UI testing:
 - final mainnet factory address, if mainnet launch is planned:
 - locales:
 - action stage:
@@ -131,11 +143,13 @@ Open the generated route:
 http://localhost:3000/my-vault
 ```
 
-When you have real addresses, pass them as query params:
+For the testnet quick start above, pass the same public CA and replace `0xTestnetFactory` with your real testnet factory:
 
 ```plain text
-http://localhost:3000/my-vault?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...
+http://localhost:3000/my-vault?chainId=97&factoryAddress=0xTestnetFactory&tokenAddress=0xf8ac72e7adefbce6ff22d9a9238512933e247777
 ```
+
+For business integration, use the project's actual CA, Vault, factory, and matching chain instead. Query parameters cannot override a conflicting on-chain relationship; a public CA does not provide project Vault business data.
 
 Check these before packaging:
 

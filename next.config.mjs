@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [{ source: "/flap-taipei-drive", destination: "/flap-streets", permanent: true }];
+  },
   webpack(config) {
     config.resolve.alias = {
       ...config.resolve.alias,

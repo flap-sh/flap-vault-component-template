@@ -27,7 +27,7 @@
   "miniAppCapabilities": {
     "profileConfig": "config/mini-app-capability-profiles.json",
     "documentation": "docs/mini-app-3d.md",
-    "liveExamples": ["/flap-gamefi-arena", "/flap-skies-showcase", "/three-r3f-example"],
+    "liveExamples": ["/flap-streets", "/flap-gamefi-arena", "/flap-skies-showcase", "/three-r3f-example"],
     "manifestField": "capabilities",
     "profiles": {
       "three-r3f-v1": {
@@ -155,7 +155,7 @@
     "artifactIdRule": "artifactId is the unique artifact identity and must match vaultui_<folder-name>_<26-char ULID>. It is validated against the Vault folder name and must be unique across src/vaults/*/manifest.json.",
     "allowedMatchFields": ["bindings"],
     "bindingsRule": "match.bindings is a non-empty array of unique runtime targets. Each entry must declare chainId plus either a non-zero, non-placeholder factoryAddress for factory-scoped UI, exactly one non-zero, non-placeholder vaultAddresses entry for Vault-scoped UI without a factory, or one or more non-zero, non-placeholder tokenAddresses entries for token-scoped UI without a factory. A zero factoryAddress or reserved template placeholder address is invalid; omit factoryAddress for no-factory mode. Every tokenAddresses entry under any binding, including factory bindings, must be a real deployed ERC20 address ending in 7777 or 8888. Robinhood packages may prove E2E through a token-scoped Robinhood mainnet binding on chain 4663 or a real Robinhood Testnet proof token on chain 46630. Also collect the final real mainnet factoryAddress for the production binding early. Preview/runtime should prefer exact chainId + factoryAddress, chainId + vaultAddress (+ optional tokenAddress), or chainId + tokenAddress matches, treat partial hints as valid only when unambiguous, and use the first binding as a preview default only when the route provides no runtime hints.",
-    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 or 8888 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. A Mini App without a project test token uses Flap's deployed standard Mini App preview token for its chain; this is preview/E2E proof only, not a production CA restriction, and never bypasses ERC20 validation. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
+    "tokenAddressRule": "Do not declare global tokenAddresses, restrictTokenAddresses, or caPolicy in manifest.json. When any match.bindings[] entry declares tokenAddresses, every address must be a real deployed ERC20 ending in 7777 or 8888 so vault:check and Workbench can verify E2E/package proof without accepting random CAs. Only an 8888 Mini App may omit --token when no project test token is available; scaffold then uses Flap's deployed standard 8888 Mini App preview token for its chain. A 7777 Mini App must provide an explicit real deployed 7777 token. The standard preview token is preview/E2E proof only, not a production CA restriction, and never bypasses ERC20 validation. In factory mode, tokenAddresses are not production CA restrictions. Production CA restriction intent must be collected as caRestrictionMode plus productionRestrictedTokenAddresses for Workbench/registry only. In no-factory mode tokenAddresses may also be the binding target and may contain multiple token addresses.",
     "vaultAddressRule": "Declare vaultAddresses inside a match.bindings entry. It is optional for factory-scoped and token-scoped bindings, but if provided without factoryAddress it must contain exactly one non-zero Vault address.",
     "externalContractRule": "Declare fixed non-token/non-vault/non-factory contract targets inside match.bindings[].externalContracts with {address, label}. vault:check blocks contract interactions with fixed addresses outside runtime context, factoryAddress, tokenAddresses, vaultAddresses, or externalContracts.",
     "modeRule": "Omit manifest.mode for the default custom Vault UI. Set manifest.mode to mini-app only for token-scoped Mini App artifacts whose match.bindings[].tokenAddresses entries all end in 7777 or all end in 8888; mini-app mode is strongly bound to token addresses, keeps the same core source-package boundary with an extra top-level reviewed audio-asset exception, requires bilingual displayTitle, and skips Vault risk-status tag checks. Never mix 7777 and 8888 in one Mini App artifact.",
@@ -347,7 +347,7 @@
     "manual-review/mini-app-audio-asset": { "severity": "warning", "fixAction": "Mini App audio files are packaged and hashed, but require Flap human review for source/license, play timing, visible mute/pause controls, fallback, and mobile impact before publish." },
     "manual-review/oracle-usage": { "severity": "info", "fixAction": "Do not add oracle config to manifest. Source packages may use only built-in runtime oracle ids before packaging; FLAP_RUNTIME_ORACLE_REGISTRY is for host/runtime preview diagnostics and does not make a custom oracle id packageable. Built-in oracle ids still require review.oracles[] endpoint and params review before publish." },
     "media/invalid-mini-app-audio-asset": { "severity": "blocking", "fixAction": "Use a top-level lowercase Mini App audio file with one of these extensions: .mp3, .wav, .ogg, .m4a, .aac. Do not add nested audio folders." },
-    "media/mini-app-audio-only": { "severity": "blocking", "fixAction": "Remove the audio file from the default Vault UI package, or set manifest.mode=mini-app with a valid 8888 token-scoped binding." },
+    "media/mini-app-audio-only": { "severity": "blocking", "fixAction": "Remove the audio file from the default Vault UI package, or set manifest.mode=mini-app with valid token-only bindings that are all 7777 or all 8888 across the artifact." },
     "media/mini-app-audio-too-large": { "severity": "blocking", "fixAction": "Keep each Mini App audio file at or below 5 MiB and total Mini App audio at or below 12 MiB." },
     "media-policy/invalid-ipfs-image-cid": { "severity": "blocking", "fixAction": "Pass only a static image or directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions." },
     "media-policy/invalid-ipfs-image-path": { "severity": "blocking", "fixAction": "Use a safe relative IpfsImage path. If path is dynamic, add a static validationPath naming one representative image under the same CID. Do not use path on IpfsBackground." },
@@ -463,7 +463,7 @@
             "tokenAddresses": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}(?:7777|8888)$" }, "description": "Binding-scoped token list for Workbench/vault:e2e proof or no-factory token scoping; every token must be a real deployed ERC20 address ending in 7777 or 8888. In factory mode this is not a production CA restriction. In no-factory mode this may be the binding target and may contain multiple non-zero, non-placeholder token addresses." }
           }
         },
-        "description": "Explicit binding targets. Use chainId + factoryAddress for factory-scoped UI, chainId + exactly one vaultAddresses entry for Vault-scoped no-factory UI, or chainId + tokenAddresses for token-scoped no-factory UI. Complete factory-scoped input declares chain 97 with the real deployed 7777/8888-suffix test token for Workbench/vault:e2e proof plus chain 56 with the final real mainnet factory binding."
+        "description": "Explicit binding targets. Use chainId + factoryAddress for factory-scoped UI, chainId + exactly one vaultAddresses entry for Vault-scoped no-factory UI, or chainId + tokenAddresses for token-scoped no-factory UI. A testnet-only start may declare just chain 97 with a real factory and a suitable same-chain public 7777 test CA; it does not require a mainnet factory. Add the final real mainnet factory binding when mainnet is in scope. See docs/vault-ui-test-ca.md."
       },
       "caRestrictionMode": {
         "type": "string",
@@ -476,13 +476,13 @@
         "required": true,
         "minItems": 1,
         "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{36}(?:7777|8888)$" },
-        "description": "Real deployed ERC20 tokens ending in 7777 or 8888 used only for local preview, vault:check, vault:e2e, and Workbench package proof. These values are written under match.bindings[].tokenAddresses and do not by themselves restrict production CA. Robinhood may use a token-scoped chain 4663 token or a chain 46630 testnet proof token; standard Robinhood proof tokens are documented in docs/robinhood-testnet.md."
+        "description": "Real deployed ERC20 tokens ending in 7777 or 8888 for preview, vault:check, vault:e2e and Workbench proof. Prefer a suitable developer-supplied project token. For ordinary Vault UI without one, explicitly offer the same-chain public 7777 test CA from src/shell/previewCoinDetail.ts; token issuance is not required solely for UI/E2E. Write the token into match.bindings[].tokenAddresses and pass --token when scaffolding. Keep normal ERC20 and live binding checks; public CA usage does not create a Vault, establish project relationships or certify business reads/writes. In factory mode this is proof input, not production CA restriction; in no-factory token scope CA also controls matching. See docs/vault-ui-test-ca.md; Robinhood proof tokens are in docs/robinhood-testnet.md."
       },
       "productionFactoryAddress": {
         "type": "string",
         "required": false,
         "pattern": "^0x[0-9a-fA-F]{40}$",
-        "description": "Final real mainnet factory address for the production factory-scoped binding. Collect this early so the production binding does not need repeated edits."
+        "description": "Final real mainnet factory address, needed when mainnet factory-scoped launch is in scope. It is not required to begin testnet-only development; never fill an undeployed or invented mainnet factory just to start UI tests."
       },
       "productionRestrictedTokenAddresses": {
         "type": "array",
@@ -704,7 +704,7 @@
     "zip contains flap-vault-package.json generated by yarn vault:package with runtimePackageGitHead provenance, qa/e2e-report.json, and matching e2e summary metadata",
     "preview route /{folder-name} resolves",
     "stage-gated actions are previewed with marketPhase=internal-market and marketPhase=dex-listed",
-    "default Vault UI displays current contract risk status from host riskLevel, with a prominent missing-risk warning state; token-scoped manifest.mode=mini-app artifacts with 8888 tokenAddresses are the only exception",
+    "default Vault UI displays current contract risk status from host riskLevel, with a prominent missing-risk warning state; token-scoped manifest.mode=mini-app artifacts whose tokenAddresses are all 7777 or all 8888 are the only exception",
     "default Vault UI contract risk status appears within the first three visible Vault-specific business rows/blocks and before any preview, hero, banner, showcase, media, chart, or large visual block",
     "default Vault UI has no Low risk / 低风险 label or reassuring low-risk copy unless selected from host riskLevel === 1",
     "write-capable flows preview a wrong-network state and render a switch-network path instead of sending writes on the wrong chain",

@@ -60,6 +60,12 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./flap-gamefi-arena/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./flap-gamefi-arena/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
+  "flap-streets": {
+    folderName: "flap-streets",
+    loadComponent: () => import("./flap-streets/Component"),
+    loadManifest: () => import("./flap-streets/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./flap-streets/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
 };
 
 export function getVaultFolderNames() {

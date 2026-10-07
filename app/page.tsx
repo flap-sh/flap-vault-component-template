@@ -17,6 +17,7 @@ import exampleI18n from "@/src/vaults/example/i18n.json";
 const homeManifest = exampleManifest as VaultManifest;
 const homeI18n = exampleI18n as Record<string, Record<string, string>>;
 const entryIcons = [FileText, FolderCode, Terminal];
+const streetsTestDemoUrl = "https://utter.cash/bnb/0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888/mini-app?artifactPath=vaultui_flap-streets_01M48AXN0QXNAFVAFBFG6CJNVY%2Fv20261006175534959_flap-streets_ea7c7aedf0c6";
 
 /* ── design tokens ─────────────────────────────────────────── */
 const BG       = "#05070b";
@@ -98,6 +99,12 @@ type MiniAppGuideContent = {
     gameTitle: string;
     gameDescription: string;
     gameCta: string;
+    streetsBadge: string;
+    streetsTitle: string;
+    streetsDescription: string;
+    streetsImageAlt: string;
+    streetsLiveCta: string;
+    streetsLocalCta: string;
     technicalBadge: string;
     technicalTitle: string;
     technicalDescription: string;
@@ -593,6 +600,32 @@ function MiniAppGuide({ doc, galleryOnly = false, hideGallery = false }: { doc: 
             ))}
           </div>
         </div>
+
+        <article data-testid="flap-streets-preview-card" className="mb-5 grid grid-cols-1 overflow-hidden rounded-xl border md:grid-cols-2" style={{ background: "#070808", borderColor: "hsl(215 27.9% 16.9%)", color: "hsl(210 20% 98%)" }}>
+          <div className="h-[240px] md:h-[320px]" style={{ overflow: "hidden" }}>
+            <Image
+              src="/docs/flap-streets-music-preview-en.png"
+              alt={doc.examples.streetsImageAlt}
+              width={1440}
+              height={2942}
+              sizes="(min-width: 768px) 50vw, 100vw"
+              style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 14%" }}
+            />
+          </div>
+          <div className="flex flex-col justify-center gap-4 p-5">
+            <span className="self-start rounded-full border px-3 py-1 text-xs font-semibold" style={{ background: "hsl(250 100% 60% / 0.12)", borderColor: "hsl(250 100% 60% / 0.4)" }}>{doc.examples.streetsBadge}</span>
+            <h3 className="m-0 text-2xl font-semibold">{doc.examples.streetsTitle}</h3>
+            <p className="m-0 text-sm leading-relaxed" style={{ color: "hsl(217.9 10.6% 64.9%)" }}>{doc.examples.streetsDescription}</p>
+            <div className="flex flex-wrap gap-2">
+              <a href={streetsTestDemoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: "hsl(250 100% 60%)" }}>
+                {doc.examples.streetsLiveCta} <ArrowSpan />
+              </a>
+              <Link href="/flap-streets" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ borderColor: "hsl(215 27.9% 16.9%)", background: "hsl(215 27.9% 16.9%)" }}>
+                {doc.examples.streetsLocalCta} <ArrowSpan />
+              </Link>
+            </div>
+          </div>
+        </article>
 
         <div data-testid="mini-app-example-grid" className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-4">
           <article data-testid="flap-farm-guide-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 14 }}>

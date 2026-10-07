@@ -4,6 +4,8 @@ This is the human developer quick-start. AI agents should use `agent-contract.js
 
 The template supports Vault V2-standard NFT image display.
 
+**No project token yet?** Ordinary Vault UI can start with a suitable same-chain public test CA and a real factory; issuing a token is not a prerequisite for UI/E2E. Follow [Test CA and Factory Setup](./vault-ui-test-ca.md) ([中文](./vault-ui-test-ca.zh-CN.md)) for testnet-only, mainnet and business-integration steps.
+
 ## 1. Install
 
 ```bash

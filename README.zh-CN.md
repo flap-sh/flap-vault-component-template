@@ -1,12 +1,13 @@
 # Flap Vault UI Template
 
-`three-r3f-v1` 支持两种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI，以及 token-scoped `8888` Mini App。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
+`three-r3f-v1` 支持三种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI、token-scoped `7777` Tax Token Mini App，以及 token-scoped `8888` 零税 Mini App。两种 Mini App 都必须显式使用 `--mode mini-app`，采用 token-only binding，且同一 artifact 的 token 后缀必须全部为 `7777` 或全部为 `8888`，不能混用。7777 Vault UI 和 7777 Mini App 都必须显式提供真实已部署的 `--token`。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
 
 [English](./README.md)
 
 ## 目录
 
 - [从零到已验证 Zip](#从零到已验证-zip)
+- [测试 CA 与工厂配置](./docs/vault-ui-test-ca.zh-CN.md)
 - [快速开始](#快速开始)
 - [AI Agent 入口](#ai-agent-入口)
 - [添加一个 Vault UI](#添加一个-vault-ui)
@@ -20,7 +21,9 @@
 
 模板支持按 Vault V2 标准展示 NFT 图片。
 
-标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。7777 Vault UI 可使用 factory、单 Vault 或 token binding，但必须保持默认 Vault 壳并在 3D 大视觉前展示宿主风险状态；8888 Mini App 继续使用 token-only binding、双语 `displayTitle` 和完整 Mini App 规则。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源；每个本地文件都必须从 `Component.tsx` 依赖图静态导入，直接把相对路径字符串传给 loader 不会被计入。档案同时要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；首页公共示例区会展示蝴蝶农场、能量竞技场、Flap Skies 和 7777 `three-r3f-example`。
+标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。省略 `mode` 的 7777 Vault UI 可使用 factory、单 Vault 或 token binding，但必须保持默认 Vault 壳并在 3D 大视觉前展示宿主风险状态；7777 和 8888 Mini App 都使用 token-only binding、双语 `displayTitle`、全高布局和完整 Mini App 规则，并豁免默认 Vault 风险状态标签检查。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源；每个本地文件都必须从 `Component.tsx` 依赖图静态导入，直接把相对路径字符串传给 loader 不会被计入。档案同时要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；首页公共示例区会展示Flap 街头、蝴蝶农场、能量竞技场、Flap Skies 和 7777 `three-r3f-example`。
+
+体验[Flap 街头测试版 Demo](https://utter.cash/bnb/0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888/mini-app?artifactPath=vaultui_flap-streets_01M48AXN0QXNAFVAFBFG6CJNVY%2Fv20261006175534959_flap-streets_ea7c7aedf0c6)，或在本地打开随模板提供的 `/flap-streets` 新版 Flap 街头源码预览。测试链接指向已发布的 Flap 街头音频优化版本。这个原创的程序化城市驾驶示例包含键盘/触屏操控、追车镜头、碰撞火花、刹车灯、轮胎痕迹、开始即播放的原创循环背景音乐与引擎/轮胎/碰撞音效、三张可切换地图、人行道行人、带警笛和后视操作的警车追逐、限时检查点和可玩的 2D 降级；分数只保留在本局，没有代币奖励。源码结构与更新流程见 [3D 示例说明](./docs/mini-app-3d.md#flap-streets-implementation-and-reuse)。
 
 它不是自由网站容器。Vault UI 组件必须运行在 Flap 控制的运行时边界内：
 
@@ -40,17 +43,19 @@
 
 这是开发者在借助 AI 的同时仍然自己掌握 Vault 事实和本地测试的最短安全路径。
 
-1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且以 `7777` 或 `8888` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。提前提供主网最终真实 factory 地址。Robinhood 可选主网 `4663` token scope，或使用测试网 `46630` 的真实测试 token；标准 Robinhood proof token 详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)。
+**还没有项目 token？普通 Vault UI 可以先使用同链公共测试 CA 做界面预览和 E2E。** BNB 测试网（`97`）可使用 `0xf8ac72e7adefbce6ff22d9a9238512933e247777`，主网（`56`）使用 `0x286184b2660a2822671a33f24c4517f593947777`，配合自己的真实工厂。无需为此先发币；只做测试网开发时也不需要先配置主网。公共 CA 不会创建或绑定项目 Vault，也不证明业务读写成功。完整命令、配置示例、主网步骤和排错见[测试 CA 与工厂配置](./docs/vault-ui-test-ca.zh-CN.md)。
+
+1. 准备真实输入：folder name、display name、`chainId`、factory 地址或单个 Vault 地址、`caRestrictionMode`、真实可读且以 `7777` 或 `8888` 结尾的 manifest 测试 token 地址、最小 Vault ABI、reads、writes、approval spender、action stage、risk posture 和 preview 地址。计划主网上线时，提前提供主网最终真实 factory 地址；只做测试网开发时无需先配置主网。Robinhood 可选主网 `4663` token scope，或使用测试网 `46630` 的真实测试 token；标准 Robinhood proof token 详见 [`docs/robinhood-testnet.md`](docs/robinhood-testnet.md)。
 2. 将这些输入和本仓库上下文一起交给 AI Agent。如果 AI 不能直接读取仓库，可先生成可粘贴上下文包：
 
 ```bash
 yarn --silent vault:ai-context > vault-ai-context.md
 ```
 
-3. Scaffold Vault 包。Factory-scoped 示例：
+3. 创建 Vault 包。先用测试网工厂和公共测试 CA 开始界面测试：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xf8ac72e7adefbce6ff22d9a9238512933e247777 --locales en,zh
 ```
 
 单 Vault、无 factory 示例：
@@ -59,11 +64,13 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnet
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
+执行前，把 factory/Vault 占位符替换为对应链上的真实部署地址。单 Vault 示例还需要合适的同链测试 CA，并保留真实关系校验。主网或双链工厂配置详见[测试 CA 与工厂配置](./docs/vault-ui-test-ca.zh-CN.md)；只有主网进入本次范围时才添加真实主网工厂。
+
 4. 只编辑 `src/vaults/my-vault` 下的四个包文件：`Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json`。除非 Vault 需要不同组织方式，否则保留 scaffold 默认业务卡片结构；没有明确 UI 风格时，只能使用 scaffold default / 涅槃风格抽象模板。内置 example route 是行为参考，不是默认视觉风格。需要图标时优先使用 `lucide-react`，先从 Lucide 官方图标库选择：`https://lucide.dev/icons/`。
-5. 预览路由并测试真实 workflow：
+5. 使用同一组测试网参数预览界面；真实业务联调时换用项目实际关联的 CA、Vault 和工厂：
 
 ```plain text
-http://localhost:3000/my-vault?chainId=56&factoryAddress=0x...&tokenAddress=0x...&vaultAddress=0x...
+http://localhost:3000/my-vault?chainId=97&factoryAddress=0xTestnetFactory&tokenAddress=0xf8ac72e7adefbce6ff22d9a9238512933e247777
 ```
 
 6. 只有验证通过后再打包：
@@ -233,7 +240,7 @@ docs/agent-intake-template.md
 
 完整输入 schema 也以机器可读形式记录在 `agent-contract.json` 的 `requiredInputs` 中。
 
-对于新 Vault UI，优先使用 scaffold 命令：
+对于计划主网上线的新工厂模式 Vault UI，可使用双链 scaffold 命令；测试网起步见上方快速流程：
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh
@@ -245,7 +252,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnet
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh
 ```
 
-这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把真实可读 `7777` 后缀测试 token 写入 `match.bindings[].tokenAddresses`。提前提供主网最终真实 factory；factory 模式下这里的 `tokenAddresses` 不是生产限制 CA。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
+这会创建严格的四文件 Vault 包，生成稳定的 `artifactId`，在 `src/vaults/index.ts` 注册 folder name，并把真实可读 `7777` 后缀测试 token 写入 `match.bindings[].tokenAddresses`。计划主网上线时，提前提供主网最终真实 factory；factory 模式下这里的 `tokenAddresses` 不是生产限制 CA。如果四个 Vault 文件已经由 manifest 先生成，则只注册本地 preview mapping：
 
 ```bash
 yarn vault:register my-vault
@@ -272,10 +279,10 @@ Token media 使用 host context：`context.tokenImageUrl`、`context.tokenName` 
 
 ## 添加一个 Vault UI
 
-推荐方式（单链）：
+测试网起步（单链，使用公共测试 CA；替换真实测试网工厂）：
 
 ```bash
-yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xf8ac72e7adefbce6ff22d9a9238512933e247777
 ```
 
 Mainnet + testnet 可为每个目标重复 `--chain` / `--factory`。推荐把测试网 binding 放在前面，让唯一的 `--token` 落到测试网，同时保留主网最终真实 factory：

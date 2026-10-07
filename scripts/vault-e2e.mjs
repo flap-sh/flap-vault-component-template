@@ -287,6 +287,10 @@ async function verifyPreviewSource(baseUrl, expectedComponentSha256, expectedLau
 
 function buildPreviewUrl(baseUrl, binding, phase, wrongNetwork = false, launchConfig = false) {
   const url = new URL(`/${folderName}`, baseUrl);
+  if (args.lang) {
+    if (!["en", "zh"].includes(args.lang)) failE2E("vault-e2e/invalid-language", `Unsupported preview language: ${args.lang}`, "Use --lang en or --lang zh, or omit it to use the preview default.");
+    url.searchParams.set("lang", args.lang);
+  }
   const resolvedPhase = phase === "dex-listed" ? "dex-listed" : "internal-market";
   const tokenStatusCode = resolvedPhase === "dex-listed" ? "2" : "1";
   url.searchParams.set("chainId", String(binding.chainId));

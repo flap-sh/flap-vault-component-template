@@ -161,7 +161,7 @@
         "examples": {
           "kicker": "通用 3D 示例",
           "title": "7777 Vault UI 与 7777/8888 Mini App 现已支持同等的受控 3D 能力。",
-          "description": "这里集中展示蝴蝶农场、Flap 能量竞技场、Flap Skies，以及面向开发者的 7777 Vault UI 技术示例。三个 3D Demo 在两种 surface 上共用同一套标准 three-r3f-v1 档案。",
+          "description": "这里集中展示Flap 街头、蝴蝶农场、Flap 能量竞技场、Flap Skies，以及面向开发者的 7777 Vault UI 技术示例。四个 3D 示例共用标准 three-r3f-v1 档案。",
           "capabilityLabel": "已支持 3D · 7777 Vault UI + 7777/8888 Mini App · three-r3f-v1",
           "capabilityFeatures": [
             "Three r185",
@@ -185,6 +185,12 @@
           "gameTitle": "Flap 能量竞技场",
           "gameDescription": "可以直接上手的 GameFi Demo：用键盘或触屏移动，收集七枚能量核心，使用加速并完成一局挑战。",
           "gameCta": "试玩能量竞技场",
+          "streetsBadge": "驾驶测试版 Demo",
+          "streetsTitle": "Flap 街头",
+          "streetsDescription": "在黄昏城区、霓虹夜市和棕榈海岸之间切换，体验行人、碰撞后警车追逐、警笛与后视操作；开始即播放原创背景音乐和驾驶音效。支持限时检查点及可玩的 2D 降级，无代币奖励。",
+          "streetsImageAlt": "Flap Streets 英文版预览，展示 Flap 品牌标识、城市街区和驾驶任务",
+          "streetsLiveCta": "试玩测试版 Demo",
+          "streetsLocalCta": "预览 Flap 街头",
           "technicalBadge": "7777 Vault UI",
           "technicalTitle": "Three/R3F Example",
           "technicalDescription": "默认 7777 Vault UI 技术实现，展示 3D 大视觉前的宿主风险状态，以及嵌套组件、Shader、本地资源、运行时 Canvas 纹理和后处理。",

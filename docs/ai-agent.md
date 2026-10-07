@@ -40,7 +40,7 @@ The contract is intentionally small:
 - Implement only the Vault-specific business UI for that package. Do not expand a Vault task into preview shell/header work unless the user explicitly asks for shell work.
 - Keep the default Vault folder limited to exactly four core files. Mini App mode may additionally include reviewed top-level audio files.
 - `three-r3f-v1` supports a mode-less Vault UI with only 7777 proof tokens, a token-scoped 7777 Tax Token Mini App, or a token-scoped 8888 zero-tax Mini App. Mode-less 7777 keeps the default shell and host risk status; Mini App uses `--mode mini-app`, token-only same-suffix bindings, bilingual displayTitle, and full-height layout. Start from `src/vaults/three-r3f-example`, keep every file reachable through static imports from `Component.tsx`, and expose `data-flap-3d-state` plus `data-flap-3d-renderer`.
-- Read `docs/mini-app-3d.md` for the full package/API/asset/fallback/limit matrix. Use `flap-skies-showcase` as the experience-quality reference, `flap-gamefi-arena` as the keyboard/touch gameplay reference, and `three-r3f-example` as the minimal technical integration reference.
+- Read `docs/mini-app-3d.md` for the full package/API/asset/fallback/limit matrix. Use `flap-streets` as the vehicle-simulation/2D-fallback reference, `flap-skies-showcase` as the experience-quality reference, `flap-gamefi-arena` as the keyboard/touch gameplay reference, and `three-r3f-example` as the minimal technical integration reference.
 - Register the Vault folder name in `src/vaults/index.ts` so local preview works.
 - Use `yarn vault:register {folder-name}` when the core files already exist and scaffold did not create the package.
 - Run checks before packaging.
@@ -62,10 +62,10 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `bindings` | Yes | Core generation uses `chainId` plus non-zero `factoryAddress` for factory-scoped UI, or exactly one non-zero `vaultAddresses` entry for no-factory UI. Include a real deployed ERC20 test token ending in `7777` or `8888` plus the final real mainnet factory binding when mainnet launch is planned. |
 | `vaultAddresses` | Required for core no-factory binding | In no-factory mode, provide exactly one Vault address as `match.bindings[].vaultAddresses: ["0x..."]` for the normal scaffold path. |
 | `caRestrictionMode` | Yes | One of `none`, `reserved`, or `verified`. This is a Workbench/registry production decision, not a public manifest field. |
-| `testTokenAddresses` | Yes | Use real deployed ERC20 token(s) whose address ends in `7777` or `8888`. Store them only inside `match.bindings[].tokenAddresses` so `vault:check`, Workbench, and `vault:e2e` have manifest-declared proof input. Robinhood may use token scope on chain `4663` or a real proof token on chain `46630`; standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. |
+| `testTokenAddresses` | Yes; may use a suitable public test CA for UI tests | Use real deployed ERC20 token(s) whose address ends in `7777` or `8888`. Store them only inside `match.bindings[].tokenAddresses` so `vault:check`, Workbench, and `vault:e2e` have manifest-declared proof input. Robinhood may use token scope on chain `4663` or a real proof token on chain `46630`; standard Robinhood proof tokens are listed in `docs/robinhood-testnet.md`. |
 | `productionFactoryAddress` | When mainnet factory-scoped launch is planned | Provide the final real mainnet factory address early and write it to the mainnet binding `factoryAddress` instead of using random mainnet token CAs for testing. |
 | `productionRestrictedTokenAddresses` | Only for `verified` CA restriction | Workbench/registry-only production restriction input. Do not add it as global `tokenAddresses`, `restrictTokenAddresses`, `caPolicy`, or any other public manifest field. |
-| `tokenAddresses` | Yes, at manifest level | Use only inside `match.bindings` entries. In factory mode this is the manifest test-token source, not the production CA restriction. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. In `mini-app` mode, a token-scoped `8888` token address is mandatory because the artifact is bound by token address. |
+| `tokenAddresses` | Yes, at manifest level | Use only inside `match.bindings` entries. In factory mode this is the manifest test-token source, not the production CA restriction. In no-factory mode the checker also accepts token-only and Vault+token mappings with multiple token CAs when Flap review/runtime supplies that manifest shape. In `mini-app` mode, real deployed ERC20 token addresses are mandatory and must be all `7777` Tax Token addresses or all `8888` zero-tax token addresses across the artifact. Mini App bindings are token-only: factory/Vault bindings and mixed suffixes are blocked. |
 | `externalContracts` | Optional | Use only when a binding needs a fixed non-token/non-Vault/non-factory contract target. Each entry is `{ address, label }` and is review-only. |
 | `externalFrames` | Optional | Use only when a display-only chart embed is unavoidable. At most one entry is allowed. Providers are limited to `tradingview`, `dexscreener`, and `coingecko-terminal`; `src` must be one complete static HTTPS provider URL with fixed query params. |
 | `audioAssets` | Mini App only | Optional BGM/sound-effect files placed directly under `src/vaults/{folder-name}`. Use lowercase top-level `.mp3`, `.wav`, `.ogg`, `.m4a`, or `.aac` files, static imports from `Component.tsx`, visible mute/pause controls, and clear source/license/fallback notes for human review. |
@@ -74,6 +74,12 @@ Collect all required inputs before creating a new Vault UI. Use `docs/agent-inta
 | `uiWorkflow` | Yes | Primary reads, primary writes, approval spender, native value, refetch points, empty states, risk posture, and current contract risk-status handling. |
 | `actionAvailabilityStage` | Yes | One of `internal-market`, `dex-listed`, `both`, or `read-only`. Use `context.host?.marketPhase` and `isActionAvailableForPhase(...)` for runtime gating. Do not hide available actions because the token is not DEX-listed. |
 | `preview addresses` | Recommended | Real `chainId`, `tokenAddress`, `vaultAddress`, and, when available, `factoryAddress` for local preview. |
+
+## No Project Test Token Yet
+
+For ordinary tax-token Vault UI, offer a suitable same-chain public `7777` test CA from `src/shell/previewCoinDetail.ts` when the developer has no project token. Use a suitable developer-supplied token when available. Follow [Test CA and Factory Setup](./vault-ui-test-ca.md) ([中文](./vault-ui-test-ca.zh-CN.md)); the beginner walkthrough also includes the BNB addresses for copied AI context packs.
+
+Do not require token issuance solely for UI preview/E2E. A chain `97`-only start needs its real testnet factory, not a mainnet factory. Pass `--token` explicitly and keep ERC20, manifest, E2E and live binding gates. Public CA usage does not associate a token with the factory or deploy a Vault. Label missing data and keep dependent actions unavailable; require the actual project CA/Vault relationship for business integration. Keep factory-mode proof input separate from production CA restrictions, and do not apply this proof-only interpretation to token-scoped bindings.
 
 ## Fast New Vault Flow
 
@@ -87,7 +93,13 @@ There are two supported creation paths:
 Both paths must end with `yarn vault:check {folder-name}`, `yarn vault:e2e {folder-name}`, and `yarn vault:package {folder-name}`. Do not hand-edit `src/vaults/index.ts` unless `vault:register` reports that the index shape cannot be parsed.
 For a step-by-step beginner path that starts from raw Vault requirements and ends with a verified zip, follow `docs/from-zero-vault-ui.md`.
 
-Use the scaffold command to avoid folder and manifest mistakes. For a mainnet factory-scoped launch, the complete case keeps the testnet proof token and final mainnet factory in the same manifest:
+Use the scaffold command to avoid folder and manifest mistakes. For a testnet-only ordinary Vault UI, a public test CA can be used explicitly:
+
+```bash
+yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xf8ac72e7adefbce6ff22d9a9238512933e247777 --locales en,zh
+```
+
+Replace the factory with the developer's real testnet deployment. For mainnet factory-scoped launch, the complete case keeps the testnet proof token and final mainnet factory in the same manifest:
 
 ```bash
 yarn vault:scaffold my-vault --name "My Vault UI" --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory --locales en,zh

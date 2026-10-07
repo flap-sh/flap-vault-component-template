@@ -76,7 +76,8 @@ Ask these in order. Each answer gates the next.
 
 > Which real ERC20 token(s) should package checks and E2E use?
 
-- Use a real deployed `7777`/`8888`-suffix test token and place that binding first when using `vault:scaffold`.
+- Prefer a suitable project token if supplied. Otherwise, for ordinary Vault UI, offer the same-chain public `7777` CA from `src/shell/previewCoinDetail.ts`; see [the CA guide](./vault-ui-test-ca.md). Do not make the developer issue a token solely for UI/E2E. Pass `--token` explicitly and keep all normal checks.
+- Place the proof binding first when using `vault:scaffold`. Public CA usage does not create a Vault or prove a factory/Vault/token relationship; real business integration still needs project deployments.
 - Store test tokens under `match.bindings[].tokenAddresses`, never as a top-level field.
 - If `caRestrictionMode` is `none`, this test token still exists and still does not restrict production CA.
 - If production CA restriction is `verified`, collect `productionRestrictedTokenAddresses` for Workbench/registry separately; do not use manifest fields for that production policy.
