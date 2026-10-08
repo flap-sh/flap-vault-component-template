@@ -362,3 +362,7 @@ In other words, the long-term direction is "shared package underneath, stable au
 For the current template preview, the same-origin host-proxy route is part of that host layer. It forwards to `FLAP_RUNTIME_HOST_ORIGIN` when configured and otherwise defaults to `https://flap.sh`, keeping protected backend access server-side while the component-facing contract stays unchanged.
 
 For oracle traffic, the current template preview uses a sibling same-origin route at `/api/runtime/oracle/{oracleId}`. That route now includes built-in defaults for the example oracle flow and the display-only `bnb-usd-price` BNB/USD conversion oracle, so the public template works without user env setup for common preview paths. If a host/runtime later needs reviewed upstream URLs or allowlisted params for additional oracle ids, keep those in the host integration layer rather than inside the public Vault source package. Flap runtime does not hold or forward upstream Authorization tokens; authenticated providers must expose a reviewed no-secret HTTPS relay.
+
+## MPEG-TS video sessions
+
+`./ui` exports the controlled `VideoSessionPlayer` and its `VideoSessionClip` type. See [video-session-player.md](video-session-player.md) for CID-only inputs, millisecond durations, lifecycle, fallbacks, and coordinated consumer rollout. The browser-only mpegts.js module is bundled in a lazy runtime chunk; importing `./ui` on the server must never evaluate it.

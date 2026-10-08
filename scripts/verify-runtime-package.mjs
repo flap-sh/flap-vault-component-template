@@ -159,6 +159,13 @@ async function main() {
 
   const sharedRuntimeContextChunk = await verifySharedRuntimeContext(packageDir, sdkSource, uiSource);
 
+  // Importing the public UI in Node must not evaluate mpegts' browser-only UMD
+  // module. Its browser decoder is a bundled lazy chunk, not a consumer peer.
+  const uiModule = await import(`${pathToFileURL(path.join(packageDir, "ui.js")).href}?verify=${Date.now()}`);
+  if (typeof uiModule.VideoSessionPlayer !== "function") {
+    throw new Error("The shared UI export must include the controlled VideoSessionPlayer.");
+  }
+
   const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
   const robinhoodTestnet = hostModule.getTaxVaultHostChainConfig?.(46630);
   const expectedRobinhoodTestnet = {

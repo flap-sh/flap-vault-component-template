@@ -3659,6 +3659,11 @@ es-toolkit@1.33.0:
   resolved "https://registry.npmjs.org/es-toolkit/-/es-toolkit-1.33.0.tgz#bcc9d92ef2e1ed4618c00dd30dfda9faddf4a0b7"
   integrity sha512-X13Q/ZSc+vsO1q600bvNK4bxgXMkHcf//RxCmYDaRY5DAcT+eoXjY5hoAPGMdRnWQjvyLEcyauG3b6hz76LNqg==
 
+es6-promise@^4.2.8:
+  version "4.2.8"
+  resolved "https://registry.npmmirror.com/es6-promise/-/es6-promise-4.2.8.tgz#4eb21594c972bc40553d276e510539143db53e0a"
+  integrity sha512-HJDGx5daxeIvxdBxvG2cb9g4tEvwIk3i8+nhX0yGrYmZUzbkdg8QbDevheDB8gd0//uPj4c1EQua8Q+MViT0/w==
+
 esbuild@^0.27.0:
   version "0.27.7"
   resolved "https://registry.npmjs.org/esbuild/-/esbuild-0.27.7.tgz#bcadce22b2f3fd76f257e3a64f83a64986fea11f"
@@ -5115,6 +5120,14 @@ modern-ahocorasick@^1.0.0:
   version "1.1.0"
   resolved "https://registry.npmjs.org/modern-ahocorasick/-/modern-ahocorasick-1.1.0.tgz#9b1fa15d4f654be20a2ad7ecc44ec9d7645bb420"
   integrity sha512-sEKPVl2rM+MNVkGQt3ChdmD8YsigmXdn5NifZn6jiwn9LRJpWm8F3guhaqrJT/JOat6pwpbXEk6kv+b9DMIjsQ==
+
+mpegts.js@1.8.2:
+  version "1.8.2"
+  resolved "https://registry.npmmirror.com/mpegts.js/-/mpegts.js-1.8.2.tgz#c3e51fb527382923953dc73a10fe0fcd8040974f"
+  integrity sha512-cZYMa5muASH55wrS6JK5IGkUqnCA96c0f+WdnW91jIK9s/N6NzjmTQDJNYg9A5u/G2Q5nj2b3w1Zwzze/9guxA==
+  dependencies:
+    es6-promise "^4.2.8"
+    events "^3.3.0"
 
 ms@2.1.2:
   version "2.1.2"

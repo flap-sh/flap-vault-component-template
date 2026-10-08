@@ -159,7 +159,7 @@ const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRo
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 const RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE = 2;
 const RISK_STATUS_PRECEDING_BUSINESS_ROW_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow|TxButton)\b/g;
-const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
+const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:VideoSessionPlayer|BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
 const VISUAL_REFERENCE_EXAMPLE_FOLDERS = new Set([
   "example",
   "dex-listed-example",
