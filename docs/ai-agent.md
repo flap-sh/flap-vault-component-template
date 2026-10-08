@@ -236,7 +236,7 @@ Do not use:
 - Standard ERC20 ABI fragments in `VaultABI.ts`; use the SDK export unless the token has custom non-standard methods.
 - Silent action removal when an action is unavailable. Show the panel with a clear disabled or unavailable state instead.
 - Reimplementing token phase detection inside `Component.tsx`; use the host-provided `marketPhase`.
-- Uploading media or fetching private token metadata inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host. An already-approved public data endpoint may return `bin.bnbstatic.com` image URLs for `BinanceImage`; other Vault-specific immutable media must use controlled `IpfsImage` / `IpfsBackground` static CIDs.
+- Component-owned upload/pinning requests or fetching private token metadata inside `Component.tsx`; use runtime context values injected by the template preview host / production Flap host. An already-approved public data endpoint may return `bin.bnbstatic.com` image URLs for `BinanceImage`; other Vault-specific immutable media must use controlled `IpfsImage` / `IpfsBackground` static CIDs.
 
 ### Vault-Specific Images
 
@@ -257,7 +257,7 @@ import { BinanceImage } from "@/src/ui";
 
 Do not replace it with raw `<img>`, CSS `url(...)`, or a generic remote-image wrapper. `http:`, credentials, alternate ports, subdomains such as `cdn.bin.bnbstatic.com`, and lookalike domains are rejected. Keep only the currently visible page or virtualized window mounted when the data set contains hundreds or thousands of logos.
 
-If a project needs Flap-hosted IPFS availability instead of a developer's personal Pinata gateway, upload the image through the Flap token metadata upload API documented in [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata). Use `https://funcs.flap.sh/api/upload` outside the Vault package with the `create(file, meta)` mutation. The response `data.create` is a metadata CID for Portal launch `meta`, not the `IpfsImage` value. For Vault UI media, fetch that metadata JSON, read its `image` field, strip any gateway URL or `ipfs://` prefix, and keep only the actual image CID.
+For user-selected images or plain text, use `sdk.uploadImage(file)` or `sdk.uploadText(text)`. Both return `{ cid, uri, gatewayUrl }` for the uploaded file itself through the controlled Flap host; no token metadata extraction is required. See [Image and text uploads](media-upload.md) for limits, cancellation, errors, and host setup. Static decorative images must still be pinned before authoring and use static `IpfsImage` / `IpfsBackground` CIDs. The existing token-launch `create(file, meta)` API continues to return a metadata CID and is a separate flow.
 
 When a user provides an `imageCid`, render it through `IpfsImage` and emit the CID as a static string literal:
 
@@ -271,7 +271,7 @@ import { IpfsImage } from "@/src/ui";
 />
 ```
 
-Do not emit `imageUrl`, `<img src="https://.../ipfs/...">`, `ipfs://...`, CSS `url(...)`, a metadata CID, or a runtime variable/expression for `cid`. If the upload flow returns a metadata CID, fetch the metadata JSON and extract the `image` field first; then strip the gateway or `ipfs://` prefix and keep only the actual image CID. The Vault package must not implement the upload or pinning flow.
+Do not emit `imageUrl`, `<img src="https://.../ipfs/...">`, `ipfs://...`, CSS `url(...)`, a metadata CID, or a runtime variable/expression for `cid`. If the upload flow returns a metadata CID, fetch the metadata JSON and extract the `image` field first; then strip the gateway or `ipfs://` prefix and keep only the actual image CID. The Vault package must not implement its own upload or pinning flow; user-selected content may use the controlled SDK methods above.
 
 For NFT previews, upload the complete image set as one IPFS directory outside the Vault package. Keep the directory CID static and let only the in-directory path depend on the NFT id:
 

@@ -430,6 +430,26 @@ export interface FlapWallet {
   switchChain(): Promise<void>;
 }
 
+export interface IpfsUploadResult {
+  /** CID of the uploaded file itself, not a token metadata document. */
+  cid: string;
+  uri: `ipfs://${string}`;
+  gatewayUrl: string;
+}
+
+export interface MediaUploadOptions {
+  signal?: AbortSignal;
+}
+
+export interface MediaUploadRequest extends MediaUploadOptions {
+  kind: "image" | "text";
+  file: Blob;
+  chainId: number;
+}
+
+/** Optional host override for the controlled upload service. */
+export type MediaUploader = (request: MediaUploadRequest) => Promise<IpfsUploadResult>;
+
 export interface FlapVaultSdk {
   context: VaultRuntimeContext;
   i18n: FlapI18n;
@@ -447,6 +467,10 @@ export interface FlapVaultSdk {
   waitForTx(hash: Address): Promise<TxReceipt>;
   readOracle<T = unknown>(oracleId: string, params?: Record<string, string>): Promise<T>;
   readNftMetadata(request: NftMetadataReadRequest): Promise<NftMetadataSnapshot>;
+  /** Uploads PNG/JPEG/GIF/WebP (up to 3 MiB) and returns the file CID. */
+  uploadImage(file: Blob, options?: MediaUploadOptions): Promise<IpfsUploadResult>;
+  /** Uploads UTF-8 plain text (up to 256 KiB) and returns the file CID. */
+  uploadText(text: string, options?: MediaUploadOptions): Promise<IpfsUploadResult>;
   /**
    * Triggers a reload by incrementing `refetchNonce`. Components that want
    * automatic reloads should include `sdk.refetchNonce` in their effect deps.
