@@ -30,6 +30,8 @@ export default defineConfig({
   target: "es2020",
   outDir: "dist/vault-runtime",
   external: runtimeExternals,
+  // Ship the lazy browser player with the runtime; consumers need no npm/CDN loader.
+  noExternal: ["mpegts.js"],
   treeshake: true,
   outExtension() {
     return {
