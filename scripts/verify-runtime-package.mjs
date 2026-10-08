@@ -176,6 +176,10 @@ async function main() {
   if (typeof uiModule.VideoSessionPlayer !== "function") {
     throw new Error("The shared UI export must include the controlled VideoSessionPlayer.");
   }
+  const sdkModule = await import(`${pathToFileURL(path.join(packageDir, "sdk.js")).href}?verify=${Date.now()}`);
+  for (const name of ["readVideoSessionLength", "readVideoSessionSlice", "createConsumerVideoSessionReader"]) {
+    if (typeof sdkModule[name] !== "function") throw new Error(`The shared SDK export must include ${name}.`);
+  }
 
   const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
   const robinhoodTestnet = hostModule.getTaxVaultHostChainConfig?.(46630);

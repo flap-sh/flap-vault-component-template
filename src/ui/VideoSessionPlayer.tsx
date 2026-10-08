@@ -3,11 +3,13 @@
 import * as React from "react";
 import { VideoSessionController, type VideoSessionClip, type VideoSessionState } from "./videoSession";
 import { cn } from "./utils";
+import { ConsumerVideoSessionPlayer, type ConsumerVideoSessionPlayerProps } from "./ConsumerVideoSessionPlayer";
 
 export type { VideoSessionClip, VideoSessionState } from "./videoSession";
 
-export interface VideoSessionPlayerProps {
+export interface VideoClipSessionPlayerProps {
   clips: readonly VideoSessionClip[];
+  consumer?: never;
   /** Localized accessible name for the native video controls. */
   label: string;
   /** Localized empty, unsupported-browser, invalid-data, or playback-error UI. */
@@ -17,12 +19,20 @@ export interface VideoSessionPlayerProps {
   muted?: boolean;
 }
 
+export type VideoSessionPlayerProps = VideoClipSessionPlayerProps | (ConsumerVideoSessionPlayerProps & { clips?: never });
+
+export function VideoSessionPlayer(props: VideoSessionPlayerProps) {
+  return "consumer" in props && props.consumer !== undefined
+    ? <ConsumerVideoSessionPlayer {...props as ConsumerVideoSessionPlayerProps} />
+    : <VideoClipSessionPlayer {...props as VideoClipSessionPlayerProps} />;
+}
+
 // Keep the browser-only UMD module out of SSR and out of initial UI evaluation.
 async function loadMpegts() {
   return (await import("mpegts.js")).default;
 }
 
-export function VideoSessionPlayer({ clips, label, fallback = null, className, autoPlay = false, muted = false }: VideoSessionPlayerProps) {
+function VideoClipSessionPlayer({ clips, label, fallback = null, className, autoPlay = false, muted = false }: VideoClipSessionPlayerProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const controllerRef = React.useRef<VideoSessionController | null>(null);
   const [state, setState] = React.useState<VideoSessionState>("loading");

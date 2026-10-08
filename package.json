@@ -1,6 +1,6 @@
 {
   "name": "flap-vault-ui-template",
-  "version": "0.1.32-next.0",
+  "version": "0.1.32-next.1",
   "private": true,
   "license": "MIT",
   "packageManager": "yarn@1.22.22",
@@ -44,8 +44,8 @@
     "vault:verify-package": "node scripts/vault-verify-package.mjs",
     "vault:verify-package:selftest": "node scripts/vault-verify-package-selftest.mjs",
     "test:vault-audio": "node --test scripts/vault-audio.test.mjs",
-    "test:video-session": "node --test src/ui/videoSession.test.mjs",
-    "test:video-session:browser": "node scripts/test-video-session-browser.mjs",
+    "test:video-session:browser": "node scripts/test-video-session-browser.mjs && node scripts/test-consumer-video-browser.mjs",
+    "test:video-session": "node --test src/ui/videoSession.test.mjs src/ui/consumerVideoSession.test.mjs",
     "test:media-upload": "node --test src/sdk/mediaUpload.test.mjs scripts/sdk-media-upload-policy.test.mjs"
   },
   "dependencies": {

@@ -157,6 +157,27 @@ test("replacing a session resets its position instead of seeking into unrelated 
   f.controller.dispose();
 });
 
+test("explicit window revisions replace media immediately and retain native audio settings", async () => {
+  const f = fixture();
+  f.video.muted = true;
+  f.video.volume = 0.3;
+  await f.controller.update(extended, false, { revision: 1, resumeAt: 0 });
+  f.video.currentTime = 9;
+  await f.controller.update([extended[1]], false, { revision: 2, resumeAt: 1 });
+  assert.equal(f.players[0].destroyed, 1);
+  assert.deepEqual(f.sources[1].segments, videoSessionSegments([extended[1]]));
+  f.video.dispatchEvent(new Event("loadedmetadata"));
+  assert.equal(f.players[1].currentTime, 1);
+  assert.equal(f.players[1].played, 0);
+  assert.equal(f.video.muted, true);
+  assert.equal(f.video.volume, 0.3);
+  await f.controller.update([extended[1]], true, { revision: 3, resumeAt: 0 });
+  f.video.dispatchEvent(new Event("loadedmetadata"));
+  assert.equal(f.players[2].currentTime, 0);
+  assert.equal(f.players[2].played, 1);
+  f.controller.dispose();
+});
+
 test("disposal or a newer update cancels a pending browser module load", async () => {
   let resolve;
   const pending = new Promise((done) => { resolve = done; });
