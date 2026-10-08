@@ -11,6 +11,19 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
 
+## [0.1.32] - 2026-10-08
+
+### Added
+
+- Support reviewed top-level audio assets in ordinary Vault UI, with the same controlled playback, asset hashing, and human review rules as Mini Apps.
+- Add `VideoSessionPlayer` consumer-address playback with bounded clip reads/downloads, clip selection, seeking, and fullscreen continuity. The ordered CID/`durationMs` clips API remains supported.
+- Add `sdk.uploadImage` and `sdk.uploadText`, backed by the host-controlled upload route and returning the file CID, IPFS URI, and approved gateway URL.
+
+### Compatibility
+
+- Promote the tested `0.1.32-next.1` runtime to stable `0.1.32` for the npm `latest` channel without additional runtime behavior changes.
+- Runtime contract version 1, source-package format 6, and E2E report version 2 remain unchanged. Hosts must pin the same published runtime version and rebuild source packages for that pin.
+
 ## [Unreleased]
 
 ### Security
