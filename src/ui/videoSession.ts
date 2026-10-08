@@ -9,6 +9,12 @@ export interface VideoSessionClip {
 
 export type VideoSessionState = "empty" | "invalid" | "loading" | "ready" | "unsupported" | "error";
 type MpegtsLibrary = Pick<typeof Mpegts, "createPlayer" | "isSupported" | "Events">;
+export interface VideoPlaybackUpdate {
+  /** Explicit seek/window revision, including a seek back to the same clip. */
+  revision: number;
+  /** Position in the newly supplied bounded timeline, in seconds. */
+  resumeAt: number;
+}
 
 export function videoSessionSegments(clips: unknown): Mpegts.MediaSegment[] | null {
   if (!Array.isArray(clips)) return null;
@@ -38,9 +44,9 @@ export class VideoSessionController {
     private readonly onState: (state: VideoSessionState) => void,
   ) {}
 
-  async update(clips: unknown, autoPlay = false) {
+  async update(clips: unknown, autoPlay = false, playback?: VideoPlaybackUpdate) {
     const segments = videoSessionSegments(clips);
-    const key = JSON.stringify(segments);
+    const key = JSON.stringify([segments, playback?.revision]);
     if (key === this.key) return;
     this.key = key;
     const generation = ++this.generation;
@@ -50,6 +56,12 @@ export class VideoSessionController {
       this.onState(segments ? "empty" : "invalid");
       return;
     }
+    const isAppend = !playback && this.player !== null && this.segments.length <= segments.length &&
+      this.segments.every((segment, index) => segment.url === segments[index].url && segment.duration === segments[index].duration);
+    const resumeAt = playback ? Math.max(0, playback.resumeAt) : isAppend ? this.video.currentTime : 0;
+    const shouldPlay = isAppend ? this.video.ended || !this.video.paused : autoPlay;
+    // Stop the previous stream before waiting for the browser module/new metadata.
+    this.destroyPlayer();
     this.onState("loading");
 
     try {
@@ -61,11 +73,6 @@ export class VideoSessionController {
         return;
       }
 
-      const isAppend = this.player !== null && this.segments.length <= segments.length &&
-        this.segments.every((segment, index) => segment.url === segments[index].url && segment.duration === segments[index].duration);
-      const resumeAt = isAppend ? this.video.currentTime : 0;
-      const shouldPlay = isAppend ? this.video.ended || !this.video.paused : autoPlay;
-      this.destroyPlayer();
       const player = mpegts.createPlayer(
         { type: "mse", isLive: false, cors: true, withCredentials: false, segments },
         {
