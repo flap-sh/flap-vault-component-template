@@ -5,9 +5,11 @@ export * from "./erc20";
 export * from "./format";
 export * from "./ipfsImage";
 export * from "./launchConfig";
+export * from "./mediaUpload";
 export * from "./nftMetadata";
 export * from "./oracle";
 export * from "./three";
+export * from "./videoSession";
 export { VaultRuntimeProvider } from "./runtime";
 export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
 export { ZERO_ADDRESS, isActionAvailableForPhase, isCustomVaultTaxToken, isValidAddress, readTaxVaultHostContext, resolveTokenMarketPhase } from "./taxInfo";
@@ -30,6 +32,10 @@ export type {
   FlapVaultSdk,
   FlapWallet,
   ManifestBindingEntry,
+  IpfsUploadResult,
+  MediaUploader,
+  MediaUploadOptions,
+  MediaUploadRequest,
   NftMetadataAttribute,
   NftMetadataReader,
   NftMetadataReaderRequest,

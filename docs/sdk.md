@@ -10,6 +10,12 @@ The template supports Vault V2-standard NFT image display.
 import { useFlapSdk, useVaultContext, useFlapI18n, useFlapNotify, useFlapWallet } from "@/src/sdk";
 ```
 
+## Consumer video sessions
+
+Prefer `<VideoSessionPlayer consumer={consumer} label={i18n.t("video.label")} />` from `@/src/ui` for playback. It resolves the current chain's FlapAIProvider through the shared runtime and handles bounded loading/seeking internally. No provider ABI, RPC, gateway, or whole-session read is needed in Vault source. See [video-session-player.md](video-session-player.md).
+
+For a separate paginated session view, `@/src/sdk` exports `readVideoSessionLength(sdk, consumer)`, `readVideoSessionSlice(sdk, consumer, start, count)` and `createConsumerVideoSessionReader(sdk, consumer)`. Slices use zero-based non-negative indices and contain at most 50 clips; do not repeatedly fetch the entire session. Results include `index`, `requestId`, `videoCid`, `lastFrameCid`, `durationMs`, `startPtsMs`, `createdAt` and `referenceType`. Solidity uint64/uint256 values remain `bigint`; durations and reference types are numbers. Provider targets are built in for chains 56 and 97. An unsupported chain, invalid consumer or malformed result fails explicitly. These helpers use `sdk.readContract`; the host SDK interface is unchanged.
+
 ## Common Methods
 
 ```ts

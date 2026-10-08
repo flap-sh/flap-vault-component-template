@@ -28,7 +28,6 @@ const RUNTIME_PACKAGE_NAME = "@flapsdk/vault-runtime";
 const RUNTIME_CONTRACT_VERSION = 1;
 const REQUIRED_SOURCE_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.json"];
 const FOLDER_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const MINI_APP_MODE = "mini-app";
 
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
@@ -187,15 +186,12 @@ function expectedSourceFiles(folderName, names, manifest) {
     : [];
   const capabilityExtensions = capabilityFileExtensions(manifest, process.cwd());
   const hasCapabilities = isThreeR3FArtifact(manifest) && manifestCapabilityIds(manifest).length > 0;
-  const audioFiles = manifest?.mode === MINI_APP_MODE
-    ? names
-        .filter((name) => {
-          if (!name.startsWith(prefix)) return false;
-          const localName = name.slice(prefix.length);
-          return isMiniAppAudioAssetName(localName);
-        })
-        .sort()
-    : [];
+  const audioFiles = names
+    .filter((name) => {
+      if (!name.startsWith(prefix)) return false;
+      return isMiniAppAudioAssetName(name.slice(prefix.length));
+    })
+    .sort();
   const capabilityFiles = hasCapabilities
     ? names.filter((name) => name.startsWith(prefix) && capabilityExtensions.has(path.extname(name).toLowerCase()))
     : [];

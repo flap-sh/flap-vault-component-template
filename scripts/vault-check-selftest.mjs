@@ -494,7 +494,8 @@ export default function SelftestVault(_props: VaultComponentProps) {
   const defaultAudioAssetSlug = `${FIXTURE_PREFIX}-default-audio-asset`;
   writeVault(defaultAudioAssetSlug);
   fs.writeFileSync(path.join(ROOT, "src", "vaults", defaultAudioAssetSlug, "bgm.mp3"), "audio");
-  assertRule("default Vault UI rejects local audio assets", runVaultCheck(defaultAudioAssetSlug, { silent: true }), "media/mini-app-audio-only", "blocking");
+  assertRule("default Vault UI audio assets require review", runVaultCheck(defaultAudioAssetSlug, { silent: true }), "manual-review/mini-app-audio-asset", "warning");
+  assertNoRule("default Vault UI accepts top-level audio files", runVaultCheck(defaultAudioAssetSlug, { silent: true }), "package-structure/disallowed-vault-file", "blocking");
 
   const miniAppAudioAssetSlug = `${FIXTURE_PREFIX}-mini-app-audio-asset`;
   writeVault(miniAppAudioAssetSlug, {
@@ -3371,6 +3372,21 @@ export default function SelftestVault(_props: VaultComponentProps) {
     i18n: { en: { "risk.missing": "Risk status missing" } },
   });
   assertRule("risk status cannot be preceded by a preview or hero block", runVaultCheck(riskAfterPreviewSlug, { silent: true }), "risk-status/not-prominent-placement", "blocking");
+
+  for (const beforeRisk of [false, true]) {
+    const videoSlug = `${FIXTURE_PREFIX}-video-${beforeRisk ? "before" : "after"}`;
+    const player = '<VideoSessionPlayer clips={[]} label={i18n.t("video.label")} fallback={<p>{i18n.t("video.unavailable")}</p>} />';
+    const risk = '<StatusBadge>{riskLabel}</StatusBadge>{riskLevel === null ? <Alert>{i18n.t("risk.missing")}</Alert> : null}';
+    writeVault(videoSlug, {
+      component: componentWithRiskBody(`  return <div>${beforeRisk ? player + risk : risk + player}</div>;`)
+        .replace('import { Alert, StatusBadge }', 'import { Alert, StatusBadge, VideoSessionPlayer }'),
+      i18n: { en: { "risk.missing": "Risk status missing", "video.label": "Video session", "video.unavailable": "Video unavailable" } },
+    });
+    const result = runVaultCheck(videoSlug, { silent: true });
+    if (beforeRisk) assertRule("video session cannot precede contract risk", result, "risk-status/not-prominent-placement", "blocking");
+    else assertNoRule("video session after contract risk is accepted", result, "risk-status/not-prominent-placement", "blocking");
+    assertNoRule("controlled video session does not need arbitrary media permission", result, "media-policy/remote-media", "blocking");
+  }
 
   const riskAfterCanvasSlug = `${FIXTURE_PREFIX}-risk-after-canvas`;
   writeVault(riskAfterCanvasSlug, {

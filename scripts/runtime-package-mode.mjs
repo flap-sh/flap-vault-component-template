@@ -19,11 +19,12 @@ export function createCanaryVersion(baseVersion, gitHead) {
 
 export function createRuntimePackageIdentity({ baseVersion, gitHead, mode }) {
   if (mode === "release") {
+    const prereleaseChannel = SEMVER_PATTERN.exec(baseVersion)?.[4]?.split(".")[0];
     return {
       mode,
       version: baseVersion,
       private: false,
-      publishConfig: { access: "public" },
+      publishConfig: { access: "public", ...(prereleaseChannel === "next" ? { tag: "next" } : {}) },
       canary: undefined,
     };
   }

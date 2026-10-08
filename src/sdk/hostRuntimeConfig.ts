@@ -8,10 +8,13 @@ export interface TaxVaultHostChainConfig {
   giftVaultFactory?: Address;
   hostChainSlug?: string;
   ipfsGateway?: string;
+  /** Runtime-owned, read-only FlapAIProvider video session target. */
+  aiProvider?: Address;
 }
 
 const taxVaultHostChains: Record<number, TaxVaultHostChainConfig> = {
   56: {
+    aiProvider: "0xaEe3a7Ca6fe6b53f6c32a3e8407eC5A9dF8B7E39",
     portal: "0xe2ce6ab80874fa9fa2aae65d277dd6b8e65c9de0",
     taxTokenHelperAddress: "0x53841c73217735F37BC1775538b03b23feFD8346",
     vaultPortal: "0x90497450f2a706f1951b5bdda52B4E5d16f34C06",
@@ -21,6 +24,7 @@ const taxVaultHostChains: Record<number, TaxVaultHostChainConfig> = {
     ipfsGateway: "https://flap.mypinata.cloud",
   },
   97: {
+    aiProvider: "0xFfddcE44e8cFf7703Fd85118524bfC8B2f70b744",
     portal: "0x5bEacaF7ABCbB3aB280e80D007FD31fcE26510e9",
     taxTokenHelperAddress: "0xD64441e5FcD02D342B8cf6eBA10Ef6E40d0dA90f",
     vaultPortal: "0x027e3704fC5C16522e9393d04C60A3ac5c0d775f",

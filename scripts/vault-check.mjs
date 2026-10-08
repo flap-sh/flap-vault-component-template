@@ -159,7 +159,7 @@ const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRo
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 const RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE = 2;
 const RISK_STATUS_PRECEDING_BUSINESS_ROW_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow|TxButton)\b/g;
-const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
+const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:VideoSessionPlayer|BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
 const VISUAL_REFERENCE_EXAMPLE_FOLDERS = new Set([
   "example",
   "dex-listed-example",
@@ -208,8 +208,8 @@ const FIX_HINTS = {
   "cli/missing-slug": "Run yarn vault:check <slug> with a registered Vault slug.",
   "cli/invalid-folder-name": "Use a 3-64 character lowercase kebab-case folder name, for example my-vault.",
   "package-structure/missing-vault-dir": "Create the package with yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory or yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x..., or add src/vaults/<folder-name>.",
-  "package-structure/missing-required-file": "Keep Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder. Mini App may additionally include reviewed top-level audio assets.",
-  "package-structure/disallowed-vault-file": "Move helpers, nested components, docs, sample data, and non-audio assets outside src/vaults/<folder-name> or inline small code in Component.tsx. Mini App may include only reviewed top-level audio files.",
+  "package-structure/missing-required-file": "Keep Component.tsx, manifest.json, VaultABI.ts, and i18n.json in the Vault folder. Vault UI and Mini App may additionally include reviewed top-level audio assets.",
+  "package-structure/disallowed-vault-file": "Move helpers, nested components, docs, sample data, and non-audio assets outside src/vaults/<folder-name> or inline small code in Component.tsx. Vault UI and Mini App may include only reviewed top-level audio files.",
   "preview-registration/missing-vault-module": "Register the folder name in src/vaults/index.ts with loadComponent, loadManifest, and loadI18n entries.",
   "forbidden-files/disallowed-entry": "Remove environment, dependency, git, or build output files from the Vault package.",
   "forbidden-files/symlink": "Replace symlinks with real files inside the Vault package. Symlinks are not allowed.",
@@ -312,11 +312,10 @@ const FIX_HINTS = {
   "imports-and-dependencies/require-call": "Use static ESM imports only. CommonJS require() is not allowed in Vault source.",
   "imports-and-dependencies/unreviewed-import": "Remove the dependency unless Flap explicitly approves it.",
   "imports-and-dependencies/dynamic-import": "Use static imports only.",
-  "media/local-asset": "Move local media outside the Vault package. Only Mini App mode may include reviewed top-level audio assets.",
-  "media/mini-app-audio-only": 'Audio files inside src/vaults/<folder-name> are allowed only when manifest.mode is "mini-app".',
-  "media/invalid-mini-app-audio-asset": `Use top-level lowercase Mini App audio files with one of these extensions only: ${MINI_APP_AUDIO_ASSET_EXTENSIONS.join(", ")}.`,
-  "media/mini-app-audio-too-large": `Keep each Mini App audio file at or below ${Math.round(MINI_APP_AUDIO_MAX_BYTES / 1024 / 1024)} MiB and total Mini App audio at or below ${Math.round(MINI_APP_AUDIO_TOTAL_MAX_BYTES / 1024 / 1024)} MiB.`,
-  "manual-review/mini-app-audio-asset": "Mini App audio files require Flap human review for source/license, play timing, visible mute/pause control, fallback, and mobile impact before publish.",
+  "media/local-asset": "Move local media outside the Vault package. Vault UI and Mini App may include reviewed top-level audio assets.",
+  "media/invalid-mini-app-audio-asset": `Use top-level lowercase Vault UI and Mini App audio files with one of these extensions only: ${MINI_APP_AUDIO_ASSET_EXTENSIONS.join(", ")}.`,
+  "media/mini-app-audio-too-large": `Keep each Vault UI and Mini App audio file at or below ${Math.round(MINI_APP_AUDIO_MAX_BYTES / 1024 / 1024)} MiB and total Vault UI and Mini App audio at or below ${Math.round(MINI_APP_AUDIO_TOTAL_MAX_BYTES / 1024 / 1024)} MiB.`,
+  "manual-review/mini-app-audio-asset": "Vault UI and Mini App audio files require Flap human review for source/license, play timing, visible mute/pause control, fallback, and mobile impact before publish.",
   "media-policy/remote-media": "Remove remote media URLs. Use host-provided token media, controlled IpfsImage cid/path for immutable Vault/NFT images, or CID-only IpfsBackground.",
   "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
   "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
@@ -3063,7 +3062,6 @@ function collectAstSecurityIssues(content, file, ctx) {
 function checkStructure(vaultDir) {
   const issues = [];
   const manifest = readManifestForStructure(vaultDir);
-  const isMiniApp = manifest?.mode === MINI_APP_MODE;
   const has3D = isThreeR3FArtifact(manifest);
   const profile = has3D ? threeR3FProfile(ROOT) : null;
   const allowedCapabilityExtensions = has3D ? capabilityFileExtensions(manifest, ROOT) : new Set();
@@ -3108,27 +3106,23 @@ function checkStructure(vaultDir) {
     }
     if (!ALLOWED_VAULT_FILES.has(item.name)) {
       const isAudioExtension = MINI_APP_AUDIO_ASSET_EXTENSIONS.some((extension) => item.name.toLowerCase().endsWith(extension));
-      if (!isMiniApp && isAudioExtension) {
-        issues.push(issue(BLOCKING, "media/mini-app-audio-only", `Audio asset ${item.name} is allowed only for manifest.mode=mini-app.`, { file: rel }));
-        continue;
-      }
-      if (isMiniApp && isAudioExtension) {
+      if (isAudioExtension) {
         if (relToVault.includes(path.sep)) {
-          issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Mini App audio asset ${portableRel} must remain top-level.`, { file: rel }));
+          issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Vault UI and Mini App audio asset ${portableRel} must remain top-level.`, { file: rel }));
           continue;
         }
         if (!isMiniAppAudioAssetName(item.name)) {
-          issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Mini App audio asset ${item.name} must be a top-level lowercase file with an allowed extension.`, { file: rel }));
+          issues.push(issue(BLOCKING, "media/invalid-mini-app-audio-asset", `Vault UI and Mini App audio asset ${item.name} must be a top-level lowercase file with an allowed extension.`, { file: rel }));
           continue;
         }
         const bytes = fs.statSync(item.path).size;
         miniAppAudioBytes += bytes;
         if (bytes <= 0 || bytes > MINI_APP_AUDIO_MAX_BYTES) {
-          issues.push(issue(BLOCKING, "media/mini-app-audio-too-large", `Mini App audio asset ${item.name} is ${bytes} bytes and must be between 1 byte and ${MINI_APP_AUDIO_MAX_BYTES} bytes.`, { file: rel, bytes, maxBytes: MINI_APP_AUDIO_MAX_BYTES }));
+          issues.push(issue(BLOCKING, "media/mini-app-audio-too-large", `Vault UI and Mini App audio asset ${item.name} is ${bytes} bytes and must be between 1 byte and ${MINI_APP_AUDIO_MAX_BYTES} bytes.`, { file: rel, bytes, maxBytes: MINI_APP_AUDIO_MAX_BYTES }));
           continue;
         }
         issues.push(
-          issue(WARNING, "manual-review/mini-app-audio-asset", `Mini App audio asset ${item.name} is packaged and requires Flap human review before publish.`, {
+          issue(WARNING, "manual-review/mini-app-audio-asset", `Vault UI and Mini App audio asset ${item.name} is packaged and requires Flap human review before publish.`, {
             file: rel,
             asset: item.name,
             bytes,
@@ -3155,7 +3149,7 @@ function checkStructure(vaultDir) {
         }
         continue;
       }
-      issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may contain only ${[...REQUIRED_FILES, ...OPTIONAL_SURFACE_FILES].join(", ")}${isMiniApp ? " plus reviewed top-level audio assets" : ""}. Move ${item.name} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
+      issues.push(issue(BLOCKING, "package-structure/disallowed-vault-file", `Vault folder may contain only ${[...REQUIRED_FILES, ...OPTIONAL_SURFACE_FILES].join(", ")} plus reviewed top-level audio assets. Move ${item.name} outside src/vaults/${path.basename(vaultDir)}.`, { file: rel }));
       continue;
     }
     if (!item.isDirectory && item.name.match(/\.(png|jpe?g|gif|webp|svg)$/i)) {
@@ -3176,7 +3170,7 @@ function checkStructure(vaultDir) {
       issue(
         BLOCKING,
         "media/mini-app-audio-too-large",
-        `Mini App audio assets total ${miniAppAudioBytes} bytes and must not exceed ${MINI_APP_AUDIO_TOTAL_MAX_BYTES} bytes.`,
+        `Vault UI and Mini App audio assets total ${miniAppAudioBytes} bytes and must not exceed ${MINI_APP_AUDIO_TOTAL_MAX_BYTES} bytes.`,
         { file: `src/vaults/${path.basename(vaultDir)}`, bytes: miniAppAudioBytes, maxBytes: MINI_APP_AUDIO_TOTAL_MAX_BYTES },
       ),
     );
@@ -4038,6 +4032,7 @@ function collectCapabilityImportGraphIssues(vaultDir, manifest) {
   if (!isThreeR3FArtifact(manifest)) return [];
   const issues = [];
   const extensions = capabilityFileExtensions(manifest, ROOT);
+  for (const extension of MINI_APP_AUDIO_ASSET_EXTENSIONS) extensions.add(extension);
   const sourceExtensions = new Set(threeR3FProfile(ROOT).sourceExtensions);
   const allFiles = walk(vaultDir).filter((item) => !item.isDirectory && !item.isSymlink).map((item) => item.path);
   const capabilityFiles = new Set(allFiles.filter((file) => extensions.has(path.extname(file).toLowerCase())));
@@ -4244,10 +4239,10 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       const spec = match[1] || match[2];
       if (spec.startsWith("./") || spec.startsWith("../")) {
         const importerDir = path.dirname(item.path);
-        const isMiniAppAudioImport = manifest?.mode === MINI_APP_MODE && isMiniAppAudioImportSpec(spec) && fs.existsSync(path.join(importerDir, spec));
-        const isCapabilityRelativeImport = isThreeR3FArtifact(manifest) && Boolean(resolveCapabilityRelativeImport(vaultDir, item.path, spec, capabilityFileExtensions(manifest, ROOT)));
-        if (!isMiniAppAudioImport && !isCapabilityRelativeImport && !ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
-          issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI and the declared ./LaunchConfig surface may be imported from a default Vault package. Mini App mode may also import top-level reviewed audio assets. ${spec} is not allowed.`, { file: rel }));
+        const isAudioImport = isMiniAppAudioImportSpec(spec) && path.resolve(importerDir) === path.resolve(vaultDir) && fs.existsSync(path.join(importerDir, spec));
+        const isCapabilityRelativeImport = isThreeR3FArtifact(manifest) && Boolean(resolveCapabilityRelativeImport(vaultDir, item.path, spec, new Set([...capabilityFileExtensions(manifest, ROOT), ...MINI_APP_AUDIO_ASSET_EXTENSIONS])));
+        if (!isAudioImport && !isCapabilityRelativeImport && !ALLOWED_RELATIVE_IMPORTS.has(normalizeRelativeImport(spec))) {
+          issues.push(issue(BLOCKING, "imports-and-dependencies/disallowed-relative-import", `Only ./VaultABI and the declared ./LaunchConfig surface may be imported from a default Vault package. Vault UI and Mini App may also import top-level reviewed audio assets. ${spec} is not allowed.`, { file: rel }));
         }
       } else if (FORBIDDEN_IMPORTS.some((blocked) => spec === blocked || spec.startsWith(`${blocked}/`))) {
         issues.push(issue(BLOCKING, "imports-and-dependencies/forbidden-import", `Forbidden import ${spec}. Use Flap SDK/UI primitives instead.`, { file: rel }));
@@ -4693,7 +4688,7 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
+  return { externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, audioAssets: miniAppAudioAssets, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
 }
 
 function buildCheckReport(folderName, issues) {

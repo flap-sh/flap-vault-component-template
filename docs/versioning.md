@@ -11,6 +11,17 @@ The root `package.json` version is also the local template/runtime package versi
 
 Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exists only for pre-merge consumer testing: it requires clean committed source, generates `<base>-canary.<gitHead>` with `private: true`, verifies and npm-packs it under `dist/npm`, and records the tarball SHA-256. It must never be published or used as the package provenance in a Vault source ZIP. After merge, increment the root version as required and rebuild the publishable package with `yarn runtime:package` plus `yarn runtime:verify-package` from official `main`.
 
+## Explicit next SDK releases
+
+When a maintainer explicitly requests an npm testing release from official `next`, use a version such as `0.1.32-next.0`, commit and push it to official `next`, and build from a clean checkout at exactly that remote head. Select that official ref for the existing freshness checks; do not remove the checks or publish a private canary:
+
+```bash
+FLAP_TEMPLATE_FRESHNESS_REF=upstream/next yarn runtime:package
+yarn runtime:verify-package
+```
+
+`upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The normal npm-latest ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
+
 ## Agent Contract Version
 
 Increment `agent-contract.json.version` when an Agent must change behavior to keep generating valid packages.

@@ -66,8 +66,10 @@ async function writeZip(zipPath, entries) {
   });
 }
 
-async function writePackage(name, { templateVersion, runtimePackageVersion, runtimePackageGitHead, schemaBuffer, capabilityConfigBuffer }) {
+async function writePackage(name, { templateVersion, runtimePackageVersion, runtimePackageGitHead, schemaBuffer, capabilityConfigBuffer, audio = false, tamperAudio = false }) {
   const sourceBase = `src/vaults/${FOLDER_NAME}`;
+  const audioBytes = Buffer.from([0, 255, 13, 10, 128]);
+  const audioPath = `${sourceBase}/chime.wav`;
   const component = Buffer.from('export default function SelftestVault() { return <div>Selftest</div>; }\n', "utf8");
   const manifest = jsonBuffer({
     artifactId: ARTIFACT_ID,
@@ -87,6 +89,7 @@ async function writePackage(name, { templateVersion, runtimePackageVersion, runt
     "schemas/manifest.schema.json": sha256(schemaBuffer),
     [MINI_APP_CAPABILITY_CONFIG_PATH]: sha256(capabilityConfigBuffer),
   };
+  if (audio) fileSha256[audioPath] = sha256(audioBytes);
   const e2eReport = {
     kind: E2E_REPORT_KIND,
     schemaVersion: E2E_REPORT_VERSION,
@@ -153,6 +156,7 @@ async function writePackage(name, { templateVersion, runtimePackageVersion, runt
       [E2E_REPORT_PACKAGE_PATH]: sha256(e2eRaw),
     },
   };
+  if (audio) marker.requiredSourceFiles.push(audioPath);
   const metadata = {
     packageKind: marker.kind,
     packageFormatVersion: marker.formatVersion,
@@ -179,6 +183,7 @@ async function writePackage(name, { templateVersion, runtimePackageVersion, runt
   await writeZip(zipPath, {
     "flap-vault-package.json": jsonBuffer(marker),
     "package-metadata.json": jsonBuffer(metadata),
+    ...(audio ? { [audioPath]: tamperAudio ? Buffer.from([1, 255, 13, 10, 128]) : audioBytes } : {}),
     [E2E_REPORT_PACKAGE_PATH]: e2eRaw,
     "schemas/manifest.schema.json": schemaBuffer,
     [MINI_APP_CAPABILITY_CONFIG_PATH]: capabilityConfigBuffer,
@@ -212,6 +217,19 @@ try {
   });
   const currentResult = runVerifier([currentZip]);
   assert.equal(currentResult.status, 0, currentResult.stderr || currentResult.stdout);
+
+  const audioOptions = {
+    templateVersion: currentVersion, runtimePackageVersion: currentVersion,
+    runtimePackageGitHead: currentGitHead, schemaBuffer: currentSchema,
+    capabilityConfigBuffer: currentCapabilityConfig, audio: true,
+  };
+  const audioZip = await writePackage("ordinary-audio", audioOptions);
+  const audioResult = runVerifier([audioZip]);
+  assert.equal(audioResult.status, 0, audioResult.stderr || audioResult.stdout);
+  const tamperedAudioZip = await writePackage("tampered-audio", { ...audioOptions, tamperAudio: true });
+  const tamperedAudioResult = runVerifier([tamperedAudioZip]);
+  assert.notEqual(tamperedAudioResult.status, 0);
+  assert.match(tamperedAudioResult.stderr, /hash-mismatch/);
 
   const oldVersionZip = await writePackage("old-version", {
     templateVersion: "0.1.11",

@@ -14,6 +14,8 @@ import type {
   FlapWallet,
   FlapVaultSdk,
   HostRuntimeResult,
+  MediaUploader,
+  MediaUploadOptions,
   NftMetadataReader,
   NftMetadataReadRequest,
   NftMetadataSnapshot,
@@ -31,6 +33,7 @@ import { RuntimeContext } from "./runtimeStore";
 import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
 import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
 import { readContractEventsInBlockRanges } from "./contractEvents";
+import { createLocalMediaUploader } from "./mediaUpload";
 
 export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
 
@@ -51,9 +54,11 @@ interface RuntimeProviderProps {
   locale?: string;
   oracleReader?: OracleReader;
   nftMetadataReader?: NftMetadataReader;
+  mediaUploader?: MediaUploader;
 }
 
 const defaultNftMetadataReader = createLocalNftMetadataReader();
+const defaultMediaUploader = createLocalMediaUploader();
 const NFT_METADATA_MAX_CONCURRENCY = 6;
 let activeNftMetadataReads = 0;
 const pendingNftMetadataReads: Array<() => void> = [];
@@ -83,7 +88,7 @@ function getPreviewOracleEndpoint(extraConfig: Record<string, unknown> | undefin
   return typeof endpoint === "string" ? endpoint : undefined;
 }
 
-export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader }: RuntimeProviderProps) {
+export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader }: RuntimeProviderProps) {
   const [version, setVersion] = useState(0);
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
@@ -421,6 +426,14 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [nftMetadataReader, readContract, runtimeContext, version],
   );
 
+  const uploadImage = useCallback((file: Blob, options?: MediaUploadOptions) =>
+    (mediaUploader ?? defaultMediaUploader)({ kind: "image", file, chainId: effectiveChainId, signal: options?.signal }),
+  [effectiveChainId, mediaUploader]);
+
+  const uploadText = useCallback((text: string, options?: MediaUploadOptions) =>
+    (mediaUploader ?? defaultMediaUploader)({ kind: "text", file: new Blob([text], { type: "text/plain;charset=utf-8" }), chainId: effectiveChainId, signal: options?.signal }),
+  [effectiveChainId, mediaUploader]);
+
   const refetch = useCallback(async () => {
     setVersion((item) => item + 1);
   }, []);
@@ -448,11 +461,13 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       waitForTx,
       readOracle,
       readNftMetadata,
+      uploadImage,
+      uploadText,
       refetch,
       refetchNonce: version,
       openExplorerTx,
     }),
-    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, readContract, readNftMetadata, readOracle, refetch, runtimeContext, simulateContract, version, waitForTx, wallet, writeContract],
+    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, readContract, readNftMetadata, readOracle, refetch, runtimeContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, writeContract],
   );
 
   return (
