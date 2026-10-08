@@ -76,7 +76,7 @@ yarn vault:scaffold my-vault \
 
 Replace placeholder addresses with real deployment addresses before running scaffold. The token address is required because `vault:check` and Workbench use manifest `match.bindings[].tokenAddresses` as the package's E2E test token source; it must be a real deployed ERC20 address ending in `7777` or `8888`. In factory mode, this token does not restrict production CA. Production CA restriction belongs to Workbench/registry `caRestrictionMode`: `none`, `reserved`, or `verified`.
 
-`vault:scaffold` creates the core package and registers the preview route. Do not add helper files, nested folders, or extra local imports. Default Vault UI cannot add local assets; Mini App mode may add only reviewed top-level audio files.
+`vault:scaffold` creates the core package and registers the preview route. Do not add helper files, nested folders, or extra local imports. Ordinary Vault UI and Mini App may add reviewed top-level audio files; other local assets require the declared 3D capability.
 
 ## Step 3: Give The Agent A Complete Prompt
 
@@ -104,7 +104,7 @@ Build a controlled Flap Vault UI for:
 - empty/error states:
 - preview URL addresses:
 
-Use the four core files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, call private token metadata APIs, add external navigation, or add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`. Mini Apps may add reviewed top-level audio. A mode-less 7777 Vault UI or token-scoped 7777/8888 Mini App declaring `three-r3f-v1` may recursively add profile-approved source, shaders, and local 3D assets; use `yarn vault:scaffold {folder-name} --capability three-r3f-v1 ...` and keep every file statically reachable from `Component.tsx`.
+Use the four core files under src/vaults/{folder-name}. Keep visible copy in i18n.json. Use @/src/sdk and @/src/ui. Use `lucide-react` icons from https://lucide.dev/icons/ before ad hoc SVG. Do not rebuild the host token header, call private token metadata APIs, add external navigation, or add undeclared endpoints, external frames, or fixed contract targets. Raw iframe is blocked; reviewed display-only chart embeds must use `manifest.externalFrames` plus `ReviewedFrame`. Ordinary Vault UI and Mini Apps may add reviewed top-level audio. A mode-less 7777 Vault UI or token-scoped 7777/8888 Mini App declaring `three-r3f-v1` may recursively add profile-approved source, shaders, and local 3D assets; use `yarn vault:scaffold {folder-name} --capability three-r3f-v1 ...` and keep every file statically reachable from `Component.tsx`.
 
 If I do not explicitly request a UI style, use the scaffold default surface / NiePan-style abstract template as the only visual default. Use built-in examples for behavior only, not visual styling.
 
@@ -209,4 +209,4 @@ The package is not ready if:
 - The oracle, proof, read, or write path was never tested.
 - The UI hides unavailable actions instead of explaining why they are disabled.
 - The component does not render host risk status within the first three business UI rows/blocks or places it after a preview, hero, banner, showcase, media, chart, or large visual block.
-- A default Vault folder contains anything beyond `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`, or a Mini App folder contains anything beyond those four core files plus reviewed top-level audio assets.
+- A Vault UI or Mini App folder contains files beyond the four core files, reviewed top-level audio assets, any declared LaunchConfig surface, or statically reachable files allowed by its declared 3D capability.

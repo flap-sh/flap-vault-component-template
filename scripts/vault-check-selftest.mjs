@@ -494,7 +494,8 @@ export default function SelftestVault(_props: VaultComponentProps) {
   const defaultAudioAssetSlug = `${FIXTURE_PREFIX}-default-audio-asset`;
   writeVault(defaultAudioAssetSlug);
   fs.writeFileSync(path.join(ROOT, "src", "vaults", defaultAudioAssetSlug, "bgm.mp3"), "audio");
-  assertRule("default Vault UI rejects local audio assets", runVaultCheck(defaultAudioAssetSlug, { silent: true }), "media/mini-app-audio-only", "blocking");
+  assertRule("default Vault UI audio assets require review", runVaultCheck(defaultAudioAssetSlug, { silent: true }), "manual-review/mini-app-audio-asset", "warning");
+  assertNoRule("default Vault UI accepts top-level audio files", runVaultCheck(defaultAudioAssetSlug, { silent: true }), "package-structure/disallowed-vault-file", "blocking");
 
   const miniAppAudioAssetSlug = `${FIXTURE_PREFIX}-mini-app-audio-asset`;
   writeVault(miniAppAudioAssetSlug, {

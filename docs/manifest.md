@@ -194,7 +194,7 @@ Example:
 | Field | Required | Description |
 | --- | --- | --- |
 | `displayTitle` | Mini App only | Required when `mode` is `"mini-app"`. This is the bilingual title shown on flap.sh Mini App pages and tabs. Use separate values, for example `{ "zh": "蝴蝶农场", "en": "Butterfly Farm" }`. Do not use it for the default Vault UI. |
-| `mode` | No | Omit it for the default Vault UI. Use `"mini-app"` only for token-scoped Mini App artifacts whose bindings all end in `7777` or all end in `8888`; it keeps the four core source files with an extra reviewed top-level audio-asset exception and skips the Vault risk-status tag checks. |
+| `mode` | No | Omit it for the default Vault UI. Use `"mini-app"` only for token-scoped Mini App artifacts whose bindings all end in `7777` or all end in `8888`; it keeps the four core source files with the same reviewed top-level audio rules as ordinary Vault UI and skips the Vault risk-status tag checks. |
 | `layout` | No | Optional internal-review layout request. Omit it for the standard 768px Vault business body. Use `"fullscreen"` only when Flap explicitly asks for a full-screen Vault body; `vault:check` emits `manual-review/fullscreen-layout`, and production host constraints remain owned by `flap.sh`. |
 | `endpoints` | No | Optional non-oracle external endpoint declarations. Use a single absolute HTTPS URL string without username/password credentials or an array of those strings. Avoid by default; declared endpoints enter Flap review and must be approved before publish. |
 | `externalFrames` | No | Optional reviewed display-only chart iframe declaration. At most one entry is allowed. Use only for `tradingview`, `dexscreener`, or `coingecko-terminal` provider embeds with a complete static HTTPS `src` URL and fixed query string. |
@@ -338,15 +338,15 @@ Use the SDK-provided ERC20 ABI for standard `balanceOf`, `allowance`, `approve`,
 
 The default Vault package file set is fixed. Do not add `helpers`, nested components, folders, assets, docs, or any other files under `src/vaults/{folder-name}`. The only local relative import allowed from a default Vault UI `Component.tsx` is `./VaultABI`.
 
-Mini App mode has one local asset exception for BGM and sound effects. A `manifest.mode: "mini-app"` package may include reviewed top-level audio files directly under `src/vaults/{folder-name}`:
+Ordinary Vault UI and Mini App share a local asset exception for BGM and sound effects. Both modes may include reviewed top-level audio files directly under `src/vaults/{folder-name}`:
 
 - allowed extensions: `.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`
 - lowercase top-level file names only; no nested folders
 - max 5 MiB per file and 12 MiB total
 - import statically from `Component.tsx`, for example `import bgmUrl from "./bgm.mp3";`
-- remote audio, data URLs, hidden autoplay, and audio for default Vault UI remain blocked
+- remote audio, data URLs, and hidden autoplay remain blocked
 
-`vault:check` surfaces each packaged Mini App audio file as `manual-review/mini-app-audio-asset`; Flap human review must check source/license, play timing, visible mute/pause controls, fallback behavior, and mobile impact before publish.
+`vault:check` surfaces each packaged Vault UI or Mini App audio file as `manual-review/mini-app-audio-asset`; Flap human review must check source/license, play timing, visible mute/pause controls, fallback behavior, and mobile impact before publish.
 
 ## Runtime Artifact Name
 

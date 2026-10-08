@@ -1,0 +1,18 @@
+{
+  "artifactId": "vaultui_audio-example_01M4BX6K2F9N5VTQ8R3H7YCJAP",
+  "name": "Vault Audio Example",
+  "match": {
+    "bindings": [
+      {
+        "chainId": 56,
+        "tokenAddresses": [
+          "0x286184b2660a2822671a33f24c4517f593947777"
+        ]
+      }
+    ]
+  },
+  "i18n": [
+    "en",
+    "zh"
+  ]
+}

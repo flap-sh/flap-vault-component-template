@@ -1,0 +1,28 @@
+{
+  "en": {
+    "title": "Sound controls",
+    "description": "Play a short sound, or enable repeat to try background playback.",
+    "risk.current": "Contract risk level",
+    "risk.missing": "Contract risk status is unavailable.",
+    "wallet.wrongNetwork": "Wrong network. Switch your wallet to {chain}. Audio playback remains available.",
+    "play": "Play sound",
+    "pause": "Pause sound",
+    "repeat": "Repeat sound",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "unavailable": "Audio is unavailable. Vault actions remain available."
+  },
+  "zh": {
+    "title": "声音控制",
+    "description": "播放短音效，或开启循环体验背景播放。",
+    "risk.current": "合约风险等级",
+    "risk.missing": "合约风险状态暂不可用。",
+    "wallet.wrongNetwork": "钱包网络不匹配，请切换到 {chain}。音频仍可播放。",
+    "play": "播放音效",
+    "pause": "暂停音效",
+    "repeat": "循环播放",
+    "mute": "静音",
+    "unmute": "取消静音",
+    "unavailable": "音频暂不可用，金库操作不受影响。"
+  }
+}

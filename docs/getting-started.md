@@ -109,7 +109,7 @@ src/vaults/my-vault/
   i18n.json
 ```
 
-The default Vault folder is strict. Do not add extra source files, nested folders, local assets, README files, or other documents under `src/vaults/my-vault`. The core file set is `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) that are statically imported from `Component.tsx`. The only recursive source/asset exception is `three-r3f-v1`, available to a mode-less 7777 Vault UI or token-scoped 7777/8888 Mini App; read `docs/mini-app-3d.md` and use the live examples before authoring one.
+The default Vault folder is strict. Do not add extra source files, nested folders, local assets, README files, or other documents under `src/vaults/my-vault`. The core file set is `Component.tsx`, `manifest.json`, `VaultABI.ts`, and `i18n.json`. Ordinary Vault UI and Mini App may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) that are statically imported from `Component.tsx`. The only recursive source/asset exception is `three-r3f-v1`, available to a mode-less 7777 Vault UI or token-scoped 7777/8888 Mini App; read `docs/mini-app-3d.md` and use the live examples before authoring one.
 
 If those four files already exist because an Agent generated them from a manifest first, register the local preview route with:
 

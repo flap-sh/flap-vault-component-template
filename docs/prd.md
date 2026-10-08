@@ -36,7 +36,7 @@ VaultABI.ts
 i18n.json
 ```
 
-No helpers, nested components, local docs, sample data, or extra folders are allowed inside the default Vault package. Default Vault UI cannot include local assets unless a mode-less 7777 artifact declares `three-r3f-v1`. Mini App mode may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) for BGM or sound effects. The recursive source/asset exception supports either a 7777 Vault UI or a token-scoped 7777/8888 Mini App declaring `three-r3f-v1`; its complete supported surface and limits live in `docs/mini-app-3d.md`.
+No helpers, nested components, local docs, sample data, or extra folders are allowed inside the default Vault package. Other local assets require a mode-less 7777 artifact declaring `three-r3f-v1`. Ordinary Vault UI and Mini App may additionally include reviewed top-level audio files (`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`) for BGM or sound effects. The recursive source/asset exception supports either a 7777 Vault UI or a token-scoped 7777/8888 Mini App declaring `three-r3f-v1`; its complete supported surface and limits live in `docs/mini-app-3d.md`.
 
 ### Shell vs Vault Boundary
 
@@ -237,7 +237,7 @@ It validates the package marker, package kind/version, current template/runtime 
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Fixed Vault package file set | Done | `vault:check` blocks default Vault UI files outside `Component.tsx`, `manifest.json`, `VaultABI.ts`, `i18n.json`, and allows only reviewed top-level audio assets as the Mini App local-file exception. |
+| Fixed Vault package file set | Done | `vault:check` blocks default Vault UI files outside `Component.tsx`, `manifest.json`, `VaultABI.ts`, `i18n.json`, and allows reviewed top-level audio assets in both ordinary Vault UI and Mini App. |
 | Folder route boundary | Done | `vault:check` requires 3-64 character lowercase kebab-case folder names for source folders and preview routes. |
 | Artifact identity | Done | `artifactId` is required, follows `vaultui_<folder-name>_<ULID>`, matches the Vault folder name, and is unique across Vault manifests. |
 | Minimal manifest | Done | Schema and check script allow only developer-facing fields, including optional `mode: "mini-app"` for token-scoped same-family 7777 or 8888 Mini App artifacts and optional `layout: "fullscreen"` for Flap-requested fullscreen review. |
@@ -296,7 +296,7 @@ It validates the package marker, package kind/version, current template/runtime 
 - Direct developer upload of runtime `component.mjs`.
 - Free-form website pages inside Vault package folders.
 - Treating a developer-local tx hash or wallet trace as strong proof that a future write transaction originated from the local UI. That stronger assurance requires a platform-controlled Playwright + wallet runner.
-- Agent-generated helper modules, docs, or local data files inside Vault package folders; local assets are allowed only for reviewed Mini App top-level audio files.
+- Agent-generated helper modules, docs, or local data files inside Vault package folders; audio assets follow the same reviewed top-level rules in Vault UI and Mini App; other local assets require the declared 3D capability.
 - Agent-generated preview shell/header chrome or duplicate host summary banners inside Vault package source.
 - Developer-declared action registry in `manifest.json`.
 - Developer-declared oracle config in `manifest.json`.
