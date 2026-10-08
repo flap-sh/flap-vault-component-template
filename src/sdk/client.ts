@@ -5,6 +5,7 @@ export * from "./erc20";
 export * from "./format";
 export * from "./ipfsImage";
 export * from "./launchConfig";
+export * from "./mediaUpload";
 export * from "./nftMetadata";
 export * from "./oracle";
 export * from "./three";
@@ -30,6 +31,10 @@ export type {
   FlapVaultSdk,
   FlapWallet,
   ManifestBindingEntry,
+  IpfsUploadResult,
+  MediaUploader,
+  MediaUploadOptions,
+  MediaUploadRequest,
   NftMetadataAttribute,
   NftMetadataReader,
   NftMetadataReaderRequest,

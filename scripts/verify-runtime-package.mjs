@@ -26,6 +26,17 @@ async function readText(filePath) {
   return readFile(filePath, "utf8");
 }
 
+async function readDeclarationGraph(filePath, seen = new Set()) {
+  if (seen.has(filePath)) return "";
+  seen.add(filePath);
+  const source = await readText(filePath);
+  const dependencies = [];
+  for (const match of source.matchAll(/\bfrom\s*["'](\.\/.+?\.mjs)["']/g)) {
+    dependencies.push(await readDeclarationGraph(path.resolve(path.dirname(filePath), match[1].replace(/\.mjs$/, ".d.mts")), seen));
+  }
+  return [source, ...dependencies].join("\n");
+}
+
 function parseArgs(args) {
   let packageDir = DEFAULT_PACKAGE_DIR;
   let packageDirProvided = false;
@@ -190,6 +201,26 @@ async function main() {
   const serverModule = await import(`${pathToFileURL(path.join(packageDir, "server.js")).href}?verify=${Date.now()}`);
   if (typeof serverModule.loadNftMetadata !== "function") {
     throw new Error("Vault V2 NFT metadata resolver is missing from the runtime server export.");
+  }
+  if (typeof serverModule.createRuntimeUploadHandler !== "function") {
+    throw new Error("Controlled image/text upload handler is missing from the runtime server export.");
+  }
+  const sdkTypes = await readDeclarationGraph(path.join(packageDir, "sdk.d.mts"));
+  if (!sdkTypes.includes("uploadImage(") || !sdkTypes.includes("uploadText(") || !sdkTypes.includes("createLocalMediaUploader")) {
+    throw new Error("Controlled image/text upload API is missing from the public SDK types.");
+  }
+  const uploadCid = "bafkreigo6g3mkveu5w3l7ud56qr4oq3sa62hawcdmybdhbi5agurqwm5ye";
+  const uploadForm = new FormData();
+  uploadForm.set("kind", "text");
+  uploadForm.set("chainId", "56");
+  uploadForm.set("file", new Blob(["Runtime upload package proof"], { type: "text/plain" }), "text.txt");
+  const uploadResponse = await serverModule.createRuntimeUploadHandler({
+    pinataJwt: "package-verification-only",
+    fetchImpl: async () => Response.json({ IpfsHash: uploadCid }),
+  })(new Request("https://flap.sh/api/runtime/upload", { method: "POST", body: uploadForm }));
+  const uploadPayload = await uploadResponse.json();
+  if (uploadResponse.status !== 200 || uploadPayload.data?.cid !== uploadCid || uploadPayload.data?.gatewayUrl !== `https://flap.mypinata.cloud/ipfs/${uploadCid}`) {
+    throw new Error("Packed runtime upload handler did not return the uploaded file CID and approved gateway.");
   }
 
   const safeSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect width="2" height="2" fill="#123456"/></svg>';
