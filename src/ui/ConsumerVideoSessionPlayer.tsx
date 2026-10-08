@@ -106,7 +106,8 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
   }
 
   const state = snapshot.state === "ready" ? mediaState : snapshot.state;
-  const showVideo = snapshot.clips.length > 0 && (state === "ready" || state === "loading");
+  // Keep the native fullscreen element visible while an explicit seek reloads.
+  const showVideo = state === "loading" || state === "ready";
   const first = page * VIDEO_PICKER_PAGE_SIZE;
   const count = Math.max(0, Math.min(VIDEO_PICKER_PAGE_SIZE, snapshot.total - first));
   return (
@@ -128,8 +129,7 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
           onPause={() => { if (!videoRef.current?.ended && mediaState === "ready") playIntent.current = false; }}
           onEnded={() => advance()} onWaiting={() => setBuffering(true)} onStalled={() => setBuffering(true)} onCanPlay={() => setBuffering(false)} onPlaying={() => setBuffering(false)} />
         {(state === "loading" || buffering && showVideo) && <p className="pointer-events-none absolute inset-x-0 top-3 text-center text-sm text-white" role="status">{text(state === "loading" ? "loading" : "buffering")}</p>}
-        {!showVideo && state !== "loading" && <div className="p-4">{fallback}</div>}
-        {!showVideo && state === "loading" && <div className="aspect-video" />}
+        {!showVideo && <div className="p-4">{fallback}</div>}
       </div>
       {snapshot.total > 0 && (
         <>

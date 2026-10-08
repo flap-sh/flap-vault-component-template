@@ -45,7 +45,7 @@ globalThis.unmountPlayer = () => root.unmount();
 globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: "tsx",
   }, outdir: tmp, entryNames: "app", bundle: true, splitting: true, format: "esm", platform: "browser" });
   server = createServer(async (req, res) => {
-    if (req.url === "/") { res.setHeader("Content-Type", "text/html"); res.end('<div id="root"></div><script type="module" src="/app.js"></script>'); return; }
+    if (req.url === "/") { res.setHeader("Content-Type", "text/html"); res.end('<style>.hidden{display:none}</style><div id="root"></div><script type="module" src="/app.js"></script>'); return; }
     try { res.setHeader("Content-Type", "text/javascript"); res.end(await readFile(path.join(tmp, path.basename((req.url || "").split("?")[0])))); }
     catch { res.statusCode = 404; res.end(); }
   });
@@ -64,13 +64,13 @@ globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: 
   await readyAt(999);
   assert.equal(await page.getByRole("button", { name: /^Clip \d+$/ }).count(), 20);
   assert.equal(await page.getByRole("button", { name: "Latest clip", exact: true }).isDisabled(), true);
-  await page.locator("video").evaluate((video) => { video.volume = 0.3; video.muted = true; });
+  await page.locator("video").evaluate((video) => { video.volume = 0.3; video.muted = false; });
   await page.getByLabel("Go to clip", { exact: true }).fill("500");
   await page.getByRole("button", { name: "Go", exact: true }).click();
   await readyAt(499);
   await page.waitForFunction(() => document.querySelector("video").buffered.length && document.querySelector("video").buffered.end(0) > 18, undefined, { timeout: 45_000 });
   let snapshot = await page.locator("video").evaluate((video) => ({ paused: video.paused, muted: video.muted, volume: video.volume, controls: video.controls }));
-  assert.deepEqual(snapshot, { paused: true, muted: true, volume: 0.3, controls: true });
+  assert.deepEqual(snapshot, { paused: true, muted: false, volume: 0.3, controls: true });
   // Native seek near the window tail rolls it and preserves local position.
   await page.locator("video").evaluate((video) => { video.currentTime = 17; });
   await readyAt(501);
@@ -83,8 +83,11 @@ globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: 
   await readyAt(999);
   await page.getByRole("button", { name: "Previous clip", exact: true }).click();
   await readyAt(998);
-  await page.getByRole("button", { name: "Next clip", exact: true }).click();
+  await page.locator("video").evaluate(async (video) => { await video.requestFullscreen(); video.focus(); });
+  await page.locator("video").press("n");
   await readyAt(999);
+  assert.equal(await page.locator("video").evaluate((video) => document.fullscreenElement === video && getComputedStyle(video).display !== "none"), true);
+  await page.evaluate(() => document.exitFullscreen());
   await page.evaluate(() => renderPlayer(501));
   await readyAt(501);
   await page.locator("video").evaluate(async (video) => { await video.play(); });
@@ -99,7 +102,7 @@ globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: 
   await page.evaluate(() => unmountPlayer());
   assert.equal(await page.locator("video").count(), 0);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ ok: true, strictMode: true, totalClips: 1000, maxWindow: 4, skippedEarlierClips: 499, nativeAudioSettingsPreserved: true, windowRollPreservedPauseAndPosition: true, slices, mediaRequests: media.length }));
+  console.log(JSON.stringify({ ok: true, strictMode: true, totalClips: 1000, maxWindow: 4, skippedEarlierClips: 499, nativeAudioSettingsPreserved: true, fullscreenSeekPreserved: true, windowRollPreservedPauseAndPosition: true, slices, mediaRequests: media.length }));
 } catch (error) {
   if (browser) for (const page of browser.contexts().flatMap((context) => context.pages())) console.error(await page.evaluate(() => ({ state: document.querySelector("[data-flap-video-session-state]")?.dataset, reads: globalThis.reads, video: [...document.querySelectorAll("video")].map((v) => ({ duration: v.duration, time: v.currentTime, readyState: v.readyState, paused: v.paused, error: v.error?.message })) })));
   throw error;
