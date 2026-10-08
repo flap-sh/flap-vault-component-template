@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 49,
+  "version": 50,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -619,7 +619,7 @@
     "sourceRule": "Canary packaging requires a clean committed feature-branch worktree so package gitHead provenance is exact.",
     "publishRule": "The generated package uses a commit-bound prerelease version, private=true, no public publishConfig, and must never be published or recorded as release provenance.",
     "consumerRule": "The helper validates the exact tarball through an isolated npm install, swaps only the consumer's installed runtime while running named scripts, and restores it afterward without editing package.json or yarn.lock.",
-    "releaseBoundary": "After merge and the required version bump, run yarn runtime:package and yarn runtime:verify-package from official main before any npm publish or rollout."
+    "releaseBoundary": "For stable releases, after merge and the required version bump, run yarn runtime:package and yarn runtime:verify-package from official main before npm publish or rollout. An explicitly requested next testing release may instead use a clean committed *-next.N version matching official upstream/next, build with FLAP_TEMPLATE_FRESHNESS_REF=upstream/next, verify, and publish only to the next dist-tag while preserving latest. Private canaries must never be published."
   },
   "sourcePackage": {
     "requiredMarkerFile": "flap-vault-package.json",
