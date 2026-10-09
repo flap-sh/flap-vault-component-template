@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight, SkipBack, SkipForward } from "lucide-react";
-import { createConsumerVideoSessionReader, type ConsumerVideoClip } from "../sdk/videoSession";
+import { ChevronLeft, ChevronRight, SkipBack, SkipForward, Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
+import { createConsumerVideoSessionReader } from "../sdk/videoSession";
 import { useFlapSdk } from "../sdk/runtimeStore";
 import type { Address } from "../sdk/types";
 import { Button } from "./Button";
@@ -23,7 +23,7 @@ export interface ConsumerVideoSessionPlayerProps {
   muted?: boolean;
 }
 
-const initialSnapshot: ConsumerVideoSnapshot = { state: "loading", total: 0, start: 0, clips: [], revision: 0, resumeAt: 0, play: false, refreshFailed: false, preservePosition: false };
+const initialSnapshot: ConsumerVideoSnapshot = { sessionId: 0, state: "loading", total: 0, start: 0, clips: [], revision: 0, resumeAt: 0, play: false, refreshFailed: false, preservePosition: false, firstPtsMs: 0n, endPtsMs: 0n, mediaStartPtsMs: 0n, mediaStartIndex: 0, mediaVideoCid: "" };
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, "0")}`;
 
 export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fallback = null, className, autoPlay = false, muted = false }: ConsumerVideoSessionPlayerProps) {
@@ -34,17 +34,23 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
   const sessionRef = React.useRef<ConsumerVideoSession | null>(null);
   const controllerRef = React.useRef<VideoSessionController | null>(null);
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  const previousWindow = React.useRef<readonly ConsumerVideoClip[]>([]);
+  const frameRef = React.useRef<HTMLDivElement>(null);
   const playIntent = React.useRef(autoPlay);
   const autoPlayRef = React.useRef(autoPlay);
   autoPlayRef.current = autoPlay;
   const [snapshot, setSnapshot] = React.useState(initialSnapshot);
   const [mediaState, setMediaState] = React.useState<VideoSessionState>("loading");
   const [time, setTime] = React.useState(0);
+  const [paused, setPaused] = React.useState(true);
+  const [isMuted, setIsMuted] = React.useState(muted);
+  const [volume, setVolume] = React.useState(1);
+  React.useEffect(() => { setIsMuted(muted); }, [muted]);
   const [buffering, setBuffering] = React.useState(false);
   const [page, setPage] = React.useState(0);
   const [jump, setJump] = React.useState("");
-  const position = videoClipPosition(snapshot.clips, time);
+  const position = videoClipPosition(snapshot.clips, time, snapshot.mediaStartPtsMs);
+  const duration = Number(snapshot.endPtsMs - snapshot.firstPtsMs) / 1000;
+  const globalTime = Math.max(0, Math.min(duration, Number(snapshot.mediaStartPtsMs - snapshot.firstPtsMs) / 1000 + time));
   const activeIndex = position?.index ?? snapshot.start;
   const strings = videoPlayerMessages[sdk.i18n.locale.split("-")[0] as keyof typeof videoPlayerMessages] ?? videoPlayerMessages.en;
   const text = (key: keyof typeof videoPlayerMessages.en, params?: Record<string, number>) => sdk.i18n.t(`runtime.video.${key}`, strings[key], params);
@@ -57,7 +63,7 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
     playIntent.current = autoPlayRef.current;
     void session.refresh(startClip, autoPlayRef.current);
     const timer = window.setInterval(() => { void session.refresh(); }, VIDEO_SESSION_POLL_MS);
-    return () => { window.clearInterval(timer); session.dispose(); sessionRef.current = null; };
+    return () => { window.clearInterval(timer); void controllerRef.current?.update([]); session.dispose(); sessionRef.current = null; };
   }, [reader, startClip]);
 
   React.useEffect(() => {
@@ -68,25 +74,28 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
   }, []);
 
   React.useEffect(() => {
-    const video = videoRef.current;
-    const previous = previousWindow.current;
-    let resumeAt = snapshot.resumeAt;
-    let play = snapshot.play;
-    if (snapshot.preservePosition && previous.length && snapshot.clips.length && video) {
-      // Capture the live position after the metadata request finishes, not before it.
-      resumeAt = Math.max(0, video.currentTime - Number(snapshot.clips[0].startPtsMs - previous[0].startPtsMs) / 1000);
-      play = !video.paused || (video.ended && playIntent.current);
+    const controller = controllerRef.current;
+    const session = sessionRef.current;
+    if (!controller || !session) return;
+    if (snapshot.state !== "ready") {
+      if (!snapshot.clips.length) void controller.update([]);
+      return;
     }
-    previousWindow.current = snapshot.clips;
-    setTime(resumeAt);
-    void controllerRef.current?.update(snapshot.clips, play, { revision: snapshot.revision, resumeAt });
-  }, [snapshot.clips, snapshot.revision, snapshot.resumeAt, snapshot.play, snapshot.preservePosition]);
+    setTime(snapshot.resumeAt);
+    void controller.updateContinuous({
+      revision: snapshot.revision, startIndex: snapshot.mediaStartIndex, startPtsMs: snapshot.mediaStartPtsMs,
+      firstVideoCid: snapshot.mediaVideoCid, resumeAt: snapshot.resumeAt,
+      readClip: (index, signal) => session.readClip(index, signal), playIntent: () => playIntent.current,
+    }, snapshot.play, snapshot.resumeAt);
+    // Metadata windows and tail growth do not change the media stream's origin/revision.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot.sessionId, snapshot.revision, snapshot.state]);
 
   React.useEffect(() => { setPage(Math.floor(activeIndex / VIDEO_PICKER_PAGE_SIZE)); }, [activeIndex]);
 
   const advance = () => {
     const video = videoRef.current;
-    const current = videoClipPosition(snapshot.clips, video?.currentTime ?? 0);
+    const current = videoClipPosition(snapshot.clips, video?.currentTime ?? 0, snapshot.mediaStartPtsMs);
     if (video && current && (current.index >= snapshot.start + snapshot.clips.length - 2 || video.ended)) {
       void sessionRef.current?.advance(current.index);
     }
@@ -95,9 +104,9 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
   // Growth only updates length. Fetch the newly needed tail if the viewer is there.
   React.useEffect(() => {
     const video = videoRef.current;
-    const current = videoClipPosition(snapshot.clips, video?.currentTime ?? 0);
+    const current = videoClipPosition(snapshot.clips, video?.currentTime ?? 0, snapshot.mediaStartPtsMs);
     if (video && current && (current.index >= snapshot.start + snapshot.clips.length - 2 || video.ended)) void sessionRef.current?.advance(current.index);
-  }, [snapshot.total, snapshot.start, snapshot.clips]);
+  }, [snapshot.total, snapshot.start, snapshot.clips, snapshot.mediaStartPtsMs]);
 
   function seek(index: number) {
     const video = videoRef.current;
@@ -111,7 +120,7 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
   const first = page * VIDEO_PICKER_PAGE_SIZE;
   const count = Math.max(0, Math.min(VIDEO_PICKER_PAGE_SIZE, snapshot.total - first));
   return (
-    <div className={cn("w-full min-w-0 space-y-3", className)} data-flap-video-session-state={state} data-flap-video-consumer={consumer} data-flap-video-window-start={snapshot.start} data-flap-video-window-size={snapshot.clips.length}
+    <div className={cn("w-full min-w-0 space-y-3", className)} data-flap-video-session-state={state} data-flap-video-consumer={consumer} data-flap-video-window-start={snapshot.start} data-flap-video-window-size={snapshot.clips.length} data-flap-video-global-time={globalTime} data-flap-video-media-revision={snapshot.revision}
       onKeyDown={(event) => {
         if (event.ctrlKey || event.altKey || event.metaKey || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test((event.target as HTMLElement).tagName)) return;
         const video = videoRef.current;
@@ -121,15 +130,41 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
         if (event.key.toLowerCase() === "n") { event.preventDefault(); seek(activeIndex + 1); }
         if (event.key.toLowerCase() === "p") { event.preventDefault(); seek(Math.max(0, activeIndex - 1)); }
       }}>
-      <div className="relative overflow-hidden rounded-lg border border-[#303236] bg-black">
-        <video ref={videoRef} aria-label={label} controls playsInline disablePictureInPicture disableRemotePlayback preload="metadata" muted={muted}
+      <div ref={frameRef} className="relative overflow-hidden rounded-lg border border-[#303236] bg-black [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:justify-center [&:fullscreen>video]:h-0 [&:fullscreen>video]:min-h-0 [&:fullscreen>video]:flex-1 [&:fullscreen>video]:aspect-auto">
+        <video ref={videoRef} aria-label={label} playsInline disablePictureInPicture disableRemotePlayback preload="metadata" muted={isMuted} tabIndex={0}
           className={showVideo ? "block aspect-video w-full object-contain" : "hidden"}
           onTimeUpdate={() => { setTime(videoRef.current?.currentTime ?? 0); advance(); }}
-          onPlay={() => { playIntent.current = true; }}
-          onPause={() => { if (!videoRef.current?.ended && mediaState === "ready") playIntent.current = false; }}
+          onPlay={() => { playIntent.current = true; setPaused(false); }}
+          onPause={() => { setPaused(true); if (!videoRef.current?.ended && mediaState === "ready") playIntent.current = false; }}
+          onVolumeChange={() => { if (videoRef.current) { setIsMuted(videoRef.current.muted); setVolume(videoRef.current.volume); } }}
           onEnded={() => advance()} onWaiting={() => setBuffering(true)} onStalled={() => setBuffering(true)} onCanPlay={() => setBuffering(false)} onPlaying={() => setBuffering(false)} />
         {(state === "loading" || buffering && showVideo) && <p className="pointer-events-none absolute inset-x-0 top-3 text-center text-sm text-white" role="status">{text(state === "loading" ? "loading" : "buffering")}</p>}
         {!showVideo && <div className="p-4">{fallback}</div>}
+        {showVideo && snapshot.total > 0 && <div className="space-y-2 border-t border-[#303236] bg-black p-3">
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" aria-label={text(paused ? "play" : "pause")} onClick={() => {
+              const video = videoRef.current;
+              if (video) { if (video.paused) void video.play().catch(() => undefined); else video.pause(); }
+            }}>{paused ? <Play aria-hidden="true" className="h-4 w-4" /> : <Pause aria-hidden="true" className="h-4 w-4" />}</Button>
+            <span className="flex-1 text-xs text-white" aria-label={text("timeline")} data-flap-video-time>{clock(globalTime)} / {clock(duration)}</span>
+            <Button type="button" variant="ghost" aria-label={text(isMuted ? "unmute" : "mute")} onClick={() => { if (videoRef.current) videoRef.current.muted = !videoRef.current.muted; }}>
+              {isMuted ? <VolumeX aria-hidden="true" className="h-4 w-4" /> : <Volume2 aria-hidden="true" className="h-4 w-4" />}
+            </Button>
+            <input type="range" min={0} max={1} step={0.05} value={isMuted ? 0 : volume} aria-label={text("volume")} className="w-16 accent-[#D0FF00]" onChange={event => {
+              if (videoRef.current) { videoRef.current.volume = Number(event.target.value); videoRef.current.muted = Number(event.target.value) === 0; }
+            }} />
+            <Button type="button" variant="ghost" aria-label={text("fullscreen")} onClick={() => {
+              if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+              else void frameRef.current?.requestFullscreen?.().catch(() => undefined);
+            }}><Maximize aria-hidden="true" className="h-4 w-4" /></Button>
+          </div>
+          <input type="range" min={0} max={duration} step={0.05} value={globalTime} disabled={state !== "ready"} aria-label={text("timelineSeek")}
+            className="block min-h-6 w-full accent-[#D0FF00]" onChange={event => {
+              const video = videoRef.current;
+              const play = video ? !video.paused || (video.ended && playIntent.current) : playIntent.current;
+              void sessionRef.current?.seekTime(Number(event.target.value), play);
+            }} />
+        </div>}
       </div>
       {snapshot.total > 0 && (
         <>
@@ -141,7 +176,7 @@ export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fal
             className="block min-h-6 w-full accent-[#D0FF00]" onChange={(event) => {
               const video = videoRef.current;
               const clip = snapshot.clips.find((item) => item.index === activeIndex);
-              if (video && clip) { video.currentTime = Number(clip.startPtsMs - snapshot.clips[0].startPtsMs) / 1000 + Number(event.target.value); setTime(video.currentTime); }
+              if (video && clip) { video.currentTime = Number(clip.startPtsMs - snapshot.mediaStartPtsMs) / 1000 + Number(event.target.value); setTime(video.currentTime); }
             }} />
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={activeIndex === 0} onClick={() => seek(0)} aria-label={text("first")}><SkipBack aria-hidden="true" className="h-4 w-4" />{text("first")}</Button>

@@ -45,7 +45,7 @@
     "vault:verify-package:selftest": "node scripts/vault-verify-package-selftest.mjs",
     "test:vault-audio": "node --test scripts/vault-audio.test.mjs",
     "test:video-session:browser": "node scripts/test-video-session-browser.mjs && node scripts/test-consumer-video-browser.mjs",
-    "test:video-session": "node --test src/ui/videoSession.test.mjs src/ui/consumerVideoSession.test.mjs",
+    "test:video-session": "node --test src/ui/videoSession.test.mjs src/ui/consumerVideoSession.test.mjs src/ui/tsTimeline.test.mjs src/ui/continuousVideoLoader.test.mjs",
     "test:media-upload": "node --test src/sdk/mediaUpload.test.mjs scripts/sdk-media-upload-policy.test.mjs"
   },
   "dependencies": {

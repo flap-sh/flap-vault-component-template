@@ -1,4 +1,5 @@
 import type Mpegts from "mpegts.js";
+import { createContinuousVideoLoader, type ContinuousVideoSource } from "./continuousVideoLoader";
 import { resolveIpfsImageUrl } from "../sdk/ipfsImage";
 
 export interface VideoSessionClip {
@@ -144,6 +145,54 @@ export class VideoSessionController {
       this.destroyPlayer();
       this.onState("error");
     }
+  }
+
+  async updateContinuous(source: ContinuousVideoSource, autoPlay = false, resumeAt = 0) {
+    const key = `continuous:${source.revision}`;
+    if (this.key === key) return;
+    this.key = key;
+    const generation = ++this.generation;
+    this.destroyPlayer();
+    this.onState("loading");
+    try {
+      const mpegts = await this.loadMpegts();
+      if (generation !== this.generation) return;
+      if (!mpegts.isSupported()) { this.onState("unsupported"); return; }
+      const player = mpegts.createPlayer({ type: "mse", isLive: false, cors: true, withCredentials: false,
+        url: resolveIpfsImageUrl(source.firstVideoCid)! }, {
+        enableWorker: false, enableWorkerForMSE: false, accurateSeek: true, lazyLoad: false,
+        autoCleanupSourceBuffer: true, autoCleanupMaxBackwardDuration: 60, autoCleanupMinBackwardDuration: 30,
+        customLoader: createContinuousVideoLoader(source, this.video), referrerPolicy: "no-referrer",
+      });
+      if (generation !== this.generation) { player.destroy(); return; }
+      this.player = player;
+      let ready = false;
+      const current = () => generation === this.generation && this.player === player;
+      const onError = () => { if (current()) { this.destroyPlayer(); this.onState("error"); } };
+      const restore = () => {
+        if (!current() || ready || this.video.readyState < 1) return;
+        if (resumeAt > 0 && !Array.from({ length: this.video.buffered.length }, (_, i) => i)
+          .some(i => resumeAt >= this.video.buffered.start(i) - 0.25 && resumeAt < this.video.buffered.end(i))) return;
+        ready = true;
+        try {
+          if (resumeAt > 0) player.currentTime = resumeAt;
+          this.onState("ready");
+          if (autoPlay) player.play()?.catch(() => undefined);
+        } catch { onError(); }
+      };
+      player.on(mpegts.Events.ERROR, onError);
+      this.video.addEventListener("error", onError);
+      this.video.addEventListener("loadedmetadata", restore);
+      this.video.addEventListener("progress", restore);
+      this.removeListeners = () => {
+        player.off(mpegts.Events.ERROR, onError);
+        this.video.removeEventListener("error", onError);
+        this.video.removeEventListener("loadedmetadata", restore);
+        this.video.removeEventListener("progress", restore);
+      };
+      player.attachMediaElement(this.video);
+      player.load();
+    } catch { if (generation === this.generation) { this.destroyPlayer(); this.onState("error"); } }
   }
 
   dispose() {

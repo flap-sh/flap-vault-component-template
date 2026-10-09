@@ -233,3 +233,23 @@ test("clearing clips removes old listeners and cancels stale metadata/error call
   assert.equal(f.players[0].played, 0);
   assert.equal(f.states.at(-1), "empty");
 });
+
+
+test("continuous mode keeps one player across metadata refreshes and only rebuilds for explicit seek", async () => {
+  const f = fixture();
+  f.video.readyState = 4;
+  const source = { revision: 2, startIndex: 0, startPtsMs: 0n, firstVideoCid: CID, resumeAt: 0, readClip: async () => null, playIntent: () => false };
+  await f.controller.updateContinuous(source);
+  f.video.dispatchEvent(new Event("loadedmetadata"));
+  f.video.currentTime = 34;
+  await f.controller.updateContinuous({ ...source });
+  assert.equal(f.players.length, 1);
+  assert.equal(f.video.currentTime, 34);
+  assert.equal(f.players[0].destroyed, 0);
+  assert.equal(f.configs[0].lazyLoad, false);
+  assert.equal(typeof f.configs[0].customLoader, "function");
+  await f.controller.updateContinuous({ ...source, revision: 4, startIndex: 500 });
+  assert.equal(f.players.length, 2);
+  assert.equal(f.players[0].destroyed, 1);
+  f.controller.dispose();
+});
