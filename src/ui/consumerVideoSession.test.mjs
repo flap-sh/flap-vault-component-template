@@ -40,7 +40,7 @@ test("starting at clip 500 reads one bounded slice; starting at -1 reads one fin
   for (const [start, expected, count] of [[500, 500, VIDEO_WINDOW_SIZE], [-1, 999, 1], [-2, 998, 2]]) {
     const f = fixture();
     await f.session.refresh(start);
-    assert.deepEqual(f.calls, [[expected, count]]);
+    assert.deepEqual(f.calls, [[0, 1], [999, 1], [expected, count]]);
     assert.equal(f.states.at(-1).clips[0].index, expected);
     assert.equal(f.states.at(-1).state, "ready");
     f.session.dispose();
@@ -53,13 +53,13 @@ test("polls only length, appends new tail metadata, and does not keep jumping fr
   const original = f.states.at(-1).clips;
   await f.session.refresh();
   assert.equal(f.states.at(-1).clips, original);
-  assert.deepEqual(f.calls, [[3, 1]]);
+  assert.deepEqual(f.calls, [[0, 1], [3, 1], [3, 1]]);
   f.values.push(clips(5)[4]);
   await f.session.refresh();
   assert.equal(f.states.at(-1).start, 3);
-  assert.deepEqual(f.calls, [[3, 1]]);
+  assert.deepEqual(f.calls, [[0, 1], [3, 1], [3, 1], [0, 1], [4, 1]]);
   await f.session.advance(3);
-  assert.deepEqual(f.calls, [[3, 1], [4, 1]]);
+  assert.deepEqual(f.calls, [[0, 1], [3, 1], [3, 1], [0, 1], [4, 1], [4, 1]]);
   assert.equal(f.states.at(-1).clips.length, 2);
   assert.equal(f.states.at(-1).preservePosition, true);
   f.session.dispose();
@@ -156,4 +156,58 @@ test("the shared SDK owns mainnet/testnet provider addresses and bounds metadata
   const noRead = { readContract: async () => { throw new Error("must not read"); } };
   await assert.rejects(createConsumerVideoSessionReader({ ...noRead, context: { chainId: 4663 } }, CONSUMER).readLength(), error => error.code === "unsupported");
   for (const consumer of ["0x0000000000000000000000000000000000000000", "bad-address"]) await assert.rejects(createConsumerVideoSessionReader({ ...noRead, context: { chainId: 56 } }, consumer).readLength(), error => error.code === "invalid");
+});
+
+
+test("metadata rolling and unchanged polling never change stream revision or origin", async () => {
+  const f = fixture();
+  await f.session.refresh();
+  const initial = f.states.at(-1);
+  await f.session.advance(2);
+  await f.session.advance(4);
+  await f.session.refresh();
+  const current = f.states.at(-1);
+  assert.equal(current.revision, initial.revision);
+  assert.equal(current.mediaStartPtsMs, initial.mediaStartPtsMs);
+  assert.deepEqual(videoClipPosition(current.clips, 36, current.mediaStartPtsMs), { index: 4, time: 2, duration: 8 });
+  f.session.dispose();
+});
+
+test("global timeline seek uses bounded binary search with variable durations and huge PTS", async () => {
+  const f = fixture();
+  await f.session.refresh();
+  await f.session.seekTime(4252, false);
+  assert.equal(f.states.at(-1).start, 500);
+  assert.equal(f.states.at(-1).resumeAt, 2);
+  assert.equal(f.states.at(-1).play, false);
+  assert.ok(f.calls.length < 16);
+  assert.ok(f.calls.every(([, count]) => count <= 4));
+  f.session.dispose();
+});
+
+test("tail loader waits for appended clips, and cancellation/dispose release pending reads", async () => {
+  const f = fixture(4);
+  await f.session.refresh();
+  const controller = new AbortController();
+  const pending = f.session.readClip(4, controller.signal);
+  f.values.push(clips(5)[4]);
+  await f.session.refresh();
+  assert.equal((await pending).index, 4);
+  const cancelled = f.session.readClip(5, controller.signal);
+  controller.abort();
+  await assert.rejects(cancelled, { name: "AbortError" });
+  const disposed = f.session.readClip(5, new AbortController().signal);
+  f.session.dispose();
+  await assert.rejects(disposed, { name: "AbortError" });
+});
+
+
+test("a stale event cannot advance outside the current metadata window", async () => {
+  const f = fixture(); await f.session.refresh(501);
+  const current = f.states.at(-1);
+  await f.session.advance(999);
+  assert.equal(f.states.at(-1), current);
+  const second = fixture(); await second.session.refresh(501);
+  assert.notEqual(second.states.at(-1).sessionId, current.sessionId);
+  f.session.dispose(); second.session.dispose();
 });
