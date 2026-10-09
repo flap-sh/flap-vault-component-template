@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 51,
+  "version": 52,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -1634,5 +1634,23 @@
     ],
     "sdkHook": "useMiniAppSdk",
     "documentation": "docs/standalone-mini-apps.md"
+  },
+  "standalonePreviewRelease": {
+    "branch": "feat/mini-app-v2",
+    "npmPackage": "@flapsdk/vault-runtime",
+    "npmTag": "next",
+    "commands": [
+      "yarn app:check {folder-name}",
+      "yarn app:e2e {folder-name}",
+      "yarn app:package {folder-name}",
+      "yarn app:verify-package dist/{folder-name}.zip"
+    ],
+    "rules": [
+      "Only standalone manifest v2 Apps may use this source-package preview channel.",
+      "Fetch the exact head from the official flap-sh repository. Reject forks and arbitrary refs.",
+      "Source ZIP version and gitHead must equal the published next package. Private canaries cannot be ZIP provenance.",
+      "Legacy Vault/token Mini App commands retain main/latest; preview sessions are local fixtures."
+    ],
+    "quickstart": "docs/mini-app-v2-quickstart.md"
   }
 }

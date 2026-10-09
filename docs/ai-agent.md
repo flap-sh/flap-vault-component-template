@@ -1,5 +1,9 @@
 # AI Agent Implementation Guide
 
+## Mini App v2 developer preview channel
+
+The official `feat/mini-app-v2` branch targets `@flapsdk/vault-runtime@0.1.33-next.0` on npm `next`. Read [the developer quickstart](./mini-app-v2-quickstart.md) before new App work. On this preview branch use `yarn app:check`, `yarn app:e2e`, `yarn app:package`, and `yarn app:verify-package`; these explicitly select the official source ref and npm next provenance. Only standalone manifest v2 Apps use this source-package channel. Legacy commands retain main/latest. A source ZIP requires the exact published next version and gitHead; private canaries and an older next release are rejected. Local guest/connected sessions remain fixtures. Release the same clean commit from official `next` using `runtime:package:next`, verify it, publish with the `next` tag, and verify `latest` is unchanged. See the quickstart for pending-publication behavior, updating developer changes, and the required test-host/Workbench alignment.
+
 ## Independent Mini Apps (manifest v2)
 
 This explicit protocol takes precedence over the token requirements below **only** for `schemaVersion: 2`, `mode: "mini-app"`, `appModel: "standalone"` and a valid `slug`. Standalone Apps have `match.bindings: []`, no CA/factory/Vault or required chain, and canonical `/apps/{slug}` URLs. Old Mini Apps remain token-scoped.

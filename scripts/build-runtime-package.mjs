@@ -35,15 +35,15 @@ function runtimePackageError(code, message, fixHint) {
   return error;
 }
 
-function assertCleanCommittedCanarySource() {
+function assertCleanCommittedCanarySource(label = "Canary") {
   const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], {
     cwd: ROOT,
     encoding: "utf8",
   }).trim();
   if (status) {
     throw runtimePackageError(
-      "runtime-package/canary-dirty",
-      "Canary runtime packages require a clean committed worktree so their gitHead provenance is exact.",
+      `runtime-package/${label === "Canary" ? "canary" : "next"}-dirty`,
+      `${label} runtime packages require a clean committed worktree so their gitHead provenance is exact.`,
       "Commit the intended runtime changes and remove unrelated untracked files, then rerun yarn runtime:pack:canary.",
     );
   }
@@ -51,7 +51,10 @@ function assertCleanCommittedCanarySource() {
 
 async function main() {
   const mode = parseRuntimePackageMode(process.argv.slice(2));
-  if (mode === "release") await assertTemplateFresh();
+  if (mode === "release") {
+    if (process.env.FLAP_TEMPLATE_CHANNEL === "next") assertCleanCommittedCanarySource("Next prerelease");
+    await assertTemplateFresh();
+  }
   else assertCleanCommittedCanarySource();
 
   execFileSync(yarnCommand(), ["tsup", "--config", "tsup.runtime.config.ts"], {

@@ -1,0 +1,43 @@
+name: Mini App v2 preview
+
+on:
+  push:
+    branches: [feat/mini-app-v2, next]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.repository == 'flap-sh/flap-vault-component-template'
+    runs-on: ubuntu-latest
+    env:
+      FLAP_TEMPLATE_CHANNEL: next
+      FLAP_TEMPLATE_FRESHNESS_REF: origin/${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn playwright install --with-deps chromium
+      - run: yarn test:release-channel
+      - run: yarn test:mini-app
+      - run: yarn test:standalone-app
+      - run: yarn test:runtime-package-mode
+      - run: yarn run check
+      - run: yarn app:check standalone-example
+      - run: yarn app:e2e standalone-example
+      - run: yarn app:build
+      - run: yarn runtime:pack:canary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mini-app-v2-validation
+          path: |
+            dist/e2e/standalone-example/**
+            dist/npm/*.tgz
+          retention-days: 7

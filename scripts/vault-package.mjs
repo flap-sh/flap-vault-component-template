@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { assertPreviewPublishedIdentity } from "./template-release-channel.mjs";
+import { execFileSync } from "node:child_process";
 import { isStandaloneApp } from "./standalone-app.mjs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -33,6 +35,14 @@ const templateVersion = rootPackage.version;
 const runtimePackageVersion = rootPackage.version;
 const freshness = await assertTemplateFresh({ folderName });
 const runtimePackageGitHead = freshness.checks?.npm?.latestGitHead;
+if (freshness.checks?.npm?.npmTag === "next") {
+  try {
+    assertPreviewPublishedIdentity({ localVersion: templateVersion, publishedVersion: freshness.checks.npm.latestVersion, head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), publishedHead: runtimePackageGitHead });
+  } catch (error) {
+    failAgent({ code: "package/preview-runtime-unpublished", message: error.message, fixHint: "Wait for the maintainer to publish this exact SDK version with the next tag, then retry app:package.", extra: { runtimePackageVersion, runtimePackageGitHead } });
+  }
+}
+
 if (!runtimePackageGitHead) {
   failAgent({
     code: "package/runtime-git-head-missing",

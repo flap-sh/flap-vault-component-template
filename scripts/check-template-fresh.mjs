@@ -4,13 +4,17 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { failAgent } from "./agent-error.mjs";
-import { readNpmLatestPackageMetadata } from "./npm-registry.mjs";
+import { readNpmPackageTagMetadata } from "./npm-registry.mjs";
+
+import { templateReleasePolicy, assertOfficialPreviewRemote, assertPreviewTemplate } from "./template-release-channel.mjs";
 
 const ROOT = process.cwd();
-const DEFAULT_OFFICIAL_REF = "origin/main";
-const OFFICIAL_REF = process.env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || DEFAULT_OFFICIAL_REF;
-const DEFAULT_NPM_PACKAGE_NAME = "@flapsdk/vault-runtime";
-const NPM_PACKAGE_NAME = process.env.FLAP_TEMPLATE_NPM_PACKAGE?.trim() || DEFAULT_NPM_PACKAGE_NAME;
+let CHANNEL_POLICY;
+try { CHANNEL_POLICY = templateReleasePolicy(); }
+catch (error) { failAgent({ code: "template-freshness/invalid-channel", message: error.message, fixHint: "Use the documented stable or App next commands." }); }
+const OFFICIAL_REF = CHANNEL_POLICY.officialRef;
+const NPM_PACKAGE_NAME = CHANNEL_POLICY.packageName;
+const NPM_TAG = CHANNEL_POLICY.npmTag;
 const DEFAULT_NPM_SYNC_ATTEMPTS = 3;
 const DEFAULT_NPM_SYNC_DELAY_MS = 1_000;
 
@@ -120,14 +124,14 @@ function compareSemver(leftVersion, rightVersion) {
   return 0;
 }
 
-async function npmLatestMetadata(folderName, readLatestMetadata = readNpmLatestPackageMetadata) {
+async function npmLatestMetadata(folderName, readLatestMetadata = readNpmPackageTagMetadata) {
   try {
-    const metadata = await readLatestMetadata(NPM_PACKAGE_NAME);
+    const metadata = await readLatestMetadata(NPM_PACKAGE_NAME, NPM_TAG);
     return { version: metadata.version ?? "", gitHead: metadata.gitHead };
   } catch (error) {
     failFreshness({
       code: "template-freshness/npm-fetch-failed",
-      message: `Cannot confirm template freshness because npm latest lookup failed for ${NPM_PACKAGE_NAME}.`,
+      message: `Cannot confirm template freshness because npm ${NPM_TAG} lookup failed for ${NPM_PACKAGE_NAME}.`,
       fixHint: "Fix npm registry/network access, update to the latest template package, then rerun the command.",
       folderName,
       extra: {
@@ -169,7 +173,7 @@ function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion
   if (!gitSucceeds(["rev-parse", "--is-inside-work-tree"])) {
     failFreshness({
       code: "template-freshness/git-head-unverified",
-      message: `Cannot confirm that this source checkout contains npm latest ${NPM_PACKAGE_NAME}@${latestVersion} commit ${latestGitHead}.`,
+      message: `Cannot confirm that this source checkout contains npm ${NPM_TAG} ${NPM_PACKAGE_NAME}@${latestVersion} commit ${latestGitHead}.`,
       fixHint: "Run from the official flap-vault-ui-template git checkout, update it to the latest source, then rerun the command.",
       folderName,
       extra: {
@@ -202,7 +206,7 @@ function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion
 
   failFreshness({
     code: "template-freshness/npm-git-head-mismatch",
-    message: `This checkout does not contain the npm latest ${NPM_PACKAGE_NAME}@${latestVersion} source commit ${latestGitHead}.`,
+    message: `This checkout does not contain the npm ${NPM_TAG} ${NPM_PACKAGE_NAME}@${latestVersion} source commit ${latestGitHead}.`,
     fixHint: "Pull or switch to a source checkout that contains the npm latest published commit, then rerun local checks, builds, or packaging.",
     folderName,
     extra: {
@@ -216,10 +220,19 @@ function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion
 export async function assertNpmPackageFresh({
   folderName,
   autoUpdate = false,
-  readLatestMetadata = readNpmLatestPackageMetadata,
+  readLatestMetadata = readNpmPackageTagMetadata,
   syncAttempts = DEFAULT_NPM_SYNC_ATTEMPTS,
   syncDelayMs = DEFAULT_NPM_SYNC_DELAY_MS,
 } = {}) {
+  if (NPM_TAG === "next") {
+    try { assertPreviewTemplate(ROOT, folderName); }
+    catch (error) { failFreshness({ code: "template-freshness/preview-target", message: error.message, fixHint: "Use App v2 next commands only with the committed preview template and standalone manifest.", folderName }); }
+    let stable;
+    try { stable = await readLatestMetadata(NPM_PACKAGE_NAME, "latest"); }
+    catch (error) { failFreshness({ code: "template-freshness/npm-fetch-failed", message: error.message, fixHint: "Restore npm registry access before using the next channel.", folderName }); }
+    const baseline = compareSemver(readRootPackageJson(folderName).version, stable.version);
+    if (baseline === null || baseline < 0) failFreshness({ code: "template-freshness/preview-behind-stable", message: "This preview template is older than npm latest.", fixHint: "Update to a preview release based on the current stable SDK.", folderName });
+  }
   const latestMetadata = await npmLatestMetadata(folderName, readLatestMetadata);
   const latestVersion = latestMetadata.version;
   let { rootPackage, localVersion, comparison } = compareLocalPackageWithLatest(folderName, latestVersion);
@@ -255,8 +268,8 @@ export async function assertNpmPackageFresh({
     failFreshness({
       code: "template-freshness/npm-outdated",
       message: releaseSyncPending
-        ? `npm latest ${NPM_PACKAGE_NAME}@${latestVersion} was published before its source commit ${latestMetadata.gitHead} became available on ${OFFICIAL_REF}.`
-        : `This checkout uses ${rootPackage.name}@${localVersion}, but npm latest ${NPM_PACKAGE_NAME} is ${latestVersion}.`,
+        ? `npm ${NPM_TAG} ${NPM_PACKAGE_NAME}@${latestVersion} was published before its source commit ${latestMetadata.gitHead} became available on ${OFFICIAL_REF}.`
+        : `This checkout uses ${rootPackage.name}@${localVersion}, but npm ${NPM_TAG} ${NPM_PACKAGE_NAME} is ${latestVersion}.`,
       fixHint: releaseSyncPending
         ? `This is an upstream release synchronization issue. Retry after a maintainer pushes ${latestMetadata.gitHead} and version ${latestVersion} to ${OFFICIAL_REF}; do not edit the local version string.`
         : `Update this checkout to ${latestVersion} or newer before running local checks, builds, or packaging.`,
@@ -281,6 +294,7 @@ export async function assertNpmPackageFresh({
   return {
     ok: true,
     npmPackageName: NPM_PACKAGE_NAME,
+    npmTag: NPM_TAG,
     localPackageName: rootPackage.name,
     localVersion,
     latestVersion,
@@ -302,6 +316,14 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
   }
 
   const remote = remoteFromRef(OFFICIAL_REF);
+  if (NPM_TAG === "next") {
+    try {
+      assertPreviewTemplate(ROOT, folderName);
+      assertOfficialPreviewRemote(git(["remote", "get-url", remote]));
+    } catch (error) {
+      failFreshness({ code: "template-freshness/preview-source", message: error.message, fixHint: "Clone the official flap-sh template and use its feat/mini-app-v2 branch; maintainers may release the same commit from official next.", folderName });
+    }
+  }
   try {
     git(["fetch", "--quiet", remote]);
   } catch (error) {

@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+**独立 Mini App v2 开发预览：**请使用官方 `feat/mini-app-v2` 分支并阅读[快速开始](./docs/mini-app-v2-quickstart.md)。新 App 使用 `app:scaffold` 与 `app:*` 校验、打包命令，不需要 CA 或工厂，登录状态由 Flap 宿主提供。下文绑定 Token 的 Mini App 说明属于旧流程。测试 SDK 目标是 npm `next` 通道的 `0.1.33-next.0`；该精确版本发布前，ZIP 打包会明确阻止。
+
 `three-r3f-v1` 支持三种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI、token-scoped `7777` Tax Token Mini App，以及 token-scoped `8888` 零税 Mini App。两种 Mini App 都必须显式使用 `--mode mini-app`，采用 token-only binding，且同一 artifact 的 token 后缀必须全部为 `7777` 或全部为 `8888`，不能混用。7777 Vault UI 和 7777 Mini App 都必须显式提供真实已部署的 `--token`。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
 
 [English](./README.md)

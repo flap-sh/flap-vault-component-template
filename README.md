@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+**Independent Mini App v2 preview:** use the official `feat/mini-app-v2` branch and [App v2 quickstart](./docs/mini-app-v2-quickstart.md). New standalone Apps use `app:scaffold` and `app:*` validation/package commands, require no CA/factory, and share the host login. The token-bound Mini App instructions below describe the legacy workflow. SDK target: `0.1.33-next.0` on npm `next`; ZIP packaging remains blocked until that exact release is published.
+
 [简体中文](./README.zh-CN.md)
 
 ## Table of Contents

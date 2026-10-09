@@ -5,16 +5,17 @@ function compactBody(body) {
   return body.length > 240 ? `${body.slice(0, 240)}...` : body;
 }
 
-export async function readNpmLatestPackageMetadata(packageName) {
+export async function readNpmPackageTagMetadata(packageName, tag = "latest") {
+  if (!["latest", "next"].includes(tag)) throw new Error("Only latest and next npm channels are supported.");
   const packagePath = encodeURIComponent(packageName);
-  const response = await fetch(`${NPM_REGISTRY_URL}/${packagePath}/latest`, {
+  const response = await fetch(`${NPM_REGISTRY_URL}/${packagePath}/${tag}`, {
     headers: { accept: "application/json" },
     signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
   });
 
   if (!response.ok) {
     const body = compactBody(await response.text().catch(() => ""));
-    throw new Error(`npm registry returned ${response.status} for ${packageName}@latest${body ? `: ${body}` : ""}.`);
+    throw new Error(`npm registry returned ${response.status} for ${packageName}@${tag}${body ? `: ${body}` : ""}.`);
   }
 
   const metadata = await response.json();
@@ -22,4 +23,8 @@ export async function readNpmLatestPackageMetadata(packageName) {
     version: typeof metadata?.version === "string" ? metadata.version : undefined,
     gitHead: typeof metadata?.gitHead === "string" ? metadata.gitHead : undefined,
   };
+}
+
+export function readNpmLatestPackageMetadata(packageName) {
+  return readNpmPackageTagMetadata(packageName, "latest");
 }
