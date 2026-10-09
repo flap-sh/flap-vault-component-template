@@ -6,6 +6,8 @@ import type { VaultComponentProps, VaultLaunchConfigComponentProps, VaultManifes
 import { useLang } from "@/src/i18n/useLang";
 import { Alert } from "@/src/ui/Alert";
 import { FlapPreviewShell } from "./FlapPreviewShell";
+import { StandaloneAppPreviewShell } from "./StandaloneAppPreviewShell";
+import { isStandaloneMiniApp } from "@/src/sdk";
 import { MiniAppPreviewShell } from "./MiniAppPreviewShell";
 import { vaultModules } from "@/src/vaults";
 import { LaunchConfigPreviewShell } from "./LaunchConfigPreviewShell";
@@ -77,7 +79,7 @@ export function VaultPreviewClient({ folderName }: { folderName: string }) {
       {hasLaunchConfig && LaunchConfig ? <LaunchConfigPreviewShell folderName={folderName} manifest={manifest} i18n={i18n} Component={LaunchConfig} /> : <main className="min-h-screen bg-[#070808] p-6"><Alert tone="warning">{lang.home.surfaces.unavailable}</Alert></main>}
     </>;
   }
-  const Shell = manifest.mode === "mini-app" ? MiniAppPreviewShell : FlapPreviewShell;
+  const Shell = isStandaloneMiniApp(manifest) ? StandaloneAppPreviewShell : manifest.mode === "mini-app" ? MiniAppPreviewShell : FlapPreviewShell;
   return (
     <>
     {hasLaunchConfig ? <PreviewSurfaceNav active={requestedSurface} /> : null}

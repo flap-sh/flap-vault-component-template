@@ -1,6 +1,8 @@
 "use client";
 
 export * from "./contract";
+export * from "./miniApp";
+export * from "./miniAppRuntime";
 export * from "./erc20";
 export * from "./format";
 export * from "./ipfsImage";

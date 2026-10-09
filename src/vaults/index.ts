@@ -72,6 +72,12 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./audio-example/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./audio-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
+  "standalone-example": {
+    folderName: "standalone-example",
+    loadComponent: () => import("./standalone-example/Component"),
+    loadManifest: () => import("./standalone-example/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./standalone-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
 };
 
 export function getVaultFolderNames() {

@@ -3,16 +3,29 @@
   "$id": "https://flap.sh/schemas/vault-ui-manifest.schema.json",
   "title": "Flap Vault UI Manifest",
   "type": "object",
-  "required": ["artifactId", "name", "match", "i18n"],
+  "required": [
+    "artifactId",
+    "name",
+    "match",
+    "i18n"
+  ],
   "additionalProperties": false,
   "allOf": [
     {
       "if": {
-        "required": ["mode"],
-        "properties": { "mode": { "const": "mini-app" } }
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "const": "mini-app"
+          }
+        }
       },
       "then": {
-        "required": ["displayTitle"],
+        "required": [
+          "displayTitle"
+        ],
         "properties": {
           "displayTitle": {
             "$ref": "#/$defs/miniAppDisplayTitle"
@@ -20,7 +33,63 @@
         }
       },
       "else": {
-        "not": { "required": ["displayTitle"] }
+        "not": {
+          "required": [
+            "displayTitle"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "required": [
+              "schemaVersion"
+            ]
+          },
+          {
+            "required": [
+              "appModel"
+            ]
+          },
+          {
+            "required": [
+              "slug"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "required": [
+          "schemaVersion",
+          "appModel",
+          "slug",
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "const": "mini-app"
+          },
+          "match": {
+            "properties": {
+              "bindings": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "match": {
+            "properties": {
+              "bindings": {
+                "minItems": 1
+              }
+            }
+          }
+        }
       }
     }
   ],
@@ -30,60 +99,99 @@
       "description": "Stable source-package artifact identity. Format: vaultui_<folder-name>_<26-char ULID>.",
       "pattern": "^vaultui_[a-z0-9]+(-[a-z0-9]+)*_[0-9A-HJKMNPQRSTVWXYZ]{26}$"
     },
-    "name": { "type": "string", "minLength": 2 },
+    "name": {
+      "type": "string",
+      "minLength": 2
+    },
     "displayTitle": {
       "$ref": "#/$defs/miniAppDisplayTitle"
     },
     "mode": {
       "type": "string",
-      "enum": ["mini-app"],
+      "enum": [
+        "mini-app"
+      ],
       "description": "Optional artifact mode. Omit for the default Vault UI. Use mini-app only for token-scoped Mini App artifacts whose match.bindings[].tokenAddresses all end in 7777 or all end in 8888. Mixed suffixes are invalid. Mini App mode skips the Vault risk-status tag requirement."
     },
     "capabilities": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "enum": ["three-r3f-v1"] },
+      "items": {
+        "type": "string",
+        "enum": [
+          "three-r3f-v1"
+        ]
+      },
       "description": "Optional versioned capability profiles. three-r3f-v1 enables the same controlled Three.js/R3F multi-file and local-asset boundary for mode-less 7777 Vault UI and token-scoped 7777 or 8888 Mini App artifacts."
     },
     "surfaces": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "enum": ["vault-ui", "launch-config"] },
+      "items": {
+        "type": "string",
+        "enum": [
+          "vault-ui",
+          "launch-config"
+        ]
+      },
       "description": "Artifact surfaces exported by component.mjs. Omit for the legacy vault-ui-only behavior. launch-config requires a named LaunchConfig export and at least one factory-scoped binding."
     },
     "match": {
       "type": "object",
-      "required": ["bindings"],
+      "required": [
+        "bindings"
+      ],
       "additionalProperties": false,
       "description": "Developer-facing registry binding intent. Each binding targets chainId plus a factoryAddress, one vaultAddresses entry, or one or more no-factory tokenAddresses entries. Any tokenAddresses entry, including entries on factory bindings, must end in 7777 or 8888 and be a real deployed ERC20 token. Factory-mode tokenAddresses are not production CA restrictions.",
       "properties": {
         "bindings": {
           "type": "array",
-          "minItems": 1,
           "uniqueItems": true,
           "description": "Explicit factory-scoped, single-Vault, or token-scoped binding targets. One UI artifact can share logic across multiple deployment targets. At least one binding must include tokenAddresses for Workbench/e2e test coverage. Duplicate runtime binding keys are also blocked by vault:check.",
           "items": {
             "type": "object",
-            "required": ["chainId"],
+            "required": [
+              "chainId"
+            ],
             "additionalProperties": false,
             "allOf": [
               {
                 "anyOf": [
-                  { "required": ["factoryAddress"] },
-                  { "required": ["vaultAddresses"] },
-                  { "required": ["tokenAddresses"] }
+                  {
+                    "required": [
+                      "factoryAddress"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "vaultAddresses"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "tokenAddresses"
+                    ]
+                  }
                 ]
               },
               {
                 "if": {
-                  "not": { "required": ["factoryAddress"] }
+                  "not": {
+                    "required": [
+                      "factoryAddress"
+                    ]
+                  }
                 },
                 "then": {
                   "properties": {
-                    "vaultAddresses": { "$ref": "#/$defs/singleAddressArray" },
-                    "tokenAddresses": { "$ref": "#/$defs/testTokenAddressArray" }
+                    "vaultAddresses": {
+                      "$ref": "#/$defs/singleAddressArray"
+                    },
+                    "tokenAddresses": {
+                      "$ref": "#/$defs/testTokenAddressArray"
+                    }
                   }
                 }
               }
@@ -120,21 +228,30 @@
       "minItems": 1,
       "uniqueItems": true,
       "description": "Supported locale list. vault:check validates exactly these locales against i18n.json.",
-      "items": { "type": "string", "minLength": 2 }
+      "items": {
+        "type": "string",
+        "minLength": 2
+      }
     },
     "layout": {
       "type": "string",
-      "enum": ["fullscreen"],
+      "enum": [
+        "fullscreen"
+      ],
       "description": "Optional internal-review layout request. Omit for the standard 768px Vault body. Use fullscreen only when Flap has explicitly asked for a full-screen Vault body; it enters additional review and production host constraints are applied by flap.sh."
     },
     "endpoints": {
       "description": "Optional non-oracle external endpoint declarations. Use a single HTTPS URL string or an array of HTTPS URL strings for fast review/checker allowlisting.",
       "oneOf": [
-        { "$ref": "#/$defs/httpsUrl" },
+        {
+          "$ref": "#/$defs/httpsUrl"
+        },
         {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/httpsUrl" }
+          "items": {
+            "$ref": "#/$defs/httpsUrl"
+          }
         }
       ]
     },
@@ -143,13 +260,43 @@
       "minItems": 1,
       "maxItems": 1,
       "description": "Optional reviewed display-only iframe declarations. Only TradingView, DexScreener, and CoinGecko Terminal provider URLs are supported; each src must be a complete static HTTPS URL with fixed query params.",
-      "items": { "$ref": "#/$defs/externalFrame" }
+      "items": {
+        "$ref": "#/$defs/externalFrame"
+      }
+    },
+    "schemaVersion": {
+      "const": 2
+    },
+    "appModel": {
+      "const": "standalone"
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "not": {
+        "enum": [
+          "api",
+          "apps",
+          "admin",
+          "www",
+          "app",
+          "launch",
+          "preview",
+          "login",
+          "settings"
+        ]
+      }
     }
   },
   "$defs": {
     "miniAppDisplayTitle": {
       "type": "object",
-      "required": ["zh", "en"],
+      "required": [
+        "zh",
+        "en"
+      ],
       "additionalProperties": false,
       "description": "Mini App display title shown on flap.sh surfaces. Required only for manifest.mode=mini-app. Use separate Chinese and English values, for example {\"zh\":\"蝴蝶农场\",\"en\":\"Butterfly Farm\"}.",
       "properties": {
@@ -165,42 +312,80 @@
         }
       }
     },
-    "address": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "address": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$"
+    },
     "nonZeroAddress": {
       "allOf": [
-        { "$ref": "#/$defs/address" },
-        { "not": { "const": "0x0000000000000000000000000000000000000000" } },
-        { "not": { "const": "0x1000000000000000000000000000000000000001" } },
-        { "not": { "const": "0x2000000000000000000000000000000000000002" } },
-        { "not": { "const": "0x2000000000000000000000000000000000000005" } }
+        {
+          "$ref": "#/$defs/address"
+        },
+        {
+          "not": {
+            "const": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "not": {
+            "const": "0x1000000000000000000000000000000000000001"
+          }
+        },
+        {
+          "not": {
+            "const": "0x2000000000000000000000000000000000000002"
+          }
+        },
+        {
+          "not": {
+            "const": "0x2000000000000000000000000000000000000005"
+          }
+        }
       ]
     },
-    "httpsUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
     "addressArray": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/nonZeroAddress" }
+      "items": {
+        "$ref": "#/$defs/nonZeroAddress"
+      }
     },
     "testTokenAddress": {
       "allOf": [
-        { "$ref": "#/$defs/nonZeroAddress" },
-        { "pattern": "(?:7777|8888)$" }
+        {
+          "$ref": "#/$defs/nonZeroAddress"
+        },
+        {
+          "pattern": "(?:7777|8888)$"
+        }
       ]
     },
     "testTokenAddressArray": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/testTokenAddress" }
+      "items": {
+        "$ref": "#/$defs/testTokenAddress"
+      }
     },
     "singleAddressArray": {
       "type": "array",
       "minItems": 1,
       "maxItems": 1,
-      "items": { "$ref": "#/$defs/nonZeroAddress" }
+      "items": {
+        "$ref": "#/$defs/nonZeroAddress"
+      }
     },
     "externalContract": {
       "type": "object",
-      "required": ["address", "label"],
+      "required": [
+        "address",
+        "label"
+      ],
       "additionalProperties": false,
       "properties": {
         "address": {
@@ -217,11 +402,18 @@
     "externalContractArray": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/externalContract" }
+      "items": {
+        "$ref": "#/$defs/externalContract"
+      }
     },
     "externalFrame": {
       "type": "object",
-      "required": ["id", "provider", "src", "title"],
+      "required": [
+        "id",
+        "provider",
+        "src",
+        "title"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -233,13 +425,21 @@
         },
         "provider": {
           "type": "string",
-          "enum": ["tradingview", "dexscreener", "coingecko-terminal"],
+          "enum": [
+            "tradingview",
+            "dexscreener",
+            "coingecko-terminal"
+          ],
           "description": "Reviewed iframe provider."
         },
         "src": {
           "allOf": [
-            { "$ref": "#/$defs/httpsUrl" },
-            { "pattern": "^https://[^#?]+\\?.+$" }
+            {
+              "$ref": "#/$defs/httpsUrl"
+            },
+            {
+              "pattern": "^https://[^#?]+\\?.+$"
+            }
           ],
           "description": "Complete static iframe URL with fixed query params. Runtime query construction is not allowed."
         },

@@ -216,6 +216,9 @@ export interface VaultManifestDisplayTitle {
 }
 
 export interface VaultManifest {
+  schemaVersion?: 2;
+  appModel?: "standalone";
+  slug?: string;
   artifactId: string;
   name: string;
   displayTitle?: VaultManifestDisplayTitle;

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
+import { isStandaloneApp } from "./standalone-app.mjs";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
   MINI_APP_AUDIO_ASSET_EXTENSIONS,
@@ -40,7 +41,7 @@ const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.j
 const OPTIONAL_SURFACE_FILES = ["LaunchConfig.tsx"];
 const ALLOWED_VAULT_FILES = new Set([...REQUIRED_FILES, ...OPTIONAL_SURFACE_FILES]);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI", "./LaunchConfig"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "surfaces"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "surfaces", "schemaVersion", "appModel", "slug"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
@@ -3469,7 +3470,32 @@ function checkExternalFrames(value) {
   return issues;
 }
 
+
+function checkStandaloneImports(vaultDir, manifest) {
+  if (!isStandaloneApp(manifest)) return [];
+  const issues = [];
+  const forbidden = new Set(["useFlapSdk", "useVaultContext", "useFlapWallet", "useFlapChain", "VaultRuntimeProvider", "NftMetadataImage", "ConsumerVideoSessionPlayer"]);
+  for (const item of walk(vaultDir)) {
+    if (item.isDirectory || item.isSymlink || !/\.(?:ts|tsx|js|jsx)$/.test(item.name)) continue;
+    const file = item.fullPath ?? item.path ?? path.join(vaultDir, item.name);
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
+    const source = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+    for (const node of source.statements) {
+      if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier) || !["@/src/sdk", "@/src/ui"].includes(node.moduleSpecifier.text) || !node.importClause || node.importClause.isTypeOnly) continue;
+      const imports = node.importClause.namedBindings;
+      if (imports && ts.isNamespaceImport(imports)) issues.push(issue(BLOCKING, "standalone-app/token-runtime-import", "Standalone App imports must name session-only hooks and shared UI explicitly.", { file }));
+      if (imports && ts.isNamedImports(imports)) for (const element of imports.elements) {
+        if (!element.isTypeOnly && forbidden.has((element.propertyName ?? element.name).text)) issues.push(issue(BLOCKING, "standalone-app/token-runtime-import", "Standalone Apps use useMiniAppSdk and cannot use token-bound runtime hooks or UI.", { file }));
+      }
+    }
+  }
+  return issues;
+}
+
 function checkManifest(manifest, folderName) {
+  const hasAppFields = ["schemaVersion", "appModel", "slug"].some((key) => manifest?.[key] !== undefined);
+  const standalone = manifest?.schemaVersion === 2 && manifest?.appModel === "standalone" && manifest?.mode === "mini-app" && typeof manifest?.slug === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(manifest.slug) && manifest.slug.length >= 3 && manifest.slug.length <= 64 && !["api", "apps", "admin", "www", "app", "launch", "preview", "login", "settings"].includes(manifest.slug);
+
   const issues = [];
   const isMiniAppMode = manifest?.mode === MINI_APP_MODE;
   const capabilities = manifestCapabilityIds(manifest);
@@ -3486,6 +3512,8 @@ function checkManifest(manifest, folderName) {
       );
     }
   }
+  if (hasAppFields && !standalone) issues.push(issue(BLOCKING, "manifest-schema/invalid-standalone-app", "Standalone Mini Apps require schemaVersion=2, appModel=standalone, mode=mini-app and a valid nonreserved slug."));
+  if (standalone && (!Array.isArray(manifest.match?.bindings) || manifest.match.bindings.length !== 0)) issues.push(issue(BLOCKING, "manifest-binding/standalone-has-bindings", "Standalone Mini Apps must have empty match.bindings and no CA, factory or Vault binding."));
   const required = ["artifactId", "name", "match", "i18n"];
   for (const key of required) {
     if (manifest[key] === undefined) issues.push(issue(BLOCKING, "manifest-schema/missing-field", `manifest.json missing ${key}.`, { field: key }));
@@ -3648,7 +3676,7 @@ function checkManifest(manifest, folderName) {
         ),
       );
     }
-    if (!Array.isArray(manifest.match.bindings) || manifest.match.bindings.length === 0) {
+    if (!Array.isArray(manifest.match.bindings) || (manifest.match.bindings.length === 0 && !standalone)) {
       issues.push(
         issue(
           BLOCKING,
@@ -3831,7 +3859,7 @@ function checkManifest(manifest, folderName) {
           ),
         );
       }
-      if (manifestTestTokenFields.length === 0) {
+      if (!standalone && manifestTestTokenFields.length === 0) {
         issues.push(
           issue(
             BLOCKING,
@@ -3841,7 +3869,7 @@ function checkManifest(manifest, folderName) {
           ),
         );
       }
-      if (isMiniAppMode && miniAppTokenFields.length === 0) {
+      if (!standalone && isMiniAppMode && miniAppTokenFields.length === 0) {
         issues.push(
           issue(
             BLOCKING,
@@ -4768,6 +4796,7 @@ export function runVaultCheck(folderName, options = {}) {
   issues.push(...checkArtifactIdUniqueness(folderName, manifest.artifactId));
   issues.push(...checkI18n(i18n, manifestLocales));
   issues.push(...checkCode(vaultDir, manifest, i18n, manifestLocales));
+  issues.push(...checkStandaloneImports(vaultDir, manifest));
 
   return finish(folderName, issues, options);
 }
