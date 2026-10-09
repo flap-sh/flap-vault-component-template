@@ -7,7 +7,14 @@ if (!isValidFolderName(slug) || ["api","apps","admin","www","app","launch","prev
 const dir = path.join(process.cwd(), "src/vaults", slug);
 if (fs.existsSync(dir)) throw new Error("The app source folder already exists.");
 const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-const ulid = [...crypto.randomBytes(26)].map((b) => alphabet[b % 32]).join("");
+const encode = (value, length) => {
+  let result = "";
+  for (let index = 0; index < length; index++) { result = alphabet[Number(value & 31n)] + result; value >>= 5n; }
+  return result;
+};
+let randomness = 0n;
+for (const byte of crypto.randomBytes(10)) randomness = (randomness << 8n) + BigInt(byte);
+const ulid = encode(BigInt(Date.now()), 10) + encode(randomness, 16);
 const manifest = { schemaVersion: 2, mode: "mini-app", appModel: "standalone", slug, artifactId: `vaultui_${slug}_${ulid}`, name: slug, displayTitle: { en: "Independent Mini App", zh: "独立小程序" }, match: { bindings: [] }, i18n: ["en", "zh", "ko"] };
 fs.mkdirSync(dir, { recursive: true });
 fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
