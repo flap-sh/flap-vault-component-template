@@ -33,4 +33,4 @@ export default function Component() {
 }
 `);
 registerVault(slug);
-console.log(JSON.stringify({ slug, appId: manifest.artifactId, path: `/apps/${slug}`, next: [`yarn vault:check ${slug}`, `yarn vault:e2e ${slug}`, `yarn vault:package ${slug}`] }, null, 2));
+console.log(JSON.stringify({ slug, appId: manifest.artifactId, path: `/apps/${slug}`, next: [`yarn app:check ${slug}`, `yarn app:e2e ${slug}`, `yarn app:package ${slug}`, `yarn app:verify-package dist/${slug}.zip`] }, null, 2));

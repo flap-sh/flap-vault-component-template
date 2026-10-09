@@ -4579,7 +4579,7 @@ function buildAgentNextActions(issues) {
   const blocking = issues.filter((item) => item.severity === BLOCKING);
   const warnings = issues.filter((item) => item.severity === WARNING);
   const source = blocking.length ? blocking : warnings;
-  if (!source.length) return ["Run yarn vault:package <folder-name> and preview the registered route."];
+  if (!source.length) return [`Run yarn ${process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "app:package" : "vault:package"} <folder-name> and preview the registered route.`];
   return source.slice(0, 8).map((item) => ({
     ruleId: item.ruleId,
     severity: item.severity,
@@ -4744,7 +4744,7 @@ function buildCheckReport(folderName, issues) {
       capabilityProfiles: loadMiniAppCapabilityConfig(ROOT).profiles,
       allowedMiniAppAudioExtensions: MINI_APP_AUDIO_ASSET_EXTENSIONS,
       allowedLocalRelativeImports: [...ALLOWED_RELATIVE_IMPORTS],
-      packageCommand: folderName ? `yarn vault:package ${folderName}` : "yarn vault:package <folder-name>",
+      packageCommand: `yarn ${process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "app:package" : "vault:package"} ${folderName || "<folder-name>"}`,
     },
     issues,
   };
