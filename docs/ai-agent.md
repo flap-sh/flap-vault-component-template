@@ -537,3 +537,7 @@ Open Items
 ```
 
 Build `openItems` from the final `vault:check` output and the work you actually skipped or could not prove. Include every `manual-review/oracle-usage` oracle id, every `manual-review/external-endpoint` endpoint URL, missing ABI/preview address assumptions, skipped phase or wrong-network preview, endpoint approval, oracle provisioning, registry binding, and runtime publish approval. If there are no open items, write `none`; do not omit the section.
+
+## Reviewed NFT account withdrawal
+
+Use the versioned, holder-only `sdk.withdrawNftAccount({policyId,tokenId,amount})` path for reviewed NFT account withdrawals. Declare `match.bindings[].nftAccountWithdrawals` on a factory binding; declaration is review intent only and independent host approval is required. Generic execute and artifact-owned runtime providers are blocked. See [NFT account withdrawal](./nft-account-withdrawal.md) for deployment pins, receipt outcomes, tests and rollout.

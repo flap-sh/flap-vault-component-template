@@ -66,3 +66,8 @@ export type {
   VaultRuntimeContextOverrides,
   VaultRuntimeExtraConfig,
 } from "./types";
+
+export type { ManifestNftAccountWithdrawal, NftAccountWithdrawalPolicy, NftAccountWithdrawalRequest, NftAccountWithdrawalReceipt, ReviewedContractPin, ReviewedBeaconPin } from "./nftAccountTypes";
+
+/** Host feature check; declarations must fail closed on older runtimes. */
+export const NFT_ACCOUNT_WITHDRAWAL_VERSION = 1;

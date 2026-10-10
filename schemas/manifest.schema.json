@@ -69,6 +69,7 @@
             "required": ["chainId"],
             "additionalProperties": false,
             "allOf": [
+              { "if": { "required": ["nftAccountWithdrawals"] }, "then": { "required": ["factoryAddress"] } },
               {
                 "anyOf": [
                   { "required": ["factoryAddress"] },
@@ -105,6 +106,31 @@
               "tokenAddresses": {
                 "$ref": "#/$defs/testTokenAddressArray",
                 "description": "Binding-scoped token list for package proof or no-factory token scoping. Every entry, including factory-mode entries, must be a real deployed ERC20 token address ending in 7777 or 8888. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
+              },
+              "nftAccountWithdrawals": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "uniqueItems": true,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "policyId",
+                    "profile"
+                  ],
+                  "properties": {
+                    "policyId": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                    },
+                    "profile": {
+                      "const": "null-bag-withdraw-v1"
+                    }
+                  }
+                },
+                "description": "Review intent only. Requires a factory binding and independent host approval; does not allow arbitrary derived contract calls."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",

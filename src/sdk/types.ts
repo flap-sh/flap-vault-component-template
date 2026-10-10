@@ -1,3 +1,4 @@
+import type { ManifestNftAccountWithdrawal, NftAccountWithdrawalRequest, NftAccountWithdrawalReceipt } from "./nftAccountTypes";
 import type { Abi, PublicClient } from "viem";
 
 export type Address = `0x${string}`;
@@ -199,6 +200,7 @@ export interface ManifestBindingEntry {
   vaultAddresses?: Address[];
   tokenAddresses?: Address[];
   externalContracts?: ManifestExternalContract[];
+  nftAccountWithdrawals?: ManifestNftAccountWithdrawal[];
 }
 
 export interface ManifestExternalContract {
@@ -465,6 +467,8 @@ export interface FlapVaultSdk {
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;
   waitForTx(hash: Address): Promise<TxReceipt>;
+  /** Reviewed NULL profile only; returns after receipt and balance refresh. */
+  withdrawNftAccount(request: NftAccountWithdrawalRequest): Promise<NftAccountWithdrawalReceipt>;
   readOracle<T = unknown>(oracleId: string, params?: Record<string, string>): Promise<T>;
   readNftMetadata(request: NftMetadataReadRequest): Promise<NftMetadataSnapshot>;
   /** Uploads PNG/JPEG/GIF/WebP (up to 3 MiB) and returns the file CID. */

@@ -102,3 +102,7 @@ Hardcoded addresses, unsafe schemes, and undeclared URLs are also detected insid
 ## Verification Boundary
 
 `yarn vault:verify-package` checks source-package format and integrity only — the marker, kind/version, exact file list, metadata, and SHA-256 hashes. It is not the security decision and does not re-run `vault:check`. The Flap Artifact Workbench is the authoritative gate: on upload it re-runs the full `vault:check` on the actual submitted source before publish, so it never trusts the packaged marker's recorded check result. Passing `verify-package` locally does not imply the source is publishable; zero blocking `vault:check` issues on the real source is still required.
+
+## Reviewed NFT account withdrawal
+
+Use the versioned, holder-only `sdk.withdrawNftAccount({policyId,tokenId,amount})` path for reviewed NFT account withdrawals. Declare `match.bindings[].nftAccountWithdrawals` on a factory binding; declaration is review intent only and independent host approval is required. Generic execute and artifact-owned runtime providers are blocked. See [NFT account withdrawal](./nft-account-withdrawal.md) for deployment pins, receipt outcomes, tests and rollout.

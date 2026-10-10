@@ -115,6 +115,7 @@ async function main() {
 
   const runtimeContract = {
     runtimeContractVersion: 1,
+    sdkFeatures: { nftAccountWithdrawal: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],

@@ -397,3 +397,7 @@ validate input
   -> wait for receipt
   -> refetch affected data
 ```
+
+## Reviewed NFT account withdrawal
+
+Use the versioned, holder-only `sdk.withdrawNftAccount({policyId,tokenId,amount})` path for reviewed NFT account withdrawals. Declare `match.bindings[].nftAccountWithdrawals` on a factory binding; declaration is review intent only and independent host approval is required. Generic execute and artifact-owned runtime providers are blocked. See [NFT account withdrawal](./nft-account-withdrawal.md) for deployment pins, receipt outcomes, tests and rollout.

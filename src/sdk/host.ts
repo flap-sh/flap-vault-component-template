@@ -10,3 +10,5 @@ export * from "./runtimeContext";
 export * from "./taxInfo";
 export * from "./txError";
 export * from "./types";
+
+export type * from "./nftAccountTypes";
