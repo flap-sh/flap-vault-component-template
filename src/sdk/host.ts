@@ -1,19 +1,5 @@
-export * from "./contract";
-export * from "./erc20";
-export * from "./format";
-export * from "./hostRead";
-export * from "./hostPresentation";
-export * from "./hostRuntime";
-export * from "./hostRuntimeConfig";
-export * from "./oracle";
-export * from "./runtimeContext";
-export * from "./taxInfo";
-export * from "./txError";
-export * from "./types";
+export * from "./hostCore";
 
-export type * from "./nftAccountTypes";
-
-// Host-only: never expose this entrypoint through artifact module shims.
-export { VaultRuntimeProvider } from "./runtime";
-export type { RuntimeProviderProps } from "./runtime";
-export type * from "./resolvedContractTypes";
+// Client boundary stays separate in the packaged host entrypoint.
+export { VaultRuntimeProvider } from "./hostClient";
+export type { RuntimeProviderProps } from "./hostClient";

@@ -184,7 +184,7 @@ async function main() {
     if (typeof sdkModule[name] !== "function") throw new Error(`The shared SDK export must include ${name}.`);
   }
 
-  const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
+
   const robinhoodTestnet = hostModule.getTaxVaultHostChainConfig?.(46630);
   const expectedRobinhoodTestnet = {
     portal: "0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09",
