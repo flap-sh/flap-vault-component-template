@@ -189,7 +189,7 @@ function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion
   } catch (error) {
     failFreshness({
       code: "template-freshness/git-head-unverified",
-      message: "Cannot read the local git HEAD while checking npm latest source provenance.",
+      message: `Cannot read the local git HEAD while checking npm ${NPM_TAG} source provenance.`,
       fixHint: "Fix the local git checkout, update it to the latest source, then rerun the command.",
       folderName,
       extra: {
@@ -207,7 +207,7 @@ function assertLatestGitHeadContained({ folderName, latestGitHead, latestVersion
   failFreshness({
     code: "template-freshness/npm-git-head-mismatch",
     message: `This checkout does not contain the npm ${NPM_TAG} ${NPM_PACKAGE_NAME}@${latestVersion} source commit ${latestGitHead}.`,
-    fixHint: "Pull or switch to a source checkout that contains the npm latest published commit, then rerun local checks, builds, or packaging.",
+    fixHint: `Pull or switch to a source checkout that contains the npm ${NPM_TAG} published commit, then rerun local checks, builds, or packaging.`,
     folderName,
     extra: {
       latestVersion,
@@ -227,12 +227,8 @@ export async function assertNpmPackageFresh({
   if (NPM_TAG === "next") {
     try { assertPreviewTemplate(ROOT, folderName); }
     catch (error) { failFreshness({ code: "template-freshness/preview-target", message: error.message, fixHint: "Use App v2 next commands only with the committed preview template and standalone manifest.", folderName }); }
-    let stable;
-    try { stable = await readLatestMetadata(NPM_PACKAGE_NAME, "latest"); }
-    catch (error) { failFreshness({ code: "template-freshness/npm-fetch-failed", message: error.message, fixHint: "Restore npm registry access before using the next channel.", folderName }); }
-    const baseline = compareSemver(readRootPackageJson(folderName).version, stable.version);
-    if (baseline === null || baseline < 0) failFreshness({ code: "template-freshness/preview-behind-stable", message: "This preview template is older than npm latest.", fixHint: "Update to a preview release based on the current stable SDK.", folderName });
   }
+  // Each release channel validates its own published version and source commit.
   const latestMetadata = await npmLatestMetadata(folderName, readLatestMetadata);
   const latestVersion = latestMetadata.version;
   let { rootPackage, localVersion, comparison } = compareLocalPackageWithLatest(folderName, latestVersion);
@@ -241,7 +237,7 @@ export async function assertNpmPackageFresh({
   if (comparison === null) {
     failFreshness({
       code: "template-freshness/invalid-version",
-      message: `Cannot compare local template version ${JSON.stringify(localVersion)} with npm latest ${JSON.stringify(latestVersion)}.`,
+      message: `Cannot compare local template version ${JSON.stringify(localVersion)} with npm ${NPM_TAG} ${JSON.stringify(latestVersion)}.`,
       fixHint: "Use valid semver versions in package.json and the published npm runtime package, then rerun the command.",
       folderName,
       extra: {
@@ -384,7 +380,7 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
       failFreshness({
         code: "template-freshness/auto-update-incomplete",
         message: `The automatic update did not move this checkout exactly to ${OFFICIAL_REF}.`,
-        fixHint: "Inspect the checkout state, update it to the latest origin/main without discarding Vault source work, then rerun yarn vault:package <folder-name>.",
+        fixHint: `Inspect the checkout state, update it to the latest ${OFFICIAL_REF} without discarding Vault source work, then rerun the package command.`,
         folderName,
         extra: {
           previousHead: head,
@@ -414,7 +410,7 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
         : `This flap-vault-ui-template checkout does not contain the latest ${OFFICIAL_REF} commits.`;
   const fixHint =
     status === "ahead"
-      ? "Push and merge the template changes to origin/main, or reset/switch this checkout to latest origin/main before running validation, build, or package commands."
+      ? `Push and merge the template changes to ${OFFICIAL_REF}, or reset/switch this checkout to latest ${OFFICIAL_REF} before running validation, build, or package commands.`
       : "Run git pull --ff-only, then rerun validation, build, or package commands.";
 
   failFreshness({

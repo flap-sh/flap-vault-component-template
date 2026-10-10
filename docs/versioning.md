@@ -13,14 +13,26 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Explicit next SDK releases
 
-When a maintainer explicitly requests an npm testing release from official `next`, use a version such as `0.1.32-next.0`, commit and push it to official `next`, and build from a clean checkout at exactly that remote head. Select that official ref for the existing freshness checks; do not remove the checks or publish a private canary:
+Release freshness is channel-specific:
+
+| Workflow | Official source | npm metadata used |
+| --- | --- | --- |
+| Stable Vault/template commands | `origin/main` | `@flapsdk/vault-runtime` on `latest` only |
+| App v2 preview commands | `origin/feat/mini-app-v2` | `@flapsdk/vault-runtime` on `next` only |
+| Preview runtime release | `origin/next` | `@flapsdk/vault-runtime` on `next` only |
+
+There is no cross-channel version comparison. Advancing `latest` does not make an unchanged preview stale or require a new `next` release. Each channel still requires the official source head, a version at least as new as its own npm tag, and the published commit in its history. App v2 source ZIPs additionally require the exact published `next` version and commit. This does not certify SDK API compatibility or replace host/Workbench version alignment.
+
+When a maintainer explicitly requests an npm testing release from official `next`, use a version such as `0.1.33-next.1`, commit and push the same source commit to official `feat/mini-app-v2` and `next`, and build from a clean checkout at exactly that remote head. Select both the preview channel and official release ref; do not remove the checks or publish a private canary:
 
 ```bash
-FLAP_TEMPLATE_FRESHNESS_REF=upstream/next yarn runtime:package
+FLAP_TEMPLATE_FRESHNESS_REF=upstream/next yarn runtime:package:next
 yarn runtime:verify-package
 ```
 
-`upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The normal npm-latest ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
+`upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The npm `next` ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
+
+This checker update targets `0.1.33-next.1`; its exact source commit must be published once before App v2 ZIP packaging succeeds. Later stable-only releases do not require a preview bump. Publish only when explicitly authorized, and coordinate the exact runtime version used by the testing host and Workbench.
 
 ## Agent Contract Version
 
@@ -106,4 +118,4 @@ Use `yarn app:scaffold <slug>` in the template and `useMiniAppSdk()` for host-ow
 
 ## Mini App v2 developer preview channel
 
-The official `feat/mini-app-v2` branch targets `@flapsdk/vault-runtime@0.1.33-next.0` on npm `next`. Read [the developer quickstart](./mini-app-v2-quickstart.md) before new App work. On this preview branch use `yarn app:check`, `yarn app:e2e`, `yarn app:package`, and `yarn app:verify-package`; these explicitly select the official source ref and npm next provenance. Only standalone manifest v2 Apps use this source-package channel. Legacy commands retain main/latest. A source ZIP requires the exact published next version and gitHead; private canaries and an older next release are rejected. Local guest/connected sessions remain fixtures. Release the same clean commit from official `next` using `runtime:package:next`, verify it, publish with the `next` tag, and verify `latest` is unchanged. See the quickstart for pending-publication behavior, updating developer changes, and the required test-host/Workbench alignment.
+The official `feat/mini-app-v2` branch targets `@flapsdk/vault-runtime@0.1.33-next.1` on npm `next`. Read [the developer quickstart](./mini-app-v2-quickstart.md) before new App work. On this preview branch use `yarn app:check`, `yarn app:e2e`, `yarn app:package`, and `yarn app:verify-package`; these explicitly select the official source ref and npm next provenance. Only standalone manifest v2 Apps use this source-package channel. Legacy commands retain main/latest. A source ZIP requires the exact published next version and gitHead; private canaries and an older next release are rejected. Local guest/connected sessions remain fixtures. Release the same clean commit from official `next` using `runtime:package:next`, verify it, publish with the `next` tag, and verify `latest` is unchanged. See the quickstart for pending-publication behavior, updating developer changes, and the required test-host/Workbench alignment.

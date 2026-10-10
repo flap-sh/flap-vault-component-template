@@ -7,11 +7,12 @@ This branch is for independent Flap Apps. No CA, factory or Vault is required. T
 | Official repository | `https://github.com/flap-sh/flap-vault-component-template` |
 | Developer branch | `feat/mini-app-v2` |
 | First SDK release | `@flapsdk/vault-runtime@0.1.33-next.0` |
+| Current SDK target | `@flapsdk/vault-runtime@0.1.33-next.1` |
 | npm channel | `next`; never `latest` for this preview |
 | Fixed source snapshot | `mini-app-v2-preview.1` |
 | Example | `src/vaults/standalone-example`, local `/standalone-example` |
 
-The version above is the prepared release target. **A source ZIP can only be generated after the exact version and source commit are published to npm `next`.** The package command checks this and gives `package/preview-runtime-unpublished` while that release is pending. Developers can start UI work and local preview before publication. Check npm release metadata or the maintainer's release note before treating the version as published.
+The current SDK target is a prepared release; the first release and fixed snapshot are historical references. **A source ZIP can only be generated after the exact current version and source commit are published to npm `next`.** The package command checks this and gives `package/preview-runtime-unpublished` while that release is pending. Developers can start UI work and local preview before publication. Check npm release metadata or the maintainer's release note before treating the version as published.
 
 ## Start developing
 
@@ -52,6 +53,10 @@ Upload only the generated `dist/my-app.zip` to the **designated App v2 testing W
 
 App commands select npm `next` and the official `origin/feat/mini-app-v2` source ref. Forks and arbitrary refs cannot supply preview release provenance. Maintainers working with an official `upstream` remote can explicitly set `FLAP_TEMPLATE_FRESHNESS_REF=upstream/feat/mini-app-v2`; the repository origin is still verified. Do not bypass a failed check or edit npm provenance in the ZIP.
 
+`latest` and `next` have independent freshness checks. App v2 commands read only npm `next`; stable Vault commands read only npm `latest`. A newer stable release, including `0.1.33` or a later version, does not invalidate `0.1.33-next.*` or require another preview publication. An outdated preview still fails against a newer `next` release, and official source/provenance checks remain mandatory. SDK API compatibility and coordinated host/Workbench upgrades must still be reviewed when adopting a new release.
+
+This checker update prepares `0.1.33-next.1`. It needs one matching npm `next` publication because source ZIPs require the exact published version and commit. Later changes to `latest` alone do not require further `next` releases.
+
 Before updating the template, save your App source separately or commit it on your own work branch. The normal check/package commands require the official template HEAD; a developer's extra commits cause an ahead/diverged diagnostic. Reapply only your App folder and its preview registration onto the updated official checkout. The package preflight fast-forwards only when local work does not conflict; it never discards that work.
 
 ## Stable migration
@@ -63,8 +68,12 @@ Before launch, Flap will publish the stable runtime and align the template, host
 1. 切换官方仓库的 `feat/mini-app-v2` 分支，使用 Node 24 和 Yarn 安装依赖。
 2. 执行 `yarn app:scaffold my-app`，再运行 `yarn dev`，打开 `/my-app`。新 App 不需要 CA、工厂或 Vault。
 3. 在 `src/vaults/my-app` 开发 UI，使用 `useMiniAppSdk()` 获取 Flap 的会话、语言和通知。模板已包含 SDK 源码，不要在 App 内另装一套 SDK。
-4. 使用上面的 `app:check → app:e2e → app:package → app:verify-package` 流程。打包要求对应的 `0.1.33-next.0` 测试 SDK 已发布，且版本与源码提交完全匹配。
+4. 使用上面的 `app:check → app:e2e → app:package → app:verify-package` 流程。打包要求对应的 `0.1.33-next.1` 测试 SDK 已发布，且版本与源码提交完全匹配。
 5. ZIP 只提交到配套的 App v2 测试 Workbench。本地 connected 状态是预览夹具；真实登录互通需到配套测试主站验证。
 6. 保存自己的 App 源码后再更新模板。个人分支的额外提交不能冒充官方模板来源；将 App 文件与预览注册迁移到官方分支后再打包。
 
 本预览保留旧 Vault UI / 绑定 Token 的 Mini App 的正式流程。上线前按正式版迁移说明重新校验、E2E 和打包即可。
+
+两个通道独立检查：App v2 只读取 npm `next`，正式 Vault 流程只读取 npm `latest`。正式版后续升级不会阻止现有预览版，也无需为了追平正式版而发布新的 `next`。预览版本过旧、源码来源不符、版本与已发布提交不一致仍会被拦截；采用新 SDK 时仍需核对 API 兼容性，并同步宿主与 Workbench。
+
+这次校验器更新准备了 `0.1.33-next.1`，需要发布一次匹配的 npm `next` 包才能生成新源码 ZIP。之后仅更新 `latest` 无需再次更新 `next`。
