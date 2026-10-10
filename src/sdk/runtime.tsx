@@ -517,9 +517,12 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     }
   }, [assertWalletWriteReady, nftWithdrawalEnvironment, publicClient, refetch, runtimeContext, walletClient]);
 
+  // Components receive a separate data copy, never the host authorization input.
+  const componentContext = useMemo(() => structuredClone(runtimeContext), [runtimeContext]);
+
   const sdk = useMemo<FlapVaultSdk>(
     () => ({
-      context: runtimeContext,
+      context: componentContext,
       i18n: i18nApi,
       notify,
       wallet,
@@ -540,7 +543,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, refetch, runtimeContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
+    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
   );
 
   return (

@@ -24,7 +24,8 @@ const client={getChainId:async()=>56,getBlockNumber:async()=>100n,getCode:async(
 const walletClient={getAddresses:async()=>[state.user],getChainId:async()=>state.chain,writeContract:async()=>{state.sends++;return a(20);}};
 globalThis.env={state,client,walletClient};
 const manifest={artifactId:'test',i18n:['en'],match:{bindings:[{chainId:56,factoryAddress:a(1),resolvedContracts:[{id:'position',label:'nft',resolver:'function poolOf(uint256 id) view returns(address)',allow:['function claim(uint256 amount)'],checks:[{kind:'owner',target:'resolved'}]}]}]}};
-const context={chainId:56,factoryAddress:a(1),vaultAddress:a(2),tokenAddress:a(3)};
+const context={chainId:56,factoryAddress:a(1),vaultAddress:a(2),tokenAddress:a(3),host:{taxInfo:{quoteToken:a(4)}}};
+globalThis.hostContext=context;
 const i18n={en:{}};
 function Probe(){globalThis.sdk=useFlapSdk();return null;}
 const root=createRoot(document.getElementById('root'));
@@ -47,5 +48,6 @@ export const useBalance=()=>({data:undefined});`;
  const pending=await page.evaluate(async()=>{const p={policyId:'none',tokenId:1n,amount:1n};return Promise.allSettled([sdk.withdrawNftAccount(p),sdk.withdrawNftAccount(p)]).then(r=>r.map(x=>x.reason?.message));});assert.match(pending[0],/policy-not-approved/);assert.match(pending[1],/withdrawal-pending/);
  assert.match(await page.evaluate(()=>testWrite()),/^0x/);assert.equal(await page.evaluate(()=>env.state.sends),1);
  const denied=await page.evaluate(async()=>{env.state.changeOnSimulation=true;try{await testWrite();return 'sent';}catch(e){return e.message;}});assert.match(denied,/wallet-or-chain-changed|ownership-check-failed/);assert.equal(await page.evaluate(()=>env.state.sends),1);
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed: stable SDK identity, pending guard, genuine simulated handle, wallet switch before send.');
+ const isolated=await page.evaluate(()=>{sdk.context.host.taxInfo.quoteToken='0x'+(88).toString(16).padStart(40,'0');return hostContext.host.taxInfo.quoteToken!==sdk.context.host.taxInfo.quoteToken;});assert(isolated,'Component context must not mutate host authorization inputs');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed: stable SDK identity, pending guard, genuine simulated handle, wallet switch before send, isolated host authorization context.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}
