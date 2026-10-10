@@ -7,16 +7,16 @@ This branch is for independent Flap Apps. No CA, factory or Vault is required. T
 | Item | Preview contract |
 | --- | --- |
 | Official repository | `https://github.com/flap-sh/flap-vault-component-template` |
-| Developer branch | `feat/mini-app-v2` |
+| Developer branch | Current official `feat/mini-app-v2` head, including documentation updates |
 | Stable main baseline | `@flapsdk/vault-runtime@0.1.35` / `30784d4` |
 | Published preview (checked 2026-10-11) | **`@flapsdk/vault-runtime@0.1.36-next.0` — published** |
 | Published source commit / npm `gitHead` | `ff5d612d80e0fe387e612b60dca5275c2fd91a24` |
 | npm channel | `next`; never `latest` for this preview |
 | Example | `src/vaults/standalone-example`, local `/standalone-example` |
 
-**`0.1.36-next.0` is published on npm `next`.** It includes main 0.1.35 and shared App wallet operations through `useFlapSdk({ chainId })`. Developers can now validate, run E2E and generate a source ZIP from the matching official commit. Older preview releases are deprecated; update the template source rather than editing only its version number. Stable `latest` remains `0.1.35`.
+**`0.1.36-next.0` is published on npm `next`.** It includes main 0.1.35 and shared App wallet operations through `useFlapSdk({ chainId })`. Developers can validate, run E2E and generate a source ZIP from the current official template head with matching runtime inputs. Older preview releases are deprecated; update the template source rather than editing only its version number. Stable `latest` remains `0.1.35`.
 
-Documentation may be read from a separate docs branch. Develop and package from official `feat/mini-app-v2` at the published commit above: extra documentation or App commits are not runtime release provenance. SDK publication does not by itself approve an App for production; submit it to the matching testing Workbench for review.
+Documentation lives on `feat/mini-app-v2` with the template. The latest official template commit may be newer than the published SDK commit: docs and official authoring tools can update independently. Packaging checks that the published commit is an ancestor and that runtime source, dependencies, build inputs and ZIP/E2E protocol remain unchanged. The ZIP retains npm's published version and `runtimePackageGitHead`, not the newer docs commit. SDK publication does not by itself approve an App for production; submit it to the matching testing Workbench for review.
 
 ## Start developing
 
@@ -59,7 +59,7 @@ App commands select npm `next` and the official `origin/feat/mini-app-v2` source
 
 `latest` and `next` have independent freshness checks. App v2 commands read only npm `next`; stable Vault commands read only npm `latest`. Advancing `latest` alone does not invalidate an unchanged `next` release or require another preview publication. An outdated preview still fails against a newer `next` release, and official source/provenance checks remain mandatory. SDK API compatibility and coordinated host/Workbench upgrades must still be reviewed when adopting a new release.
 
-The `0.1.36-next.0` version and source commit above have both been published. If `package/preview-runtime-unpublished` still appears, compare your local `package.json` and Git HEAD with that release identity and restore the matching official checkout. Do not substitute `latest`, a private canary or manually edited ZIP proof. Future preview source/runtime updates require a matching new `next` publication; stable-only updates do not.
+The `0.1.36-next.0` version and source commit above have both been published. If `package/preview-runtime-unpublished` still appears, check that your version matches, the official template contains the published commit, and runtime inputs are unchanged. Restore local SDK/tool edits; keep App work in `src/vaults/{slug}`. Do not substitute `latest`, a private canary or manually edited ZIP proof. Future runtime/dependency/build/protocol changes require a matching new `next` publication; docs, official authoring tools and stable-only updates do not.
 
 Before updating the template, save your App source separately or commit it on your own work branch. The normal check/package commands require the official template HEAD; a developer's extra commits cause an ahead/diverged diagnostic. Reapply only your App folder and its preview registration onto the updated official checkout. The package preflight fast-forwards only when local work does not conflict; it never discards that work.
 
@@ -72,7 +72,7 @@ Before launch, Flap will publish the stable runtime and align the template, host
 1. 切换官方仓库的 `feat/mini-app-v2` 分支，使用 Node 24 和 Yarn 安装依赖。
 2. 执行 `yarn app:scaffold my-app`，再运行 `yarn dev`，打开 `/my-app`。新 App 不需要 CA、工厂或 Vault。
 3. 在 `src/vaults/my-app` 开发 UI，本次共用钱包版本使用 `useFlapSdk({ chainId: 56 })`；需要 App 身份/验证会话时可选用兼容 Hook `useMiniAppSdk()`。两者来自同一个 SDK；模板已包含源码，不要在 App 内另装一套。
-4. `0.1.36-next.0` 已发布到 npm `next`，包含共用钱包能力；正式 `latest` 仍为 `0.1.35`。使用上面的 `app:check → app:e2e → app:package → app:verify-package` 流程，模板版本和 HEAD 必须与表中的已发布版本、提交完全匹配。
+4. `0.1.36-next.0` 已发布到 npm `next`，包含共用钱包能力；正式 `latest` 仍为 `0.1.35`。使用上面的 `app:check → app:e2e → app:package → app:verify-package` 流程。模板使用官方分支最新 HEAD，版本及 runtime 输入匹配已发布包；文档和官方开发工具提交可以更新。
 5. ZIP 只提交到配套的 App v2 测试 Workbench。本地 connected 状态是预览夹具；真实登录互通需到配套测试主站验证。
 6. 保存自己的 App 源码后再更新模板。个人分支的额外提交不能冒充官方模板来源；将 App 文件与预览注册迁移到官方分支后再打包。
 
@@ -80,6 +80,6 @@ Before launch, Flap will publish the stable runtime and align the template, host
 
 两个通道独立检查：App v2 只读取 npm `next`，正式 Vault 流程只读取 npm `latest`。正式版后续升级不会阻止现有预览版，也无需为了追平正式版而发布新的 `next`。预览版本过旧、源码来源不符、版本与已发布提交不一致仍会被拦截；采用新 SDK 时仍需核对 API 兼容性，并同步宿主与 Workbench。
 
-`0.1.36-next.0` 及其来源提交均已发布，现在可以按上述流程生成源码 ZIP。如果仍提示 `package/preview-runtime-unpublished`，先核对本地版本和 HEAD 是否匹配表中的发布身份，使用匹配的官方模板，不要替换为 `latest`、私有 canary 或手改 ZIP 证明。后续预览源码/runtime 更新需要对应的新 `next` 发布；仅更新 `latest` 无需再次更新 `next`。
+`0.1.36-next.0` 及其来源提交均已发布，现在可以按上述流程生成源码 ZIP。如果仍提示 `package/preview-runtime-unpublished`，核对本地版本、官方模板是否包含发布提交，以及 runtime 输入是否保持一致；恢复本地 SDK/工具改动，App 源码放在 `src/vaults/{slug}`。不要替换为 `latest`、私有 canary 或手改 ZIP 证明。runtime、依赖、构建或打包协议更新需要对应的新 `next` 发布；文档、官方开发工具及仅更新 `latest` 无需再次更新 `next`。
 
-文档可以从独立文档分支阅读，但开发和打包使用官方 `feat/mini-app-v2` 的已发布提交。额外的文档或 App 提交不能作为 runtime 发布来源。旧预览版已弃用，升级时迁移 App 源码，不要只改版本号。SDK 已发布不代表 App 已获准上线，仍需提交到配套测试 Workbench 审核。
+文档与模板直接放在 `feat/mini-app-v2`。官方模板 HEAD 可以晚于 npm 发布提交，打包会验证发布提交的祖先关系，并核对 runtime 源码、依赖、构建及 ZIP/E2E 协议输入。ZIP 中仍记录 npm 的发布版本和 `runtimePackageGitHead`，不会把文档提交当作 SDK 发布提交。个人分支额外提交仍会被官方分支校验拦截。旧预览版已弃用，升级时迁移 App 源码，不要只改版本号。SDK 已发布不代表 App 已获准上线，仍需提交到配套测试 Workbench 审核。

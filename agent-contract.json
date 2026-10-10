@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 53,
+  "version": 54,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -1674,7 +1674,8 @@
     "rules": [
       "Only standalone manifest v2 Apps may use this source-package preview channel.",
       "Fetch the exact head from the official flap-sh repository. Reject forks and arbitrary refs.",
-      "Source ZIP version and gitHead must equal the published next package. Private canaries cannot be ZIP provenance.",
+      "Source ZIP runtime version and runtimePackageGitHead must equal the published next package. Current official template HEAD may advance through docs/authoring-tool commits if runtime source, dependencies, build inputs and ZIP/E2E protocol remain unchanged from that published ancestor. Private canaries cannot be ZIP provenance.",
+      "Local SDK/tool edits are rejected; local App source and preview registration in src/vaults plus documentation are allowed. App source retains its separate manifest, checker, source-hash and E2E gates.",
       "Legacy Vault/token Mini App commands retain main/latest; preview sessions are local fixtures."
     ],
     "quickstart": "docs/mini-app-v2-quickstart.md"

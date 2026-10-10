@@ -37,7 +37,7 @@ v1 使用 `/{chain}/{tokenCA}/mini-app`，manifest 为 `mode: "mini-app"` 和 to
 | 官方 `main` / npm `latest` | 已发布 `0.1.35`，npm 来源提交为 `30784d445009f337516537ac17aaf836f1cdfba0` |
 | 已发布 npm `next` | **`0.1.36-next.0`**，npm 来源提交为 `ff5d612d80e0fe387e612b60dca5275c2fd91a24`；包含 main 0.1.35 和独立 App 共用钱包能力 |
 
-不要安装 `0.1.35` 后就认为它包含独立 App v2 钱包接口。这里带 `chainId` 的共用 Hook、`walletContracts` 等能力已包含在发布后的 `0.1.36-next.0` 中。使用匹配的官方模板提交，主站和测试 Workbench 也需使用同一精确 runtime 版本。通过校验和 E2E 后即可生成源码 ZIP；SDK 已发布不代表 App 已获准上线。分支与更新步骤见[预览版快速开始](mini-app-v2-quickstart.md)。
+不要安装 `0.1.35` 后就认为它包含独立 App v2 钱包接口。这里带 `chainId` 的共用 Hook、`walletContracts` 等能力已包含在发布后的 `0.1.36-next.0` 中。使用官方模板的最新提交，runtime 输入保持与已发布版本一致；主站和测试 Workbench 也需使用同一精确 runtime 版本。文档和官方开发工具可以独立更新，无需为此重新发布 SDK。通过校验和 E2E 后即可生成源码 ZIP；SDK 已发布不代表 App 已获准上线。分支与更新步骤见[预览版快速开始](mini-app-v2-quickstart.md)。
 
 Mini App **v1/v2** 区分产品和绑定模式；npm **0.1.35** 区分 SDK 发布；`runtimeContractVersion: 1` 区分宿主产物协议，E2E 报告也有自己的版本。v2 App 使用 runtime contract 1 是正常的。应根据 manifest 判断 App 类型，不能只看名字、SDK 版本或某个 CA。v2 标识不完整或不合法时应报错，不能悄悄当成 v1。
 
