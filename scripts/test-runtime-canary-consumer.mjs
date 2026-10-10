@@ -96,7 +96,7 @@ async function main() {
     await cp(stagedRuntimeDir, runtimeDir, { recursive: true });
 
     for (const script of input.scripts) {
-      execFileSync(yarnCommand(), [script], { cwd: consumerRoot, stdio: "inherit" });
+      execFileSync(yarnCommand(), ["run", script], { cwd: consumerRoot, stdio: "inherit" });
     }
 
     result = {
