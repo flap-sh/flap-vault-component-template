@@ -477,3 +477,9 @@ import { ReviewedFrame } from "@/src/ui";
 Raw `<iframe>`, more than one `ReviewedFrame`, `document.createElement("iframe")`, `srcDoc`, dynamic `src={chartUrl}`, template-string URLs, postMessage handlers, wallet connection inside frames, and frame-driven quotes/risk/settlement/transaction flows are blocked. A frame declaration enters Flap review; it is not automatically approved and can still be rejected. `manifest.externalFrames` does not allow `fetch(...)`, user-facing navigation, scripts, images, or arbitrary provider domains.
 
 `vault:check` prints the valid frame declaration in `review.externalFrames[]` and includes the full iframe `src` in the `manual-review/external-frame` warning so Workbench can surface it directly for human review.
+
+## Reviewed NFT account withdrawal
+
+See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restricted NULL profile and host approval rules.
+
+Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.

@@ -537,3 +537,11 @@ Open Items
 ```
 
 Build `openItems` from the final `vault:check` output and the work you actually skipped or could not prove. Include every `manual-review/oracle-usage` oracle id, every `manual-review/external-endpoint` endpoint URL, missing ABI/preview address assumptions, skipped phase or wrong-network preview, endpoint approval, oracle provisioning, registry binding, and runtime publish approval. If there are no open items, write `none`; do not omit the section.
+
+## Reviewed NFT account withdrawal
+
+See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restricted NULL profile and host approval rules.
+
+## Reviewed dynamic targets
+
+Use [resolvedContracts v1](resolved-contracts.md) for approved factory-owned dynamic modules. Keep NULL withdrawal on its dedicated SDK profile. Use genuine handles from `await sdk.resolveContract`, declare exact allowed signatures and fixed checks, and have the host review the artifact and upgrade authority. Raw derived-write warnings must be resolved before production strict rollout. VaultRuntimeProvider belongs to the host entrypoint only.

@@ -1100,3 +1100,5 @@ Then map the contract workflow to:
 - i18n keys
 
 Do not paste private reference code into the component. Rebuild the UI with this template's SDK and UI primitives.
+
+Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.

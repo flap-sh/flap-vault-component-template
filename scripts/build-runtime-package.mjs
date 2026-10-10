@@ -66,7 +66,11 @@ async function main() {
   }).trim();
   const packageIdentity = createRuntimePackageIdentity({ baseVersion: rootPackage.version, gitHead, mode });
   await mkdir(OUT_DIR, { recursive: true });
-  await Promise.all([ensureUseClient("sdk.js"), ensureUseClient("ui.js")]);
+  await Promise.all([ensureUseClient("sdk.js"), ensureUseClient("ui.js"), ensureUseClient("host-client.js")]);
+  // Preserve Next.js client boundaries without turning host preflight helpers into client references.
+  const hostReexport = '\nexport { VaultRuntimeProvider } from "./host-client.js";\n';
+  await writeFile(path.join(OUT_DIR, "host.js"), (await readFile(path.join(OUT_DIR, "host.js"), "utf8")) + hostReexport);
+  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, type RuntimeProviderProps } from "./host-client.mjs";\n');
 
   const peerVersion = (name) => rootPackage.dependencies?.[name] ?? rootPackage.devDependencies?.[name];
   const packageManifest = {
@@ -115,6 +119,7 @@ async function main() {
 
   const runtimeContract = {
     runtimeContractVersion: 1,
+    sdkFeatures: { nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -134,9 +139,9 @@ This package is the shared runtime surface that local preview, Artifact Workbenc
 
 ## Exports
 
-- \`./sdk\`: component-facing SDK hooks, helpers, types, provider, and local oracle reader helper
+- \`./sdk\`: component-facing SDK hooks, helpers, types, and local oracle reader helper
 - \`./ui\`: shared UI primitives
-- \`./host\`: host/runtime preflight helpers and the browser-safe same-origin presentation fetcher
+- \`./host\`: host-only provider, runtime preflight helpers and the browser-safe same-origin presentation fetcher
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.

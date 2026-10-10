@@ -33,6 +33,9 @@ import { RuntimeContext } from "./runtimeStore";
 import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
 import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
 import { readContractEventsInBlockRanges } from "./contractEvents";
+import { createResolvedContractRuntime } from "./resolvedContracts";
+import { snapshotGenericContractWrite, withdrawNftAccount as runNftAccountWithdrawal } from "./nftAccountWithdrawal";
+import type { NftAccountWithdrawalPolicy, NftAccountWithdrawalRequest } from "./nftAccountTypes";
 import { createLocalMediaUploader } from "./mediaUpload";
 
 export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
@@ -45,7 +48,7 @@ interface ToastItem {
   message: string;
 }
 
-interface RuntimeProviderProps {
+export interface RuntimeProviderProps {
   children: ReactNode;
   manifest: VaultManifest;
   i18n: Record<string, Record<string, string>>;
@@ -55,7 +58,13 @@ interface RuntimeProviderProps {
   oracleReader?: OracleReader;
   nftMetadataReader?: NftMetadataReader;
   mediaUploader?: MediaUploader;
+  /** Host-reviewed deployment pins. Artifact declarations never grant approval. */
+  nftAccountWithdrawalPolicies?: readonly NftAccountWithdrawalPolicy[];
+  /** Warning mode is for local migration diagnostics only. */
+  contractTargetPolicy?: "strict" | "warn";
 }
+
+const EMPTY_NFT_ACCOUNT_POLICIES: readonly NftAccountWithdrawalPolicy[] = Object.freeze([]);
 
 const defaultNftMetadataReader = createLocalNftMetadataReader();
 const defaultMediaUploader = createLocalMediaUploader();
@@ -88,7 +97,7 @@ function getPreviewOracleEndpoint(extraConfig: Record<string, unknown> | undefin
   return typeof endpoint === "string" ? endpoint : undefined;
 }
 
-export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader }: RuntimeProviderProps) {
+export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, nftAccountWithdrawalPolicies = EMPTY_NFT_ACCOUNT_POLICIES, contractTargetPolicy = "strict" }: RuntimeProviderProps) {
   const [version, setVersion] = useState(0);
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
@@ -218,9 +227,29 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [accountAddress, connectedChainId, isConnected, runtimeContext.chainId],
   );
 
+  const contractRuntime = useMemo(() => publicClient ? createResolvedContractRuntime({
+    client: publicClient, manifest, context: runtimeContext, targetPolicy: contractTargetPolicy,
+    getWallet: async () => {
+      if (!walletClient) throw new Error("resolved-contract/wallet-unavailable");
+      const [address] = await walletClient.getAddresses();
+      if (!address) throw new Error("resolved-contract/wallet-unavailable");
+      return { address, chainId: await walletClient.getChainId() };
+    },
+    warn: (message) => console.warn(message),
+  }) : undefined, [publicClient, walletClient, manifest, runtimeContext, contractTargetPolicy]);
+  const currentContractRuntime = useRef(contractRuntime);
+  currentContractRuntime.current = contractRuntime;
+  const resolveContract = useCallback((id: string, args: readonly unknown[]) => {
+    if (!contractRuntime) throw new Error("resolved-contract/client-unavailable");
+    return contractRuntime.resolveContract(id, args);
+  }, [contractRuntime]);
+
   const readContract = useCallback(
     async <T,>(request: ContractReadRequest): Promise<T> => {
-      if (!publicClient || !request.abi || !request.address) {
+      if (!publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
+      const checked = await contractRuntime.validate(contractRuntime.snapshot(request), false);
+      request = checked.request;
+      if (!request.abi || !request.address) {
         throw new Error(`Contract read ${request.functionName} requires a public client, ABI, and address.`);
       }
       if (request.gasPrice !== undefined) {
@@ -235,6 +264,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
           to: request.address,
           data,
           gasPrice: request.gasPrice,
+          blockNumber: checked.blockNumber,
         });
         if (!response.data) throw new Error(`Contract read ${request.functionName} returned no data.`);
         return decodeFunctionResult({
@@ -250,9 +280,10 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
         functionName: request.functionName,
         args: request.args,
         account: request.account,
+        blockNumber: checked.blockNumber,
       })) as T;
     },
-    [publicClient],
+    [publicClient, contractRuntime],
   );
 
   const getGasPrice = useCallback(async (): Promise<bigint> => {
@@ -296,44 +327,50 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
   );
 
   const simulateContract = useCallback(
-    async (request: ContractWriteRequest): Promise<SimulateResult> => {
-      assertWalletWriteReady(`simulating ${request.functionName}`);
-      if (!publicClient || !request.abi || !request.address) {
-        throw new Error(`Contract simulation ${request.functionName} requires a public client, ABI, and address.`);
-      }
-      const feeOverrides = await resolveSafeContractWriteFeeOverrides(request, getGasPrice);
+    async (input: ContractWriteRequest): Promise<SimulateResult> => {
+      assertWalletWriteReady(`simulating ${input.functionName}`);
+      if (!publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
+      const contract = input.contract;
+      const prepared = contractRuntime.snapshot(input);
+      prepared.request = snapshotGenericContractWrite(prepared.request);
+      const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice);
+      const checked = await contractRuntime.validate(prepared, true);
+      const request = checked.request;
       const simulation = await publicClient.simulateContract({
-        account: accountAddress,
-        address: request.address,
-        abi: request.abi,
-        functionName: request.functionName,
-        args: request.args,
-        value: request.value,
-        ...feeOverrides,
+        account: checked.sender, address: request.address!, abi: request.abi!,
+        functionName: request.functionName, args: request.args, value: request.value,
+        blockNumber: checked.blockNumber, ...feeOverrides,
       });
-      return { request, result: simulation.result };
-    },
-    [accountAddress, assertWalletWriteReady, getGasPrice, publicClient],
+      const resultRequest = prepared.record ? { ...request, address: undefined, contract } : request;
+      return { request: resultRequest, result: simulation.result };
+    }, [assertWalletWriteReady, getGasPrice, publicClient, contractRuntime],
   );
 
   const writeContract = useCallback(
-    async (request: ContractWriteRequest): Promise<Address> => {
-      assertWalletWriteReady(`writing ${request.functionName}`);
-      if (!walletClient || !request.abi || !request.address) {
-        throw new Error(`Contract write ${request.functionName} requires a wallet client, ABI, and address.`);
+    async (input: ContractWriteRequest): Promise<Address> => {
+      assertWalletWriteReady(`writing ${input.functionName}`);
+      if (!walletClient || !publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
+      const prepared = contractRuntime.snapshot(input);
+      prepared.request = snapshotGenericContractWrite(prepared.request);
+      const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice);
+      let checked = await contractRuntime.validate(prepared, true);
+      if (prepared.record) {
+        await publicClient.simulateContract({
+          account: checked.sender, address: checked.request.address!, abi: checked.request.abi!,
+          functionName: checked.request.functionName, args: checked.request.args, value: checked.request.value,
+          blockNumber: checked.blockNumber, ...feeOverrides,
+        });
+        checked = await contractRuntime.validate(prepared, true, checked.sender);
       }
-      const feeOverrides = await resolveSafeContractWriteFeeOverrides(request, getGasPrice);
+      await contractRuntime.assertWallet(checked.sender);
+      if (currentContractRuntime.current !== contractRuntime) throw new Error("resolved-contract/context-changed");
+      const request = checked.request;
       const hash = await walletClient.writeContract({
-        address: request.address,
-        abi: request.abi,
-        functionName: request.functionName,
-        args: request.args,
-        value: request.value,
-        ...feeOverrides,
+        account: checked.sender, address: request.address!, abi: request.abi!,
+        functionName: request.functionName, args: request.args, value: request.value, ...feeOverrides,
       });
       return hash as Address;
-    },
-    [assertWalletWriteReady, getGasPrice, walletClient],
+    }, [assertWalletWriteReady, getGasPrice, walletClient, publicClient, contractRuntime],
   );
 
   const waitForTx = useCallback(
@@ -446,19 +483,58 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [runtimeContext.explorerBaseUrl],
   );
 
+  const nftAccountWithdrawalPendingRef = useRef(false);
+  const nftWithdrawalEnvironment = useMemo(() => ({
+    manifest: structuredClone(manifest),
+    context: { ...runtimeContext },
+    policies: structuredClone(nftAccountWithdrawalPolicies),
+  }), [manifest, nftAccountWithdrawalPolicies, runtimeContext]);
+
+  const withdrawNftAccount = useCallback(async (request: NftAccountWithdrawalRequest) => {
+    assertWalletWriteReady("withdrawing from an NFT account");
+    if (!publicClient || !walletClient) throw new Error("nft-account/wallet-unavailable");
+    if (nftAccountWithdrawalPendingRef.current) throw new Error("nft-account/withdrawal-pending");
+    nftAccountWithdrawalPendingRef.current = true;
+    try {
+      return await runNftAccountWithdrawal({
+        client: publicClient,
+        ...nftWithdrawalEnvironment,
+        getWallet: async () => {
+          const [address] = await walletClient.getAddresses();
+          const chainId = await walletClient.getChainId();
+          if (!address) throw new Error("nft-account/wallet-unavailable");
+          return { address, chainId };
+        },
+        send: async (tx, expectedSender) => {
+          const [address] = await walletClient.getAddresses();
+          if (address?.toLowerCase() !== expectedSender.toLowerCase() || await walletClient.getChainId() !== runtimeContext.chainId) throw new Error("nft-account/wallet-or-chain-changed");
+          return walletClient.writeContract({ account: address, address: tx.address!, abi: tx.abi!, functionName: tx.functionName, args: tx.args, value: tx.value, gas: tx.gas });
+        },
+        refetch,
+      }, request);
+    } finally {
+      nftAccountWithdrawalPendingRef.current = false;
+    }
+  }, [assertWalletWriteReady, nftWithdrawalEnvironment, publicClient, refetch, runtimeContext, walletClient]);
+
+  // Components receive a separate data copy, never the host authorization input.
+  const componentContext = useMemo(() => structuredClone(runtimeContext), [runtimeContext]);
+
   const sdk = useMemo<FlapVaultSdk>(
     () => ({
-      context: runtimeContext,
+      context: componentContext,
       i18n: i18nApi,
       notify,
       wallet,
       getGasPrice,
       getBlockNumber,
       getContractEvents,
+      resolveContract,
       readContract,
       simulateContract,
       writeContract,
       waitForTx,
+      withdrawNftAccount,
       readOracle,
       readNftMetadata,
       uploadImage,
@@ -467,7 +543,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, readContract, readNftMetadata, readOracle, refetch, runtimeContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, writeContract],
+    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
   );
 
   return (

@@ -1,10 +1,12 @@
 "use client";
 
+import { VaultRuntimeProvider } from "@/src/sdk/host";
+
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useChainId, usePublicClient } from "wagmi";
 import type { Address, PaymentToken, TokenMarketPhase, VaultManifest, VaultRuntimeContextOverrides } from "@/src/sdk";
-import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
+import { createLocalOracleReader } from "@/src/sdk";
 import type { HostRuntimePolicy, HostRuntimeResult, TokenRuntimeSnapshot } from "@/src/sdk/host";
 import {
   createVaultRuntimeContext,

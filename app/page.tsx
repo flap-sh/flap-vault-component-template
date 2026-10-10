@@ -1,5 +1,7 @@
 "use client";
 
+import { VaultRuntimeProvider } from "@/src/sdk/host";
+
 import type React from "react";
 import type { CSSProperties } from "react";
 import Image from "next/image";
@@ -8,7 +10,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, FileText, FolderCode, Terminal, Zap } from "lucide-react";
 import { useLang } from "@/src/i18n/useLang";
 import type { VaultManifest } from "@/src/sdk";
-import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
+import { createLocalOracleReader } from "@/src/sdk";
 import { FlapNavbar } from "@/src/shell/FlapNavbar";
 import { DeveloperSurfaceEntry } from "@/src/shell/DeveloperSurfaceEntry";
 import exampleManifest from "@/src/vaults/example/manifest.json";
