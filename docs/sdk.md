@@ -1,5 +1,9 @@
 # Flap Capability SDK
 
+New development supports **Vault UI and Mini App v2**. Mini App v1 is deprecated for new development; its existing SDK/context APIs remain compatible for maintenance. See [v1 compatibility](mini-app-v1.md).
+
+Start with [Vault UI / Mini App v2 and code reuse](development.md) ([中文](development.zh-CN.md)). Vault UI and token-bound v1 use `useFlapSdk()` with host Token/Vault context; independent v2 uses `useFlapSdk({ chainId })` in the prepared shared-wallet revision. Both consume the same SDK. See [the v2 wallet API](mini-app-wallet.md) for exact permissions and methods; bound-only APIs in this reference are not implicit v2 context. The shared-wallet revision is prepared as 0.1.36-next.0, not a capability of published stable 0.1.35.
+
 The component should depend on the SDK contract, not on private `flap.sh` internals.
 
 The template supports Vault V2-standard NFT image display.
@@ -82,7 +86,9 @@ ABI methods with multiple return values are tuple arrays at runtime. Even if the
 `VaultRuntimeProvider` can now receive an `oracleReader` so the host/runtime owns oracle provisioning instead of the component owning raw endpoint URLs:
 
 ```ts
-import { createLocalOracleReader, VaultRuntimeProvider } from "@/src/sdk";
+// Host integration only; uploaded components must not create providers.
+import { createLocalOracleReader } from "@/src/sdk";
+import { VaultRuntimeProvider } from "@/src/sdk/host";
 
 <VaultRuntimeProvider
   manifest={manifest}
@@ -402,4 +408,10 @@ validate input
 
 This explicit protocol takes precedence over the token requirements below **only** for `schemaVersion: 2`, `mode: "mini-app"`, `appModel: "standalone"` and a valid `slug`. Standalone Apps have `match.bindings: []`, no CA/factory/Vault or required chain, and canonical `/apps/{slug}` URLs. Old Mini Apps remain token-scoped.
 
-Use `yarn app:scaffold <slug>` in the template and `useMiniAppSdk()` for host-owned session, i18n and notification access. Never add fake token addresses or zero-address runtime bindings. Source-package format 7 and E2E schema 3 require current source hashes and successful guest/connected checks on PC, iPad and H5. Existing provenance, import, endpoint, media and review boundaries still apply. The preview's session fixture is development-only; production sessions must come from the Flap host. See `docs/standalone-mini-apps.md`.
+Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for reviewed wallet/contract operations. `useMiniAppSdk()` remains compatible for host identity/session access. See `docs/mini-app-wallet.md`; declare walletChains and exact walletContracts instead of broadening Vault bindings. Never add fake token addresses or zero-address runtime bindings. Source-package format 7 and E2E schema 3 require current source hashes and successful guest/connected checks on PC, iPad and H5. Existing provenance, import, endpoint, media and review boundaries still apply. The preview's session fixture is development-only; production sessions must come from the Flap host. See `docs/standalone-mini-apps.md`.
+
+## Reviewed NFT account withdrawal
+
+See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restricted NULL profile and host approval rules.
+
+Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.

@@ -1,11 +1,17 @@
 # Flap Vault UI Template
 
-**Independent Mini App v2 preview:** use the official `feat/mini-app-v2` branch and [App v2 quickstart](./docs/mini-app-v2-quickstart.md). New standalone Apps use `app:scaffold` and `app:*` validation/package commands, require no CA/factory, and share the host login. The token-bound Mini App instructions below describe the legacy workflow. SDK target: `0.1.33-next.1` on npm `next`; ZIP packaging remains blocked until that exact release is published.
+**Start here:** [Vault UI / Mini App v2 and code reuse](./docs/development.md) · [Build a v2 App from zero](./docs/from-zero-mini-app.md).
+
+**New development supports Vault UI and Mini App v2 only**, sharing this template and SDK. Use `main` / `vault:*` for Vault UI and `feat/mini-app-v2` / `app:*` for independent v2 Apps at `/apps/{slug}`, without CA/factory bindings. **Mini App v1 is deprecated for new development; existing Apps remain compatible.** Its token `/mini-app` route and legacy maintenance tooling are retained; see [v1 compatibility](./docs/mini-app-v1.md). The bound-Token rules below cover Vault UI and existing v1 maintenance, not v2.
+
+**Release status (checked 2026-10-10):** stable `latest` is `0.1.35`; published `next` is `0.1.33-next.1`. This source revision prepares `0.1.36-next.0` with shared App wallet operations and includes main 0.1.35. It is not yet published. Local UI work is available; official ZIP packaging requires the matching published preview and host/Workbench versions. See [preview quickstart](./docs/mini-app-v2-quickstart.md).
 
 [简体中文](./README.zh-CN.md)
 
 ## Table of Contents
 
+- [Choose Vault UI / Mini App v2](./docs/development.md)
+- [Mini App v2 From Zero](./docs/from-zero-mini-app.md)
 - [From Zero To Verified Zip](#from-zero-to-verified-zip)
 - [Test CA and Factory Setup](./docs/vault-ui-test-ca.md)
 - [Quick Start](#quick-start)
@@ -17,7 +23,7 @@
 - [Useful Commands](#useful-commands)
 - [License](#license)
 
-This repository is a public starter for building private custom Flap Vault UI components.
+This repository is a public starter for controlled Flap Vault UI and independent Mini App v2 components, with compatibility for existing token-bound Mini App v1 components.
 
 Factory-scoped artifacts may also provide a reviewed launch-time configuration surface. Add `LaunchConfig.tsx`, declare `"surfaces": ["vault-ui", "launch-config"]`, and export it as the named `LaunchConfig` export from `Component.tsx`. The host keeps schema validation, ABI encoding, final confirmation, and the launch transaction. See [docs/launch-config.md](./docs/launch-config.md).
 
@@ -27,7 +33,7 @@ Standard 3D uses the versioned `three-r3f-v1` profile on a mode-less 7777 Vault 
 
 Play [Flap Streets test demo](https://utter.cash/bnb/0x9adc2f9dbc4578808f0cdb30d51b5199ff4b8888/mini-app?artifactPath=vaultui_flap-streets_01M48AXN0QXNAFVAFBFG6CJNVY%2Fv20261006175534959_flap-streets_ea7c7aedf0c6), or preview the updated **Flap Streets** source at `/flap-streets`. The test link pins the published Flap Streets audio-optimization version. This original procedural city-driving example covers keyboard/touch controls, a chase camera, collision sparks, brake lights, tire marks, original looping music and sound enabled on Start, three selectable districts, sidewalk pedestrians, police pursuit with a siren and rear view, timed checkpoints, and a playable 2D fallback. Scores are local to each run and there are no token rewards. See [the 3D example guide](./docs/mini-app-3d.md#flap-streets-implementation-and-reuse) for source structure and the update workflow.
 
-For new Mini App scaffolds, pass `--mode mini-app`. A 7777 Tax Token Mini App must provide an explicit deployed `7777` token. An 8888 Mini App may omit `--token` and use Flap's standard 8888 preview token; that fallback is preview/E2E proof only, not a production CA restriction.
+**Legacy maintenance only:** token-bound Mini App v1 is deprecated for new development. The old `--mode mini-app` option is retained for maintenance tooling with a warning. New Apps use `app:scaffold` for v2. A 7777 Tax Token Mini App must provide an explicit deployed `7777` token. An 8888 Mini App may omit `--token` and use Flap's standard 8888 preview token; that fallback is preview/E2E proof only, not a production CA restriction.
 
 It is not a free-form website container. A Vault UI component must run inside Flap's controlled runtime boundary:
 
@@ -267,7 +273,7 @@ yarn vault:scaffold my-vault --name "My Vault UI" --chain 56 --vault 0xVaultAddr
 
 Replace placeholder addresses with real deployment addresses before running the command. `vault:check` blocks malformed, zero, and reserved template placeholder binding addresses so a source package with a fake factory or Vault cannot enter Workbench publish by accident.
 
-This creates the default strict four-file package and writes real `7777`/`8888` proof tokens under binding-scoped `tokenAddresses`. Mini App scaffolds add `--mode mini-app`, bilingual displayTitle, token-only same-suffix bindings, and may include reviewed audio. `three-r3f-v1` supports mode-less 7777 Vault UI plus 7777/8888 Mini App packages.
+This creates the default strict four-file package and writes real `7777`/`8888` proof tokens under binding-scoped `tokenAddresses`. Legacy v1 maintenance scaffolds retain `--mode mini-app`, bilingual displayTitle, token-only same-suffix bindings, and may include reviewed audio. Do not use them for new Apps; use `app:scaffold` for v2. `three-r3f-v1` supports mode-less 7777 Vault UI plus 7777/8888 Mini App packages.
 
 If the four Vault files already exist because they were generated from a manifest first, register only the local preview mapping:
 

@@ -1,14 +1,16 @@
 # AI Agent Implementation Guide
 
+New development supports **Vault UI** or **Mini App v2** (standalone) only. **Mini App v1 is deprecated for new development; existing Apps remain compatible.** Do not generate new v1 projects. Read [the development/reuse guide](development.md) ([中文](development.zh-CN.md)) and [v2 walkthrough](from-zero-mini-app.md). Vault UI uses main/latest and `vault:*`; v2 uses feat/mini-app-v2/next and `app:*`, empty bindings and no required test CA. Retain existing v1 routes, bindings, SDK and validation for maintenance; see [v1 compatibility](mini-app-v1.md). Reuse SDK/UI/ABI/business code, but do not invent bound context or share artifact identities. Follow the exact published-version requirements in the [preview quickstart](mini-app-v2-quickstart.md).
+
 ## Mini App v2 developer preview channel
 
-The official `feat/mini-app-v2` branch targets `@flapsdk/vault-runtime@0.1.33-next.1` on npm `next`. Read [the developer quickstart](./mini-app-v2-quickstart.md) before new App work. On this preview branch use `yarn app:check`, `yarn app:e2e`, `yarn app:package`, and `yarn app:verify-package`; these explicitly select the official source ref and npm next provenance. Only standalone manifest v2 Apps use this source-package channel. Legacy commands retain main/latest. A source ZIP requires the exact published next version and gitHead; private canaries and an older next release are rejected. Local guest/connected sessions remain fixtures. Release the same clean commit from official `next` using `runtime:package:next`, verify it, publish with the `next` tag, and verify `latest` is unchanged. See the quickstart for pending-publication behavior, updating developer changes, and the required test-host/Workbench alignment.
+The official `feat/mini-app-v2` branch targets `@flapsdk/vault-runtime@0.1.36-next.0` on npm `next`. Read [the developer quickstart](./mini-app-v2-quickstart.md) before new App work. On this preview branch use `yarn app:check`, `yarn app:e2e`, `yarn app:package`, and `yarn app:verify-package`; these explicitly select the official source ref and npm next provenance. Only standalone manifest v2 Apps use this source-package channel. Legacy commands retain main/latest. A source ZIP requires the exact published next version and gitHead; private canaries and an older next release are rejected. Local guest/connected sessions remain fixtures. Release the same clean commit from official `next` using `runtime:package:next`, verify it, publish with the `next` tag, and verify `latest` is unchanged. See the quickstart for pending-publication behavior, updating developer changes, and the required test-host/Workbench alignment.
 
 ## Independent Mini Apps (manifest v2)
 
 This explicit protocol takes precedence over the token requirements below **only** for `schemaVersion: 2`, `mode: "mini-app"`, `appModel: "standalone"` and a valid `slug`. Standalone Apps have `match.bindings: []`, no CA/factory/Vault or required chain, and canonical `/apps/{slug}` URLs. Old Mini Apps remain token-scoped.
 
-Use `yarn app:scaffold <slug>` in the template and `useMiniAppSdk()` for host-owned session, i18n and notification access. Never add fake token addresses or zero-address runtime bindings. Source-package format 7 and E2E schema 3 require current source hashes and successful guest/connected checks on PC, iPad and H5. Existing provenance, import, endpoint, media and review boundaries still apply. The preview's session fixture is development-only; production sessions must come from the Flap host. See `docs/standalone-mini-apps.md`.
+Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for reviewed wallet/contract operations. `useMiniAppSdk()` remains compatible for host identity/session access. See `docs/mini-app-wallet.md`; declare walletChains and exact walletContracts instead of broadening Vault bindings. Never add fake token addresses or zero-address runtime bindings. Source-package format 7 and E2E schema 3 require current source hashes and successful guest/connected checks on PC, iPad and H5. Existing provenance, import, endpoint, media and review boundaries still apply. The preview's session fixture is development-only; production sessions must come from the Flap host. See `docs/standalone-mini-apps.md`.
 
 
 This repository is designed for AI agents that generate controlled Flap Vault UI source packages.
@@ -548,3 +550,11 @@ Open Items
 ```
 
 Build `openItems` from the final `vault:check` output and the work you actually skipped or could not prove. Include every `manual-review/oracle-usage` oracle id, every `manual-review/external-endpoint` endpoint URL, missing ABI/preview address assumptions, skipped phase or wrong-network preview, endpoint approval, oracle provisioning, registry binding, and runtime publish approval. If there are no open items, write `none`; do not omit the section.
+
+## Reviewed NFT account withdrawal
+
+See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restricted NULL profile and host approval rules.
+
+## Reviewed dynamic targets
+
+Use [resolvedContracts v1](resolved-contracts.md) for approved factory-owned dynamic modules. Keep NULL withdrawal on its dedicated SDK profile. Use genuine handles from `await sdk.resolveContract`, declare exact allowed signatures and fixed checks, and have the host review the artifact and upgrade authority. Raw derived-write warnings must be resolved before production strict rollout. VaultRuntimeProvider belongs to the host entrypoint only.

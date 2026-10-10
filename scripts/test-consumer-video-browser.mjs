@@ -23,25 +23,49 @@ import { RuntimeContext } from "./src/sdk/runtimeStore";
 const root = createRoot(document.getElementById("root"));
 const cids = ${JSON.stringify(cids)};
 globalThis.reads = [];
-const sdk = {
+globalThis.total = 1000;
+globalThis.readerVersion = 0;
+let startClip = -1;
+let consumer = "0x8b527D3f104A1945BD68B391fBd6b4a00B7EA3a2";
+let sdk = {
   context: { chainId: 56 },
   i18n: { locale: "en", t: (key, fallback, params) => fallback.replace(/\\{(\\w+)\\}/g, (_, key) => String(params?.[key] ?? key)) },
   readContract: async (params) => {
-    globalThis.reads.push({ address: params.address, method: params.functionName, args: params.args.map(String) });
-    if (params.functionName === "getVideoSessionLength") return 1000n;
+    globalThis.reads.push({ address: params.address, method: params.functionName, args: params.args.map(String), readerVersion: 0 });
+    if (params.functionName === "getVideoSessionLength") return BigInt(globalThis.total);
     const start = Number(params.args[1]);
     return Array.from({ length: Number(params.args[2]) }, (_, offset) => {
       const index = start + offset;
-      return { requestId: BigInt(index), videoCid: index >= 499 ? cids[index % 2] : "bafkreigo6g3mkveu5w3l7ud56qr4oq3sa62hawcdmybdhbi5agurqwm5ye",
+      return { requestId: BigInt(index), videoCid: (index >= 499 || globalThis.total <= 10) ? cids[index % 2] : "bafkreigo6g3mkveu5w3l7ud56qr4oq3sa62hawcdmybdhbi5agurqwm5ye",
         lastFrameCid: "", durationMs: 8021, startPtsMs: BigInt(index) * 8021n, createdAt: 1n, referenceType: 4 };
     });
   },
 };
-globalThis.renderPlayer = (startClip) => root.render(React.createElement(React.StrictMode, null,
-  React.createElement(RuntimeContext.Provider, { value: sdk }, React.createElement(VideoSessionPlayer, {
-    consumer: "0x8b527D3f104A1945BD68B391fBd6b4a00B7EA3a2", startClip, label: "Consumer movie", fallback: "Video unavailable", muted: true,
-  }))));
-globalThis.unmountPlayer = () => root.unmount();
+const originalRead = sdk.readContract;
+function Harness({ value, startClip, consumer, version }) {
+  React.useEffect(() => { globalThis.committedReaderVersion = version; });
+  return React.createElement(RuntimeContext.Provider, { value }, React.createElement(VideoSessionPlayer, {
+    consumer, startClip, label: "Consumer movie", fallback: "Video unavailable", muted: true,
+  }));
+}
+const render = () => root.render(React.createElement(React.StrictMode, null, React.createElement(Harness, {
+  value: sdk, startClip, consumer, version: globalThis.readerVersion,
+})));
+globalThis.renderPlayer = (nextStart, total = 1000, chainId = sdk.context.chainId, nextConsumer = consumer) => {
+  startClip = nextStart; consumer = nextConsumer; globalThis.total = total;
+  sdk = { ...sdk, context: { ...sdk.context, chainId } }; render();
+};
+globalThis.refreshHost = () => {
+  const version = ++globalThis.readerVersion;
+  sdk = { ...sdk, context: { ...sdk.context, host: { marketPhase: version % 2 ? "internal-market" : "dex-listed" } },
+    readContract: async params => {
+      const result = originalRead(params);
+      globalThis.reads[globalThis.reads.length - 1].readerVersion = version;
+      return result;
+    },
+  }; render(); return version;
+};
+globalThis.unmountPlayer = () => { clearInterval(globalThis.hostPolling); root.unmount(); };
 globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: "tsx",
   }, outdir: tmp, entryNames: "app", bundle: true, splitting: true, format: "esm", platform: "browser" });
   server = createServer(async (req, res) => {
@@ -52,7 +76,20 @@ globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: 
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 720, height: 900 } });
+  // Cache immutable fixture bytes in this test process; do not depend on repeated
+  // gateway downloads while exercising rapid seeks and long sequential playback.
+  const fixtureBytes = new Map();
+  await page.route("https://flap.mypinata.cloud/ipfs/**", async route => {
+    const url = route.request().url();
+    if (!fixtureBytes.has(url)) fixtureBytes.set(url, (async () => {
+      const response = await route.fetch({timeout: 45_000});
+      assert.equal(response.ok(), true);
+      return response.body();
+    })());
+    await route.fulfill({status:200, body:await fixtureBytes.get(url), headers:{"access-control-allow-origin":"*","content-type":"video/mp2t"}});
+  });
   const errors = [];
+  page.on("console", msg => { if (msg.type() === "error" || process.env.FLAP_VIDEO_TRACE) console.error(msg.text()); });
   const media = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("request", (request) => { if (request.url().includes("/ipfs/")) media.push(request.url()); });
@@ -70,23 +107,31 @@ globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: 
   await readyAt(499);
   await page.waitForFunction(() => document.querySelector("video").buffered.length && document.querySelector("video").buffered.end(0) > 18, undefined, { timeout: 45_000 });
   let snapshot = await page.locator("video").evaluate((video) => ({ paused: video.paused, muted: video.muted, volume: video.volume, controls: video.controls }));
-  assert.deepEqual(snapshot, { paused: true, muted: false, volume: 0.3, controls: true });
-  // Native seek near the window tail rolls it and preserves local position.
+  assert.deepEqual(snapshot, { paused: true, muted: false, volume: 0.3, controls: false });
+  const pausedMedia = await page.locator("video").getAttribute("src");
+  const hostVersion = await page.evaluate(() => refreshHost());
+  await page.waitForFunction(version => globalThis.committedReaderVersion === version, hostVersion);
+  await readyAt(499);
+  assert.equal(await page.locator("video").getAttribute("src"), pausedMedia, "A new SDK/read callback must not replace MediaSource");
+  snapshot = await page.locator("video").evaluate((video) => ({ paused: video.paused, muted: video.muted, volume: video.volume, controls: video.controls }));
+  assert.deepEqual(snapshot, { paused: true, muted: false, volume: 0.3, controls: false });
+  // Metadata rolls while the media stream and native timestamp remain continuous.
   await page.locator("video").evaluate((video) => { video.currentTime = 17; });
   await readyAt(501);
-  await page.waitForFunction(() => Math.abs(document.querySelector("video").currentTime - 0.958) < 0.25);
+  await page.waitForFunction(() => Math.abs(document.querySelector("video").currentTime - 17) < 0.25);
   assert.equal(await page.locator("video").evaluate((video) => video.paused), true);
   // Clip scrubber addresses the current clip, not a global 1000-clip MP4 timeline.
-  await page.getByRole("slider").fill("2");
-  await page.waitForFunction(() => Math.abs(document.querySelector("video").currentTime - 2) < 0.25);
+  await page.getByLabel("Time within the current clip", { exact: true }).fill("2");
+  await page.waitForFunction(() => Math.abs(document.querySelector("video").currentTime - 18.042) < 0.25);
   await page.getByRole("button", { name: "Latest clip", exact: true }).click();
   await readyAt(999);
   await page.getByRole("button", { name: "Previous clip", exact: true }).click();
   await readyAt(998);
-  await page.locator("video").evaluate(async (video) => { await video.requestFullscreen(); video.focus(); });
+  await page.getByRole("button", { name: "Fullscreen", exact: true }).click();
+  await page.locator("video").focus();
   await page.locator("video").press("n");
   await readyAt(999);
-  assert.equal(await page.locator("video").evaluate((video) => document.fullscreenElement === video && getComputedStyle(video).display !== "none"), true);
+  assert.equal(await page.locator("video").evaluate((video) => document.fullscreenElement?.contains(video) && getComputedStyle(video).display !== "none"), true);
   await page.evaluate(() => document.exitFullscreen());
   await page.evaluate(() => renderPlayer(501));
   await readyAt(501);
@@ -96,15 +141,49 @@ globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: 
   const slices = reads.filter((read) => read.method === "getVideoSessionSlice");
   assert.ok(slices.some((read) => read.args[1] === "999" && read.args[2] === "1"));
   assert.ok(slices.some((read) => read.args[1] === "499" && read.args[2] === "4"));
-  assert.ok(slices.every((read) => Number(read.args[1]) >= 499 && Number(read.args[2]) <= 4));
+  assert.ok(slices.every((read) => (Number(read.args[1]) >= 499 || read.args[1] === "0" && read.args[2] === "1") && Number(read.args[2]) <= 4));
   assert.ok(reads.every((read) => read.address === "0xaEe3a7Ca6fe6b53f6c32a3e8407eC5A9dF8B7E39"));
   assert.ok(media.length > 0 && media.every((url) => cids.some((cid) => url.endsWith(cid))));
+  // From the beginning, play through the old four-clip boundary without any seek.
+  await page.evaluate(() => renderPlayer(0, 8));
+  await readyAt(0);
+  const initialMedia = await page.locator("video").getAttribute("src");
+  const initialRevision = await page.locator("[data-flap-video-media-revision]").getAttribute("data-flap-video-media-revision");
+  await page.locator("video").evaluate(async video => { video.muted = true; video.playbackRate = 4; await video.play(); });
+  // Host polling replaces the entire SDK/read callback while playback crosses clips.
+  await page.evaluate(() => { globalThis.hostPolling = setInterval(() => refreshHost(), 250); });
+  await page.waitForFunction(() => document.querySelector("video").currentTime > 34, undefined, {timeout: 45_000});
+  await page.evaluate(() => clearInterval(globalThis.hostPolling));
+  await page.locator("video").evaluate(video => video.pause());
+  assert.equal(await page.locator("video").getAttribute("src"), initialMedia);
+  assert.equal(await page.locator("[data-flap-video-media-revision]").getAttribute("data-flap-video-media-revision"), initialRevision);
+  const cumulative = Number(await page.locator("[data-flap-video-global-time]").getAttribute("data-flap-video-global-time"));
+  assert.ok(cumulative > 34 && cumulative < 40, String(cumulative));
+  const lengthReads = await page.evaluate(() => reads.filter(r => r.method === "getVideoSessionLength").length);
+  const latestReader = await page.evaluate(() => { globalThis.total = 10; return refreshHost(); });
+  await page.waitForFunction(count => reads.filter(r => r.method === "getVideoSessionLength").length > count &&
+    document.querySelector("[data-flap-video-time]").textContent.endsWith("1:20"), lengthReads, {timeout: 12_000});
+  assert.ok(await page.evaluate(version => reads.some(r => r.method === "getVideoSessionLength" && r.readerVersion === version), latestReader), "Polling must call the latest SDK reader");
+  assert.equal(await page.locator("video").getAttribute("src"), initialMedia);
+  assert.equal(await page.locator("video").evaluate(video => video.paused), true);
+  // Stable read callbacks must not suppress deliberate chain/consumer/start changes.
+  const nextConsumer = "0x286184b2660a2822671a33f24c4517f593947777";
+  await page.evaluate(consumer => renderPlayer(0, 8, 56, consumer), nextConsumer);
+  await readyAt(0);
+  await page.waitForFunction(src => document.querySelector("video").getAttribute("src") && document.querySelector("video").getAttribute("src") !== src, initialMedia);
+  assert.ok(await page.evaluate(consumer => reads.some(r => r.args[0] === consumer), nextConsumer));
+  await page.evaluate(() => renderPlayer(2, 8, 97));
+  await readyAt(2);
+  assert.ok(await page.evaluate(() => reads.some(r => r.address === "0xFfddcE44e8cFf7703Fd85118524bfC8B2f70b744")));
+  await page.evaluate(() => renderPlayer(2, 8, 1));
+  await page.waitForFunction(() => document.querySelector("[data-flap-video-session-state]")?.dataset.flapVideoSessionState === "unsupported");
+  assert.equal(await page.locator("video").getAttribute("src"), null);
   await page.evaluate(() => unmountPlayer());
   assert.equal(await page.locator("video").count(), 0);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ ok: true, strictMode: true, totalClips: 1000, maxWindow: 4, skippedEarlierClips: 499, nativeAudioSettingsPreserved: true, fullscreenSeekPreserved: true, windowRollPreservedPauseAndPosition: true, slices, mediaRequests: media.length }));
+  console.log(JSON.stringify({ ok: true, strictMode: true, totalClips: 1000, maxWindow: 4, skippedEarlierClips: 499, nativeAudioSettingsPreserved: true, fullscreenSeekPreserved: true, continuousFromFirstThroughFifthClip: true, hostPollingPreservesMedia: true, pollingUsesLatestReader: true, explicitSessionChangesReset: true, tailGrowthPreservesPause: true, slices, mediaRequests: media.length }));
 } catch (error) {
-  if (browser) for (const page of browser.contexts().flatMap((context) => context.pages())) console.error(await page.evaluate(() => ({ state: document.querySelector("[data-flap-video-session-state]")?.dataset, reads: globalThis.reads, video: [...document.querySelectorAll("video")].map((v) => ({ duration: v.duration, time: v.currentTime, readyState: v.readyState, paused: v.paused, error: v.error?.message })) })));
+  if (browser) for (const page of browser.contexts().flatMap((context) => context.pages())) console.error(JSON.stringify(await page.evaluate(() => ({ state: document.querySelector("[data-flap-video-session-state]")?.dataset, reads: globalThis.reads, video: [...document.querySelectorAll("video")].map((v) => ({ duration: v.duration, time: v.currentTime, readyState: v.readyState, paused: v.paused, buffered: Array.from({length:v.buffered.length}, (_,i)=>[v.buffered.start(i),v.buffered.end(i)]), error: v.error?.message })) })), null, 2));
   throw error;
 } finally {
   await browser?.close();

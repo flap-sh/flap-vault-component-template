@@ -1,5 +1,7 @@
 # Web AI Copy Pack
 
+**Development support:** new projects use Vault UI or [Mini App v2](from-zero-mini-app.md). [Mini App v1](mini-app-v1.md) is deprecated for new development; any token-bound Mini App rules/examples on this page are retained for existing-App compatibility and maintenance only.
+
 Use this guide when the AI assistant does not have direct repository access, such as web-based ChatGPT or Claude. The goal is to give the AI enough local context before it designs or generates a Vault UI.
 
 ## Fast Path

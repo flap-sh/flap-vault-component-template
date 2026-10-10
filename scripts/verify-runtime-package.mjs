@@ -177,11 +177,14 @@ async function main() {
     throw new Error("The shared UI export must include the controlled VideoSessionPlayer.");
   }
   const sdkModule = await import(`${pathToFileURL(path.join(packageDir, "sdk.js")).href}?verify=${Date.now()}`);
+  const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
+  if ("VaultRuntimeProvider" in sdkModule || typeof hostModule.VaultRuntimeProvider !== "function") throw new Error("Provider must be host-only.");
+
   for (const name of ["readVideoSessionLength", "readVideoSessionSlice", "createConsumerVideoSessionReader"]) {
     if (typeof sdkModule[name] !== "function") throw new Error(`The shared SDK export must include ${name}.`);
   }
 
-  const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
+
   const robinhoodTestnet = hostModule.getTaxVaultHostChainConfig?.(46630);
   const expectedRobinhoodTestnet = {
     portal: "0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09",

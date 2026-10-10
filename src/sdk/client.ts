@@ -12,7 +12,6 @@ export * from "./nftMetadata";
 export * from "./oracle";
 export * from "./three";
 export * from "./videoSession";
-export { VaultRuntimeProvider } from "./runtime";
 export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
 export { ZERO_ADDRESS, isActionAvailableForPhase, isCustomVaultTaxToken, isValidAddress, readTaxVaultHostContext, resolveTokenMarketPhase } from "./taxInfo";
 export { getTxErrorKind, handleTxError } from "./txError";
@@ -68,3 +67,16 @@ export type {
   VaultRuntimeContextOverrides,
   VaultRuntimeExtraConfig,
 } from "./types";
+
+export type { ManifestNftAccountWithdrawal, NftAccountWithdrawalPolicy, NftAccountWithdrawalRequest, NftAccountWithdrawalReceipt, ReviewedContractPin, ReviewedBeaconPin } from "./nftAccountTypes";
+
+/** Host feature check; declarations must fail closed on older runtimes. */
+export const NFT_ACCOUNT_WITHDRAWAL_VERSION = 1;
+
+export type { ManifestResolvedContract, ResolvedContractCheck, ResolvedContractHandle } from "./resolvedContractTypes";
+export const RESOLVED_CONTRACTS_VERSION = 1;
+
+export { FLAP_WALLET_RUNTIME_VERSION } from "./flapChainRuntime";
+export type { FlapChainSdk, FlapSendTransactionRequest, FlapTransactionReceipt } from "./flapChainRuntime";
+
+export type { AppWalletContract, AppResolvedContract } from "./appWalletPolicy.mjs";

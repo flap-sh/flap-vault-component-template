@@ -1,5 +1,7 @@
 # Getting Started
 
+This page covers **Vault UI**. New development supports [Vault UI or Mini App v2](development.md); v2 has [its own walkthrough](from-zero-mini-app.md). Token-bound [v1 is deprecated for new development](mini-app-v1.md), with existing-App compatibility retained. Any bound Mini App rules below apply only to legacy maintenance.
+
 This is the human developer quick-start. AI agents should use `agent-contract.json` and `docs/ai-agent.md` as the required workflow contract, then use this file only as supporting setup and preview context.
 
 The template supports Vault V2-standard NFT image display.

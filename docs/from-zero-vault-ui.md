@@ -1,5 +1,7 @@
 # From Zero To A Verified Vault UI Zip
 
+This page covers **Vault UI**. New development supports [Vault UI or Mini App v2](development.md); v2 has [its own walkthrough](from-zero-mini-app.md). Token-bound [v1 is deprecated for new development](mini-app-v1.md), with existing-App compatibility retained. Any bound Mini App rules below apply only to legacy maintenance.
+
 Use this walkthrough when the developer is new to the template or is using an AI Agent to write the Vault UI.
 
 The goal is not to understand every internal rule by hand. The goal is to give the Agent accurate Vault requirements, keep the source package inside the template boundary, test the result locally, and hand off only a verified zip.

@@ -1,3 +1,5 @@
+import type { ManifestResolvedContract, ResolvedContractHandle } from "./resolvedContractTypes";
+import type { ManifestNftAccountWithdrawal, NftAccountWithdrawalRequest, NftAccountWithdrawalReceipt } from "./nftAccountTypes";
 import type { Abi, PublicClient } from "viem";
 
 export type Address = `0x${string}`;
@@ -199,6 +201,8 @@ export interface ManifestBindingEntry {
   vaultAddresses?: Address[];
   tokenAddresses?: Address[];
   externalContracts?: ManifestExternalContract[];
+  nftAccountWithdrawals?: ManifestNftAccountWithdrawal[];
+  resolvedContracts?: ManifestResolvedContract[];
 }
 
 export interface ManifestExternalContract {
@@ -219,6 +223,9 @@ export interface VaultManifest {
   schemaVersion?: 2;
   appModel?: "standalone";
   slug?: string;
+  /** Standalone App networks that may request wallet writes. Omitted means read-only. */
+  walletChains?: number[];
+  walletContracts?: import("./appWalletPolicy.mjs").AppWalletContract[];
   artifactId: string;
   name: string;
   displayTitle?: VaultManifestDisplayTitle;
@@ -365,8 +372,8 @@ export interface CreateVaultRuntimeContextInput {
 }
 
 export interface ContractReadRequest {
-  /** Optional human-readable label for the target contract (e.g. "vault", "token"). Advisory only; the runtime keys off `address` + `abi`. */
-  contract?: string;
+  /** Advisory label for a permitted raw target, or a genuine SDK-resolved handle without address. */
+  contract?: string | ResolvedContractHandle;
   address?: Address;
   abi?: Abi;
   functionName: string;
@@ -454,6 +461,7 @@ export interface MediaUploadRequest extends MediaUploadOptions {
 export type MediaUploader = (request: MediaUploadRequest) => Promise<IpfsUploadResult>;
 
 export interface FlapVaultSdk {
+  forChain(chainId: number): import("./flapChainRuntime").FlapChainSdk;
   context: VaultRuntimeContext;
   i18n: FlapI18n;
   notify: FlapNotify;
@@ -464,10 +472,13 @@ export interface FlapVaultSdk {
   getBlockNumber(): Promise<bigint>;
   /** Reads bounded, provider-friendly contract event ranges. */
   getContractEvents<T = unknown>(request: ContractEventRequest): Promise<T[]>;
+  resolveContract(id: string, args: readonly unknown[]): Promise<ResolvedContractHandle>;
   readContract<T = unknown>(request: ContractReadRequest): Promise<T>;
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;
   waitForTx(hash: Address): Promise<TxReceipt>;
+  /** Reviewed NULL profile only; returns after receipt and balance refresh. */
+  withdrawNftAccount(request: NftAccountWithdrawalRequest): Promise<NftAccountWithdrawalReceipt>;
   readOracle<T = unknown>(oracleId: string, params?: Record<string, string>): Promise<T>;
   readNftMetadata(request: NftMetadataReadRequest): Promise<NftMetadataSnapshot>;
   /** Uploads PNG/JPEG/GIF/WebP (up to 3 MiB) and returns the file CID. */

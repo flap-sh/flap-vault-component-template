@@ -13,7 +13,8 @@ const runtimeExternals = [
 export default defineConfig({
   entry: {
     sdk: "src/sdk/client.ts",
-    host: "src/sdk/host.ts",
+    host: "src/sdk/hostCore.ts",
+    "host-client": "src/sdk/hostClient.ts",
     server: "src/sdk/server.ts",
     ui: "src/ui/public.ts",
   },
@@ -23,8 +24,8 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   minify: false,
-  // sdk.js and ui.js must share one RuntimeContext instance so controlled UI
-  // primitives can consume the provider without caller-supplied SDK props.
+  // SDK, UI and host-client must share one RuntimeContext instance.
+  // Keep the Provider out of the pure host helper entry to preserve RSC boundaries.
   splitting: true,
   clean: true,
   target: "es2020",

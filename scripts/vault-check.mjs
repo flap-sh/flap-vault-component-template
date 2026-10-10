@@ -1,9 +1,13 @@
 #!/usr/bin/env node
+import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
+import { checkStandaloneWalletManifest, checkStandaloneWalletSource } from "./standalone-wallet-policy.mjs";
 import { isStandaloneApp } from "./standalone-app.mjs";
+
+import { checkNftAccountDeclarations, checkNftAccountSource, collectNftAccountReview } from "./nft-account-policy.mjs";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
   MINI_APP_AUDIO_ASSET_EXTENSIONS,
@@ -41,9 +45,9 @@ const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.j
 const OPTIONAL_SURFACE_FILES = ["LaunchConfig.tsx"];
 const ALLOWED_VAULT_FILES = new Set([...REQUIRED_FILES, ...OPTIONAL_SURFACE_FILES]);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI", "./LaunchConfig"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "surfaces", "schemaVersion", "appModel", "slug"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "surfaces", "schemaVersion", "appModel", "slug", "walletChains", "walletContracts"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
-const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts"]);
+const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts", "nftAccountWithdrawals", "resolvedContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
 const MINI_APP_MODE = "mini-app";
 const MINI_APP_TOKEN_SUFFIXES = ["7777", "8888"];
@@ -205,6 +209,10 @@ const ALLOWED_INLINE_SVG_TAGS = new Set([
 const INLINE_SVG_LOCAL_REF_RE = /^#[A-Za-z0-9_.:-]+$/;
 
 const FIX_HINTS = {
+  "nft-account/invalid-declaration": "Declare only policyId and the supported profile on a factory binding.",
+  "nft-account/host-only-provider": "Use named component-facing SDK APIs; never construct a runtime provider inside an artifact.",
+  "nft-account/use-restricted-entry": "Use sdk.withdrawNftAccount instead of generic execute.",
+  "manual-review/nft-account-withdrawal": "Review deployment pins and upgrade authority; declaration does not grant host authorization.",
   "cli/missing-folder-name": "Run yarn vault:check <folder-name> with a registered Vault folder name.",
   "cli/missing-slug": "Run yarn vault:check <slug> with a registered Vault slug.",
   "cli/invalid-folder-name": "Use a 3-64 character lowercase kebab-case folder name, for example my-vault.",
@@ -2587,6 +2595,7 @@ function isApprovedContractAddressExpression(expressionText) {
 function collectContractInteractionIssues(content, file, contractPolicy) {
   const issues = [];
   const addressConstants = collectAddressConstants(content);
+  const resolvedHandles = collectResolvedHandles(content, file);
 
   for (const call of findSdkContractCalls(content)) {
     const contractProperty = extractObjectPropertyExpression(call.objectText, "contract");
@@ -2611,6 +2620,8 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
       );
     }
 
+    if (contractProperty && resolvedHandles.has(contractProperty.text.trim())) continue;
+    if (contractPolicy.app && contractProperty && !addressProperty) continue;
     if (contractProperty) {
       const contractLabel = parseStaticStringLiteral(stripExpressionDecorators(contractProperty.text));
       if (contractLabel === null) {
@@ -2628,7 +2639,7 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
           }),
         );
       }
-    } else if (CONTRACT_LABEL_REQUIRED_METHODS.has(call.methodName)) {
+    } else if (!contractPolicy.app && CONTRACT_LABEL_REQUIRED_METHODS.has(call.methodName)) {
       issues.push(
         issue(BLOCKING, "contract-boundary/missing-contract-label", `${call.methodName} call is missing a contract label.`, {
           file,
@@ -2652,7 +2663,11 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
           ),
         );
       }
-    } else if (!isApprovedContractAddressExpression(addressProperty.text)) {
+    } else {
+      if (["simulateContract", "writeContract"].includes(call.methodName) && !/\bcontext\.(?:vaultAddress|tokenAddress|factoryAddress)\b/.test(addressProperty.text)) {
+        issues.push(issue("warning", "manual-review/legacy-derived-write-target", "Raw derived write target must migrate to a reviewed resolvedContracts handle before strict production rollout.", { file, line: lineForIndex(content, call.objectStart), addressSource: addressProperty.text }));
+      }
+      if (!isApprovedContractAddressExpression(addressProperty.text)) {
       issues.push(
         issue(
           BLOCKING,
@@ -2664,6 +2679,7 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
           },
         ),
       );
+      }
     }
   }
 
@@ -3293,9 +3309,14 @@ function collectManifestContractPolicy(manifest) {
       if (normalized) external.add(normalized);
     }
   }
+  if (isStandaloneApp(manifest)) for (const contract of manifest.walletContracts ?? []) {
+    const normalized = normalizeAddress(contract?.address); if (normalized) external.add(normalized);
+    for (const spender of contract?.approvalSpenders ?? []) { const address = normalizeAddress(spender); if (address) external.add(address); }
+    for (const resolved of contract?.resolvedContracts ?? []) for (const spender of resolved?.approvalSpenders ?? []) { const address = normalizeAddress(spender); if (address) external.add(address); }
+  }
   for (const address of builtIn) all.add(address);
   for (const address of external) all.add(address);
-  return { builtIn, external, all };
+  return { builtIn, external, all, app: isStandaloneApp(manifest) };
 }
 
 function checkExternalContracts(value, field, builtInAddresses = new Set(), bindingEntry = {}) {
@@ -3474,7 +3495,7 @@ function checkExternalFrames(value) {
 function checkStandaloneImports(vaultDir, manifest) {
   if (!isStandaloneApp(manifest)) return [];
   const issues = [];
-  const forbidden = new Set(["useFlapSdk", "useVaultContext", "useFlapWallet", "useFlapChain", "VaultRuntimeProvider", "NftMetadataImage", "ConsumerVideoSessionPlayer"]);
+  const forbidden = new Set(["MiniAppRuntimeProvider", "useVaultContext", "useFlapWallet", "useFlapChain", "VaultRuntimeProvider", "NftMetadataImage", "ConsumerVideoSessionPlayer"]);
   for (const item of walk(vaultDir)) {
     if (item.isDirectory || item.isSymlink || !/\.(?:ts|tsx|js|jsx)$/.test(item.name)) continue;
     const file = item.fullPath ?? item.path ?? path.join(vaultDir, item.name);
@@ -3483,9 +3504,9 @@ function checkStandaloneImports(vaultDir, manifest) {
     for (const node of source.statements) {
       if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier) || !["@/src/sdk", "@/src/ui"].includes(node.moduleSpecifier.text) || !node.importClause || node.importClause.isTypeOnly) continue;
       const imports = node.importClause.namedBindings;
-      if (imports && ts.isNamespaceImport(imports)) issues.push(issue(BLOCKING, "standalone-app/token-runtime-import", "Standalone App imports must name session-only hooks and shared UI explicitly.", { file }));
+      if (imports && ts.isNamespaceImport(imports)) issues.push(issue(BLOCKING, "standalone-app/token-runtime-import", "Standalone App imports must name shared SDK hooks and shared UI explicitly.", { file }));
       if (imports && ts.isNamedImports(imports)) for (const element of imports.elements) {
-        if (!element.isTypeOnly && forbidden.has((element.propertyName ?? element.name).text)) issues.push(issue(BLOCKING, "standalone-app/token-runtime-import", "Standalone Apps use useMiniAppSdk and cannot use token-bound runtime hooks or UI.", { file }));
+        if (!element.isTypeOnly && forbidden.has((element.propertyName ?? element.name).text)) issues.push(issue(BLOCKING, "standalone-app/token-runtime-import", "Standalone Apps use useFlapSdk({ chainId }); token-bound hooks and host providers are unavailable.", { file }));
       }
     }
   }
@@ -3497,6 +3518,7 @@ function checkManifest(manifest, folderName) {
   const standalone = manifest?.schemaVersion === 2 && manifest?.appModel === "standalone" && manifest?.mode === "mini-app" && typeof manifest?.slug === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(manifest.slug) && manifest.slug.length >= 3 && manifest.slug.length <= 64 && !["api", "apps", "admin", "www", "app", "launch", "preview", "login", "settings"].includes(manifest.slug);
 
   const issues = [];
+  issues.push(...checkStandaloneWalletManifest(manifest));
   const isMiniAppMode = manifest?.mode === MINI_APP_MODE;
   const capabilities = manifestCapabilityIds(manifest);
   for (const key of Object.keys(manifest || {})) {
@@ -3702,7 +3724,7 @@ function checkManifest(manifest, folderName) {
         for (const key of Object.keys(bindingEntry)) {
           if (!ALLOWED_BINDING_ENTRY_KEYS.has(key)) {
             const ruleId = key === "caPolicy" || key === "restrictTokenAddresses" ? "manifest-binding/ca-policy-not-in-manifest" : "manifest-binding/disallowed-binding-field";
-            issues.push(issue(BLOCKING, ruleId, `${field}.${key} is not allowed. Binding entries may only have chainId, factoryAddress, vaultAddresses, tokenAddresses, and externalContracts.`, { field: `${field}.${key}` }));
+            issues.push(issue(BLOCKING, ruleId, `${field}.${key} is not allowed. Binding entries may only have chainId, factoryAddress, vaultAddresses, tokenAddresses, externalContracts, and nftAccountWithdrawals.`, { field: `${field}.${key}` }));
           }
         }
         if (!Number.isInteger(bindingEntry.chainId) || bindingEntry.chainId <= 0) {
@@ -3835,6 +3857,10 @@ function checkManifest(manifest, folderName) {
           } else {
             seenBindingKeys.set(bindingKey, field);
           }
+        }
+        if (bindingEntry.resolvedContracts !== undefined) issues.push(...checkResolvedContractDeclarations(bindingEntry.resolvedContracts, `${field}.resolvedContracts`, bindingEntry));
+        if (bindingEntry.nftAccountWithdrawals !== undefined) {
+          issues.push(...checkNftAccountDeclarations(bindingEntry.nftAccountWithdrawals, `${field}.nftAccountWithdrawals`, bindingEntry));
         }
         if (bindingEntry.externalContracts !== undefined) {
           const builtInAddresses = new Set(
@@ -4255,6 +4281,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         }
       }
     }
+    issues.push(...checkNftAccountSource(content, rel));
+    if (!isStandaloneApp(manifest)) issues.push(...checkResolvedContractSource(content, rel, manifest?.match?.bindings ?? []));
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel, manifest));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
     issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: approvedResourceRanges }));
@@ -4509,7 +4537,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         ),
       );
     }
-    const hasUserWritePath = /\b(?:writeContract|simulateContract)\s*\(|<TxButton\b/.test(scanContent);
+    const hasUserWritePath = /\b(?:writeContract|simulateContract|withdrawNftAccount)\s*\(|<TxButton\b/.test(scanContent);
     if (item.name === "LaunchConfig.tsx" && hasUserWritePath) {
       issues.push(
         issue(
@@ -4521,7 +4549,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       );
     }
     const hasMarketPhaseHandling = /\b(?:marketPhase|isActionAvailableForPhase)\b/.test(scanContent);
-    if (item.name === "Component.tsx" && hasUserWritePath && !hasMarketPhaseHandling) {
+    if (!isStandaloneApp(manifest) && item.name === "Component.tsx" && hasUserWritePath && !hasMarketPhaseHandling) {
       issues.push(
         issue(
           BLOCKING,
@@ -4561,6 +4589,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     if (/Number\s*\([^)]*(amount|balance|allowance|deposit|claim|reward)/i.test(scanContent)) {
       issues.push(issue(BLOCKING, "contract-abi/number-bigint", "Avoid Number(...) for token amounts used in transaction logic.", { file: rel }));
     }
+    issues.push(...checkStandaloneWalletSource(content, rel, manifest));
     issues.push(...collectContractInteractionIssues(content, rel, contractPolicy));
     const i18nCallRegex = /(?:^|[^\w.])(?:t|i18n\.t)\(\s*["'`]([^"'`]+)["'`]/g;
     for (const match of scanContent.matchAll(i18nCallRegex)) {
@@ -4716,7 +4745,7 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, audioAssets: miniAppAudioAssets, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
+  return { standaloneWallet: issues.filter((x) => x.ruleId === "manual-review/standalone-wallet"), resolvedContracts: collectResolvedContractReview(issues), legacyDerivedWrites: issues.filter((x) => x.ruleId === "manual-review/legacy-derived-write-target"), nftAccountWithdrawals: collectNftAccountReview(issues), externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, audioAssets: miniAppAudioAssets, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
 }
 
 function buildCheckReport(folderName, issues) {

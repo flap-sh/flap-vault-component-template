@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 52,
+  "version": 53,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -228,7 +228,12 @@
       "layout",
       "endpoints",
       "externalFrames",
-      "surfaces"
+      "surfaces",
+      "schemaVersion",
+      "appModel",
+      "slug",
+      "walletChains",
+      "walletContracts"
     ],
     "requiredTopLevelFields": [
       "artifactId",
@@ -290,7 +295,6 @@
     "scaffoldRobinhood": "Use token scope on chain 4663 with its real 7777/8888 token, or use --chain 46630 with the real Robinhood Testnet factory/token after those addresses are known. Never substitute a valid-looking placeholder token.",
     "scaffoldSingleVault": "yarn vault:scaffold {folder-name} --name \"My Vault UI\" --chain 56 --vault 0xVaultAddressRequired --token 0xReal7777TestToken --locales en,zh",
     "scaffoldThreeR3FVaultUI": "yarn vault:scaffold {folder-name} --capability three-r3f-v1 --chain 56 --factory 0xRealFactory --token 0xReal7777Token --locales en,zh",
-    "scaffoldThreeR3FMiniApp": "yarn vault:scaffold {folder-name} --mode mini-app --capability three-r3f-v1 --chain 56 --token 0xReal7777Or8888Token --display-title-zh \"三维应用\" --display-title-en \"3D App\" --locales en,zh",
     "aiContext": "yarn vault:ai-context [example-folder] --out vault-ai-context.md",
     "installPlaywrightChromium": "yarn playwright install chromium",
     "register": "yarn vault:register {folder-name}",
@@ -311,7 +315,8 @@
     "ci": "yarn ci",
     "lint": "yarn lint",
     "typecheck": "yarn typecheck",
-    "build": "yarn build"
+    "build": "yarn build",
+    "scaffoldStandaloneMiniApp": "yarn app:scaffold {slug}"
   },
   "errorOutput": {
     "format": "json",
@@ -638,7 +643,7 @@
     },
     "manifest-binding/disallowed-binding-field": {
       "severity": "blocking",
-      "fixAction": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, and optional externalContracts."
+      "fixAction": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, optional externalContracts, optional nftAccountWithdrawals, and optional resolvedContracts."
     },
     "manifest-binding/duplicate-address": {
       "severity": "blocking",
@@ -1131,6 +1136,22 @@
     "visual-policy/row-heavy-dashboard": {
       "severity": "blocking",
       "fixAction": "Use the scaffold default surface / NiePan-style compact template: one primary business card, a small metric strip, one visible primary action panel, and compact runtime facts lower in the card."
+    },
+    "nft-account/use-restricted-entry": {
+      "severity": "blocking",
+      "fixAction": "Use the reviewed withdrawNftAccount API instead of generic execute."
+    },
+    "nft-account/invalid-declaration": {
+      "severity": "blocking",
+      "fixAction": "Declare only policyId and null-bag-withdraw-v1 on a factory binding."
+    },
+    "nft-account/host-only-provider": {
+      "severity": "blocking",
+      "fixAction": "Use named component-facing SDK APIs. Do not import VaultRuntimeProvider or namespace/default SDK exports."
+    },
+    "manual-review/nft-account-withdrawal": {
+      "severity": "warning",
+      "fixAction": "Review deployment pins and holder-only withdrawal; declaration does not grant permission."
     }
   },
   "requiredInputs": {
@@ -1632,8 +1653,13 @@
       "guest",
       "connected"
     ],
-    "sdkHook": "useMiniAppSdk",
-    "documentation": "docs/standalone-mini-apps.md"
+    "sdkHook": "useFlapSdk({ chainId })",
+    "documentation": "docs/standalone-mini-apps.md",
+    "compatibilityHook": "useMiniAppSdk",
+    "walletDocumentation": "docs/mini-app-wallet.md",
+    "developerGuide": "docs/development.md",
+    "walkthrough": "docs/from-zero-mini-app.md",
+    "legacyV1Documentation": "docs/mini-app-v1.md"
   },
   "standalonePreviewRelease": {
     "branch": "feat/mini-app-v2",
@@ -1652,5 +1678,37 @@
       "Legacy Vault/token Mini App commands retain main/latest; preview sessions are local fixtures."
     ],
     "quickstart": "docs/mini-app-v2-quickstart.md"
+  },
+  "standaloneWallet": {
+    "sdk": "useFlapSdk({ chainId })",
+    "compatibility": "useMiniAppSdk remains supported; same package, not a separate SDK",
+    "manifestFields": [
+      "walletChains",
+      "walletContracts"
+    ],
+    "policy": "Exact reviewed targets/signatures/value and spender caps. Dynamic targets use genuine reviewed resolver handles. No arbitrary writes or fixture authorization.",
+    "documentation": "docs/mini-app-wallet.md"
+  },
+  "developmentSupport": {
+    "newProjectModels": [
+      "vault-ui",
+      "standalone-mini-app-v2"
+    ],
+    "miniAppV1": {
+      "status": "deprecated",
+      "newDevelopmentSupported": false,
+      "existingAppsCompatible": true,
+      "maintenanceSupported": true,
+      "documentation": "docs/mini-app-v1.md",
+      "documentationZh": "docs/mini-app-v1.zh-CN.md",
+      "maintenanceScaffoldThreeR3F": "yarn vault:scaffold {folder-name} --mode mini-app --capability three-r3f-v1 --chain 56 --token 0xReal7777Or8888Token --display-title-zh \"三维应用\" --display-title-en \"3D App\" --locales en,zh",
+      "scaffoldWarningCode": "mini-app-v1/deprecated",
+      "rules": [
+        "Do not generate new Mini App v1 projects; use Mini App v2 for new Apps.",
+        "Retain existing v1 routes, artifact identities, bindings, SDK/context, checker and package validation.",
+        "Do not force-migrate or silently reinterpret an existing v1 manifest as v2.",
+        "Deprecation does not relax legacy permissions, provenance or review rules."
+      ]
+    }
   }
 }

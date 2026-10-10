@@ -1,5 +1,7 @@
 # Runtime Module Contract
 
+New development supports **Vault UI** or **Mini App v2** (standalone) only. **Mini App v1 is deprecated for new development; existing Apps remain compatible.** Do not generate new v1 projects. Read [the development/reuse guide](development.md) ([中文](development.zh-CN.md)) and [v2 walkthrough](from-zero-mini-app.md). Vault UI uses main/latest and `vault:*`; v2 uses feat/mini-app-v2/next and `app:*`, empty bindings and no required test CA. Retain existing v1 routes, bindings, SDK and validation for maintenance; see [v1 compatibility](mini-app-v1.md). Reuse SDK/UI/ABI/business code, but do not invent bound context or share artifact identities. Follow the exact published-version requirements in the [preview quickstart](mini-app-v2-quickstart.md).
+
 ## Mini App 3D assets
 
 See `docs/mini-app-3d.md` for the complete capability matrix and the `flap-streets` / `flap-skies-showcase` / `flap-gamefi-arena` / `three-r3f-example` live reference routes.

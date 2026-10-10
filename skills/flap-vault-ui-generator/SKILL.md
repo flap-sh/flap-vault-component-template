@@ -5,6 +5,8 @@ description: Generate or update a controlled Flap custom Vault UI inside flap-va
 
 # Flap Vault UI Generator
 
+**Development lifecycle:** new projects support Vault UI or Mini App v2 only. Mini App v1 is deprecated for new development; retain existing routes, bindings, SDK/context and validation for maintenance. Do not generate a new v1 App. For new Apps follow [the v2 walkthrough](../../docs/from-zero-mini-app.md); for legacy maintenance use [v1 compatibility](../../docs/mini-app-v1.md).
+
 Use this skill inside `flap-vault-ui-template` to create or update a private custom Vault UI package.
 
 ## Core Rule
@@ -155,4 +157,6 @@ Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DO
 
 ## Mini App v2 developer preview channel
 
-The official `feat/mini-app-v2` branch targets `@flapsdk/vault-runtime@0.1.33-next.1` on npm `next`. Read [the developer quickstart](../../docs/mini-app-v2-quickstart.md) before new App work. On this preview branch use `yarn app:check`, `yarn app:e2e`, `yarn app:package`, and `yarn app:verify-package`; these explicitly select the official source ref and npm next provenance. Only standalone manifest v2 Apps use this source-package channel. Legacy commands retain main/latest. A source ZIP requires the exact published next version and gitHead; private canaries and an older next release are rejected. Local guest/connected sessions remain fixtures. Release the same clean commit from official `next` using `runtime:package:next`, verify it, publish with the `next` tag, and verify `latest` is unchanged. See the quickstart for pending-publication behavior, updating developer changes, and the required test-host/Workbench alignment.
+The official `feat/mini-app-v2` branch targets `@flapsdk/vault-runtime@0.1.36-next.0` on npm `next`. Read [the developer quickstart](../../docs/mini-app-v2-quickstart.md) before new App work. On this preview branch use `yarn app:check`, `yarn app:e2e`, `yarn app:package`, and `yarn app:verify-package`; these explicitly select the official source ref and npm next provenance. Only standalone manifest v2 Apps use this source-package channel. Legacy commands retain main/latest. A source ZIP requires the exact published next version and gitHead; private canaries and an older next release are rejected. Local guest/connected sessions remain fixtures. Release the same clean commit from official `next` using `runtime:package:next`, verify it, publish with the `next` tag, and verify `latest` is unchanged. See the quickstart for pending-publication behavior, updating developer changes, and the required test-host/Workbench alignment.
+
+Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](../../docs/resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.

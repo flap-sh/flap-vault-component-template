@@ -91,6 +91,43 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "required": [
+              "walletChains"
+            ]
+          },
+          {
+            "required": [
+              "walletContracts"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "required": [
+          "schemaVersion",
+          "appModel",
+          "mode",
+          "slug",
+          "walletChains",
+          "walletContracts"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          },
+          "appModel": {
+            "const": "standalone"
+          },
+          "mode": {
+            "const": "mini-app"
+          }
+        }
+      }
     }
   ],
   "properties": {
@@ -158,6 +195,27 @@
             "additionalProperties": false,
             "allOf": [
               {
+                "if": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "nftAccountWithdrawals"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "resolvedContracts"
+                      ]
+                    }
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "factoryAddress"
+                  ]
+                }
+              },
+              {
                 "anyOf": [
                   {
                     "required": [
@@ -213,6 +271,114 @@
               "tokenAddresses": {
                 "$ref": "#/$defs/testTokenAddressArray",
                 "description": "Binding-scoped token list for package proof or no-factory token scoping. Every entry, including factory-mode entries, must be a real deployed ERC20 token address ending in 7777 or 8888. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
+              },
+              "resolvedContracts": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "label",
+                    "resolver",
+                    "allow"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                      "maxLength": 64
+                    },
+                    "label": {
+                      "enum": [
+                        "vault",
+                        "token",
+                        "nft"
+                      ]
+                    },
+                    "resolver": {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    "allow": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 16,
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "read": {
+                      "oneOf": [
+                        {
+                          "const": "any"
+                        },
+                        {
+                          "type": "array",
+                          "maxItems": 16,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      ]
+                    },
+                    "payable": {
+                      "type": "boolean"
+                    },
+                    "maxValueWei": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,77}$"
+                    },
+                    "codePattern": {
+                      "enum": [
+                        "none",
+                        "eip6551-proxy"
+                      ]
+                    },
+                    "codeHash": {
+                      "type": "string",
+                      "pattern": "^0x[0-9a-fA-F]{64}$"
+                    },
+                    "implementationCodeHash": {
+                      "type": "string",
+                      "pattern": "^0x[0-9a-fA-F]{64}$"
+                    },
+                    "checks": {
+                      "type": "array",
+                      "maxItems": 8,
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              },
+              "nftAccountWithdrawals": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "uniqueItems": true,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "policyId",
+                    "profile"
+                  ],
+                  "properties": {
+                    "policyId": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                    },
+                    "profile": {
+                      "const": "null-bag-withdraw-v1"
+                    }
+                  }
+                },
+                "description": "Review intent only. Requires a factory binding and independent host approval; does not allow arbitrary derived contract calls."
               },
               "externalContracts": {
                 "$ref": "#/$defs/externalContractArray",
@@ -288,6 +454,25 @@
           "settings"
         ]
       }
+    },
+    "walletChains": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "walletContracts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object"
+      },
+      "description": "Reviewed fixed contract signatures, value/approval caps and address resolvers. Validated by the shared app wallet policy parser."
     }
   },
   "$defs": {
@@ -298,7 +483,7 @@
         "en"
       ],
       "additionalProperties": false,
-      "description": "Mini App display title shown on flap.sh surfaces. Required only for manifest.mode=mini-app. Use separate Chinese and English values, for example {\"zh\":\"蝴蝶农场\",\"en\":\"Butterfly Farm\"}.",
+      "description": "Mini App display title shown on flap.sh surfaces. Required only for manifest.mode=mini-app. Use separate Chinese and English values, for example {\"zh\":\"\u8774\u8776\u519c\u573a\",\"en\":\"Butterfly Farm\"}.",
       "properties": {
         "zh": {
           "type": "string",

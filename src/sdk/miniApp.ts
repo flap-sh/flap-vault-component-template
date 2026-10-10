@@ -7,5 +7,7 @@ export function isStandaloneMiniApp(manifest: unknown): manifest is { schemaVers
   if (!manifest || typeof manifest !== "object") return false;
   const value = manifest as Record<string, unknown>;
   const match = value.match as { bindings?: unknown } | undefined;
+  const chains = value.walletChains;
+  if (chains !== undefined && (!Array.isArray(chains) || !chains.length || chains.length > 8 || chains.some((id) => !Number.isSafeInteger(id) || id <= 0) || new Set(chains).size !== chains.length)) return false;
   return value.schemaVersion === 2 && value.mode === "mini-app" && value.appModel === "standalone" && isMiniAppSlug(value.slug) && typeof value.artifactId === "string" && Array.isArray(match?.bindings) && match.bindings.length === 0;
 }
