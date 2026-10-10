@@ -29,8 +29,12 @@ const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(sec
 export function ConsumerVideoSessionPlayer({ consumer, startClip = 0, label, fallback = null, className, autoPlay = false, muted = false }: ConsumerVideoSessionPlayerProps) {
   const sdk = useFlapSdk();
   const { chainId } = sdk.context;
-  const readContract = sdk.readContract;
-  const reader = React.useMemo(() => createConsumerVideoSessionReader({ context: { chainId }, readContract }, consumer), [chainId, readContract, consumer]);
+  const readContractRef = React.useRef(sdk.readContract);
+  readContractRef.current = sdk.readContract;
+  // Host polling can replace SDK callbacks without changing this movie/session.
+  const reader = React.useMemo(() => createConsumerVideoSessionReader({
+    context: { chainId }, readContract: (request) => readContractRef.current(request),
+  }, consumer), [chainId, consumer]);
   const sessionRef = React.useRef<ConsumerVideoSession | null>(null);
   const controllerRef = React.useRef<VideoSessionController | null>(null);
   const videoRef = React.useRef<HTMLVideoElement>(null);

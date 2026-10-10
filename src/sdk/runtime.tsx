@@ -239,6 +239,8 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
   }) : undefined, [publicClient, walletClient, manifest, runtimeContext, contractTargetPolicy]);
   const currentContractRuntime = useRef(contractRuntime);
   currentContractRuntime.current = contractRuntime;
+  const currentReadRuntime = useRef({ publicClient, contractRuntime });
+  currentReadRuntime.current = { publicClient, contractRuntime };
   const resolveContract = useCallback((id: string, args: readonly unknown[]) => {
     if (!contractRuntime) throw new Error("resolved-contract/client-unavailable");
     return contractRuntime.resolveContract(id, args);
@@ -246,6 +248,9 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
 
   const readContract = useCallback(
     async <T,>(request: ContractReadRequest): Promise<T> => {
+      // Keep the public callback stable, but authorize each call against current inputs.
+      // Capture the pair before awaiting so validation and execution use the same client.
+      const { publicClient, contractRuntime } = currentReadRuntime.current;
       if (!publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
       const checked = await contractRuntime.validate(contractRuntime.snapshot(request), false);
       request = checked.request;
@@ -283,7 +288,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
         blockNumber: checked.blockNumber,
       })) as T;
     },
-    [publicClient, contractRuntime],
+    [],
   );
 
   const getGasPrice = useCallback(async (): Promise<bigint> => {

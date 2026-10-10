@@ -24,11 +24,14 @@ const root = createRoot(document.getElementById("root"));
 const cids = ${JSON.stringify(cids)};
 globalThis.reads = [];
 globalThis.total = 1000;
-const sdk = {
+globalThis.readerVersion = 0;
+let startClip = -1;
+let consumer = "0x8b527D3f104A1945BD68B391fBd6b4a00B7EA3a2";
+let sdk = {
   context: { chainId: 56 },
   i18n: { locale: "en", t: (key, fallback, params) => fallback.replace(/\\{(\\w+)\\}/g, (_, key) => String(params?.[key] ?? key)) },
   readContract: async (params) => {
-    globalThis.reads.push({ address: params.address, method: params.functionName, args: params.args.map(String) });
+    globalThis.reads.push({ address: params.address, method: params.functionName, args: params.args.map(String), readerVersion: 0 });
     if (params.functionName === "getVideoSessionLength") return BigInt(globalThis.total);
     const start = Number(params.args[1]);
     return Array.from({ length: Number(params.args[2]) }, (_, offset) => {
@@ -38,11 +41,31 @@ const sdk = {
     });
   },
 };
-globalThis.renderPlayer = (startClip, total = 1000) => { globalThis.total = total; root.render(React.createElement(React.StrictMode, null,
-  React.createElement(RuntimeContext.Provider, { value: sdk }, React.createElement(VideoSessionPlayer, {
-    consumer: "0x8b527D3f104A1945BD68B391fBd6b4a00B7EA3a2", startClip, label: "Consumer movie", fallback: "Video unavailable", muted: true,
-  })))); };
-globalThis.unmountPlayer = () => root.unmount();
+const originalRead = sdk.readContract;
+function Harness({ value, startClip, consumer, version }) {
+  React.useEffect(() => { globalThis.committedReaderVersion = version; });
+  return React.createElement(RuntimeContext.Provider, { value }, React.createElement(VideoSessionPlayer, {
+    consumer, startClip, label: "Consumer movie", fallback: "Video unavailable", muted: true,
+  }));
+}
+const render = () => root.render(React.createElement(React.StrictMode, null, React.createElement(Harness, {
+  value: sdk, startClip, consumer, version: globalThis.readerVersion,
+})));
+globalThis.renderPlayer = (nextStart, total = 1000, chainId = sdk.context.chainId, nextConsumer = consumer) => {
+  startClip = nextStart; consumer = nextConsumer; globalThis.total = total;
+  sdk = { ...sdk, context: { ...sdk.context, chainId } }; render();
+};
+globalThis.refreshHost = () => {
+  const version = ++globalThis.readerVersion;
+  sdk = { ...sdk, context: { ...sdk.context, host: { marketPhase: version % 2 ? "internal-market" : "dex-listed" } },
+    readContract: async params => {
+      const result = originalRead(params);
+      globalThis.reads[globalThis.reads.length - 1].readerVersion = version;
+      return result;
+    },
+  }; render(); return version;
+};
+globalThis.unmountPlayer = () => { clearInterval(globalThis.hostPolling); root.unmount(); };
 globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: "tsx",
   }, outdir: tmp, entryNames: "app", bundle: true, splitting: true, format: "esm", platform: "browser" });
   server = createServer(async (req, res) => {
@@ -85,6 +108,13 @@ globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: 
   await page.waitForFunction(() => document.querySelector("video").buffered.length && document.querySelector("video").buffered.end(0) > 18, undefined, { timeout: 45_000 });
   let snapshot = await page.locator("video").evaluate((video) => ({ paused: video.paused, muted: video.muted, volume: video.volume, controls: video.controls }));
   assert.deepEqual(snapshot, { paused: true, muted: false, volume: 0.3, controls: false });
+  const pausedMedia = await page.locator("video").getAttribute("src");
+  const hostVersion = await page.evaluate(() => refreshHost());
+  await page.waitForFunction(version => globalThis.committedReaderVersion === version, hostVersion);
+  await readyAt(499);
+  assert.equal(await page.locator("video").getAttribute("src"), pausedMedia, "A new SDK/read callback must not replace MediaSource");
+  snapshot = await page.locator("video").evaluate((video) => ({ paused: video.paused, muted: video.muted, volume: video.volume, controls: video.controls }));
+  assert.deepEqual(snapshot, { paused: true, muted: false, volume: 0.3, controls: false });
   // Metadata rolls while the media stream and native timestamp remain continuous.
   await page.locator("video").evaluate((video) => { video.currentTime = 17; });
   await readyAt(501);
@@ -120,22 +150,38 @@ globalThis.renderPlayer(-1);`, resolveDir: ROOT, sourcefile: "app.tsx", loader: 
   const initialMedia = await page.locator("video").getAttribute("src");
   const initialRevision = await page.locator("[data-flap-video-media-revision]").getAttribute("data-flap-video-media-revision");
   await page.locator("video").evaluate(async video => { video.muted = true; video.playbackRate = 4; await video.play(); });
+  // Host polling replaces the entire SDK/read callback while playback crosses clips.
+  await page.evaluate(() => { globalThis.hostPolling = setInterval(() => refreshHost(), 250); });
   await page.waitForFunction(() => document.querySelector("video").currentTime > 34, undefined, {timeout: 45_000});
+  await page.evaluate(() => clearInterval(globalThis.hostPolling));
   await page.locator("video").evaluate(video => video.pause());
   assert.equal(await page.locator("video").getAttribute("src"), initialMedia);
   assert.equal(await page.locator("[data-flap-video-media-revision]").getAttribute("data-flap-video-media-revision"), initialRevision);
   const cumulative = Number(await page.locator("[data-flap-video-global-time]").getAttribute("data-flap-video-global-time"));
   assert.ok(cumulative > 34 && cumulative < 40, String(cumulative));
   const lengthReads = await page.evaluate(() => reads.filter(r => r.method === "getVideoSessionLength").length);
-  await page.evaluate(() => { globalThis.total = 10; });
+  const latestReader = await page.evaluate(() => { globalThis.total = 10; return refreshHost(); });
   await page.waitForFunction(count => reads.filter(r => r.method === "getVideoSessionLength").length > count &&
     document.querySelector("[data-flap-video-time]").textContent.endsWith("1:20"), lengthReads, {timeout: 12_000});
+  assert.ok(await page.evaluate(version => reads.some(r => r.method === "getVideoSessionLength" && r.readerVersion === version), latestReader), "Polling must call the latest SDK reader");
   assert.equal(await page.locator("video").getAttribute("src"), initialMedia);
   assert.equal(await page.locator("video").evaluate(video => video.paused), true);
+  // Stable read callbacks must not suppress deliberate chain/consumer/start changes.
+  const nextConsumer = "0x286184b2660a2822671a33f24c4517f593947777";
+  await page.evaluate(consumer => renderPlayer(0, 8, 56, consumer), nextConsumer);
+  await readyAt(0);
+  await page.waitForFunction(src => document.querySelector("video").getAttribute("src") && document.querySelector("video").getAttribute("src") !== src, initialMedia);
+  assert.ok(await page.evaluate(consumer => reads.some(r => r.args[0] === consumer), nextConsumer));
+  await page.evaluate(() => renderPlayer(2, 8, 97));
+  await readyAt(2);
+  assert.ok(await page.evaluate(() => reads.some(r => r.address === "0xFfddcE44e8cFf7703Fd85118524bfC8B2f70b744")));
+  await page.evaluate(() => renderPlayer(2, 8, 1));
+  await page.waitForFunction(() => document.querySelector("[data-flap-video-session-state]")?.dataset.flapVideoSessionState === "unsupported");
+  assert.equal(await page.locator("video").getAttribute("src"), null);
   await page.evaluate(() => unmountPlayer());
   assert.equal(await page.locator("video").count(), 0);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ ok: true, strictMode: true, totalClips: 1000, maxWindow: 4, skippedEarlierClips: 499, nativeAudioSettingsPreserved: true, fullscreenSeekPreserved: true, continuousFromFirstThroughFifthClip: true, tailGrowthPreservesPause: true, slices, mediaRequests: media.length }));
+  console.log(JSON.stringify({ ok: true, strictMode: true, totalClips: 1000, maxWindow: 4, skippedEarlierClips: 499, nativeAudioSettingsPreserved: true, fullscreenSeekPreserved: true, continuousFromFirstThroughFifthClip: true, hostPollingPreservesMedia: true, pollingUsesLatestReader: true, explicitSessionChangesReset: true, tailGrowthPreservesPause: true, slices, mediaRequests: media.length }));
 } catch (error) {
   if (browser) for (const page of browser.contexts().flatMap((context) => context.pages())) console.error(JSON.stringify(await page.evaluate(() => ({ state: document.querySelector("[data-flap-video-session-state]")?.dataset, reads: globalThis.reads, video: [...document.querySelectorAll("video")].map((v) => ({ duration: v.duration, time: v.currentTime, readyState: v.readyState, paused: v.paused, buffered: Array.from({length:v.buffered.length}, (_,i)=>[v.buffered.start(i),v.buffered.end(i)]), error: v.error?.message })) })), null, 2));
   throw error;
