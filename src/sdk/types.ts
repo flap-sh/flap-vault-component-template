@@ -1,3 +1,4 @@
+import type { ManifestResolvedContract, ResolvedContractHandle } from "./resolvedContractTypes";
 import type { ManifestNftAccountWithdrawal, NftAccountWithdrawalRequest, NftAccountWithdrawalReceipt } from "./nftAccountTypes";
 import type { Abi, PublicClient } from "viem";
 
@@ -201,6 +202,7 @@ export interface ManifestBindingEntry {
   tokenAddresses?: Address[];
   externalContracts?: ManifestExternalContract[];
   nftAccountWithdrawals?: ManifestNftAccountWithdrawal[];
+  resolvedContracts?: ManifestResolvedContract[];
 }
 
 export interface ManifestExternalContract {
@@ -364,8 +366,8 @@ export interface CreateVaultRuntimeContextInput {
 }
 
 export interface ContractReadRequest {
-  /** Optional human-readable label for the target contract (e.g. "vault", "token"). Advisory only; the runtime keys off `address` + `abi`. */
-  contract?: string;
+  /** Advisory label for a permitted raw target, or a genuine SDK-resolved handle without address. */
+  contract?: string | ResolvedContractHandle;
   address?: Address;
   abi?: Abi;
   functionName: string;
@@ -463,6 +465,7 @@ export interface FlapVaultSdk {
   getBlockNumber(): Promise<bigint>;
   /** Reads bounded, provider-friendly contract event ranges. */
   getContractEvents<T = unknown>(request: ContractEventRequest): Promise<T[]>;
+  resolveContract(id: string, args: readonly unknown[]): Promise<ResolvedContractHandle>;
   readContract<T = unknown>(request: ContractReadRequest): Promise<T>;
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;

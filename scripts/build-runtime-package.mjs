@@ -115,7 +115,7 @@ async function main() {
 
   const runtimeContract = {
     runtimeContractVersion: 1,
-    sdkFeatures: { nftAccountWithdrawal: 1 },
+    sdkFeatures: { nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -135,9 +135,9 @@ This package is the shared runtime surface that local preview, Artifact Workbenc
 
 ## Exports
 
-- \`./sdk\`: component-facing SDK hooks, helpers, types, provider, and local oracle reader helper
+- \`./sdk\`: component-facing SDK hooks, helpers, types, and local oracle reader helper
 - \`./ui\`: shared UI primitives
-- \`./host\`: host/runtime preflight helpers and the browser-safe same-origin presentation fetcher
+- \`./host\`: host-only provider, runtime preflight helpers and the browser-safe same-origin presentation fetcher
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.

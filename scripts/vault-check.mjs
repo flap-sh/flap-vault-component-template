@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -43,7 +44,7 @@ const ALLOWED_VAULT_FILES = new Set([...REQUIRED_FILES, ...OPTIONAL_SURFACE_FILE
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI", "./LaunchConfig"]);
 const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "surfaces"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
-const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts", "nftAccountWithdrawals"]);
+const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts", "nftAccountWithdrawals", "resolvedContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
 const MINI_APP_MODE = "mini-app";
 const MINI_APP_TOKEN_SUFFIXES = ["7777", "8888"];
@@ -2591,6 +2592,7 @@ function isApprovedContractAddressExpression(expressionText) {
 function collectContractInteractionIssues(content, file, contractPolicy) {
   const issues = [];
   const addressConstants = collectAddressConstants(content);
+  const resolvedHandles = collectResolvedHandles(content, file);
 
   for (const call of findSdkContractCalls(content)) {
     const contractProperty = extractObjectPropertyExpression(call.objectText, "contract");
@@ -2615,6 +2617,7 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
       );
     }
 
+    if (contractProperty && resolvedHandles.has(contractProperty.text.trim())) continue;
     if (contractProperty) {
       const contractLabel = parseStaticStringLiteral(stripExpressionDecorators(contractProperty.text));
       if (contractLabel === null) {
@@ -2656,7 +2659,11 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
           ),
         );
       }
-    } else if (!isApprovedContractAddressExpression(addressProperty.text)) {
+    } else {
+      if (["simulateContract", "writeContract"].includes(call.methodName) && !/\bcontext\.(?:vaultAddress|tokenAddress|factoryAddress)\b/.test(addressProperty.text)) {
+        issues.push(issue("warning", "manual-review/legacy-derived-write-target", "Raw derived write target must migrate to a reviewed resolvedContracts handle before strict production rollout.", { file, line: lineForIndex(content, call.objectStart), addressSource: addressProperty.text }));
+      }
+      if (!isApprovedContractAddressExpression(addressProperty.text)) {
       issues.push(
         issue(
           BLOCKING,
@@ -2668,6 +2675,7 @@ function collectContractInteractionIssues(content, file, contractPolicy) {
           },
         ),
       );
+      }
     }
   }
 
@@ -3813,6 +3821,7 @@ function checkManifest(manifest, folderName) {
             seenBindingKeys.set(bindingKey, field);
           }
         }
+        if (bindingEntry.resolvedContracts !== undefined) issues.push(...checkResolvedContractDeclarations(bindingEntry.resolvedContracts, `${field}.resolvedContracts`, bindingEntry));
         if (bindingEntry.nftAccountWithdrawals !== undefined) {
           issues.push(...checkNftAccountDeclarations(bindingEntry.nftAccountWithdrawals, `${field}.nftAccountWithdrawals`, bindingEntry));
         }
@@ -4236,6 +4245,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       }
     }
     issues.push(...checkNftAccountSource(content, rel));
+    issues.push(...checkResolvedContractSource(content, rel, manifest?.match?.bindings ?? []));
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel, manifest));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
     issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: approvedResourceRanges }));
@@ -4697,7 +4707,7 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { nftAccountWithdrawals: collectNftAccountReview(issues), externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, audioAssets: miniAppAudioAssets, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
+  return { resolvedContracts: collectResolvedContractReview(issues), legacyDerivedWrites: issues.filter((x) => x.ruleId === "manual-review/legacy-derived-write-target"), nftAccountWithdrawals: collectNftAccountReview(issues), externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, audioAssets: miniAppAudioAssets, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
 }
 
 function buildCheckReport(folderName, issues) {

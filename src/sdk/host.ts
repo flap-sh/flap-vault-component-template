@@ -16,3 +16,4 @@ export type * from "./nftAccountTypes";
 // Host-only: never expose this entrypoint through artifact module shims.
 export { VaultRuntimeProvider } from "./runtime";
 export type { RuntimeProviderProps } from "./runtime";
+export type * from "./resolvedContractTypes";

@@ -152,3 +152,5 @@ Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DO
 - `references/patterns.md`: choose an implementation pattern.
 - `references/check-rules.md`: understand blocking/warning rules.
 - `docs/ui-pattern-snippets.md`: public-safe UI organization and state-flow snippets.
+
+Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](../../docs/resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.

@@ -70,3 +70,6 @@ export type { ManifestNftAccountWithdrawal, NftAccountWithdrawalPolicy, NftAccou
 
 /** Host feature check; declarations must fail closed on older runtimes. */
 export const NFT_ACCOUNT_WITHDRAWAL_VERSION = 1;
+
+export type { ManifestResolvedContract, ResolvedContractCheck, ResolvedContractHandle } from "./resolvedContractTypes";
+export const RESOLVED_CONTRACTS_VERSION = 1;

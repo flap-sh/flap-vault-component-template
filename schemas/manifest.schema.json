@@ -69,7 +69,7 @@
             "required": ["chainId"],
             "additionalProperties": false,
             "allOf": [
-              { "if": { "required": ["nftAccountWithdrawals"] }, "then": { "required": ["factoryAddress"] } },
+              { "if": { "anyOf": [{ "required": ["nftAccountWithdrawals"] }, { "required": ["resolvedContracts"] }] }, "then": { "required": ["factoryAddress"] } },
               {
                 "anyOf": [
                   { "required": ["factoryAddress"] },
@@ -106,6 +106,89 @@
               "tokenAddresses": {
                 "$ref": "#/$defs/testTokenAddressArray",
                 "description": "Binding-scoped token list for package proof or no-factory token scoping. Every entry, including factory-mode entries, must be a real deployed ERC20 token address ending in 7777 or 8888. In factory mode this is not a production CA restriction. In no-factory mode this may also be used as the binding target itself and may contain multiple token addresses."
+              },
+              "resolvedContracts": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "label",
+                    "resolver",
+                    "allow"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                      "maxLength": 64
+                    },
+                    "label": {
+                      "enum": [
+                        "vault",
+                        "token",
+                        "nft"
+                      ]
+                    },
+                    "resolver": {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    "allow": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 16,
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "read": {
+                      "oneOf": [
+                        {
+                          "const": "any"
+                        },
+                        {
+                          "type": "array",
+                          "maxItems": 16,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      ]
+                    },
+                    "payable": {
+                      "type": "boolean"
+                    },
+                    "maxValueWei": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,77}$"
+                    },
+                    "codePattern": {
+                      "enum": [
+                        "none",
+                        "eip6551-proxy"
+                      ]
+                    },
+                    "codeHash": {
+                      "type": "string",
+                      "pattern": "^0x[0-9a-fA-F]{64}$"
+                    },
+                    "implementationCodeHash": {
+                      "type": "string",
+                      "pattern": "^0x[0-9a-fA-F]{64}$"
+                    },
+                    "checks": {
+                      "type": "array",
+                      "maxItems": 8,
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
               },
               "nftAccountWithdrawals": {
                 "type": "array",

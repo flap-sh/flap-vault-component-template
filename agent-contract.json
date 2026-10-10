@@ -23,6 +23,18 @@
     "generic": ["README.md", "docs/ai-copy-pack.md", "docs/ai-agent.md", "docs/agent-entrypoints.md", "docs/ui-pattern-snippets.md"],
     "index": "docs/agent-entrypoints.md"
   },
+  "resolvedContracts": {
+    "manifestField": "match.bindings[].resolvedContracts",
+    "api": "sdk.resolveContract(id, args)",
+    "version": 1,
+    "factoryOnly": true,
+    "requiresReviewedArtifact": true,
+    "checks": ["owner", "ownerOf", "recipient", "balance"],
+    "forbidNestedCalldataAndApprovals": true,
+    "productionRawTargetPolicy": "strict",
+    "providerEntrypoint": "@flapsdk/vault-runtime/host",
+    "documentation": "docs/resolved-contracts.md"
+  },
   "nftAccountWithdrawal": {
     "manifestField": "match.bindings[].nftAccountWithdrawals",
     "profile": "null-bag-withdraw-v1",
@@ -313,7 +325,7 @@
     "manifest-binding/chain-factory-count-mismatch": { "severity": "blocking", "fixAction": "Provide exactly one --factory for each --chain, in the same order. Example: --chain 97 --factory 0xTestnetFactory --chain 56 --factory 0xMainnetFactory" },
     "manifest-binding/chain-token-count-mismatch": { "severity": "blocking", "fixAction": "Provide at most one --token per --chain in the same order. Prefer putting the testnet binding first when only the testnet token is ready, then add the final mainnet factory binding without treating the test token as a production CA restriction." },
     "manifest-binding/chain-vault-count-mismatch": { "severity": "blocking", "fixAction": "Provide exactly one --vault for each --chain in the same order. Example: --chain 56 --vault 0xAAA --chain 97 --vault 0xBBB" },
-    "manifest-binding/disallowed-binding-field": { "severity": "blocking", "fixAction": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, optional externalContracts, and optional nftAccountWithdrawals." },
+    "manifest-binding/disallowed-binding-field": { "severity": "blocking", "fixAction": "Binding entries may only contain chainId, factoryAddress, optional vaultAddresses, optional tokenAddresses, optional externalContracts, optional nftAccountWithdrawals, and optional resolvedContracts." },
     "manifest-binding/duplicate-address": { "severity": "blocking", "fixAction": "Remove duplicate addresses from the binding-scoped reference list." },
     "manifest-binding/duplicate-binding": { "severity": "blocking", "fixAction": "Remove duplicate match.bindings entries with the same runtime target. Merge any binding-scoped reference lists into one entry." },
     "manifest-binding/invalid-address": { "severity": "blocking", "fixAction": "Use a full 20-byte EVM address matching 0x plus 40 hex characters." },

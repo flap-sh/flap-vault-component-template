@@ -69,3 +69,5 @@ Core rules:
 - For code-base changes, run `yarn ci` when feasible; it covers lint, typecheck, checker selftest, full three-viewport example E2E/package/verify, build, runtime package checks, and preview smoke.
 
 Use the versioned, holder-only `sdk.withdrawNftAccount({policyId,tokenId,amount})` path for reviewed NFT account withdrawals. Declare `match.bindings[].nftAccountWithdrawals` on a factory binding; declaration is review intent only and independent host approval is required. The NULL four-argument execute selector is blocked; the Provider is exported only to hosts. See [NFT account withdrawal](docs/nft-account-withdrawal.md) for deployment pins, receipt outcomes, tests and rollout.
+
+Vault-derived write targets use reviewed factory-binding `resolvedContracts` and genuine `await sdk.resolveContract` handles; labels or resolver-returned addresses alone grant no raw-write permission. NULL nested bag execution stays on `withdrawNftAccount`. Production target policy is strict; preview warn mode only inventories migration. Provider is host-only. See [resolved contracts](docs/resolved-contracts.md).
