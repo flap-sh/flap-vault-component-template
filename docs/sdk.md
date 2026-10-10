@@ -2,7 +2,7 @@
 
 New development supports **Vault UI and Mini App v2**. Mini App v1 is deprecated for new development; its existing SDK/context APIs remain compatible for maintenance. See [v1 compatibility](mini-app-v1.md).
 
-Start with [Vault UI / Mini App v2 and code reuse](development.md) ([中文](development.zh-CN.md)). Vault UI and token-bound v1 use `useFlapSdk()` with host Token/Vault context; independent v2 uses `useFlapSdk({ chainId })` in the prepared shared-wallet revision. Both consume the same SDK. See [the v2 wallet API](mini-app-wallet.md) for exact permissions and methods; bound-only APIs in this reference are not implicit v2 context. The shared-wallet revision is prepared as 0.1.36-next.0, not a capability of published stable 0.1.35.
+Start with [Vault UI / Mini App v2 and code reuse](development.md) ([中文](development.zh-CN.md)). Vault UI and token-bound v1 use `useFlapSdk()` with host Token/Vault context; independent v2 uses `useFlapSdk({ chainId })` in published `0.1.36-next.0` on npm `next`. Both consume the same SDK. See [the v2 wallet API](mini-app-wallet.md) for exact permissions and methods; bound-only APIs in this reference are not implicit v2 context. Stable `latest` remains `0.1.35` and does not include the standalone v2 shared-wallet API. See [release identity](mini-app-v2-quickstart.md) for the matching template commit.
 
 The component should depend on the SDK contract, not on private `flap.sh` internals.
 

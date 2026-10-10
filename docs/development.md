@@ -13,7 +13,7 @@ Flap provides one template repository, one `@flapsdk/vault-runtime` package, sha
 | Production URL | Token's Vault/tax-info page | `/apps/{slug}` |
 | Manifest discriminator | Omit `mode` | `schemaVersion: 2`, `mode: "mini-app"`, `appModel: "standalone"`, valid `slug` |
 | Identity/binding | Reviewed factory, Vault or token bindings | Stable artifact ID and immutable slug; `match.bindings: []` |
-| Main SDK call | `useFlapSdk()` | `useFlapSdk({ chainId: 56 })` in the prepared shared-wallet revision |
+| Main SDK call | `useFlapSdk()` | `useFlapSdk({ chainId: 56 })` in published `0.1.36-next.0` |
 | Token/Vault context | Supplied by host | App selects tokens; no implicit `context.tokenAddress` / `vaultAddress` / `marketPhase` |
 | Local preview | `/{folder-name}` | `/{slug}` in the independent App shell |
 | Authoring commands | `vault:scaffold`, `vault:check`, `vault:e2e`, `vault:package` | `app:scaffold`, then `app:*` |
@@ -30,15 +30,14 @@ v1 uses `/{chain}/{tokenCA}/mini-app`, `mode: "mini-app"` and token-only binding
 
 ## Versions mean different things
 
-Release snapshot checked on 2026-10-10:
+Release snapshot checked on 2026-10-11:
 
 | Item | Status |
 | --- | --- |
 | Official `main` / npm `latest` | `0.1.35`, npm `gitHead` `30784d445009f337516537ac17aaf836f1cdfba0` |
-| Published npm `next` | `0.1.33-next.1`: independent identity/session preview |
-| This prepared source revision | `0.1.36-next.0`: includes main 0.1.35 plus shared App wallet operations; not yet published |
+| Published npm `next` | **`0.1.36-next.0`**, npm `gitHead` `ff5d612d80e0fe387e612b60dca5275c2fd91a24`; includes main 0.1.35 plus shared App wallet operations |
 
-Do not install `0.1.35` and assume it includes standalone v2 wallet APIs. The explicit-chain hook and `walletContracts` described here require the matching new template/runtime release in the host and testing Workbench. Until it is published, local UI development can continue; official source ZIP packaging remains blocked. See [preview release quickstart](mini-app-v2-quickstart.md).
+Do not install `0.1.35` and assume it includes standalone v2 wallet APIs. The explicit-chain hook and `walletContracts` described here are available in published `0.1.36-next.0`. Use its matching official template commit and the same exact runtime in the main host and testing Workbench. Source ZIP packaging is available after checks and E2E pass; SDK publication does not by itself approve an App for production. See [preview release quickstart](mini-app-v2-quickstart.md).
 
 “Mini App v1/v2” describes the product/binding model. It is unrelated to npm semver (`0.1.35`), `runtimeContractVersion: 1`, or E2E report versions. A v2 App may still use runtime contract version 1. Identify the model from its manifest, not its name, SDK version, or token address alone. A partially specified or invalid v2 manifest must be rejected, never silently treated as v1.
 

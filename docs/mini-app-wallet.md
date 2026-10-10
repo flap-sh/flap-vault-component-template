@@ -2,7 +2,7 @@
 
 New development supports Vault UI and Mini App v2 only. Mini App v1 is deprecated for new development; existing bound-App SDK and wallet behavior remains compatible.
 
-Vault UI and Mini App v2 use the same `@flapsdk/vault-runtime`, SDK implementation and host wallet. `latest` and `next` are release channels, not separate product SDKs. This change prepares `0.1.36-next.0`, based on stable template 0.1.35; publish it before upgrading consumer locks. It is not published by a local build.
+Vault UI and Mini App v2 use the same `@flapsdk/vault-runtime`, SDK implementation and host wallet. `latest` and `next` are release channels, not separate product SDKs. The shared App wallet API is **published in `0.1.36-next.0` on npm `next`** (checked 2026-10-11), based on stable template 0.1.35. Stable `latest` remains `0.1.35`. See [release identity and updating](mini-app-v2-quickstart.md).
 
 Existing Vault UI keeps `const sdk = useFlapSdk()` and its bound Token/Vault context. Independent Apps use `const sdk = useFlapSdk({ chainId: 56 })` from `@/src/sdk`, with no fake CA or factory binding. `useMiniAppSdk()` remains backward compatible for old App identity/session consumers; its `forChain(56)` returns the same chain API.
 
@@ -77,4 +77,4 @@ The template and Workbench use their enclosing host wallet provider, without inj
 
 Workbench prints `review.standaloneWallet` and displays the complete declared policy for human review. Upload, source hash, endpoint, asset and npm provenance checks remain required. New helper/policy files are explicitly included in Vercel validator tracing. No contract or endpoint receives implicit approval.
 
-The SDK must be released once, then both main host and Workbench must pin that exact package and lockfile. Remove the main host's old `vault-runtime-next` alias so both Vault and App components consume one package/context. A local private canary can be used for joint tests; it cannot be used as source-package npm provenance. Keep source ZIP packaging blocked until the official next version and gitHead exist. Do not claim mock transport tests prove any project's real launch/trade/claim flow.
+`0.1.36-next.0` is published with its official source `gitHead`. Both main host and testing Workbench must pin that exact package and lockfile, with Vault and App components consuming one package/context rather than separate runtime aliases. Source ZIPs must use the matching official template commit. A local private canary can be used for joint tests; it cannot be used as source-package npm provenance. Future preview releases require their own matching publication before packaging. Do not claim mock transport tests prove any project's real launch/trade/claim flow.

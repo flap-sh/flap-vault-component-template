@@ -16,7 +16,7 @@ yarn install --frozen-lockfile
 
 模板已经包含 SDK 源码，不需要在 App 目录执行 `npm install @flapsdk/vault-runtime`。npm runtime 由 Workbench 和主站安装；提交前，模板发布版本与两个宿主必须配套。
 
-本次源码基于 main 0.1.35，准备发布 `0.1.36-next.0`。2026-10-10 核对时，npm `next` 仍为 `0.1.33-next.1`。下文共用钱包 API 属于本次新源码，不是旧预览包已经支持的能力。请核对[发布状态与更新说明](mini-app-v2-quickstart.md)；新版本发布前可继续本地开发 UI，正式源码 ZIP 打包会被拦截。
+`@flapsdk/vault-runtime@0.1.36-next.0` **已发布**到 npm `next`（2026-10-11 核对），基于 main 0.1.35，下文共用钱包 API 已包含在此版本中。使用官方 `feat/mini-app-v2` 的已发布提交 `ff5d612d80e0fe387e612b60dca5275c2fd91a24`，即可按下文完成校验、E2E 和打包。正式 `latest` 仍为 `0.1.35`，见[发布状态与更新说明](mini-app-v2-quickstart.md)。
 
 ## 2. 创建 App
 
@@ -114,7 +114,7 @@ yarn app:package my-app
 yarn app:verify-package dist/my-app.zip
 ```
 
-E2E 检查 PC/iPad/H5 的游客和已连接状态，共六项，同时验证当前源码/资源 hash 和预览源码身份。可额外执行 `yarn app:build` 检查模板构建。打包要求精确匹配官方预览提交与已发布 npm `next`；准备中尚未发布的版本不能生成可提交的正式 ZIP，不要修改证明信息绕过检查。
+E2E 检查 PC/iPad/H5 的游客和已连接状态，共六项，同时验证当前源码/资源 hash 和预览源码身份。可额外执行 `yarn app:build` 检查模板构建。打包要求精确匹配官方预览提交与已发布 npm `next`；`0.1.36-next.0` 已发布，可按此流程打包。其他版本或源码提交仍会因来源不匹配而被拦截，不要修改证明信息绕过检查。
 
 将生成的 ZIP 提交到指定 App v2 测试 Workbench，并提供 slug、展示标题、功能概述、接口声明、钱包合约权限及升级权限说明。不要包含密钥。Workbench 负责构建 runtime artifact；人工审核和主站发布决定上线。上传/构建通过不等于已批准上线。
 
@@ -127,6 +127,6 @@ E2E 检查 PC/iPad/H5 的游客和已连接状态，共六项，同时验证当�
 | `useFlapSdk` 提示必须选择链 | v2 使用 `useFlapSdk({ chainId })`，无参数写法属于绑定上下文的 Vault/v1 |
 | 缺少 `context.tokenAddress` / `vaultAddress` | v2 自己选 Token 和目标，不要伪造宿主上下文 |
 | `app:*` 拒绝 manifest | 检查完整 v2 标识和 `match.bindings: []`；v1 使用 `vault:*` |
-| `package/preview-runtime-unpublished` | 等待精确匹配版本/提交发布，不要改用 latest 或私有 canary |
+| `package/preview-runtime-unpublished` | 对照快速开始中的 npm `next` 发布身份，核对本地版本和 HEAD，使用匹配的官方模板；若是未来待发布版本则等待，不要改用 latest 或私有 canary |
 | 本地正常，Workbench 拒绝 | 核对 runtime/gitHead、当前 E2E hash、包格式和审核声明 |
 | 公开接口仅在 Flap 内失败 | 核对服务端实际响应的 CORS/跨站策略是否允许宿主 origin |

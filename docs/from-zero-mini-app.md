@@ -16,7 +16,7 @@ yarn install --frozen-lockfile
 
 The template contains SDK source; do not run `npm install @flapsdk/vault-runtime` in an App folder. Workbench and the main host install that npm runtime. Before submission, the template release and both hosts must support the same published version.
 
-This source revision prepares `0.1.36-next.0`, based on main 0.1.35. The published preview was still `0.1.33-next.1` when checked on 2026-10-10. The shared wallet API below belongs to the new revision, not the old published preview. Follow [release status and updating](mini-app-v2-quickstart.md); until the new version is published, work locally and expect official packaging to stop.
+`@flapsdk/vault-runtime@0.1.36-next.0` is **published** on npm `next` (checked 2026-10-11), based on main 0.1.35. The shared wallet API below is included in this release. Use official `feat/mini-app-v2` at its published commit, `ff5d612d80e0fe387e612b60dca5275c2fd91a24`, then follow the check/E2E/package workflow below. Stable `latest` remains `0.1.35`. See [release status and updating](mini-app-v2-quickstart.md).
 
 ## 2. Scaffold an App
 
@@ -114,7 +114,7 @@ yarn app:package my-app
 yarn app:verify-package dist/my-app.zip
 ```
 
-The runner checks PC/iPad/H5 in guest and connected states (six checks), current source/asset hashes and preview-source identity. Optional `yarn app:build` checks the template build. Packaging requires the exact official preview commit and matching published npm `next`; the prepared/unpublished revision intentionally cannot generate a releasable ZIP. Never edit proof metadata to bypass this.
+The runner checks PC/iPad/H5 in guest and connected states (six checks), current source/asset hashes and preview-source identity. Optional `yarn app:build` checks the template build. Packaging requires the exact official preview commit and matching published npm `next`; `0.1.36-next.0` is published and can be used for this workflow. A different version or source commit still fails provenance checks. Never edit proof metadata to bypass this.
 
 Submit the generated ZIP to the designated App v2 testing Workbench. Provide slug, display titles, feature summary, endpoint declarations and any wallet contract policy/upgrade-authority notes. Keep secrets and private keys out of the package. Workbench builds the runtime artifact; human review and main-host rollout determine release. Upload/build success alone is not approval to go live.
 
@@ -127,6 +127,6 @@ Save or commit your work before updating. Do not discard local changes. Reapply 
 | `useFlapSdk` requires an explicit chain | v2 uses `useFlapSdk({ chainId })`; no-argument usage belongs to bound Vault/v1 |
 | `context.tokenAddress` / `vaultAddress` is absent | v2 selects tokens/targets; do not invent a fake host context |
 | `app:*` rejects the manifest | Check all v2 discriminators and `match.bindings: []`; v1 uses `vault:*` |
-| `package/preview-runtime-unpublished` | Await the exact published preview version/commit; do not substitute latest/private canary |
+| `package/preview-runtime-unpublished` | Compare the local version/HEAD with the published `next` identity in the quickstart; use the matching official checkout. If a future release is still pending, wait; do not substitute latest/private canary |
 | App works locally but Workbench rejects it | Check published runtime/gitHead, current E2E hashes, package format and review declarations |
 | A public endpoint fails only inside Flap | Verify that service's actual response CORS/cross-site policy for the host origin |

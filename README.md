@@ -4,7 +4,7 @@
 
 **New development supports Vault UI and Mini App v2 only**, sharing this template and SDK. Use `main` / `vault:*` for Vault UI and `feat/mini-app-v2` / `app:*` for independent v2 Apps at `/apps/{slug}`, without CA/factory bindings. **Mini App v1 is deprecated for new development; existing Apps remain compatible.** Its token `/mini-app` route and legacy maintenance tooling are retained; see [v1 compatibility](./docs/mini-app-v1.md). The bound-Token rules below cover Vault UI and existing v1 maintenance, not v2.
 
-**Release status (checked 2026-10-10):** stable `latest` is `0.1.35`; published `next` is `0.1.33-next.1`. This source revision prepares `0.1.36-next.0` with shared App wallet operations and includes main 0.1.35. It is not yet published. Local UI work is available; official ZIP packaging requires the matching published preview and host/Workbench versions. See [preview quickstart](./docs/mini-app-v2-quickstart.md).
+**Release status (checked 2026-10-11):** `@flapsdk/vault-runtime@0.1.36-next.0` is **published** on npm `next`, with shared App wallet operations and main 0.1.35 included. Stable `latest` remains `0.1.35`. Develop and package from official `feat/mini-app-v2` at the published commit; the main host and testing Workbench must use the same exact preview runtime. See [release identity and updating](./docs/mini-app-v2-quickstart.md).
 
 [简体中文](./README.zh-CN.md)
 

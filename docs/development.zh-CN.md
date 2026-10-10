@@ -13,7 +13,7 @@
 | 主站路径 | Token 的 Vault / tax-info 页面 | `/apps/{slug}` |
 | Manifest 区分 | 省略 `mode` | `schemaVersion: 2`、`mode: "mini-app"`、`appModel: "standalone"` 和合法 `slug` |
 | 身份和绑定 | 经审核的 factory、Vault 或 Token binding | 稳定 artifact ID、不可随意改名的 slug；`match.bindings: []` |
-| SDK 用法 | `useFlapSdk()` | 本次共用钱包版本使用 `useFlapSdk({ chainId: 56 })` |
+| SDK 用法 | `useFlapSdk()` | 已发布的 `0.1.36-next.0` 使用 `useFlapSdk({ chainId: 56 })` |
 | Token/Vault 数据 | 宿主传入 | App 自己选择 Token，没有默认的 `tokenAddress`、`vaultAddress` 或 `marketPhase` |
 | 本地预览 | `/{folder-name}` | `/{slug}`，独立 App 壳 |
 | 创建和校验 | `vault:scaffold`，再执行 `vault:*` | `app:scaffold`，再执行 `app:*` |
@@ -30,15 +30,14 @@ v1 使用 `/{chain}/{tokenCA}/mini-app`，manifest 为 `mode: "mini-app"` 和 to
 
 ## 不同“版本号”分别代表什么
 
-2026-10-10 核对的发布状态：
+2026-10-11 核对的发布状态：
 
 | 项目 | 状态 |
 | --- | --- |
 | 官方 `main` / npm `latest` | 已发布 `0.1.35`，npm 来源提交为 `30784d445009f337516537ac17aaf836f1cdfba0` |
-| 已发布 npm `next` | `0.1.33-next.1`，提供独立 App 身份和会话预览 |
-| 本次准备中的源码 | `0.1.36-next.0`，包含 main 0.1.35 和独立 App 共用钱包能力，尚未发布 |
+| 已发布 npm `next` | **`0.1.36-next.0`**，npm 来源提交为 `ff5d612d80e0fe387e612b60dca5275c2fd91a24`；包含 main 0.1.35 和独立 App 共用钱包能力 |
 
-不要安装 `0.1.35` 后就认为它包含独立 App v2 钱包接口。这里的带 `chainId` 的共用 Hook、`walletContracts` 等能力需要配套的新模板、主站和测试 Workbench。正式发布前可以本地开发 UI，源码 ZIP 的正式打包仍会被拦截。分支与更新步骤见[预览版快速开始](mini-app-v2-quickstart.md)。
+不要安装 `0.1.35` 后就认为它包含独立 App v2 钱包接口。这里带 `chainId` 的共用 Hook、`walletContracts` 等能力已包含在发布后的 `0.1.36-next.0` 中。使用匹配的官方模板提交，主站和测试 Workbench 也需使用同一精确 runtime 版本。通过校验和 E2E 后即可生成源码 ZIP；SDK 已发布不代表 App 已获准上线。分支与更新步骤见[预览版快速开始](mini-app-v2-quickstart.md)。
 
 Mini App **v1/v2** 区分产品和绑定模式；npm **0.1.35** 区分 SDK 发布；`runtimeContractVersion: 1` 区分宿主产物协议，E2E 报告也有自己的版本。v2 App 使用 runtime contract 1 是正常的。应根据 manifest 判断 App 类型，不能只看名字、SDK 版本或某个 CA。v2 标识不完整或不合法时应报错，不能悄悄当成 v1。
 
