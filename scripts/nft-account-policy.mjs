@@ -31,11 +31,11 @@ export function checkNftAccountSource(content, file) {
     if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === "@/src/sdk") {
       const clause = ts.isImportDeclaration(node) ? node.importClause : undefined;
       const bindings = clause?.namedBindings ?? (ts.isExportDeclaration(node) ? node.exportClause : undefined);
-      const unsafe = clause?.name || (bindings && ts.isNamespaceImport(bindings)) || (ts.isExportDeclaration(node) && (!bindings || ts.isNamespaceExport(bindings))) || (bindings && ts.isNamedImports(bindings) && bindings.elements.some((item) => (item.propertyName ?? item.name).text === "VaultRuntimeProvider")) || (bindings && ts.isNamedExports(bindings) && bindings.elements.some((item) => (item.propertyName ?? item.name).text === "VaultRuntimeProvider"));
-      if (unsafe) issues.push({ severity: "blocking", ruleId: "nft-account/host-only-provider", message: "Import named component-facing SDK APIs only. VaultRuntimeProvider and SDK namespace/default/re-exports can expose host authorization and are not allowed in Vault source.", file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
+      const unsafe = (bindings && ts.isNamedImports(bindings) && bindings.elements.some((item) => (item.propertyName ?? item.name).text === "VaultRuntimeProvider")) || (bindings && ts.isNamedExports(bindings) && bindings.elements.some((item) => (item.propertyName ?? item.name).text === "VaultRuntimeProvider"));
+      if (unsafe) issues.push({ severity: "blocking", ruleId: "nft-account/host-only-provider", message: "Import named component-facing SDK APIs only. VaultRuntimeProvider is host-only and cannot expose host authorization and are not allowed in Vault source.", file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
     }
     if (ts.isPropertyAssignment(node) && node.name.getText(source).replace(/["']/g, "") === "functionName" && ts.isStringLiteral(node.initializer) && node.initializer.text === "execute") {
-      issues.push({ severity: "blocking", ruleId: "nft-account/use-restricted-entry", message: "Do not construct generic execute requests in Vault source. Use sdk.withdrawNftAccount with a declared and host-approved policy.", file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
+      issues.push({ severity: "warning", ruleId: "nft-account/use-restricted-entry", message: "Do not construct generic execute requests in Vault source. Use sdk.withdrawNftAccount with a declared and host-approved policy.", file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
     }
     ts.forEachChild(node, visit);
   }

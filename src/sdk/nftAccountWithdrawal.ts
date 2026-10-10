@@ -60,7 +60,7 @@ interface WithdrawalEnvironment {
   policies: readonly NftAccountWithdrawalPolicy[];
   /** Must check the live wallet again immediately before signing. */
   getWallet(): Promise<{ address: Address; chainId: number }>;
-  send(request: ContractWriteRequest): Promise<Address>;
+  send(request: ContractWriteRequest, expectedSender: Address): Promise<Address>;
   refetch(): Promise<void>;
 }
 
@@ -135,7 +135,7 @@ export async function withdrawNftAccount(env: WithdrawalEnvironment, request: Nf
   const returned = simulation.result;
   requireRule(returned === "0x" || (typeof returned === "string" && returned.length === 66 && decodeAbiParameters([{ type: "bool" }], returned as Hex)[0]), "token-transfer-rejected");
   await validate(); // No cached ownership, code, balance, or beacon approval across signing.
-  const hash = await env.send({ address: accountAddress, abi, functionName: "execute", args: [...args], value: 0n, gas });
+  const hash = await env.send({ address: accountAddress, abi, functionName: "execute", args: [...args], value: 0n, gas }, recipient);
   let receipt;
   try {
     receipt = await env.client.waitForTransactionReceipt({ hash });

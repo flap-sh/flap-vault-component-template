@@ -47,7 +47,7 @@ interface ToastItem {
   message: string;
 }
 
-interface RuntimeProviderProps {
+export interface RuntimeProviderProps {
   children: ReactNode;
   manifest: VaultManifest;
   i18n: Record<string, Record<string, string>>;
@@ -60,6 +60,8 @@ interface RuntimeProviderProps {
   /** Host-reviewed deployment pins. Artifact declarations never grant approval. */
   nftAccountWithdrawalPolicies?: readonly NftAccountWithdrawalPolicy[];
 }
+
+const EMPTY_NFT_ACCOUNT_POLICIES: readonly NftAccountWithdrawalPolicy[] = Object.freeze([]);
 
 const defaultNftMetadataReader = createLocalNftMetadataReader();
 const defaultMediaUploader = createLocalMediaUploader();
@@ -92,7 +94,7 @@ function getPreviewOracleEndpoint(extraConfig: Record<string, unknown> | undefin
   return typeof endpoint === "string" ? endpoint : undefined;
 }
 
-export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, nftAccountWithdrawalPolicies = [] }: RuntimeProviderProps) {
+export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, nftAccountWithdrawalPolicies = EMPTY_NFT_ACCOUNT_POLICIES }: RuntimeProviderProps) {
   const [version, setVersion] = useState(0);
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
@@ -474,9 +476,9 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
           if (!address) throw new Error("nft-account/wallet-unavailable");
           return { address, chainId };
         },
-        send: async (tx) => {
+        send: async (tx, expectedSender) => {
           const [address] = await walletClient.getAddresses();
-          if (address?.toLowerCase() !== accountAddress?.toLowerCase() || await walletClient.getChainId() !== runtimeContext.chainId) throw new Error("nft-account/wallet-or-chain-changed");
+          if (address?.toLowerCase() !== expectedSender.toLowerCase() || await walletClient.getChainId() !== runtimeContext.chainId) throw new Error("nft-account/wallet-or-chain-changed");
           return walletClient.writeContract({ account: address, address: tx.address!, abi: tx.abi!, functionName: tx.functionName, args: tx.args, value: tx.value, gas: tx.gas });
         },
         refetch,

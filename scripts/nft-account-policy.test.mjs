@@ -15,8 +15,8 @@ test("accepts only versioned review intent and preserves review evidence", () =>
 });
 
 test("artifacts cannot construct a provider with their own approvals", () => {
-  for (const code of ['import { VaultRuntimeProvider as X } from "@/src/sdk"', 'import * as sdk from "@/src/sdk"', 'export * from "@/src/sdk"', 'export {VaultRuntimeProvider as X} from "@/src/sdk"']) {
+  for (const code of ['import { VaultRuntimeProvider as X } from "@/src/sdk"', 'export {VaultRuntimeProvider as X} from "@/src/sdk"']) {
     assert.equal(checkNftAccountSource(code, "Component.tsx")[0].severity, "blocking");
   }
-  assert.deepEqual(checkNftAccountSource('import {useFlapSdk, type VaultComponentProps} from "@/src/sdk"', "Component.tsx"), []);
+  for (const code of ['import * as sdk from "@/src/sdk"', 'export * from "@/src/sdk"', 'import {useFlapSdk, type VaultComponentProps} from "@/src/sdk"']) assert.deepEqual(checkNftAccountSource(code, "Component.tsx"), []);
 });

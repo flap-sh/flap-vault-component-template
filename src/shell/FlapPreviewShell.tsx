@@ -1,5 +1,7 @@
 "use client";
 
+import { VaultRuntimeProvider } from "@/src/sdk/host";
+
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,7 +13,6 @@ import {
   createLocalOracleReader,
   shortenAddress,
   useVaultContext,
-  VaultRuntimeProvider,
 } from "@/src/sdk";
 import type { HostRuntimePolicy, HostRuntimeResult, TokenRuntimeSnapshot } from "@/src/sdk/host";
 import {

@@ -10,7 +10,6 @@ export * from "./nftMetadata";
 export * from "./oracle";
 export * from "./three";
 export * from "./videoSession";
-export { VaultRuntimeProvider } from "./runtime";
 export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
 export { ZERO_ADDRESS, isActionAvailableForPhase, isCustomVaultTaxToken, isValidAddress, readTaxVaultHostContext, resolveTokenMarketPhase } from "./taxInfo";
 export { getTxErrorKind, handleTxError } from "./txError";

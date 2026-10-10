@@ -24,7 +24,7 @@ const transferLog = { address: p.token.address, topics: encodeEventTopics({ abi:
 const syncLog = { address: account, topics: encodeEventTopics({ abi: eventAbi, eventName: "SyncFailed", args: { tokenId: id } }), data: encodeAbiParameters([{ type: "uint256" }, { type: "uint256" }], [1000n, 900n]) };
 
 function fixture() {
-  const state = { chain: 56, owner: holder, balance: 1000n, badCode: "", badRelationship: "", implChanged: false, footerChanged: false, falseReturn: false, status: "success", logs: [transferLog], estimate: 600_000n, sends: 0, refresh: 0, validations: 0, changeOnSimulation: false, burn: false, readAfterFails: false, waitFails: false, walletChanged: false, badStorage: false, malformedReturn: false, sent: undefined as ContractWriteRequest | undefined };
+  const state = { chain: 56, owner: holder, balance: 1000n, badCode: "", badRelationship: "", implChanged: false, footerChanged: false, falseReturn: false, status: "success", logs: [transferLog], estimate: 600_000n, sends: 0, refresh: 0, validations: 0, changeOnSimulation: false, walletChangeOnSimulation: false, burn: false, readAfterFails: false, waitFails: false, walletChanged: false, badStorage: false, malformedReturn: false, sent: undefined as ContractWriteRequest | undefined };
   const client = {
     getChainId: async () => state.chain,
     getBlockNumber: async () => { state.validations++; return 100n; },
@@ -57,6 +57,7 @@ function fixture() {
     estimateContractGas: async () => state.estimate,
     simulateContract: async () => {
       if (state.changeOnSimulation) state.owner = a(99);
+      if (state.walletChangeOnSimulation) state.walletChanged = true;
       return { result: state.malformedReturn ? "0x1234" : encodeAbiParameters([{ type: "bool" }], [!state.falseReturn]) };
     },
     waitForTransactionReceipt: async () => { if (state.waitFails) throw new Error("timeout"); return { status: state.status, blockNumber: 101n, logs: state.logs }; },
@@ -129,6 +130,7 @@ test("rejects changed code, upgraded beacon, spoofed registry/account/owner/foot
     (f: ReturnType<typeof fixture>) => { f.state.footerChanged = true; },
     (f: ReturnType<typeof fixture>) => { f.state.burn = true; },
     (f: ReturnType<typeof fixture>) => { f.state.changeOnSimulation = true; },
+    (f: ReturnType<typeof fixture>) => { f.state.walletChangeOnSimulation = true; },
     (f: ReturnType<typeof fixture>) => { f.state.balance = 99n; },
     (f: ReturnType<typeof fixture>) => { f.state.falseReturn = true; },
     (f: ReturnType<typeof fixture>) => { f.state.estimate = 5_000_000n; },

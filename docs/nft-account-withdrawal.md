@@ -10,7 +10,7 @@ Declare review intent on the applicable factory binding:
 ]
 ```
 
-A declaration never authorizes a transaction. Flap separately supplies `nftAccountWithdrawalPolicies` to its host-owned `VaultRuntimeProvider`. The default is empty. Do not put approval objects into source packages, manifest, runtimeContext.extraConfig, endpoints, or values read from a Vault. Artifact code cannot import/construct the provider or access SDK namespace/default exports.
+A declaration never authorizes a transaction. Flap separately supplies `nftAccountWithdrawalPolicies` to its host-owned `VaultRuntimeProvider`. The default is empty. Do not put approval objects into source packages, manifest, runtimeContext.extraConfig, endpoints, or values read from a Vault. The provider is exported only from the host entrypoint, never the component SDK. Namespace imports remain supported.
 
 Host approval is deployment-specific: artifact identity, chain, factory, token, Vault, NFT, registry, account implementation, actual registry salt, exact deployed code hashes, and both Vault/NFT beacon and implementation pins. A reviewed factory alone is insufficient. The account implementation contains per-deployment immutable NFT/Vault addresses; its runtime hash is not a universal NULL hash. Verify the factory creation event/provenance and audit findings before enrolling the exact deployment. The host artifact registry must also verify the artifact's content hashes. Vault/NFT implementation changes invalidate approval until reviewed again.
 
@@ -28,7 +28,7 @@ const receipt = await sdk.withdrawNftAccount({
 
 The runtime derives the wallet locally using the EIP-6551 reference deployment code and compares registry.account, walletOf, tokenIdOfWallet, account code/footer and immutable back-references. It checks live ownerOf/controllerOf/owner, amount and balance; burned NFTs fail closed. Checks use one block per validation and are repeated after simulation immediately before signing. The wallet and chain are also checked before sending. A chain change, transfer or upgrade can still occur while a wallet confirmation is open; contract ownership checks remain authoritative, and a failed receipt is never shown as success. RPC integrity and the existing Guardian upgrade authority remain trust assumptions. Client validation cannot atomically prevent a Guardian upgrade between simulation and mining.
 
-Only `execute(bag, 0, transfer(connectedHolder, amount), CALL)` is encoded. Generic simulateContract/writeContract reject the execute selector, including ABI aliases. Gas uses estimation plus margin with a 600,000 floor and the existing 5,000,000 ceiling; no global gas ceiling is widened. The simulation rejects an ERC20 false or malformed return, because the reviewed account implementation itself only checks low-level call success.
+Only `execute(bag, 0, transfer(connectedHolder, amount), CALL)` is encoded. Generic simulateContract/writeContract reject the NULL four-argument execute selector, including ABI aliases. Other execution signatures are not covered by that selector guard; target enforcement provides the general boundary. Gas uses estimation plus margin with a 600,000 floor and the existing 5,000,000 ceiling; no global gas ceiling is widened. The simulation rejects an ERC20 false or malformed return, because the reviewed account implementation itself only checks low-level call success.
 
 Handle all outcomes with localized copy:
 
@@ -40,6 +40,8 @@ Handle all outcomes with localized copy:
 | `effect-unconfirmed` | Preserve the hash and show pending/verification needed; inspect receipt and chain state before retrying. No success message. |
 
 The SDK returns the hash, recipient, account, requested amount, and receipt-block account balance when available. It triggers the normal refetch effect; the component must reload shares and recipient balance as well. Disable repeated clicks while awaiting the result. Do not call waitForTx again to reduce the detailed result to a generic success flag.
+
+NULL ids start at 1 (`NullNFT.mint`: `totalMinted + 1`), so tokenId 0 is intentionally rejected. Generic transaction requests must contain cloneable ABI/argument data.
 
 Deposit and sync remain existing permissions: transfer bag tokens to the NFT wallet, then call Vault.sync. These are separate transactions and each receipt must succeed independently. This profile does not add FSI indexing, kick, or a gallery UI.
 

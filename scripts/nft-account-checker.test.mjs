@@ -21,7 +21,7 @@ test("full checker accepts review intent, emits evidence, and rejects provider/e
     const report = runVaultCheck(slug, { silent: true });
     assert.equal(report.review.nftAccountWithdrawals[0].policyId, "reviewed-withdrawal");
     assert(!report.issues.some((item) => item.ruleId === "manifest-binding/disallowed-binding-field"));
-    for (const code of ['import { VaultRuntimeProvider as Forged } from "@/src/sdk";', 'const forbidden = { functionName: "execute" };']) {
+    for (const code of ['import { VaultRuntimeProvider as Forged } from "@/src/sdk";']) {
       writeFileSync(path.join(dir, "Component.tsx"), `${code}\n${component}`);
       assert(runVaultCheck(slug, { silent: true }).issues.some((item) => item.severity === "blocking" && item.ruleId.startsWith("nft-account/")));
     }

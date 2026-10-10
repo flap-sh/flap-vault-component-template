@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 51,
+  "version": 52,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -27,7 +27,7 @@
     "manifestField": "match.bindings[].nftAccountWithdrawals",
     "profile": "null-bag-withdraw-v1",
     "documentation": "docs/nft-account-withdrawal.md",
-    "rule": "Declaration is review intent only. Host must approve deployment-specific pins. Use sdk.withdrawNftAccount({policyId,tokenId,amount}); no recipient, arbitrary target, calldata, native value or delegatecall. Generic execute is blocked."
+    "rule": "Declaration is review intent only. Host must approve deployment-specific pins. Use sdk.withdrawNftAccount({policyId,tokenId,amount}); no recipient, arbitrary target, calldata, native value or delegatecall. The NULL four-argument execute selector is blocked on generic writes; other signatures require target enforcement. Provider is host-only."
   },
   "packageManager": "yarn",
   "miniAppCapabilities": {

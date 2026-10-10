@@ -12,3 +12,7 @@ export * from "./txError";
 export * from "./types";
 
 export type * from "./nftAccountTypes";
+
+// Host-only: never expose this entrypoint through artifact module shims.
+export { VaultRuntimeProvider } from "./runtime";
+export type { RuntimeProviderProps } from "./runtime";
