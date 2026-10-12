@@ -12,6 +12,6 @@ GT 的通用方案使用 factory binding 下的 `resolvedContracts`：声明 Vau
 
 Workbench 完整展示声明并强制进入人工审核；声明本身不是批准。生产宿主必须核对 artifact 的内容哈希、factory 绑定和链上合约来源及升级权限。通用能力不会消除 Vault 升级/RPC 信任，也无法阻止签名窗口或上链前发生的变化；关键权限必须由目标合约执行。
 
-生产默认严格限制原始地址写入。模板及 Workbench 预览用 warn 模式提示旧动态地址路径，检查器输出迁移警告；发布前需改为 handle。旧 SDK 会拒绝加载声明了通用能力的 UI。Provider 仅从 host 入口导出，组件不可导入。现有稳定版 `0.1.35` 尚不支持这个 execute 例外；发版前用同一份私有 canary 验证两个宿主，正式 SDK 发布后再同步精确依赖版本。无需新增 manifest 字段，schema、源包格式及 runtime contract 版本不变。
+生产默认严格限制原始地址写入。模板及 Workbench 预览用 warn 模式提示旧动态地址路径，检查器输出迁移警告；发布前需改为 handle。旧 SDK 会拒绝加载声明了通用能力的 UI。Provider 仅从 host 入口导出，组件不可导入。`0.1.36` 已引入这个经审核的 execute 例外，`0.1.35` 不支持；接收此类 UI 前须同步两个宿主的兼容正式依赖版本。`0.1.37` IPFS 发版保持这一范围。后续运行时修改仍先用同一份私有 canary 验证两个宿主。无需新增 manifest 字段，schema、源包格式及 runtime contract 版本不变。
 
 自动测试覆盖规则、handle、状态变化、检查器及真实 React Provider 接线（链客户端为模拟）。真实项目还需针对实际部署补 fork 验证；当前不批准任何 NULL 部署，也不修改 NULL 合约。
