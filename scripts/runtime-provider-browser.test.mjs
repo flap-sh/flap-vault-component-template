@@ -23,7 +23,7 @@ const client={getChainId:async()=>56,getBlockNumber:async()=>100n,getCode:async(
  simulateContract:async()=>{if(state.changeOnSimulation && ++state.simulations % 2 === 0)state.user=a(8);return{result:1n};}};
 const walletClient={getAddresses:async()=>[state.user],getChainId:async()=>state.chain,writeContract:async()=>{state.sends++;return a(20);}};
 globalThis.env={state,client,walletClient};
-const manifest={artifactId:'test',i18n:['en'],match:{bindings:[{chainId:56,factoryAddress:a(1),resolvedContracts:[{id:'position',label:'nft',resolver:'function poolOf(uint256 id) view returns(address)',allow:['function claim(uint256 amount)'],checks:[{kind:'owner',target:'resolved'}]}]}]}};
+const manifest={artifactId:'test',i18n:['en'],match:{bindings:[{chainId:56,factoryAddress:a(1),resolvedContracts:[{id:'position',label:'nft',resolver:'function poolOf(uint256 id) view returns(address)',allow:['function claim(uint256 amount)','function execute(address,uint256,bytes,uint8) payable returns(bytes)'],checks:[{kind:'owner',target:'resolved'}]}]}]}};
 globalThis.hostManifest=manifest;
 let context={chainId:56,factoryAddress:a(1),vaultAddress:a(2),tokenAddress:a(3),host:{taxInfo:{quoteToken:a(4)}}};
 globalThis.hostContext=context;
@@ -112,8 +112,34 @@ export const useBalance=()=>({data:undefined});`;
  assert.equal(inFlight.previous,inFlight.previousOwner);assert.equal(inFlight.current,inFlight.nextOwner);
  assert.match(inFlight.wrongChain,/chain-changed/);
  const pending=await page.evaluate(async()=>{const p={policyId:'none',tokenId:1n,amount:1n};return Promise.allSettled([sdk.withdrawNftAccount(p),sdk.withdrawNftAccount(p)]).then(r=>r.map(x=>x.reason?.message));});assert.match(pending[0],/policy-not-approved/);assert.match(pending[1],/withdrawal-pending/);
- assert.match(await page.evaluate(()=>testWrite()),/^0x/);assert.equal(await page.evaluate(()=>env.state.sends),1);
- const denied=await page.evaluate(async()=>{env.state.changeOnSimulation=true;try{await testWrite();return 'sent';}catch(e){return e.message;}});assert.match(denied,/wallet-or-chain-changed|ownership-check-failed/);assert.equal(await page.evaluate(()=>env.state.sends),1);
+ const execution=await page.evaluate(async()=>{
+  const abi=[{type:'function',name:'execute',stateMutability:'payable',inputs:[{type:'address'},{type:'uint256'},{type:'bytes'},{type:'uint8'}],outputs:[{type:'bytes'}]}];
+  const handle=await sdk.resolveContract('position',[1n]);
+  const request={contract:handle,abi,functionName:'execute',args:[hostContext.tokenAddress,0n,'0x12345678',0]};
+  const prepared=await sdk.simulateContract(request);
+  const simulated=await sdk.writeContract(prepared.request);
+  const direct=await sdk.writeContract(request);
+  const failures={};
+  const denied=async(key,call)=>{try{await call();failures[key]='allowed';}catch(e){failures[key]=e.message;}};
+  // A component cannot expand the host manifest's reviewed allow list.
+  sdk.context.manifest.match.bindings[0].resolvedContracts[0].allow.push('function execute(address,uint256,bytes)');
+  for(const method of ['simulateContract','writeContract']){
+   await denied(method+'Raw',()=>sdk[method]({...request,contract:undefined,address:hostContext.vaultAddress}));
+   await denied(method+'Forged',()=>sdk[method]({...request,contract:{...handle}}));
+   await denied(method+'Overload',()=>sdk[method]({...request,abi:[{...abi[0],inputs:abi[0].inputs.slice(0,3)}],args:request.args.slice(0,3)}));
+   await denied(method+'Value',()=>sdk[method]({...request,value:1n}));
+  }
+  return {simulated,direct,failures,sends:env.state.sends};
+ });
+ assert.match(execution.simulated,/^0x/);assert.match(execution.direct,/^0x/);assert.equal(execution.sends,2);
+ for(const method of ['simulateContract','writeContract']){
+  assert.match(execution.failures[method+'Raw'],/use-restricted-entry/);
+  assert.match(execution.failures[method+'Forged'],/forged-or-expired-handle/);
+  assert.match(execution.failures[method+'Overload'],/selector-not-allowed/);
+  assert.match(execution.failures[method+'Value'],/value-not-allowed/);
+ }
+ assert.match(await page.evaluate(()=>testWrite()),/^0x/);assert.equal(await page.evaluate(()=>env.state.sends),3);
+ const denied=await page.evaluate(async()=>{env.state.changeOnSimulation=true;try{await testWrite();return 'sent';}catch(e){return e.message;}});assert.match(denied,/wallet-or-chain-changed|ownership-check-failed/);assert.equal(await page.evaluate(()=>env.state.sends),3);
  const isolated=await page.evaluate(()=>{sdk.context.host.taxInfo.quoteToken='0x'+(88).toString(16).padStart(40,'0');return hostContext.host.taxInfo.quoteToken!==sdk.context.host.taxInfo.quoteToken;});assert(isolated,'Component context must not mutate host authorization inputs');
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed: stable SDK/read identity, latest read authorization/client, consistent in-flight client, unavailable/wrong-chain rejection, pending guard, genuine simulated handle, wallet switch before send, isolated host authorization context.');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed: stable SDK/read identity, latest authorization/client, reviewed execute simulation/write, raw/forged/undeclared-overload/value rejection, pending guard, wallet switch before send, isolated host authorization context.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}

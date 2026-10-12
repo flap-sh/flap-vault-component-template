@@ -209,7 +209,7 @@ const INLINE_SVG_LOCAL_REF_RE = /^#[A-Za-z0-9_.:-]+$/;
 const FIX_HINTS = {
   "nft-account/invalid-declaration": "Declare only policyId and the supported profile on a factory binding.",
   "nft-account/host-only-provider": "Use named component-facing SDK APIs; never construct a runtime provider inside an artifact.",
-  "nft-account/use-restricted-entry": "Use sdk.withdrawNftAccount instead of generic execute.",
+  "nft-account/use-restricted-entry": "Use a genuine resolved handle with an explicitly declared, human-reviewed execute signature, or sdk.withdrawNftAccount for restricted NULL withdrawal.",
   "manual-review/nft-account-withdrawal": "Review deployment pins and upgrade authority; declaration does not grant host authorization.",
   "cli/missing-folder-name": "Run yarn vault:check <folder-name> with a registered Vault folder name.",
   "cli/missing-slug": "Run yarn vault:check <slug> with a registered Vault slug.",

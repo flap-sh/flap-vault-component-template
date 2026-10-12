@@ -338,7 +338,9 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       if (!publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
       const contract = input.contract;
       const prepared = contractRuntime.snapshot(input);
-      prepared.request = snapshotGenericContractWrite(prepared.request);
+      // Genuine handles use their reviewed signature policy, including execute.
+      // Raw requests retain the restricted NFT-account selector guard.
+      if (!prepared.record) prepared.request = snapshotGenericContractWrite(prepared.request);
       const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice);
       const checked = await contractRuntime.validate(prepared, true);
       const request = checked.request;
@@ -357,7 +359,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       assertWalletWriteReady(`writing ${input.functionName}`);
       if (!walletClient || !publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
       const prepared = contractRuntime.snapshot(input);
-      prepared.request = snapshotGenericContractWrite(prepared.request);
+      if (!prepared.record) prepared.request = snapshotGenericContractWrite(prepared.request);
       const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice);
       let checked = await contractRuntime.validate(prepared, true);
       if (prepared.record) {

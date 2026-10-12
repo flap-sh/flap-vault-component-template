@@ -544,7 +544,7 @@ See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restr
 
 ## Reviewed dynamic targets
 
-Use [resolvedContracts v1](resolved-contracts.md) for approved factory-owned dynamic modules. Keep NULL withdrawal on its dedicated SDK profile. Use genuine handles from `await sdk.resolveContract`, declare exact allowed signatures and fixed checks, and have the host review the artifact and upgrade authority. Raw derived-write warnings must be resolved before production strict rollout. VaultRuntimeProvider belongs to the host entrypoint only.
+Use [resolvedContracts v1](resolved-contracts.md) for approved factory-owned dynamic modules. Use the dedicated SDK profile for its restricted NULL withdrawal guarantees. A manifest-declared `execute` signature may instead use a genuine reviewed resolved handle; review nested targets/calldata and contract-enforced permissions explicitly. Use genuine handles from `await sdk.resolveContract`, declare exact allowed signatures and fixed checks, and have the host review the artifact and upgrade authority. Raw derived-write warnings must be resolved before production strict rollout. VaultRuntimeProvider belongs to the host entrypoint only.
 
 ### FSI query exception
 

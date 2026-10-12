@@ -30,7 +30,9 @@
     "factoryOnly": true,
     "requiresReviewedArtifact": true,
     "checks": ["owner", "ownerOf", "recipient", "balance"],
-    "forbidNestedCalldataAndApprovals": true,
+    "dynamicBytesAllowedFor": ["execute"],
+    "executeRequiresReviewedHandle": true,
+    "forbidApprovals": true,
     "productionRawTargetPolicy": "strict",
     "providerEntrypoint": "@flapsdk/vault-runtime/host",
     "documentation": "docs/resolved-contracts.md"
@@ -39,7 +41,7 @@
     "manifestField": "match.bindings[].nftAccountWithdrawals",
     "profile": "null-bag-withdraw-v1",
     "documentation": "docs/nft-account-withdrawal.md",
-    "rule": "Declaration is review intent only. Host must approve deployment-specific pins. Use sdk.withdrawNftAccount({policyId,tokenId,amount}); no recipient, arbitrary target, calldata, native value or delegatecall. The NULL four-argument execute selector is blocked on generic writes; other signatures require target enforcement. Provider is host-only."
+    "rule": "Declaration is review intent only. Host must approve deployment-specific pins. Use sdk.withdrawNftAccount({policyId,tokenId,amount}); no recipient, arbitrary target, calldata, native value or delegatecall. The NULL four-argument execute selector is blocked on raw writes; genuine reviewed resolved handles use their exact manifest-declared execute signature. Other raw signatures require target enforcement. Provider is host-only."
   },
   "packageManager": "yarn",
   "miniAppCapabilities": {
@@ -193,7 +195,7 @@
     "metadataWhitelistRule": "If an NFT metadata base URL or another reviewed non-oracle host must be fetched directly, declare that base URL in manifest.endpoints. Internal Oracle hosts should normally stay behind sdk.readOracle(...) and host/runtime provisioning rather than raw URL literals."
   },
   "securityBoundaries": {
-    "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Historical event UI must use sdk.getBlockNumber() plus sdk.getContractEvents(...) with a lookback of at most 20,000 blocks; the runtime owns RPC chunking and concurrency. The reviewed NFT account withdrawal exception must use sdk.withdrawNftAccount and independent host pins; generic execute is blocked. For complex Vault modules, expose UI-facing views and public proxy actions on the Vault contract, then call those methods through context.vaultAddress. Do not interact with routers, bridges, aggregators, dynamic module contracts, or unrelated app contracts from a Vault package, and do not expose operator/admin config methods such as setConfig, setSwapPath, or setSplit in Component.tsx.",
+    "contractInteractionRule": "Contract reads, writes, event watches, log/filter calls, and gas estimates must stay on context.vaultAddress, context.tokenAddress, context.factoryAddress, runtime payment/quote/dividend tokens, token/NFT addresses derived from Vault reads, or fixed addresses declared under match.bindings[].externalContracts. Historical event UI must use sdk.getBlockNumber() plus sdk.getContractEvents(...) with a lookback of at most 20,000 blocks; the runtime owns RPC chunking and concurrency. The reviewed NFT account withdrawal exception must use sdk.withdrawNftAccount and independent host pins; raw NULL execute is blocked; reviewed resolved handles may call an explicitly declared execute signature. For complex Vault modules, expose UI-facing views and public proxy actions on the Vault contract, then call those methods through context.vaultAddress. Do not interact with routers, bridges, aggregators, dynamic module contracts, or unrelated app contracts from a Vault package, and do not expose operator/admin config methods such as setConfig, setSwapPath, or setSplit in Component.tsx.",
     "linkRule": "Hardcoded external navigation is phishing-sensitive. Only chain explorer destinations and approved external-link hosts (currently x.com and its subdomains, HTTPS only) may be raw links directly from component source. Every other external link must go through the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination and runtime-validates the final destination before opening. Endpoints for data fetches are separate and must be declared in manifest.endpoints, not turned into user-facing navigation.",
     "externalFrameBoundaryRule": "ReviewedFrame is the only iframe path and may be used at most once per Vault UI. External frames are display-only review candidates and must not connect wallets, drive quotes, route trades, influence risk/settlement, receive postMessage data, or replace SDK/on-chain/oracle reads.",
     "canvasRule": "Canvas is allowed only as a component-scoped business visualization inside the Vault body. Use a React ref with local or SDK/host-derived data, keep required host risk status before large canvas visuals, and do not turn the package into a free-form whiteboard/editor or rely on browser-global DOM queries, workers, direct browser network/media APIs, or external assets.",
@@ -246,7 +248,7 @@
     "risk-status/manual-low-risk-label": "Default Vault UI component renders Low risk / 低风险 copy without selecting it from host riskLevel === 1. Remove the manual label or map the host-derived risk level explicitly."
   },
   "errorCodes": {
-    "nft-account/use-restricted-entry": { "severity": "blocking", "fixAction": "Use the reviewed withdrawNftAccount API instead of generic execute." },
+    "nft-account/use-restricted-entry": { "severity": "warning", "fixAction": "Use a genuine resolved handle with an explicitly declared, human-reviewed execute signature, or withdrawNftAccount for restricted NULL withdrawal." },
     "nft-account/invalid-declaration": {"severity": "blocking", "fixAction": "Declare only policyId and null-bag-withdraw-v1 on a factory binding."},
     "nft-account/host-only-provider": {"severity": "blocking", "fixAction": "Use named component-facing SDK APIs. Do not import VaultRuntimeProvider or namespace/default SDK exports."},
     "manual-review/nft-account-withdrawal": {"severity": "warning", "fixAction": "Review deployment pins and holder-only withdrawal; declaration does not grant permission."},
