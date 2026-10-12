@@ -7,14 +7,17 @@ import os from "node:os";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 const ROOT=process.cwd();
+const packaged=process.argv.includes('--package');
+const providerEntrypoint=packaged?'./dist/vault-runtime/host-client.js':'./src/sdk/runtime';
+const sdkEntrypoint=packaged?'./dist/vault-runtime/sdk.js':'./src/sdk/runtimeStore';
 const { build }=createRequire(import.meta.resolve("tsup"))("esbuild");
 const tmp=await mkdtemp(path.join(os.tmpdir(),"flap-runtime-provider-"));
 let server,browser;
 try {
  const entry=`import * as React from "react";
 import {createRoot} from "react-dom/client";
-import {VaultRuntimeProvider} from "./src/sdk/runtime";
-import {useFlapSdk} from "./src/sdk/runtimeStore";
+import {VaultRuntimeProvider} from "${providerEntrypoint}";
+import {useFlapSdk} from "${sdkEntrypoint}";
 import {encodeFunctionResult,parseAbi} from "viem";
 const a=(i)=>'0x'+i.toString(16).padStart(40,'0');
 const state={user:a(9),chain:56,sends:0,changeOnSimulation:false,simulations:0,target:a(5)};
@@ -141,5 +144,5 @@ export const useBalance=()=>({data:undefined});`;
  assert.match(await page.evaluate(()=>testWrite()),/^0x/);assert.equal(await page.evaluate(()=>env.state.sends),3);
  const denied=await page.evaluate(async()=>{env.state.changeOnSimulation=true;try{await testWrite();return 'sent';}catch(e){return e.message;}});assert.match(denied,/wallet-or-chain-changed|ownership-check-failed/);assert.equal(await page.evaluate(()=>env.state.sends),3);
  const isolated=await page.evaluate(()=>{sdk.context.host.taxInfo.quoteToken='0x'+(88).toString(16).padStart(40,'0');return hostContext.host.taxInfo.quoteToken!==sdk.context.host.taxInfo.quoteToken;});assert(isolated,'Component context must not mutate host authorization inputs');
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed: stable SDK/read identity, latest authorization/client, reviewed execute simulation/write, raw/forged/undeclared-overload/value rejection, pending guard, wallet switch before send, isolated host authorization context.');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'): stable SDK/read identity, latest authorization/client, reviewed execute simulation/write, raw/forged/undeclared-overload/value rejection, pending guard, wallet switch before send, isolated host authorization context.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}
