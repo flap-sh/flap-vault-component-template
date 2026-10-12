@@ -35,7 +35,7 @@ export function checkNftAccountSource(content, file) {
       if (unsafe) issues.push({ severity: "blocking", ruleId: "nft-account/host-only-provider", message: "Import named component-facing SDK APIs only. VaultRuntimeProvider is host-only and cannot expose host authorization and are not allowed in Vault source.", file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
     }
     if (ts.isPropertyAssignment(node) && node.name.getText(source).replace(/["']/g, "") === "functionName" && ts.isStringLiteral(node.initializer) && node.initializer.text === "execute") {
-      issues.push({ severity: "warning", ruleId: "nft-account/use-restricted-entry", message: "Do not construct generic execute requests in Vault source. Use sdk.withdrawNftAccount with a declared and host-approved policy.", file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
+      issues.push({ severity: "warning", ruleId: "nft-account/use-restricted-entry", message: "execute requires a genuine sdk.resolveContract handle with an exact signature declared in the human-reviewed manifest. Raw NULL execute remains blocked; use sdk.withdrawNftAccount for its restricted, host-approved withdrawal profile.", file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
     }
     ts.forEachChild(node, visit);
   }

@@ -4,7 +4,7 @@
 
 manifest 声明仅是审核申请，宿主独立配置部署及字节码锁定信息；默认没有授权。VaultRuntimeProvider 仅从宿主入口导出，组件的命名空间导入保持兼容。
 
-通用入口的旧 selector 检查只覆盖 NULL 的四参数 execute；其他调用的边界由运行时目标校验负责，不能把函数名检查当作安全保证。通用请求参数须为可复制的 ABI 数据。
+原始地址请求的 selector 检查只覆盖 NULL 的四参数 execute；真实、经过人工审核的 resolved handle 可调用 manifest 明确声明的 execute，见[通用例外](resolved-contracts.md#reviewed-execute-exception)。这条路径不提供专用提币接口的部署锁定或资金结果验证。其他原始地址调用的边界由运行时目标校验负责，不能把函数名检查当作安全保证。通用请求参数须为可复制的 ABI 数据。
 
 提币结果分别是 withdrawn、withdrawn-sync-required、reverted、effect-unconfirmed。同步失败时不要再次提币；保留交易哈希，提供 Vault.sync。未确认资金转出时不得提示成功。
 

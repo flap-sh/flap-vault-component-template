@@ -7,14 +7,17 @@ import os from "node:os";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 const ROOT=process.cwd();
+const packaged=process.argv.includes('--package');
+const providerEntrypoint=packaged?'./dist/vault-runtime/host-client.js':'./src/sdk/runtime';
+const sdkEntrypoint=packaged?'./dist/vault-runtime/sdk.js':'./src/sdk/runtimeStore';
 const { build }=createRequire(import.meta.resolve("tsup"))("esbuild");
 const tmp=await mkdtemp(path.join(os.tmpdir(),"flap-runtime-provider-"));
 let server,browser;
 try {
  const entry=`import * as React from "react";
 import {createRoot} from "react-dom/client";
-import {VaultRuntimeProvider} from "./src/sdk/runtime";
-import {useFlapSdk} from "./src/sdk/runtimeStore";
+import {VaultRuntimeProvider} from "${providerEntrypoint}";
+import {useFlapSdk} from "${sdkEntrypoint}";
 import {encodeFunctionResult,parseAbi} from "viem";
 const a=(i)=>'0x'+i.toString(16).padStart(40,'0');
 const state={user:a(9),chain:56,sends:0,changeOnSimulation:false,simulations:0,target:a(5)};
@@ -23,7 +26,8 @@ const client={getChainId:async()=>56,getBlockNumber:async()=>100n,getCode:async(
  simulateContract:async()=>{if(state.changeOnSimulation && ++state.simulations % 2 === 0)state.user=a(8);return{result:1n};}};
 const walletClient={getAddresses:async()=>[state.user],getChainId:async()=>state.chain,writeContract:async()=>{state.sends++;return a(20);}};
 globalThis.env={state,client,walletClient};
-const manifest={artifactId:'test',i18n:['en'],match:{bindings:[{chainId:56,factoryAddress:a(1),resolvedContracts:[{id:'position',label:'nft',resolver:'function poolOf(uint256 id) view returns(address)',allow:['function claim(uint256 amount)'],checks:[{kind:'owner',target:'resolved'}]}]}]}};
+const manifest={artifactId:'test',i18n:['en'],match:{bindings:[{chainId:56,factoryAddress:a(1),resolvedContracts:[{id:'position',label:'nft',resolver:'function poolOf(uint256 id) view returns(address)',allow:['function claim(uint256 amount)','function execute(address,uint256,bytes,uint8) payable returns(bytes)'],checks:[{kind:'owner',target:'resolved'}]}]}]}};
+globalThis.hostManifest=manifest;
 let context={chainId:56,factoryAddress:a(1),vaultAddress:a(2),tokenAddress:a(3),host:{taxInfo:{quoteToken:a(4)}}};
 globalThis.hostContext=context;
 const i18n={en:{}};
@@ -48,6 +52,31 @@ export const useBalance=()=>({data:undefined});`;
  browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>globalThis.sdk);
  const identity=await page.evaluate(async()=>{const first=sdk;sdk.notify.info('test');await new Promise(r=>setTimeout(r,30));return sdk===first;});assert(identity,'Provider notification must not rebuild SDK when default policies are absent');
+ // FSI authorization comes from the host manifest, never the component's copy.
+ let fsiRequests=0;
+ await page.route('https://bsc-debug.butterfly.army/fsi/v1/**', route=>{fsiRequests++;return route.fulfill({json:{items:[],nextCursor:'a/b+c=='}});});
+ const fsi=await page.evaluate(async()=>{
+  const saved=sdk.readFsi;
+  sdk.context.manifest.endpoints='https://bsc-debug.butterfly.army/fsi/v1';
+  let forged;try{await saved('by-key/account',{templateId:'G'});forged='allowed';}catch(e){forged=e.message;}
+  hostManifest.endpoints='https://bsc-debug.butterfly.army/fsi/v1';
+  await rerenderProvider({...hostContext});
+  const rejectedPaths=[];
+  for(const path of ['vault/%2e%2e/other/G','vault/.%2e/other/G','vault/%2E/G','%2e%2e/v1/other/G','vault/%2fG']){
+   try{await saved(path);rejectedPaths.push('allowed');}catch(e){rejectedPaths.push(e.message);}
+  }
+  const result=await saved('by-key/account',{templateId:'G',cursor:'a/b+c=='});
+  delete hostManifest.endpoints;
+  await rerenderProvider({...hostContext});
+  let revoked;try{await saved('by-key/account');revoked='allowed';}catch(e){revoked=e.message;}
+  return {stable:saved===sdk.readFsi,forged,revoked,result,rejectedPaths};
+ });
+ assert(fsi.stable,'FSI callback must remain stable across host updates');
+ assert.match(fsi.forged,/manifest.endpoints/);
+ assert.match(fsi.revoked,/manifest.endpoints/);
+ assert.deepEqual(fsi.result,{items:[],nextCursor:'a/b+c=='});
+ fsi.rejectedPaths.forEach(message=>assert.match(message,/FSI path traversal/));
+ assert.equal(fsiRequests,1,'Rejected FSI paths must never reach the network');
  // Retained read callbacks must use the latest authorization context and RPC client.
  const readStability=await page.evaluate(async()=>{
   const first=sdk.readContract;globalThis.savedRead=first;
@@ -93,8 +122,34 @@ export const useBalance=()=>({data:undefined});`;
  assert.equal(inFlight.previous,inFlight.previousOwner);assert.equal(inFlight.current,inFlight.nextOwner);
  assert.match(inFlight.wrongChain,/chain-changed/);
  const pending=await page.evaluate(async()=>{const p={policyId:'none',tokenId:1n,amount:1n};return Promise.allSettled([sdk.withdrawNftAccount(p),sdk.withdrawNftAccount(p)]).then(r=>r.map(x=>x.reason?.message));});assert.match(pending[0],/policy-not-approved/);assert.match(pending[1],/withdrawal-pending/);
- assert.match(await page.evaluate(()=>testWrite()),/^0x/);assert.equal(await page.evaluate(()=>env.state.sends),1);
- const denied=await page.evaluate(async()=>{env.state.changeOnSimulation=true;try{await testWrite();return 'sent';}catch(e){return e.message;}});assert.match(denied,/wallet-or-chain-changed|ownership-check-failed/);assert.equal(await page.evaluate(()=>env.state.sends),1);
+ const execution=await page.evaluate(async()=>{
+  const abi=[{type:'function',name:'execute',stateMutability:'payable',inputs:[{type:'address'},{type:'uint256'},{type:'bytes'},{type:'uint8'}],outputs:[{type:'bytes'}]}];
+  const handle=await sdk.resolveContract('position',[1n]);
+  const request={contract:handle,abi,functionName:'execute',args:[hostContext.tokenAddress,0n,'0x12345678',0]};
+  const prepared=await sdk.simulateContract(request);
+  const simulated=await sdk.writeContract(prepared.request);
+  const direct=await sdk.writeContract(request);
+  const failures={};
+  const denied=async(key,call)=>{try{await call();failures[key]='allowed';}catch(e){failures[key]=e.message;}};
+  // A component cannot expand the host manifest's reviewed allow list.
+  sdk.context.manifest.match.bindings[0].resolvedContracts[0].allow.push('function execute(address,uint256,bytes)');
+  for(const method of ['simulateContract','writeContract']){
+   await denied(method+'Raw',()=>sdk[method]({...request,contract:undefined,address:hostContext.vaultAddress}));
+   await denied(method+'Forged',()=>sdk[method]({...request,contract:{...handle}}));
+   await denied(method+'Overload',()=>sdk[method]({...request,abi:[{...abi[0],inputs:abi[0].inputs.slice(0,3)}],args:request.args.slice(0,3)}));
+   await denied(method+'Value',()=>sdk[method]({...request,value:1n}));
+  }
+  return {simulated,direct,failures,sends:env.state.sends};
+ });
+ assert.match(execution.simulated,/^0x/);assert.match(execution.direct,/^0x/);assert.equal(execution.sends,2);
+ for(const method of ['simulateContract','writeContract']){
+  assert.match(execution.failures[method+'Raw'],/use-restricted-entry/);
+  assert.match(execution.failures[method+'Forged'],/forged-or-expired-handle/);
+  assert.match(execution.failures[method+'Overload'],/selector-not-allowed/);
+  assert.match(execution.failures[method+'Value'],/value-not-allowed/);
+ }
+ assert.match(await page.evaluate(()=>testWrite()),/^0x/);assert.equal(await page.evaluate(()=>env.state.sends),3);
+ const denied=await page.evaluate(async()=>{env.state.changeOnSimulation=true;try{await testWrite();return 'sent';}catch(e){return e.message;}});assert.match(denied,/wallet-or-chain-changed|ownership-check-failed/);assert.equal(await page.evaluate(()=>env.state.sends),3);
  const isolated=await page.evaluate(()=>{sdk.context.host.taxInfo.quoteToken='0x'+(88).toString(16).padStart(40,'0');return hostContext.host.taxInfo.quoteToken!==sdk.context.host.taxInfo.quoteToken;});assert(isolated,'Component context must not mutate host authorization inputs');
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed: stable SDK/read identity, latest read authorization/client, consistent in-flight client, unavailable/wrong-chain rejection, pending guard, genuine simulated handle, wallet switch before send, isolated host authorization context.');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'): stable SDK/read identity, latest authorization/client, reviewed execute simulation/write, raw/forged/undeclared-overload/value rejection, pending guard, wallet switch before send, isolated host authorization context.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}

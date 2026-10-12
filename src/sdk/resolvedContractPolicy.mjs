@@ -1,8 +1,9 @@
 import { parseAbi, toFunctionSelector } from "viem";
 
 const forbiddenName = /^(?:execute(?:Call|Batch)?|multicall|delegatecall|approve|increaseAllowance|decreaseAllowance|setApprovalForAll|transferOwnership|acceptOwnership|upgradeTo.*|setConfig|setSwapPath|setSplit)$/i;
-const forbiddenSignatures = ["execute(address,uint256,bytes,uint8)", "execute(address,uint256,bytes)", "executeCall(address,uint256,bytes)", "approve(address,uint256)", "setApprovalForAll(address,bool)", "transferOwnership(address)", "upgradeTo(address)", "upgradeToAndCall(address,bytes)"];
+const forbiddenSignatures = ["executeCall(address,uint256,bytes)", "approve(address,uint256)", "setApprovalForAll(address,bool)", "transferOwnership(address)", "upgradeTo(address)", "upgradeToAndCall(address,bytes)"];
 const forbiddenSelectors = new Set(forbiddenSignatures.map(toFunctionSelector));
+const executeSelectors = new Set(["execute(address,uint256,bytes,uint8)", "execute(address,uint256,bytes)"].map(toFunctionSelector));
 const hash = /^0x[0-9a-fA-F]{64}$/;
 const index = (x) => Number.isInteger(x) && x >= 0 && x < 32;
 function requireRule(ok, reason) { if (!ok) throw new Error(`resolved-contract/${reason}`); }
@@ -27,7 +28,10 @@ export function parseResolvedContract(input) {
   const seen = new Set();
   for (const f of writes) {
     const selector = toFunctionSelector(f);
-    requireRule(!["view", "pure"].includes(f.stateMutability) && !forbiddenName.test(f.name) && !forbiddenSelectors.has(selector) && !f.inputs.some(hasDynamicBytes), "forbidden-write");
+    // Only an explicitly declared execute signature may carry nested calldata.
+    // Its semantics and arguments must be reviewed with the artifact by the host.
+    const reviewedExecute = f.name === "execute";
+    requireRule(!["view", "pure"].includes(f.stateMutability) && (reviewedExecute || !forbiddenName.test(f.name)) && !forbiddenSelectors.has(selector) && (reviewedExecute || (!executeSelectors.has(selector) && !f.inputs.some(hasDynamicBytes))), "forbidden-write");
     requireRule(!seen.has(selector), "duplicate-selector"); seen.add(selector);
   }
   const reads = definition.read === undefined || definition.read === "any" ? "any" : definition.read;
