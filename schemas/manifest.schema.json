@@ -237,7 +237,7 @@
       "description": "Optional internal-review layout request. Omit for the standard 768px Vault body. Use fullscreen only when Flap has explicitly asked for a full-screen Vault body; it enters additional review and production host constraints are applied by flap.sh."
     },
     "endpoints": {
-      "description": "Optional non-oracle external endpoint declarations. Use a single HTTPS URL string or an array of HTTPS URL strings for fast review/checker allowlisting. The reviewed https://bsc-debug.butterfly.army/fsi/v1 prefix allows dynamic query values; dynamic paths use sdk.readFsi.",
+      "description": "Optional non-oracle external endpoint declarations. Use a single HTTPS URL string or an array of HTTPS URL strings for fast review/checker allowlisting.",
       "oneOf": [
         { "$ref": "#/$defs/httpsUrl" },
         {
