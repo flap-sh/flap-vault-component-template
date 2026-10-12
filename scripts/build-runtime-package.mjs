@@ -119,7 +119,7 @@ async function main() {
 
   const runtimeContract = {
     runtimeContractVersion: 1,
-    sdkFeatures: { nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1 },
+    sdkFeatures: { nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],

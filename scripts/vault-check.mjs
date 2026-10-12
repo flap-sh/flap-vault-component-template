@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
 import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
+import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -183,8 +184,6 @@ const WARNING = "warning";
 const INFO = "info";
 const TYPE_BINDING_KEYS = new Set(["vault" + "Type", "vault" + "Types"]);
 const UNSAFE_RESOURCE_SCHEMES = ["ipfs://", "ar://", "data:", "javascript:"];
-const IPFS_IMAGE_CID_RE = /^(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/;
-const IPFS_IMAGE_PATH_SEGMENT_RE = /^[A-Za-z0-9._~-]+$/;
 const ALLOWED_INLINE_SVG_TAGS = new Set([
   "svg",
   "g",
@@ -324,8 +323,8 @@ const FIX_HINTS = {
   "media/mini-app-audio-too-large": `Keep each Vault UI and Mini App audio file at or below ${Math.round(MINI_APP_AUDIO_MAX_BYTES / 1024 / 1024)} MiB and total Vault UI and Mini App audio at or below ${Math.round(MINI_APP_AUDIO_TOTAL_MAX_BYTES / 1024 / 1024)} MiB.`,
   "manual-review/mini-app-audio-asset": "Vault UI and Mini App audio files require Flap human review for source/license, play timing, visible mute/pause control, fallback, and mobile impact before publish.",
   "media-policy/remote-media": "Remove remote media URLs. Use host-provided token media, controlled IpfsImage cid/path for immutable Vault/NFT images, or CID-only IpfsBackground.",
-  "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
-  "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
+  "media-policy/invalid-ipfs-image-cid": "Pass a bare file/directory CID to IpfsImage or IpfsText. Dynamic CIDs are runtime-validated; IpfsBackground remains static. URLs and ipfs:// values are blocked.",
+  "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic paths under static image CIDs require a static validationPath sample. Dynamic CID/path pairs are runtime-validated.",
   "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with tokenId and alt plus safe image presentation props. It consumes the shared SDK context internally; do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
   "media-policy/invalid-binance-image": "Import BinanceImage from @/src/ui and pass src plus localized alt without spread props, srcSet, referrerPolicy, loading, or decoding overrides. Static URLs must use HTTPS on the exact bin.bnbstatic.com host; any pathname is allowed.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
@@ -1547,40 +1546,6 @@ function staticJsxStringAttribute(tag, attributeName) {
   const match = attrRegex.exec(tag);
   if (!match) return undefined;
   return match[1] ?? match[2] ?? match[4] ?? null;
-}
-
-function collectIpfsImageCidUsages(content, file) {
-  const usages = [];
-  const tagRegex = /<(IpfsImage|IpfsBackground)\b[^>]*>/g;
-  for (const tagMatch of content.matchAll(tagRegex)) {
-    const tag = tagMatch[0];
-    const index = tagMatch.index ?? 0;
-    const cid = staticJsxStringAttribute(tag, "cid");
-    const hasPath = /\bpath\s*=/.test(tag);
-    const hasValidationPath = /\bvalidationPath\s*=/.test(tag);
-    const staticPath = staticJsxStringAttribute(tag, "path");
-    const staticValidationPath = staticJsxStringAttribute(tag, "validationPath");
-    usages.push({
-      component: tagMatch[1],
-      cid: cid ? cid.trim() : cid,
-      path: hasPath ? (typeof staticPath === "string" ? staticPath.trim() : null) : undefined,
-      validationPath: hasValidationPath ? (typeof staticValidationPath === "string" ? staticValidationPath.trim() : null) : undefined,
-      file,
-      line: lineForIndex(content, index),
-    });
-  }
-  return usages;
-}
-
-function isValidIpfsImageCid(cid) {
-  return typeof cid === "string" && IPFS_IMAGE_CID_RE.test(cid);
-}
-
-function isValidIpfsImagePath(imagePath) {
-  if (typeof imagePath !== "string" || !imagePath || imagePath.length > 512 || imagePath.startsWith("/") || imagePath.endsWith("/")) return false;
-  return imagePath
-    .split("/")
-    .every((segment) => segment && segment !== "." && segment !== ".." && IPFS_IMAGE_PATH_SEGMENT_RE.test(segment));
 }
 
 function collectNftMetadataImageUsageIssues(content, file) {
@@ -4298,40 +4263,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...collectDynamicImportIssues(content, rel));
     issues.push(...collectReviewedFrameIssues(scanContent, rel, declaredFrames));
     const staticImgSrcUrls = collectStaticImgSrcUrls(scanContent, rel);
-    const ipfsImageCidUsages = collectIpfsImageCidUsages(scanContent, rel);
-    for (const usage of ipfsImageCidUsages) {
-      if (!isValidIpfsImageCid(usage.cid)) {
-        issues.push(
-          issue(
-            BLOCKING,
-            "media-policy/invalid-ipfs-image-cid",
-            "IpfsImage/IpfsBackground must receive a static image/directory CID. URLs, ipfs:// values, metadata CIDs, and dynamic CID expressions are not allowed.",
-            usage,
-          ),
-        );
-      }
-      const hasDynamicPath = usage.path === null;
-      const hasAnyPath = usage.path !== undefined;
-      const hasAnyValidationPath = usage.validationPath !== undefined;
-      const pathIsInvalid = typeof usage.path === "string" && !isValidIpfsImagePath(usage.path);
-      const validationPathIsInvalid = hasAnyValidationPath && !isValidIpfsImagePath(usage.validationPath);
-      const invalidPathContract =
-        (usage.component !== "IpfsImage" && (hasAnyPath || hasAnyValidationPath)) ||
-        pathIsInvalid ||
-        validationPathIsInvalid ||
-        (hasDynamicPath && !hasAnyValidationPath) ||
-        (!hasDynamicPath && hasAnyValidationPath);
-      if (invalidPathContract) {
-        issues.push(
-          issue(
-            BLOCKING,
-            "media-policy/invalid-ipfs-image-path",
-            "IpfsImage path must be a safe relative path. A dynamic path requires one static validationPath sample; static or missing paths must not declare validationPath. IpfsBackground does not support dynamic paths.",
-            usage,
-          ),
-        );
-      }
-    }
+    issues.push(...collectIpfsContentIssues(scanContent, rel).map((item) => issue(item.severity, item.ruleId, item.message, item)));
     issues.push(...collectNftMetadataImageUsageIssues(scanContent, rel));
     issues.push(...binanceImageAnalysis.issues);
     const requireRegex = /\brequire\s*\(/g;

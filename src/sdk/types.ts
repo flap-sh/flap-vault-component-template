@@ -475,6 +475,8 @@ export interface FlapVaultSdk {
   readOracle<T = unknown>(oracleId: string, params?: Record<string, string>): Promise<T>;
   /** GET JSON under the reviewed FSI /fsi/v1 prefix; path is relative, query values are strings. */
   readFsi<T = unknown>(path: string, params?: Record<string, string>): Promise<T>;
+  /** Reads at most 256 KiB of UTF-8 text/JSON from platform-owned IPFS gateways. CID and path may be dynamic. */
+  readIpfsText(cid: string, path?: string): Promise<string>;
   readNftMetadata(request: NftMetadataReadRequest): Promise<NftMetadataSnapshot>;
   /** Uploads PNG/JPEG/GIF/WebP (up to 3 MiB) and returns the file CID. */
   uploadImage(file: Blob, options?: MediaUploadOptions): Promise<IpfsUploadResult>;

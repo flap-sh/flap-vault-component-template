@@ -255,7 +255,7 @@ The CID must be an image CID or an uploaded collection-directory CID, not a meta
 />
 ```
 
-`validationPath` is required only when `path` is dynamic; it names one real representative image that `vault:check` probes before packaging. Static `path="nfts/1.png"` is probed directly and must not include `validationPath`. Paths are limited to relative alphanumeric/`.`/`_`/`-`/`~` segments with `/` separators; traversal, query strings, hashes, schemes, encoded escapes, leading/trailing slashes, and empty segments resolve to no image. `IpfsBackground` remains CID-only.
+`validationPath` is required only when `cid` is static and `path` is dynamic; it names a representative image below a static CID; `vault:check` validates syntax without network probes. Static `path="nfts/1.png"` is validated directly and must not include `validationPath`. Paths are limited to relative alphanumeric/`.`/`_`/`-`/`~` segments with `/` separators; traversal, query strings, hashes, schemes, encoded escapes, leading/trailing slashes, and empty segments resolve to no image. `IpfsBackground` remains CID-only.
 
 ### Vault V2 NFT metadata
 
@@ -271,7 +271,7 @@ The component consumes `useFlapSdk()` internally and calls `sdk.readNftMetadata(
 
 Do not add `nft()` or `tokenURI()` to project `VaultABI.ts` only for media, call `Vault.tokenURIFor`, inspect `tokenURIBase`, or concatenate `tokenId + ".json"` in UI source. Do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, CID/path, or spread props to `NftMetadataImage`. The runtime caches the Vault NFT address and each `chainId + vaultAddress + tokenId` result per refetch generation, and limits metadata work to six concurrent items; collection UIs must still paginate or mount only their visible token ids.
 
-If an image must be pinned through Flap instead of a personal Pinata gateway, use the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) outside the Vault package. The `https://funcs.flap.sh/api/upload` `create(file, meta)` response `data.create` is the metadata CID used for Portal launch `meta`; read that metadata JSON and extract the `image` field before using `IpfsImage` or `IpfsBackground`. Strip any gateway URL or `ipfs://` prefix before using the value. Do not pass `imageUrl`, a full gateway URL, a CSS `url(...)`, or a dynamic CID. `vault:check` validates the CID/path contract statically without per-image gateway availability probes.
+If an image must be pinned through Flap instead of a personal Pinata gateway, use the Flap token metadata upload API from [Launch token through Portal](https://docs.flap.sh/flap/developers/token-launcher-developers/launch-token-through-portal#id-1-prepare-token-metadata) outside the Vault package. The `https://funcs.flap.sh/api/upload` `create(file, meta)` response `data.create` is the metadata CID used for Portal launch `meta`; read that metadata JSON and extract the `image` field before using `IpfsImage` or `IpfsBackground`. Strip any gateway URL or `ipfs://` prefix before using the value. Do not pass `imageUrl`, a full gateway URL or a CSS `url(...)`; dynamic image CIDs use controlled `IpfsImage` and require review. `vault:check` validates the CID/path contract statically without per-image gateway availability probes.
 
 ## Taxinfo Host Context
 
@@ -438,3 +438,12 @@ Every raw FSI fetch, including a static URL, must use that literal options objec
 For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain blocked. Both paths require GET, omitted credentials/referrer and rejected redirects. `sdk.readFsi` also reports non-success HTTP responses as errors. Raw and encoded dot segments, encoded separators/double encoding and control characters are rejected before URL normalization, even when normalization would stay within the FSI prefix. Query values may contain these characters because they are encoded separately. FSI is an off-chain display cache; funds and settlement decisions must read on-chain state. The current allowlisted deployment determines the chain; a different chain or domain needs a separately reviewed platform allowlist change.
 
 Roll out the SDK runtime containing `sdk.readFsi` to Workbench and Flap hosts before accepting components that call it. Existing `@flapsdk/vault-runtime@0.1.35` hosts do not implement this method. Feature-branch verification uses a private canary package; this change does not publish a stable npm release or alter consumer dependency pins.
+
+### Controlled dynamic IPFS content
+
+`IpfsImage` accepts static or dynamic bare image/directory CIDs. Use
+`sdk.readIpfsText(cid, path?)` for UTF-8 text or JSON and `IpfsText cid={cid}` for
+escaped plain-text display. Dynamic CID sources and text reads require human
+review. Runtime owns gateways and validates every CID/path; raw URLs, caller
+gateways and HTML injection remain blocked. `IpfsBackground` stays static
+CID-only. See [dynamic IPFS content](ipfs-content.md).

@@ -29,6 +29,7 @@ import type {
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
 import { readFsiJson } from "./fsi";
+import { createIpfsTextReader } from "./ipfsText";
 import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
 import { RuntimeContext } from "./runtimeStore";
 import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
@@ -412,6 +413,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
   );
 
   const fsiEndpointsRef = useRef(runtimeContext.manifest.endpoints);
+  const readIpfsText = useMemo(() => createIpfsTextReader(), []);
   fsiEndpointsRef.current = runtimeContext.manifest.endpoints;
   const readFsi = useCallback(
     <T,>(path: string, params?: Record<string, string>) => readFsiJson<T>(fsiEndpointsRef.current, path, params),
@@ -552,6 +554,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       withdrawNftAccount,
       readOracle,
       readFsi,
+      readIpfsText,
       readNftMetadata,
       uploadImage,
       uploadText,
@@ -559,7 +562,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
+    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, readIpfsText, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
   );
 
   return (
