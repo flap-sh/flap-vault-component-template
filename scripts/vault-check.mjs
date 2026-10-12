@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
-import { dynamicFsiQueryPrefix, collectFsiReadIssues } from "./fsi-endpoint-policy.mjs";
+import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -273,7 +273,7 @@ const FIX_HINTS = {
   "endpoint-policy/no-credentials": "Remove username/password credentials from endpoint URLs. Workbench endpoint declarations must be bearerless HTTPS URLs.",
   "endpoint-policy/undeclared-url": "Remove the URL. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets; use approved runtime media, ExternalLink, or a reviewed externalFrame for other URL uses.",
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
-  "endpoint-policy/direct-fetch": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints.",
+  "endpoint-policy/direct-fetch": "Use sdk.readFsi for FSI requests, or use a fixed FSI fetch URL with encoded query values and literal GET/omit/error/no-referrer options. Other fetch targets must be static absolute HTTPS URLs declared in manifest.endpoints without credentials.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
   "manual-review/external-contract": "Fixed extra contract targets are review candidates only. Confirm the address, role, write/approval/value exposure, and deployment provenance before publish.",
   "manual-review/external-link": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it.",
@@ -1509,8 +1509,12 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
         const dynamicQueryPrefix = dynamicFsiQueryPrefix(target, ts, declaredFetchUrls, isDeclaredUrl);
         const staticTarget = (target ? tsStaticStringValue(target) : null) ?? dynamicQueryPrefix;
         const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
+        const fsiSafetyIssue = isFsiFetchTarget(parsedTarget)
+          ? fsiFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, (callee) => !resolveVisibleLexicalBinding(callee, sourceFile, bindings))
+          : null;
         const allowed = Boolean(
           isGlobalFetch &&
+            !fsiSafetyIssue &&
             staticTarget &&
             parsedTarget &&
             parsedTarget.protocol === "https:" &&
@@ -1523,6 +1527,7 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
           isGlobalFetch,
           staticTarget,
           dynamicQuery: Boolean(dynamicQueryPrefix),
+          fsiSafetyIssue,
           targetExpression: target?.getText(sourceFile),
           parsedTarget,
           file,
@@ -4401,7 +4406,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "endpoint-policy/direct-fetch",
-            "fetch() requires a declared static HTTPS URL, or query-only interpolation on the platform FSI allowlist. Use sdk.readFsi for dynamic FSI paths.",
+            usage.fsiSafetyIssue ?? "fetch() requires a declared static HTTPS URL, or encoded query-value interpolation on the platform FSI allowlist with explicit safe request options. Use sdk.readFsi for dynamic FSI paths.",
             { file: rel, line: usage.line },
           ),
         );

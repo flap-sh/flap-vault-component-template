@@ -53,23 +53,30 @@ export const useBalance=()=>({data:undefined});`;
  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>globalThis.sdk);
  const identity=await page.evaluate(async()=>{const first=sdk;sdk.notify.info('test');await new Promise(r=>setTimeout(r,30));return sdk===first;});assert(identity,'Provider notification must not rebuild SDK when default policies are absent');
  // FSI authorization comes from the host manifest, never the component's copy.
- await page.route('https://bsc-debug.butterfly.army/fsi/v1/**', route=>route.fulfill({json:{items:[],nextCursor:'a/b+c=='}}));
+ let fsiRequests=0;
+ await page.route('https://bsc-debug.butterfly.army/fsi/v1/**', route=>{fsiRequests++;return route.fulfill({json:{items:[],nextCursor:'a/b+c=='}});});
  const fsi=await page.evaluate(async()=>{
   const saved=sdk.readFsi;
   sdk.context.manifest.endpoints='https://bsc-debug.butterfly.army/fsi/v1';
   let forged;try{await saved('by-key/account',{templateId:'G'});forged='allowed';}catch(e){forged=e.message;}
   hostManifest.endpoints='https://bsc-debug.butterfly.army/fsi/v1';
   await rerenderProvider({...hostContext});
+  const rejectedPaths=[];
+  for(const path of ['vault/%2e%2e/other/G','vault/.%2e/other/G','vault/%2E/G','%2e%2e/v1/other/G','vault/%2fG']){
+   try{await saved(path);rejectedPaths.push('allowed');}catch(e){rejectedPaths.push(e.message);}
+  }
   const result=await saved('by-key/account',{templateId:'G',cursor:'a/b+c=='});
   delete hostManifest.endpoints;
   await rerenderProvider({...hostContext});
   let revoked;try{await saved('by-key/account');revoked='allowed';}catch(e){revoked=e.message;}
-  return {stable:saved===sdk.readFsi,forged,revoked,result};
+  return {stable:saved===sdk.readFsi,forged,revoked,result,rejectedPaths};
  });
  assert(fsi.stable,'FSI callback must remain stable across host updates');
  assert.match(fsi.forged,/manifest.endpoints/);
  assert.match(fsi.revoked,/manifest.endpoints/);
  assert.deepEqual(fsi.result,{items:[],nextCursor:'a/b+c=='});
+ fsi.rejectedPaths.forEach(message=>assert.match(message,/FSI path traversal/));
+ assert.equal(fsiRequests,1,'Rejected FSI paths must never reach the network');
  // Retained read callbacks must use the latest authorization context and RPC client.
  const readStability=await page.evaluate(async()=>{
   const first=sdk.readContract;globalThis.savedRead=first;

@@ -406,7 +406,7 @@ Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](reso
 
 ## FSI queries
 
-The platform query allowlist currently contains only `https://bsc-debug.butterfly.army/fsi/v1` (the exact HTTPS origin and `/fsi/v1` or its child paths). Declare this prefix in `manifest.endpoints` for human review. Fixed-path direct `fetch` template literals may interpolate query values only after a literal `?`; dynamic paths and query parameters use `sdk.readFsi(relativePath, params)`, whose runtime validates every final URL. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
+The platform query allowlist currently contains only `https://bsc-debug.butterfly.army/fsi/v1` (the exact HTTPS origin and `/fsi/v1` or its child paths). Declare this prefix in `manifest.endpoints` for human review. Every direct FSI `fetch` (static or templated) must declare literal `method: "GET"`, `credentials: "omit"`, `redirect: "error"` and `referrerPolicy: "no-referrer"` options without spreads or overrides; optional `cache: "no-store"` is allowed. Fixed-path templates may interpolate only query values wrapped in the global `encodeURIComponent(value)` after a literal `?`. Use `sdk.readFsi(relativePath, params)` for dynamic paths and parameter objects. Raw and encoded dot segments and encoded separators are rejected before URL normalization. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
 
 ```json
 { "endpoints": "https://bsc-debug.butterfly.army/fsi/v1" }
@@ -425,9 +425,16 @@ Paths are relative to `/fsi/v1/` and contain no chain ID, query, fragment, or tr
 For a fixed path, this direct call also passes the query exception when covered by the declaration:
 
 ```tsx
-await fetch(`https://bsc-debug.butterfly.army/fsi/v1/by-key/account?templateId=G&limit=${limit}`);
+await fetch(`https://bsc-debug.butterfly.army/fsi/v1/by-key/account?templateId=G&limit=${encodeURIComponent(limit)}`, {
+  method: "GET",
+  credentials: "omit",
+  redirect: "error",
+  referrerPolicy: "no-referrer",
+});
 ```
 
-For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain blocked. The SDK performs GET only, omits credentials/referrer, rejects redirects, and reports non-success HTTP responses as errors. FSI is an off-chain display cache; funds and settlement decisions must read on-chain state. The current allowlisted deployment determines the chain; a different chain or domain needs a separately reviewed platform allowlist change.
+Every raw FSI fetch, including a static URL, must use that literal options object; optional `cache: "no-store"` is also allowed. Missing options, option variables/spreads/duplicates/computed properties, custom headers/body and unsafe overrides are blocked. Every interpolation must be a query value wrapped directly in the global `encodeURIComponent(value)`; dynamic keys, whole-query interpolation and shadowed encoders are blocked. Prefer `sdk.readFsi` for parameter objects and opaque cursors.
+
+For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain blocked. Both paths require GET, omitted credentials/referrer and rejected redirects. `sdk.readFsi` also reports non-success HTTP responses as errors. Raw and encoded dot segments, encoded separators/double encoding and control characters are rejected before URL normalization, even when normalization would stay within the FSI prefix. Query values may contain these characters because they are encoded separately. FSI is an off-chain display cache; funds and settlement decisions must read on-chain state. The current allowlisted deployment determines the chain; a different chain or domain needs a separately reviewed platform allowlist change.
 
 Roll out the SDK runtime containing `sdk.readFsi` to Workbench and Flap hosts before accepting components that call it. Existing `@flapsdk/vault-runtime@0.1.35` hosts do not implement this method. Feature-branch verification uses a private canary package; this change does not publish a stable npm release or alter consumer dependency pins.

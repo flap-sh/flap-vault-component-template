@@ -24,6 +24,26 @@ test("manifest must declare the FSI prefix without a fixed query", () => {
   for (const endpoints of [undefined, [], "https://bsc-debug.butterfly.army", FSI_QUERY_PREFIX + "?limit=1", FSI_QUERY_PREFIX + "/vault", "https://user@bsc-debug.butterfly.army/fsi/v1"]) assert(!hasFsiQueryDeclaration(endpoints));
 });
 
+test("FSI rejects raw and encoded dot segments before URL normalization, including prefix-equivalent declarations", async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return Response.json({}); };
+  for (const path of [
+    "vault/../other/G", "vault/./G", "vault/%2e%2e/other/G", "vault/.%2e/other/G", "vault/%2e./other/G",
+    "vault/%2E%2E/other/G", "vault/%2E/G", "%2e%2e/v1/other/G", "vault/%2fG", "vault/%5cG", "vault/%25G", "vault/\u0000G", "vault/\u007fG",
+  ]) {
+    assert.equal(isFsiQueryUrl(`${FSI_QUERY_PREFIX}/${path}`), false, path);
+    assert.throws(() => buildFsiQueryUrl(path), /FSI/, path);
+    await assert.rejects(readFsiJson(FSI_QUERY_PREFIX, path, {}, fetchImpl), /FSI/, path);
+  }
+  for (const suffix of ["/vault/..", "/vault/%2e%2e", "/%2e", "/.", "/#", "/vault\\..", "/vault/\n../"]) {
+    const endpoint = FSI_QUERY_PREFIX + suffix;
+    assert.equal(isFsiQueryUrl(endpoint), false, endpoint);
+    assert.equal(hasFsiQueryDeclaration(endpoint), false, endpoint);
+    await assert.rejects(readFsiJson(endpoint, "vault/G", {}, fetchImpl), /manifest.endpoints/, endpoint);
+  }
+  assert.equal(calls, 0, "all rejected paths/declarations must fail before fetch");
+});
+
 test("SDK preserves uint256 strings and safely encodes arbitrary query names and cursor values", async () => {
   const params = { round: "115792089237316195423570985008687907853269984665640564039457584007913129639935", cursor: "a/b+c==&?#", "custom key": "你好", limit: "100" };
   const result = await readFsiJson(FSI_QUERY_PREFIX, "vault/B/points", params, async (url, init) => {
