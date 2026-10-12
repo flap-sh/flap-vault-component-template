@@ -16,7 +16,7 @@ yarn install --frozen-lockfile
 
 The template contains SDK source; do not run `npm install @flapsdk/vault-runtime` in an App folder. Workbench and the main host install that npm runtime. Before submission, the template release and both hosts must support the same published version.
 
-`@flapsdk/vault-runtime@0.1.36-next.0` is **published** on npm `next` (checked 2026-10-11), based on main 0.1.35. The shared wallet API below is included in this release. Use the current official `feat/mini-app-v2` head, then follow the check/E2E/package workflow below. Its runtime inputs must match npm source commit `ff5d612d80e0fe387e612b60dca5275c2fd91a24`; documentation and official authoring-tool commits may be newer. Stable `latest` remains `0.1.35`. See [release status and updating](mini-app-v2-quickstart.md).
+`@flapsdk/vault-runtime@0.1.38-next.0` is **published** on npm `next` (checked 2026-10-12), based on main 0.1.35. The shared wallet API below is included in this release. Use the current official `feat/mini-app-v2` head, then follow the check/E2E/package workflow below. Its runtime inputs must match npm source commit `7cc5b3c462a889574186d4320da0618519c1c8c9`; documentation and official authoring-tool commits may be newer. Stable `latest` remains `0.1.37`. See [release status and updating](mini-app-v2-quickstart.md).
 
 ## 2. Scaffold an App
 
@@ -114,7 +114,7 @@ yarn app:package my-app
 yarn app:verify-package dist/my-app.zip
 ```
 
-The runner checks PC/iPad/H5 in guest and connected states (six checks), current source/asset hashes and preview-source identity. Optional `yarn app:build` checks the template build. Packaging requires the current official preview head, the exact published npm `next` version and unchanged runtime/build/protocol inputs; `0.1.36-next.0` is published and can be used for this workflow. Documentation and official authoring-tool commits do not change runtime provenance. An unrelated commit, different version or changed runtime input still fails checks. Never edit proof metadata to bypass this.
+The runner checks PC/iPad/H5 in guest and connected states (six checks), current source/asset hashes and preview-source identity. Optional `yarn app:build` checks the template build. Packaging requires the current official preview head, the exact published npm `next` version and unchanged runtime/build/protocol inputs; `0.1.38-next.0` is published and can be used for this workflow. Documentation and official authoring-tool commits do not change runtime provenance. An unrelated commit, different version or changed runtime input still fails checks. Never edit proof metadata to bypass this.
 
 Submit the generated ZIP to the designated App v2 testing Workbench. Provide slug, display titles, feature summary, endpoint declarations and any wallet contract policy/upgrade-authority notes. Keep secrets and private keys out of the package. Workbench builds the runtime artifact; human review and main-host rollout determine release. Upload/build success alone is not approval to go live.
 
