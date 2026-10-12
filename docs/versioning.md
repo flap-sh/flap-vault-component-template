@@ -11,6 +11,38 @@ The root `package.json` version is also the local template/runtime package versi
 
 Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exists only for pre-merge consumer testing: it requires clean committed source, generates `<base>-canary.<gitHead>` with `private: true`, verifies and npm-packs it under `dist/npm`, and records the tarball SHA-256. It must never be published or used as the package provenance in a Vault source ZIP. After merge, increment the root version as required and rebuild the publishable package with `yarn runtime:package` plus `yarn runtime:verify-package` from official `main`.
 
+## Stable release workflow
+
+The `0.1.37` feature and consumer rollout requirements are documented in
+[the release guide](releases/0.1.37.md) ([简体中文](releases/0.1.37.zh-CN.md)).
+Prepare the root version and documentation on a branch from the latest official
+`main`, commit as the SDK maintainer, and merge the release PR before building the
+publishable package. A feature/release branch may be tested with a private canary
+but must not replace the official-main release source.
+
+After merge, use a clean checkout at the fetched official main head. If the fork
+is named `origin`, explicitly choose the official `upstream/main` freshness ref:
+
+```bash
+FLAP_TEMPLATE_FRESHNESS_REF=upstream/main yarn ci
+FLAP_TEMPLATE_FRESHNESS_REF=upstream/main yarn runtime:package
+yarn runtime:verify-package
+yarn test:runtime-provider --package
+```
+
+Inspect `dist/vault-runtime/package.json` and `runtime-contract.json`: version and
+`gitHead` must match the intended release and official source; the package must
+not be private or carry canary metadata. Create the `.tgz` from that verified
+directory, record its SHA-256 and npm integrity, and inspect its README and exports.
+The generated package README must describe newly added public APIs; updating only
+the repository README is insufficient because source docs are not included in npm.
+
+With maintainer publication authorization, publish the verified tarball publicly
+under `latest`. Confirm the registry version, `gitHead`, integrity and downloaded
+archive match, and preserve the existing `next` tag. Finally update consumer exact
+pins and Yarn lockfiles, deploy matching host/checker changes, and verify the real
+upload/gateway workflow. A successful npm publish does not upgrade deployed hosts.
+
 ## Explicit next SDK releases
 
 When a maintainer explicitly requests an npm testing release from official `next`, use a version such as `0.1.32-next.0`, commit and push it to official `next`, and build from a clean checkout at exactly that remote head. Select that official ref for the existing freshness checks; do not remove the checks or publish a private canary:

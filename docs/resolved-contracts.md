@@ -73,7 +73,7 @@ The resolver id and signature must be declared in the reviewed manifest. This is
 
 The exception applies to genuine resolved handles only. Raw requests retain the NULL four-argument selector guard and EIP-6551 target restrictions. Undeclared overloads, forged/expired handles, handle+address overrides and caller changes to the component's manifest copy cannot grant permission. Re-resolution, code/ownership checks, value caps, simulation and wallet/chain checks still run before sending. The dedicated `withdrawNftAccount` API retains its deployment pins and detailed withdrawal receipt verification.
 
-Existing stable `@flapsdk/vault-runtime@0.1.35` rejects these declarations. Validate this branch through its private canary, then release and update Workbench and the main host to the same published SDK before accepting execute artifacts. Manifest schema, package format and runtime contract versions are unchanged; no new declaration fields are needed.
+`@flapsdk/vault-runtime@0.1.36` introduced this reviewed execute exception; `0.1.35` rejects these declarations. Upgrade Workbench and the main host to the same compatible published SDK before accepting execute artifacts. The `0.1.37` IPFS release preserves this scope. Manifest schema, package format and runtime contract versions are unchanged; no new declaration fields are needed.
 
 ## Raw targets and host integration
 
@@ -87,6 +87,6 @@ Local template and Workbench preview use `"warn"` to inventory legacy derived wr
 
 Run `yarn test:resolved-contracts`, `yarn test:runtime-provider`, `yarn test:nft-account-withdrawal`, lint/typecheck and checker selftests. Tests include genuine/forged/expired handles, post-resolution address/code/implementation/owner/wallet/chain changes, ABI/selectors, native-value caps, recipient/balance, overloads, manifest/context mutation and real React Provider wiring with mocked chain clients. They are not an audit or a real project's fork proof.
 
-Commit SDK changes, build one protected canary with `yarn runtime:pack:canary`, and run the same tarball in Workbench and the main host through `runtime:test:canary`. Official release packaging retains its existing freshness/main gate. After review/merge/release, update both consumers to the exact published runtime and lockfile. No npm publication, live approval, live transaction or contract modification is part of this branch.
+Commit SDK changes, build one protected canary with `yarn runtime:pack:canary`, and run the same tarball in Workbench and the main host through `runtime:test:canary`. Official release packaging retains its existing freshness/main gate. After review/merge/release, update both consumers to the exact published runtime and lockfile. Canary verification does not publish npm, approve a live artifact, send a transaction, or modify a contract.
 
 After packaging, also run `yarn test:runtime-provider --package` to exercise the generated host-client/SDK entrypoints in a browser, including reviewed execute calls. The runtime uses the automatic JSX transform and must mount without a global React variable.

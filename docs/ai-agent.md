@@ -259,7 +259,7 @@ Do not replace it with raw `<img>`, CSS `url(...)`, or a generic remote-image wr
 
 For user-selected images or plain text, use `sdk.uploadImage(file)` or `sdk.uploadText(text)`. Both return `{ cid, uri, gatewayUrl }` for the uploaded file itself through the controlled Flap host; no token metadata extraction is required. See [Image and text uploads](media-upload.md) for limits, cancellation, errors, and host setup. Static decorative images must still be pinned before authoring and use static `IpfsImage` / `IpfsBackground` CIDs. The existing token-launch `create(file, meta)` API continues to return a metadata CID and is a separate flow.
 
-When a user provides an `imageCid`, render it through `IpfsImage` and emit the CID as a static string literal:
+When a user provides a known `imageCid`, render it through `IpfsImage` with a static string literal. For FSI, contract, or SDK upload results, pass the dynamic bare CID directly; do not convert it into a gateway URL:
 
 ```tsx
 import { IpfsImage } from "@/src/ui";
@@ -271,9 +271,9 @@ import { IpfsImage } from "@/src/ui";
 />
 ```
 
-Do not emit `imageUrl`, `<img src="https://.../ipfs/...">`, `ipfs://...`, CSS `url(...)`, a metadata CID, or a runtime variable/expression for `cid`. If the upload flow returns a metadata CID, fetch the metadata JSON and extract the `image` field first; then strip the gateway or `ipfs://` prefix and keep only the actual image CID. The Vault package must not implement its own upload or pinning flow; user-selected content may use the controlled SDK methods above.
+Do not emit `imageUrl`, `<img src="https://.../ipfs/...">`, `ipfs://...`, CSS `url(...)`, or a metadata CID as the image input. Dynamic bare CID expressions are allowed and require review. If the upload flow returns a metadata CID, read it through `sdk.readIpfsText`, parse the expected JSON format, and extract the image CID and optional safe relative path first; Vault V2 tokenURI media should use `NftMetadataImage` instead. The Vault package must not implement its own upload or pinning flow; user-selected content may use the controlled SDK methods above.
 
-For NFT previews, upload the complete image set as one IPFS directory outside the Vault package. Keep the directory CID static and let only the in-directory path depend on the NFT id:
+For NFT previews with a known collection directory, keep the directory CID static and let the in-directory path depend on the NFT id:
 
 ```tsx
 <IpfsImage
@@ -284,7 +284,7 @@ For NFT previews, upload the complete image set as one IPFS directory outside th
 />
 ```
 
-`validationPath` must be a real static sample whenever `path` is dynamic. A static `path` is validated directly and must not declare `validationPath`. Paths cannot contain traversal, schemes, query strings, hashes, encoded escapes, leading/trailing slashes, or empty segments. `IpfsBackground` does not accept `path`.
+`validationPath` must be a real static sample when `cid` is static and `path` is dynamic. A static `path` is validated directly and must not declare `validationPath`. Dynamic CID/path pairs are validated by the runtime and surfaced for review. Paths cannot contain traversal, schemes, query strings, hashes, encoded escapes, leading/trailing slashes, or empty segments. `IpfsBackground` remains static CID-only and does not accept `path`.
 
 For a decorative full-area background, use `IpfsBackground` inside a positioned container instead of CSS `background-image`:
 
@@ -297,7 +297,7 @@ import { IpfsBackground } from "@/src/ui";
 </div>
 ```
 
-`vault:check` validates every static `IpfsImage cid/path` or `IpfsBackground cid` syntactically. For a dynamic `path` below a static image CID, it requires a static `validationPath`; dynamic CID/path pairs use runtime validation and manual review. It does not probe every image over the network during source validation. If `media-policy/invalid-ipfs-image-cid` appears, pass a valid bare image/directory CID; dynamic image CIDs are validated by the runtime. If `media-policy/invalid-ipfs-image-path` appears, use a safe relative path and add exactly one static validation sample for a dynamic path. Package owners remain responsible for pinning readable image bytes.
+`vault:check` validates every static `IpfsImage cid/path` or `IpfsBackground cid` syntactically. For a dynamic `path` below a static image CID, it requires a static `validationPath`; dynamic CID/path pairs use runtime validation and manual review. It does not probe every image over the network during source validation. If `media-policy/invalid-ipfs-image-cid` appears, pass a valid bare image/directory CID; dynamic image CIDs are validated by the runtime. If `media-policy/invalid-ipfs-image-path` appears, use a safe relative path and, for a static CID with dynamic path, add exactly one static validation sample. Package owners remain responsible for pinning readable image bytes.
 
 For default Vault UI, risk status still controls visual order: if the image is a hero, preview, showcase, or other large visual block, place the required host-derived risk status before it. `manifest.mode: "mini-app"` skips only this risk-status tag requirement.
 
@@ -552,6 +552,11 @@ The platform query allowlist currently contains only `https://bsc-debug.butterfl
 See [SDK FSI queries](sdk.md) for usage and runtime rollout requirements.
 
 ### Controlled dynamic IPFS content
+
+The `0.1.37` source adds controlled dynamic IPFS content. Upgrade both Workbench
+and the main host to the published runtime, including the matching Workbench
+checker policy, before accepting components that use it. `0.1.36` lacks the text
+API/component. See [release and upgrade notes](releases/0.1.37.md).
 
 `IpfsImage` accepts static or dynamic bare image/directory CIDs. Use
 `sdk.readIpfsText(cid, path?)` for UTF-8 text or JSON and `IpfsText cid={cid}` for

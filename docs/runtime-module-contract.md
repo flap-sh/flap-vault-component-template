@@ -335,6 +335,21 @@ The current runtime package also carries the public oracle provisioning surface:
 
 Current status: `dist/vault-runtime` is a local extraction artifact and acceptance proof for this public template, while the published `@flapsdk/vault-runtime` version is used as the freshness anchor for local checks. The generated runtime package is not included in `yarn vault:package <folder-name>` source zips and is not automatically consumed by Workbench / `flap.sh` just because `yarn runtime:package` passed. Workbench and `flap.sh` should adopt this package only through an explicit integration decision, version pin, and rollout plan.
 
+## Controlled IPFS content rollout
+
+The `0.1.37` runtime adds `sdk.readIpfsText(cid, path?)`, `IpfsText`, and controlled
+dynamic CIDs in `IpfsImage`. Hosts can inspect `IPFS_CONTENT_VERSION === 1` from
+`./sdk` and `sdkFeatures.ipfsContent === 1` in `runtime-contract.json`. This is an
+additive capability; runtime contract version `1` and source package format `6`
+are unchanged. `0.1.36` does not provide the text API/component.
+
+Upgrade both host runtimes and deploy Workbench's matching static policy before
+accepting artifacts using the capability. Reads use fixed browser-accessible
+platform IPFS gateways and need no new host route; the existing upload service
+remains responsible for pinning and server credentials. The reader and components
+do not accept a caller-selected gateway or fetch implementation. See
+[IPFS content](ipfs-content.md) and [0.1.37 rollout](releases/0.1.37.md).
+
 ## Package Extraction Direction
 
 This shared runtime surface should keep moving toward a versioned package underneath the stable authoring aliases rather than remaining a repo-local implementation detail.

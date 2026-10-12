@@ -27,6 +27,10 @@ sdk.simulateContract(request)
 sdk.writeContract(request)
 sdk.waitForTx(hash)
 sdk.readOracle<T>(oracleId, params)
+sdk.readFsi<T>(relativePath, params)
+sdk.readIpfsText(cid, path?)
+sdk.uploadText(text, options?)
+sdk.uploadImage(file, options?)
 sdk.refetch(keys)
 sdk.refetchNonce
 sdk.openExplorerTx(hash)
@@ -244,7 +248,7 @@ import { IpfsImage } from "@/src/ui";
 />
 ```
 
-The CID must be an image CID or an uploaded collection-directory CID, not a metadata CID. If an NFT collection is pinned as one IPFS directory, keep `cid` static and select the file with a relative `path`:
+The CID must be an image CID or an uploaded collection-directory CID, not a metadata CID. A dynamic bare CID from FSI, contract state, or an SDK upload is allowed and requires review. For a known collection directory, a static `cid` can select a file with a relative `path`:
 
 ```tsx
 <IpfsImage
@@ -255,7 +259,7 @@ The CID must be an image CID or an uploaded collection-directory CID, not a meta
 />
 ```
 
-`validationPath` is required only when `cid` is static and `path` is dynamic; it names a representative image below a static CID; `vault:check` validates syntax without network probes. Static `path="nfts/1.png"` is validated directly and must not include `validationPath`. Paths are limited to relative alphanumeric/`.`/`_`/`-`/`~` segments with `/` separators; traversal, query strings, hashes, schemes, encoded escapes, leading/trailing slashes, and empty segments resolve to no image. `IpfsBackground` remains CID-only.
+`validationPath` is required only when `cid` is static and `path` is dynamic; it names a representative image below a static CID; `vault:check` validates syntax without network probes. Static `path="nfts/1.png"` is validated directly and must not include `validationPath`. Paths are limited to relative alphanumeric/`.`/`_`/`-`/`~` segments with `/` separators; traversal, query strings, hashes, schemes, encoded escapes, leading/trailing slashes, and empty segments resolve to no image. `IpfsBackground` remains static CID-only.
 
 ### Vault V2 NFT metadata
 
@@ -437,9 +441,14 @@ Every raw FSI fetch, including a static URL, must use that literal options objec
 
 For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain blocked. Both paths require GET, omitted credentials/referrer and rejected redirects. `sdk.readFsi` also reports non-success HTTP responses as errors. Raw and encoded dot segments, encoded separators/double encoding and control characters are rejected before URL normalization, even when normalization would stay within the FSI prefix. Query values may contain these characters because they are encoded separately. FSI is an off-chain display cache; funds and settlement decisions must read on-chain state. The current allowlisted deployment determines the chain; a different chain or domain needs a separately reviewed platform allowlist change.
 
-Roll out the SDK runtime containing `sdk.readFsi` to Workbench and Flap hosts before accepting components that call it. Existing `@flapsdk/vault-runtime@0.1.35` hosts do not implement this method. Feature-branch verification uses a private canary package; this change does not publish a stable npm release or alter consumer dependency pins.
+`sdk.readFsi` is available from `@flapsdk/vault-runtime@0.1.36`; `0.1.35` hosts do not implement it. Upgrade Workbench and Flap hosts before accepting components that call it. Feature-branch verification uses a private canary package and does not alter consumer dependency pins.
 
-### Controlled dynamic IPFS content
+## Controlled dynamic IPFS content
+
+Available from `@flapsdk/vault-runtime@0.1.37`; `0.1.36` lacks the text API/component.
+After npm publication, upgrade both host runtimes and Workbench's IPFS checker
+before accepting components that use the feature. See
+[release and upgrade notes](releases/0.1.37.md).
 
 `IpfsImage` accepts static or dynamic bare image/directory CIDs. Use
 `sdk.readIpfsText(cid, path?)` for UTF-8 text or JSON and `IpfsText cid={cid}` for
