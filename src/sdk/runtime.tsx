@@ -28,6 +28,7 @@ import type {
 } from "./types";
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
+import { readFsiJson } from "./fsi";
 import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
 import { RuntimeContext } from "./runtimeStore";
 import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
@@ -408,6 +409,13 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [oracleReader, runtimeContext],
   );
 
+  const fsiEndpointsRef = useRef(runtimeContext.manifest.endpoints);
+  fsiEndpointsRef.current = runtimeContext.manifest.endpoints;
+  const readFsi = useCallback(
+    <T,>(path: string, params?: Record<string, string>) => readFsiJson<T>(fsiEndpointsRef.current, path, params),
+    [],
+  );
+
   const readNftMetadata = useCallback(
     async (request: NftMetadataReadRequest): Promise<NftMetadataSnapshot> => {
       if (request.tokenId < 0n) throw new Error("NFT tokenId must not be negative.");
@@ -541,6 +549,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       waitForTx,
       withdrawNftAccount,
       readOracle,
+      readFsi,
       readNftMetadata,
       uploadImage,
       uploadText,
@@ -548,7 +557,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
+    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
   );
 
   return (

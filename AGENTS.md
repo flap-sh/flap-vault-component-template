@@ -71,3 +71,8 @@ Core rules:
 Use the versioned, holder-only `sdk.withdrawNftAccount({policyId,tokenId,amount})` path for reviewed NFT account withdrawals. Declare `match.bindings[].nftAccountWithdrawals` on a factory binding; declaration is review intent only and independent host approval is required. The NULL four-argument execute selector is blocked; the Provider is exported only to hosts. See [NFT account withdrawal](docs/nft-account-withdrawal.md) for deployment pins, receipt outcomes, tests and rollout.
 
 Vault-derived write targets use reviewed factory-binding `resolvedContracts` and genuine `await sdk.resolveContract` handles; labels or resolver-returned addresses alone grant no raw-write permission. NULL nested bag execution stays on `withdrawNftAccount`. Production target policy is strict; preview warn mode only inventories migration. Provider is host-only. See [resolved contracts](docs/resolved-contracts.md).
+
+### FSI query exception
+
+The platform query allowlist currently contains only `https://bsc-debug.butterfly.army/fsi/v1` (the exact HTTPS origin and `/fsi/v1` or its child paths). Declare this prefix in `manifest.endpoints` for human review. Fixed-path direct `fetch` template literals may interpolate query values only after a literal `?`; dynamic paths and query parameters use `sdk.readFsi(relativePath, params)`, whose runtime validates every final URL. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
+See [SDK FSI queries](docs/sdk.md) for usage and runtime rollout requirements.

@@ -545,3 +545,8 @@ See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restr
 ## Reviewed dynamic targets
 
 Use [resolvedContracts v1](resolved-contracts.md) for approved factory-owned dynamic modules. Keep NULL withdrawal on its dedicated SDK profile. Use genuine handles from `await sdk.resolveContract`, declare exact allowed signatures and fixed checks, and have the host review the artifact and upgrade authority. Raw derived-write warnings must be resolved before production strict rollout. VaultRuntimeProvider belongs to the host entrypoint only.
+
+### FSI query exception
+
+The platform query allowlist currently contains only `https://bsc-debug.butterfly.army/fsi/v1` (the exact HTTPS origin and `/fsi/v1` or its child paths). Declare this prefix in `manifest.endpoints` for human review. Fixed-path direct `fetch` template literals may interpolate query values only after a literal `?`; dynamic paths and query parameters use `sdk.readFsi(relativePath, params)`, whose runtime validates every final URL. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
+See [SDK FSI queries](sdk.md) for usage and runtime rollout requirements.

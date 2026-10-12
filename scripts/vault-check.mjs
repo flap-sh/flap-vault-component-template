@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
+import { dynamicFsiQueryPrefix, collectFsiReadIssues } from "./fsi-endpoint-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -1505,7 +1506,8 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
       if (ts.isIdentifier(callee) && callee.text === "fetch") {
         const isGlobalFetch = !resolveVisibleLexicalBinding(callee, sourceFile, bindings);
         const target = node.arguments[0] ?? null;
-        const staticTarget = target ? tsStaticStringValue(target) : null;
+        const dynamicQueryPrefix = dynamicFsiQueryPrefix(target, ts, declaredFetchUrls, isDeclaredUrl);
+        const staticTarget = (target ? tsStaticStringValue(target) : null) ?? dynamicQueryPrefix;
         const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
         const allowed = Boolean(
           isGlobalFetch &&
@@ -1520,6 +1522,8 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
           allowed,
           isGlobalFetch,
           staticTarget,
+          dynamicQuery: Boolean(dynamicQueryPrefix),
+          targetExpression: target?.getText(sourceFile),
           parsedTarget,
           file,
           line: lineForIndex(content, tsNodeStart(node, sourceFile)),
@@ -4115,6 +4119,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const content = fs.readFileSync(item.path, "utf8");
     issues.push(...collectSourceSyntaxIssues(rel, content));
     const scanContent = stripCommentsForScanning(content);
+    issues.push(...collectFsiReadIssues(createTsSourceFile(rel, content), ts, manifest.endpoints, rel));
     const directFetchUsages = collectDirectFetchUsages(content, rel, declaredFetchUrls);
     const allowedDirectFetchTargetRanges = directFetchUsages.filter((usage) => usage.allowed && usage.targetRange).map((usage) => usage.targetRange);
     const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
@@ -4396,7 +4401,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "endpoint-policy/direct-fetch",
-            "fetch() targets inside Vault source must be static absolute HTTPS URLs without credentials and declared in manifest.endpoints for Flap review.",
+            "fetch() requires a declared static HTTPS URL, or query-only interpolation on the platform FSI allowlist. Use sdk.readFsi for dynamic FSI paths.",
             { file: rel, line: usage.line },
           ),
         );
@@ -4408,6 +4413,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
             origin: usage.parsedTarget.origin,
             pathname: usage.parsedTarget.pathname,
             queryParams: queryParamsForUrl(usage.staticTarget),
+            dynamicQuery: usage.dynamicQuery,
+            targetExpression: usage.targetExpression,
             file: rel,
             line: usage.line,
           }),
@@ -4601,6 +4608,10 @@ function collectManualReview(issues) {
       origin: item.origin,
       pathname: item.pathname,
       queryParams: item.queryParams ?? {},
+      dynamicQuery: item.dynamicQuery ?? false,
+      pathExpression: item.pathExpression,
+      paramsExpression: item.paramsExpression,
+      targetExpression: item.targetExpression,
       file: item.file,
       line: item.line,
       field: item.field,

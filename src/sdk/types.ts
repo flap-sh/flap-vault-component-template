@@ -473,6 +473,8 @@ export interface FlapVaultSdk {
   /** Reviewed NULL profile only; returns after receipt and balance refresh. */
   withdrawNftAccount(request: NftAccountWithdrawalRequest): Promise<NftAccountWithdrawalReceipt>;
   readOracle<T = unknown>(oracleId: string, params?: Record<string, string>): Promise<T>;
+  /** GET JSON under the reviewed FSI /fsi/v1 prefix; path is relative, query values are strings. */
+  readFsi<T = unknown>(path: string, params?: Record<string, string>): Promise<T>;
   readNftMetadata(request: NftMetadataReadRequest): Promise<NftMetadataSnapshot>;
   /** Uploads PNG/JPEG/GIF/WebP (up to 3 MiB) and returns the file CID. */
   uploadImage(file: Blob, options?: MediaUploadOptions): Promise<IpfsUploadResult>;

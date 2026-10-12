@@ -154,3 +154,8 @@ Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DO
 - `docs/ui-pattern-snippets.md`: public-safe UI organization and state-flow snippets.
 
 Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](../../docs/resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.
+
+### FSI query exception
+
+The platform query allowlist currently contains only `https://bsc-debug.butterfly.army/fsi/v1` (the exact HTTPS origin and `/fsi/v1` or its child paths). Declare this prefix in `manifest.endpoints` for human review. Fixed-path direct `fetch` template literals may interpolate query values only after a literal `?`; dynamic paths and query parameters use `sdk.readFsi(relativePath, params)`, whose runtime validates every final URL. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
+See [SDK FSI queries](../../docs/sdk.md).

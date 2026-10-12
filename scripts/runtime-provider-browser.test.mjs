@@ -24,6 +24,7 @@ const client={getChainId:async()=>56,getBlockNumber:async()=>100n,getCode:async(
 const walletClient={getAddresses:async()=>[state.user],getChainId:async()=>state.chain,writeContract:async()=>{state.sends++;return a(20);}};
 globalThis.env={state,client,walletClient};
 const manifest={artifactId:'test',i18n:['en'],match:{bindings:[{chainId:56,factoryAddress:a(1),resolvedContracts:[{id:'position',label:'nft',resolver:'function poolOf(uint256 id) view returns(address)',allow:['function claim(uint256 amount)'],checks:[{kind:'owner',target:'resolved'}]}]}]}};
+globalThis.hostManifest=manifest;
 let context={chainId:56,factoryAddress:a(1),vaultAddress:a(2),tokenAddress:a(3),host:{taxInfo:{quoteToken:a(4)}}};
 globalThis.hostContext=context;
 const i18n={en:{}};
@@ -48,6 +49,24 @@ export const useBalance=()=>({data:undefined});`;
  browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>globalThis.sdk);
  const identity=await page.evaluate(async()=>{const first=sdk;sdk.notify.info('test');await new Promise(r=>setTimeout(r,30));return sdk===first;});assert(identity,'Provider notification must not rebuild SDK when default policies are absent');
+ // FSI authorization comes from the host manifest, never the component's copy.
+ await page.route('https://bsc-debug.butterfly.army/fsi/v1/**', route=>route.fulfill({json:{items:[],nextCursor:'a/b+c=='}}));
+ const fsi=await page.evaluate(async()=>{
+  const saved=sdk.readFsi;
+  sdk.context.manifest.endpoints='https://bsc-debug.butterfly.army/fsi/v1';
+  let forged;try{await saved('by-key/account',{templateId:'G'});forged='allowed';}catch(e){forged=e.message;}
+  hostManifest.endpoints='https://bsc-debug.butterfly.army/fsi/v1';
+  await rerenderProvider({...hostContext});
+  const result=await saved('by-key/account',{templateId:'G',cursor:'a/b+c=='});
+  delete hostManifest.endpoints;
+  await rerenderProvider({...hostContext});
+  let revoked;try{await saved('by-key/account');revoked='allowed';}catch(e){revoked=e.message;}
+  return {stable:saved===sdk.readFsi,forged,revoked,result};
+ });
+ assert(fsi.stable,'FSI callback must remain stable across host updates');
+ assert.match(fsi.forged,/manifest.endpoints/);
+ assert.match(fsi.revoked,/manifest.endpoints/);
+ assert.deepEqual(fsi.result,{items:[],nextCursor:'a/b+c=='});
  // Retained read callbacks must use the latest authorization context and RPC client.
  const readStability=await page.evaluate(async()=>{
   const first=sdk.readContract;globalThis.savedRead=first;

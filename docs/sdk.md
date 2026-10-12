@@ -403,3 +403,31 @@ validate input
 See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restricted NULL profile and host approval rules.
 
 Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.
+
+## FSI queries
+
+The platform query allowlist currently contains only `https://bsc-debug.butterfly.army/fsi/v1` (the exact HTTPS origin and `/fsi/v1` or its child paths). Declare this prefix in `manifest.endpoints` for human review. Fixed-path direct `fetch` template literals may interpolate query values only after a literal `?`; dynamic paths and query parameters use `sdk.readFsi(relativePath, params)`, whose runtime validates every final URL. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
+
+```json
+{ "endpoints": "https://bsc-debug.butterfly.army/fsi/v1" }
+```
+
+```tsx
+const sdk = useFlapSdk();
+const page = await sdk.readFsi<{ items: unknown[]; nextCursor?: string }>(
+  `${sdk.context.vaultAddress.toLowerCase()}/G/claim`,
+  { actor: sdk.wallet.address?.toLowerCase() ?? "", limit: "100", cursor: nextCursor ?? "" },
+);
+```
+
+Paths are relative to `/fsi/v1/` and contain no chain ID, query, fragment, or traversal. All query values are strings, including uint256 values and opaque `nextCursor` values. No emitter address is required in the manifest: the path may use the Vault address once it is known, or `by-key/{address}`. Templates A/B/L/G and cross-namespace G queries share the same path boundary.
+
+For a fixed path, this direct call also passes the query exception when covered by the declaration:
+
+```tsx
+await fetch(`https://bsc-debug.butterfly.army/fsi/v1/by-key/account?templateId=G&limit=${limit}`);
+```
+
+For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain blocked. The SDK performs GET only, omits credentials/referrer, rejects redirects, and reports non-success HTTP responses as errors. FSI is an off-chain display cache; funds and settlement decisions must read on-chain state. The current allowlisted deployment determines the chain; a different chain or domain needs a separately reviewed platform allowlist change.
+
+Roll out the SDK runtime containing `sdk.readFsi` to Workbench and Flap hosts before accepting components that call it. Existing `@flapsdk/vault-runtime@0.1.35` hosts do not implement this method. Feature-branch verification uses a private canary package; this change does not publish a stable npm release or alter consumer dependency pins.
