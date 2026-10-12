@@ -4,6 +4,7 @@ export * from "./Button";
 export * from "./BinanceImage";
 export * from "./Card";
 export * from "./Countdown";
+export * from "./CopyButton";
 export * from "./DataRow";
 export * from "./DetailTile";
 export * from "./ExternalLink";

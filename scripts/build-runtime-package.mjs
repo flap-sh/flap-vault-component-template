@@ -122,6 +122,7 @@ async function main() {
 
   const runtimeContract = {
     runtimeContractVersion: 1,
+    uiFeatures: { copyButton: 1 },
     sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,

@@ -415,3 +415,7 @@ Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for revi
 See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restricted NULL profile and host approval rules.
 
 Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.
+
+## Shared CopyButton
+
+Vault UI and Mini App v2 use the same `CopyButton` from `@/src/ui`. Read [usage and rollout](copy-button.md) ([中文](copy-button.zh-CN.md)). Direct clipboard access in artifact code remains blocked.

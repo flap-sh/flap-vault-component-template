@@ -106,3 +106,5 @@ The template already includes SDK source. App authors import `@/src/sdk` / `@/sr
 - [Shared wallet SDK](mini-app-wallet.md): exact contract/method declarations, resolvers and bounded writes.
 - [SDK reference](sdk.md), [manifest reference](manifest.md), [UI patterns](ui-pattern-snippets.md) and [3D capability](mini-app-3d.md).
 - [AI agent guide](ai-agent.md): choose Vault UI/v2 for new development; maintain v1 only for existing Apps.
+
+[Shared CopyButton](copy-button.md) works in Vault UI and Mini App v2; see the coordinated release requirements before packaging.

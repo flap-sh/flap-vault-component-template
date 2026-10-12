@@ -34,6 +34,10 @@ export default defineConfig({
   // Ship the lazy browser player with the runtime; consumers need no npm/CDN loader.
   noExternal: ["mpegts.js"],
   treeshake: true,
+  // Match the host JSX transform; packaged components must not require global React.
+  esbuildOptions(options) {
+    options.jsx = "automatic";
+  },
   outExtension() {
     return {
       js: ".js",

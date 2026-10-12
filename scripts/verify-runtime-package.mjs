@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -179,6 +181,26 @@ async function main() {
   const sdkModule = await import(`${pathToFileURL(path.join(packageDir, "sdk.js")).href}?verify=${Date.now()}`);
   const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
   if ("VaultRuntimeProvider" in sdkModule || typeof hostModule.VaultRuntimeProvider !== "function") throw new Error("Provider must be host-only.");
+
+  if (typeof uiModule.CopyButton !== "function" || runtimeContract.uiFeatures?.copyButton !== 1) {
+    throw new Error("The shared runtime must export CopyButton and declare uiFeatures.copyButton version 1.");
+  }
+  if ("writeCopyText" in uiModule) throw new Error("Clipboard writes must remain private to CopyButton.");
+  // Render the packed component/provider, not just their source exports. This also
+  // catches an incorrect JSX transform that would require global React at runtime.
+  const copyMarkup = renderToStaticMarkup(createElement(sdkModule.MiniAppRuntimeProvider, {
+    manifest: {
+      schemaVersion: 2, mode: "mini-app", appModel: "standalone", slug: "copy-package-test",
+      artifactId: "vaultui_copy-package-test_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      name: "Copy package test", i18n: ["en"], match: { bindings: [] },
+    },
+    session: { isConnected: false, isAuthenticated: false, isLoading: false, connect() {}, async signIn() {} },
+    i18n: { locale: "en", t: (_key, fallback) => fallback },
+    notify: { info() {}, success() {}, warning() {}, error() {} },
+  }, createElement(uiModule.CopyButton, { value: "Package copy verification" })));
+  if (!copyMarkup.includes('data-flap-ui="copy-button"') || !copyMarkup.includes('aria-label="Copy"')) {
+    throw new Error("The packed shared CopyButton must render inside the shared Mini App provider.");
+  }
 
   for (const name of ["readVideoSessionLength", "readVideoSessionSlice", "createConsumerVideoSessionReader"]) {
     if (typeof sdkModule[name] !== "function") throw new Error(`The shared SDK export must include ${name}.`);

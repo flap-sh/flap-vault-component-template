@@ -106,3 +106,5 @@ const appSdk = useFlapSdk({ chainId: 56 });
 - [共用钱包 SDK](mini-app-wallet.md)：合约声明、地址解析和金额上限。
 - [SDK 参考](sdk.md)、[Manifest 参考](manifest.md)、[UI 示例](ui-pattern-snippets.md)、[3D 能力](mini-app-3d.md)。
 - [AI Agent 指南](ai-agent.md)：新开发只选择 Vault UI/v2；v1 仅维护已有应用。
+
+[共用复制组件 CopyButton](copy-button.zh-CN.md)。Vault UI 与 Mini App v2 通用；发布和宿主升级要求见文档。

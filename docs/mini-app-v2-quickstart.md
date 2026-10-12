@@ -83,3 +83,5 @@ Before launch, Flap will publish the stable runtime and align the template, host
 `0.1.36-next.0` 及其来源提交均已发布，现在可以按上述流程生成源码 ZIP。如果仍提示 `package/preview-runtime-unpublished`，核对本地版本、官方模板是否包含发布提交，以及 runtime 输入是否保持一致；恢复本地 SDK/工具改动，App 源码放在 `src/vaults/{slug}`。不要替换为 `latest`、私有 canary 或手改 ZIP 证明。runtime、依赖、构建或打包协议更新需要对应的新 `next` 发布；文档、官方开发工具及仅更新 `latest` 无需再次更新 `next`。
 
 文档与模板直接放在 `feat/mini-app-v2`。官方模板 HEAD 可以晚于 npm 发布提交，打包会验证发布提交的祖先关系，并核对 runtime 源码、依赖、构建及 ZIP/E2E 协议输入。ZIP 中仍记录 npm 的发布版本和 `runtimePackageGitHead`，不会把文档提交当作 SDK 发布提交。个人分支额外提交仍会被官方分支校验拦截。旧预览版已弃用，升级时迁移 App 源码，不要只改版本号。SDK 已发布不代表 App 已获准上线，仍需提交到配套测试 Workbench 审核。
+
+[Shared CopyButton](copy-button.md) works in Vault UI and Mini App v2; see the coordinated release requirements before packaging.

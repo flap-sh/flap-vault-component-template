@@ -305,7 +305,7 @@ const FIX_HINTS = {
   "forbidden-api/script": "Do not inject scripts inside a Vault component.",
   "forbidden-api/dangerously-set-inner-html": "Render structured React content instead of raw HTML.",
   "forbidden-api/remote-import": "Remove runtime remote imports. Use only approved local package imports.",
-  "forbidden-api/clipboard": "Do not access the clipboard or trigger programmatic copy from a Vault component. Render the value only; the host owns copy actions.",
+  "forbidden-api/clipboard": "Do not access the clipboard or trigger programmatic copy from a Vault component. Use the host-owned CopyButton from @/src/ui for user-triggered copying; direct clipboard access remains blocked.",
   "forbidden-api/browser-global-escape": "Use explicit Flap SDK/runtime APIs instead of computed browser-global access.",
   "forbidden-api/browser-network": "Use Flap SDK/readOracle, or a static absolute HTTPS fetch target declared in manifest.endpoints.",
   "forbidden-api/browser-storage": "Use local React state or Flap-provided runtime state instead of browser storage APIs.",
@@ -911,7 +911,7 @@ function collectBrowserGlobalMemberIssues(content, file, manifest) {
         BLOCKING,
         isClipboard ? "forbidden-api/clipboard" : "forbidden-api/browser-global-escape",
         isClipboard
-          ? "Clipboard access and programmatic copy are not allowed inside Vault components. Render the value only; the host owns copy actions."
+          ? "Clipboard access and programmatic copy are not allowed inside Vault components. Use the host-owned CopyButton from @/src/ui for user-triggered copying; direct clipboard access remains blocked."
           : `${globalName}.${memberName} access is not allowed inside Vault components. Use Flap SDK/runtime APIs instead.`,
         { file, line: lineForIndex(content, match.index ?? -1) },
       ),

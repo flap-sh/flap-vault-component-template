@@ -236,7 +236,7 @@ Do not use:
 - CommonJS `require(...)`; use static ESM imports only.
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
-- Clipboard access or programmatic copy, including `navigator.clipboard`, `document.execCommand("copy")`, aliases, and computed property access. Render the value only; the host owns copy actions.
+- Clipboard access or programmatic copy, including `navigator.clipboard`, `document.execCommand("copy")`, aliases, and computed property access. Use the host-owned `CopyButton` from `@/src/ui` for user-triggered copying. Direct clipboard access remains blocked.
 - Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, geolocation, permission, or notification APIs.
 - External URLs outside approved explorer/link hosts, `ExternalLink`, `BinanceImage` on the exact `bin.bnbstatic.com` host, reviewed `manifest.externalFrames`, or a direct static `fetch(...)` covered by `manifest.endpoints`. Declaring a URL in `manifest.endpoints` does not authorize images or other non-fetch resources. Raw remote `<img>` and full gateway image URLs remain blocked; immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid`, and Vault UI and Mini App audio must be packaged as reviewed local top-level audio assets.
 - More than one `ReviewedFrame`, or external frames unless declared in `manifest.externalFrames` and rendered through `ReviewedFrame` with static string literal props that exactly match the declaration.
