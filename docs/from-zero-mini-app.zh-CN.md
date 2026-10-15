@@ -16,7 +16,7 @@ yarn install --frozen-lockfile
 
 模板已经包含 SDK 源码，不需要在 App 目录执行 `npm install @flapsdk/vault-runtime`。npm runtime 由 Workbench 和主站安装；提交前，模板发布版本与两个宿主必须配套。
 
-`@flapsdk/vault-runtime@0.1.38-next.0` **已发布**到 npm `next`（2026-10-12 核对），基于 main 0.1.35，下文共用钱包 API 已包含在此版本中。使用官方 `feat/mini-app-v2` 的最新提交，即可按下文完成校验、E2E 和打包。runtime 输入需匹配 npm 来源提交 `7cc5b3c462a889574186d4320da0618519c1c8c9`，文档和官方开发工具提交可以更新。正式 `latest` 仍为 `0.1.37`，见[发布状态与更新说明](mini-app-v2-quickstart.md)。
+`@flapsdk/vault-runtime@0.1.39-next.0` **已发布**到 npm `next`（2026-10-15 核对），基于 main 0.1.37，下文共用钱包 API 已包含在此版本中。使用官方 `feat/mini-app-v2` 的最新提交，即可按下文完成校验、E2E 和打包。runtime 输入需匹配 npm 来源提交 `48bb8c2d7a6ef14278915d61b08b3c00b55d5fd6`，文档和官方开发工具提交可以更新。正式 `latest` 仍为 `0.1.37`，见[发布状态与更新说明](mini-app-v2-quickstart.md)。
 
 ## 2. 创建 App
 
@@ -114,7 +114,7 @@ yarn app:package my-app
 yarn app:verify-package dist/my-app.zip
 ```
 
-E2E 检查 PC/iPad/H5 的游客和已连接状态，共六项，同时验证当前源码/资源 hash 和预览源码身份。可额外执行 `yarn app:build` 检查模板构建。打包要求使用官方预览分支最新提交，精确匹配已发布 npm `next` 版本及 runtime、构建和打包协议输入；`0.1.38-next.0` 已发布，可按此流程打包。文档和官方开发工具提交可以更新；无关提交、版本不一致或 runtime 输入变化仍会被拦截，不要修改证明信息绕过检查。
+E2E 检查 PC/iPad/H5 的游客和已连接状态，共六项，同时验证当前源码/资源 hash 和预览源码身份。可额外执行 `yarn app:build` 检查模板构建。打包要求使用官方预览分支最新提交，精确匹配已发布 npm `next` 版本及 runtime、构建和打包协议输入；`0.1.39-next.0` 已发布，可按此流程打包。文档和官方开发工具提交可以更新；无关提交、版本不一致或 runtime 输入变化仍会被拦截，不要修改证明信息绕过检查。
 
 将生成的 ZIP 提交到指定 App v2 测试 Workbench，并提供 slug、展示标题、功能概述、接口声明、钱包合约权限及升级权限说明。不要包含密钥。Workbench 负责构建 runtime artifact；人工审核和主站发布决定上线。上传/构建通过不等于已批准上线。
 

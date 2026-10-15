@@ -2,7 +2,7 @@
 
 Vault UI 正式通道首个支持版本为 `0.1.37`。Mini App v2 需要本次合并 main 并适配独立 App provider 的 `0.1.39-next.0` 预览版；`0.1.38-next.0` 不包含此能力。
 Vault UI 使用 `useFlapSdk()`，Mini App v2 使用 `useFlapSdk({ chainId: 56 })`，共用 `readIpfsText`、`readFsi` 和 UI 组件。
-发布顺序和宿主要求见 [发布及升级说明](releases/0.1.37.zh-CN.md)；源码版本号更新
+发布顺序和宿主要求见 [预览版发布及升级说明](releases/0.1.39-next.0.zh-CN.md)；源码版本号更新
 不代表 npm 已发布。
 
 使用 `sdk.readIpfsText(cid, path?)` 读取 UTF-8 文本或 JSON，返回值是字符串。
@@ -29,7 +29,7 @@ Vault UI 使用 `useFlapSdk()`，Mini App v2 使用 `useFlapSdk({ chainId: 56 })
 在运行时校验。`IpfsBackground` 仍只接受静态 CID；NFT 的 tokenURI 图片继续用
 `NftMetadataImage`。
 
-Mini App v2 使用前须发布 `0.1.39-next.0`，再升级 Workbench 和主站。Workbench 还须同步 IPFS
+`0.1.39-next.0` 已发布；Mini App v2 使用前须升级 Workbench 和主站。Workbench 还须同步 IPFS
 静态检查策略，不能只改 npm 依赖；其能力检查使用 `IPFS_CONTENT_VERSION === 1`
 和 `runtime-contract.sdkFeatures.ipfsContent === 1`。旧运行时使用新文本或动态图片
 来源时，受保护的 Workbench 检查器会报 `runtime-policy/ipfs-content-unavailable`。

@@ -1,7 +1,7 @@
 # Dynamic IPFS text and images
 
 Stable Vault UI first supports this in `0.1.37`. Mini App v2 requires the coordinated `0.1.39-next.0` preview release, which merges main and adapts the shared reader/component to the independent App provider. `0.1.38-next.0` does not contain this capability.
-See [release and upgrade notes](releases/0.1.37.md) for publication order and host
+See [preview release and upgrade notes](releases/0.1.39-next.0.md) for publication order and host
 requirements; a source version bump alone does not mean npm has been published.
 
 Use `sdk.readIpfsText(cid, path?)` to read an immutable UTF-8 text or JSON file.
