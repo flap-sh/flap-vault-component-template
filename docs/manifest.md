@@ -432,7 +432,7 @@ Or:
 ```
 
 A declared endpoint enters Flap review; it is not automatically approved and can still be rejected. Undeclared external URLs in Vault source are blocking check issues.
-Endpoint declarations must be valid absolute HTTPS URL strings without username/password credentials. A declaration covers only that URL path or child paths on the same origin; it does not allow sibling paths or lookalike hosts. Direct `fetch(...)` calls must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked. IPFS/Arweave links, WebSocket URLs, embedded data URL media, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, symlinks, and CommonJS `require(...)` are also blocked inside Vault source by default. Full gateway image URLs are blocked in Vault source; immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. Only `IpfsImage` may append a safe relative path, and a dynamic path requires a static `validationPath` image sample.
+Endpoint declarations must be valid absolute HTTPS URL strings without username/password credentials. A declaration covers only that URL path or child paths on the same origin; it does not allow sibling paths or lookalike hosts. Direct `fetch(...)` calls must use a static absolute HTTPS string covered by `manifest.endpoints`. Host-relative, dynamic, HTTP, credentialed, aliased, destructured, or computed browser-global fetch targets are blocked. IPFS/Arweave links, WebSocket URLs, embedded data URL media, browser storage/navigation/worker/permission APIs, direct browser network/media APIs, symlinks, and CommonJS `require(...)` are also blocked inside Vault source by default. Full gateway image URLs are blocked in Vault source; immutable Vault-specific images use `IpfsImage` with a bare static or dynamic CID, or static-CID `IpfsBackground`. `IpfsImage` and the text APIs may append a safe relative path; `IpfsBackground` may not. A dynamic path below a static image CID requires a static `validationPath`; dynamic CID/path pairs are validated by the runtime and require review. Text/JSON CID reads use `sdk.readIpfsText`, and `IpfsText` displays escaped plain text.
 
 Vault V2 NFT metadata is not a developer-declared endpoint or project-supplied SDK/ABI path. Use `NftMetadataImage` with token id; it consumes shared SDK context internally. The runtime owns the minimal ABI calls to `Vault.nft()` and `NFT.tokenURI(tokenId)`, and the host-owned resolver handles external IPFS/HTTPS metadata; do not declare or fetch `tokenURIBase` from `Component.tsx`.
 
@@ -491,3 +491,17 @@ Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for revi
 See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restricted NULL profile and host approval rules.
 
 Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.
+
+## FSI endpoint query exception
+
+The platform query allowlist currently contains only `https://bsc-debug.butterfly.army/fsi/v1` (the exact HTTPS origin and `/fsi/v1` or its child paths). Declare this prefix in `manifest.endpoints` for human review. Every direct FSI `fetch` (static or templated) must declare literal `method: "GET"`, `credentials: "omit"`, `redirect: "error"` and `referrerPolicy: "no-referrer"` options without spreads or overrides; optional `cache: "no-store"` is allowed. Fixed-path templates may interpolate only query values wrapped in the global `encodeURIComponent(value)` after a literal `?`. Use `sdk.readFsi(relativePath, params)` for dynamic paths and parameter objects. Raw and encoded dot segments and encoded separators are rejected before URL normalization. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
+See [SDK FSI queries](sdk.md).
+
+### Controlled dynamic IPFS content
+
+`IpfsImage` accepts static or dynamic bare image/directory CIDs. Use
+`sdk.readIpfsText(cid, path?)` for UTF-8 text or JSON and `IpfsText cid={cid}` for
+escaped plain-text display. Dynamic CID sources and text reads require human
+review. Runtime owns gateways and validates every CID/path; raw URLs, caller
+gateways and HTML injection remain blocked. `IpfsBackground` stays static
+CID-only. See [dynamic IPFS content](ipfs-content.md).

@@ -185,6 +185,7 @@ async function main() {
   if (typeof uiModule.CopyButton !== "function" || runtimeContract.uiFeatures?.copyButton !== 1) {
     throw new Error("The shared runtime must export CopyButton and declare uiFeatures.copyButton version 1.");
   }
+  if (typeof uiModule.IpfsText !== "function" || typeof uiModule.IpfsImage !== "function" || sdkModule.IPFS_CONTENT_VERSION !== 1 || runtimeContract.sdkFeatures?.ipfsContent !== 1) throw new Error("The coordinated runtime must expose controlled dynamic IPFS content.");
   if ("writeCopyText" in uiModule) throw new Error("Clipboard writes must remain private to CopyButton.");
   // Render the packed component/provider, not just their source exports. This also
   // catches an incorrect JSX transform that would require global React at runtime.

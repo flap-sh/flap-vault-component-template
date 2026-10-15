@@ -10,7 +10,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Hidden transaction target.
 - Hardcoded EVM addresses in Vault source unless the address is a binding-scoped factory/token/Vault reference or an explicitly declared `match.bindings[].externalContracts` target.
 - SDK contract calls against fixed non-token/non-Vault/non-factory addresses that are not declared in `match.bindings[].externalContracts`.
-- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images must use `IpfsImage` or `IpfsBackground` from `@/src/ui` with a static image/directory CID. `IpfsImage` may append a safe relative path; dynamic paths require a static `validationPath` sample. The checker validates this contract statically without per-image network probes.
+- Undeclared endpoint, image URL, IPFS gateway, or other external resource. Immutable Vault-specific images use `IpfsImage` from `@/src/ui` with a static or dynamic bare CID; `IpfsBackground` remains static CID-only. A dynamic path below a static image CID requires a static `validationPath` sample; dynamic CID/path pairs use runtime validation and human review. Text/JSON reads use `sdk.readIpfsText`, and `IpfsText` displays escaped plain text. The checker validates this contract statically without per-image network probes.
 - Component-owned NFT SDK/ABI/address/metadata resolution. Vault V2 media must use `NftMetadataImage` with token id; it consumes shared SDK context internally and the runtime owns `Vault.nft()` plus `NFT.tokenURI()` ABI calls. Direct `tokenURIBase` concatenation, dynamic metadata fetches, caller-supplied sdk/ABI/nftAddress/tokenURI/endpoints/src/imageUrl, and arbitrary metadata image rendering are blocked.
 - Host-relative endpoint calls such as `fetch("/api/...")`.
 - Runtime remote import.
@@ -63,7 +63,7 @@ Three r185 is WebGL2-first. `webgl1` in `data-flap-3d-renderer` is an explicit l
 - SDK contract writes using runtime context addresses such as `context.vaultAddress`, `context.tokenAddress`, and `context.factoryAddress`, plus token/NFT addresses derived from runtime context or Vault reads and fixed targets declared in `match.bindings[].externalContracts`.
 - UI-facing Vault views and public proxy actions called through `context.vaultAddress`, including read-only state helpers and gated resolve/claim/deposit flows. Keep router/wrap/dividend/staking internals behind the Vault contract.
 - Explorer links through `context.explorerBaseUrl`, `AddressLink`, `sdk.openExplorerTx(...)`, or reviewed `window.open` calls that target `context.explorerBaseUrl` address/transaction URLs with `noopener` or `noreferrer`.
-- Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images may use only `IpfsImage` or `IpfsBackground` with a static image/directory CID. Dynamic NFT paths are allowed only on `IpfsImage` with a static validation sample.
+- Token logo and NFT media through Flap-controlled host/runtime media policy; immutable Vault-specific images use controlled `IpfsImage` with static or dynamic bare CIDs, or static-CID `IpfsBackground`. Dynamic paths below a static image CID require a static validation sample; dynamic CID/path pairs are runtime-validated and reviewed. Bounded text reads and escaped display use `sdk.readIpfsText` and `IpfsText`.
 - Vault V2 NFT art through `NftMetadataImage`, which reads `Vault.nft()` and `NFT.tokenURI(tokenId)` through runtime-owned minimal ABIs and returns only runtime-validated media after inline JSON parsing or host-proxied IPFS/HTTPS resolution.
 - One display-only `ReviewedFrame` chart from `@/src/ui` only when the exact static provider URL is declared in `manifest.externalFrames` and approved by Flap review.
 
@@ -86,7 +86,7 @@ Allowed only through Flap-controlled runtime/media policy:
 - token logo from Flap metadata
 - NFT metadata image through approved media handling
 - Flap official static asset
-- `IpfsImage` with a static image/directory CID and optional controlled path, or CID-only `IpfsBackground`, verified by `vault:check`
+- `IpfsImage` with a static or dynamic bare image/directory CID and safe path, static-CID `IpfsBackground`, or controlled IPFS text reads/display, verified by `vault:check` plus runtime validation and review; see [IPFS content](ipfs-content.md)
 
 ## Obfuscation Resistance
 

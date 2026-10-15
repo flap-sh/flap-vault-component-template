@@ -30,6 +30,8 @@ import { useFlapWalletRuntime } from "./useFlapWalletRuntime";
 import { createFlapChainSdk } from "./flapChainRuntime";
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
+import { readFsiJson } from "./fsi";
+import { createIpfsTextReader } from "./ipfsText";
 import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
 import { RuntimeContext } from "./runtimeStore";
 import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
@@ -339,7 +341,9 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       if (!publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
       const contract = input.contract;
       const prepared = contractRuntime.snapshot(input);
-      prepared.request = snapshotGenericContractWrite(prepared.request);
+      // Genuine handles use their reviewed signature policy, including execute.
+      // Raw requests retain the restricted NFT-account selector guard.
+      if (!prepared.record) prepared.request = snapshotGenericContractWrite(prepared.request);
       const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice);
       const checked = await contractRuntime.validate(prepared, true);
       const request = checked.request;
@@ -358,7 +362,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       assertWalletWriteReady(`writing ${input.functionName}`);
       if (!walletClient || !publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
       const prepared = contractRuntime.snapshot(input);
-      prepared.request = snapshotGenericContractWrite(prepared.request);
+      if (!prepared.record) prepared.request = snapshotGenericContractWrite(prepared.request);
       const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice);
       let checked = await contractRuntime.validate(prepared, true);
       if (prepared.record) {
@@ -408,6 +412,14 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       });
     },
     [oracleReader, runtimeContext],
+  );
+
+  const fsiEndpointsRef = useRef(runtimeContext.manifest.endpoints);
+  const readIpfsText = useMemo(() => createIpfsTextReader(), []);
+  fsiEndpointsRef.current = runtimeContext.manifest.endpoints;
+  const readFsi = useCallback(
+    <T,>(path: string, params?: Record<string, string>) => readFsiJson<T>(fsiEndpointsRef.current, path, params),
+    [],
   );
 
   const readNftMetadata = useCallback(
@@ -534,7 +546,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     simulateContract: async (_chainId, request) => { if (_chainId !== runtimeContext.chainId) throw new Error("Vault writes require the bound network."); return (await simulateContract(request)).result; },
     writeContract: async (_chainId, request) => { if (_chainId !== runtimeContext.chainId) throw new Error("Vault writes require the bound network."); return writeContract(request); },
     sendTransaction: async () => { throw new Error("Raw transactions require a reviewed standalone App."); },
-  }, { chainId, manifest, writableChains: [runtimeContext.chainId], i18n: i18nApi, notify }), [chainRuntime, manifest, runtimeContext.chainId, i18nApi, notify, simulateContract, writeContract]);
+  }, { chainId, manifest, writableChains: [runtimeContext.chainId], i18n: i18nApi, notify, readIpfsText }), [chainRuntime, manifest, runtimeContext.chainId, i18nApi, notify, readIpfsText, simulateContract, writeContract]);
 
   const sdk = useMemo<FlapVaultSdk>(
     () => ({
@@ -553,6 +565,8 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       waitForTx,
       withdrawNftAccount,
       readOracle,
+      readFsi,
+      readIpfsText,
       readNftMetadata,
       uploadImage,
       uploadText,
@@ -560,7 +574,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [forChain, getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
+    [forChain, getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, readIpfsText, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
   );
 
   return (

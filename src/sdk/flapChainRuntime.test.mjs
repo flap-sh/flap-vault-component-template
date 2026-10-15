@@ -95,3 +95,24 @@ test("fees and event lookbacks retain the existing bounds", async () => {
   assert.deepEqual(await f.sdk.getContractEvents({ address: portal, abi: eventAbi, eventName: "Transfer", fromBlock: 0n, toBlock: 2500n }), [0n, 1001n, 2002n]);
   await assert.rejects(f.sdk.getContractEvents({ address: portal, abi: eventAbi, eventName: "Transfer", fromBlock: 0n, toBlock: 20001n }), /must not exceed/);
 });
+
+
+test("chain SDK shares bounded IPFS reads and snapshots the reviewed FSI declaration", async () => {
+  const f = fixture();
+  const calls = [];
+  const reader = async (cid, path) => { calls.push([cid, path]); return "plain text"; };
+  const sdk = createFlapChainSdk(f.runtime, { chainId: 56, writableChains: [], i18n: {}, notify: {}, manifest: {...f.manifest, endpoints:["https://bsc-debug.butterfly.army/fsi/v1"]}, readIpfsText:reader });
+  assert.equal(await sdk.readIpfsText("cid", "post.txt"), "plain text");
+  assert.deepEqual(calls, [["cid", "post.txt"]]);
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, options) => { calls.push([url,options]); return new Response('{"items":[]}', {headers:{"content-type":"application/json"}}); };
+    await assert.rejects(f.sdk.readFsi("posts"), /requires/);
+    assert.deepEqual(await sdk.readFsi("posts", {wallet:owner}), {items:[]});
+    assert.equal(calls[1][0], `https://bsc-debug.butterfly.army/fsi/v1/posts?wallet=${owner}`);
+    assert.equal(calls[1][1].credentials, "omit");
+    assert.equal(calls[1][1].redirect, "error");
+    await assert.rejects(sdk.readFsi("../versions"), /traversal/);
+    assert.equal(calls.length, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});

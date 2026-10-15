@@ -10,7 +10,10 @@ export function checkResolvedContractDeclarations(value, field, binding) {
       const parsed = parseResolvedContract(definition);
       if (ids.has(parsed.definition.id)) throw new Error("Duplicate resolver id.");
       ids.add(parsed.definition.id);
-      issues.push({ severity: "warning", ruleId: "manual-review/resolved-contract", message: "Review resolver provenance, method semantics and arguments, upgrade authority, value cap, code constraints and fixed checks. The reviewed Vault is trusted; re-resolution is not atomic with mining.", chainId: binding.chainId, factoryAddress: binding.factoryAddress, field, ...parsed.definition });
+      const executeReview = parsed.writes.some((f) => f.name === "execute")
+        ? " execute requires explicit human review of nested targets, calldata/selectors, operation modes, amounts/value and contract-enforced authorization. Runtime checks cover only the declared outer ABI and fixed predicates, not nested calls."
+        : "";
+      issues.push({ severity: "warning", ruleId: "manual-review/resolved-contract", message: `Review resolver provenance, method semantics and arguments, upgrade authority, value cap, code constraints and fixed checks. The reviewed Vault is trusted; re-resolution is not atomic with mining.${executeReview}`, chainId: binding.chainId, factoryAddress: binding.factoryAddress, field, ...parsed.definition });
     } catch (error) { issues.push(bad(error.message)); }
   }
   return issues;

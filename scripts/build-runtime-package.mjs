@@ -123,7 +123,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -141,6 +141,8 @@ ${mode === "canary" ? "This is a private local canary package. It is commit-boun
 
 This package is the shared runtime surface that local preview, Artifact Workbench, and \`flap.sh\` should agree on.
 
+Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
+
 ## Exports
 
 - \`./sdk\`: component-facing SDK hooks, helpers, types, and local oracle reader helper
@@ -149,6 +151,49 @@ This package is the shared runtime surface that local preview, Artifact Workbenc
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
+
+## Shared Vault UI and Mini App v2\n\nThe preview channel includes standalone App wallet operations through\n\`useFlapSdk({ chainId })\` and the host-owned \`CopyButton\` from \`./ui\`.\nVault UI keeps \`useFlapSdk()\` and its token-bound context. Both use this one\npackage; existing token-bound Mini Apps remain compatible.\n\n## Dynamic IPFS content
+
+Stable runtime \`0.1.37\` introduces \`sdk.readIpfsText(cid, path?)\`, which returns
+UTF-8 text or JSON as a string, and \`IpfsText\` for escaped plain-text display.
+\`IpfsImage\` accepts dynamic bare CIDs from FSI, contract state, or SDK uploads.
+The SDK exports \`IPFS_CONTENT_VERSION = 1\`; the runtime contract advertises
+\`sdkFeatures.ipfsContent = 1\`. Stable \`0.1.36\` lacks the text API/component.
+
+Vault source keeps the \`@/src/sdk\` and \`@/src/ui\` authoring aliases. Obtain
+\`sdk\` with \`useFlapSdk()\`, then call the reader from an async effect or event
+handler. Independent Mini App v2 uses \`useFlapSdk({ chainId: 56 })\`;\nits chain SDK exposes the same reader and reviewed \`readFsi\` API.\nImport \`IpfsText\` and \`IpfsImage\` from the UI alias for rendering:
+
+\`\`\`tsx
+const body = await sdk.readIpfsText(textCid);
+// Parse JSON only if the application expects JSON content.
+const post = JSON.parse(await sdk.readIpfsText(jsonCid));
+\`\`\`
+
+\`\`\`tsx
+<IpfsText cid={item.textCid} fallback={i18n.t("contentLoading")} />
+<IpfsImage cid={item.imageCid} alt={i18n.t("postImageAlt")} />
+\`\`\`
+
+Use safe relative \`path\` values for directory CIDs, never a gateway URL or
+\`ipfs://\` URI. The runtime controls gateways and validates every CID/path.
+Text reads omit credentials/referrers, reject redirects and HTML responses,
+enforce UTF-8 and a 256 KiB limit, and have an 8-second network/body deadline
+after acquiring an active slot. Reads are deduplicated, cached and concurrency
+limited. \`IpfsText\` does not interpret HTML or Markdown. Localize loading/error
+and alt text, and paginate feeds. \`IpfsBackground\` remains static CID-only.
+
+Dynamic content sources require human review. Upgrade Workbench and Flap hosts
+to the published runtime and deploy Workbench's matching static checker before
+accepting new components. Reads use platform gateways without a new host route;
+uploads continue through the existing host-owned upload service. Automated
+upload fixtures are mocked and do not verify live gateway availability.
+
+Source documentation:
+
+- [API guide](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/ipfs-content.md)
+- [API 说明](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/ipfs-content.zh-CN.md)
+- [Release and upgrade notes](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/releases/0.1.37.md)
 `;
 
   await Promise.all([

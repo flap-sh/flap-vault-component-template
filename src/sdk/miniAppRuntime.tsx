@@ -4,6 +4,7 @@ import type { Address, FlapI18n, FlapNotify, VaultManifest } from "./types";
 import { MiniAppContext } from "./runtimeStore";
 import { createFlapChainSdk, type FlapChainSdk, type FlapWalletRuntime } from "./flapChainRuntime";
 import { isStandaloneMiniApp } from "./miniApp";
+import { createIpfsTextReader } from "./ipfsText";
 
 export interface MiniAppSession {
   address?: Address;
@@ -19,6 +20,7 @@ export interface MiniAppSdk {
   session: MiniAppSession;
   i18n: FlapI18n;
   notify: FlapNotify;
+  readIpfsText(cid: string, path?: string): Promise<string>;
   forChain(chainId: number): FlapChainSdk;
 }
 export function MiniAppRuntimeProvider({ manifest, session, i18n, notify, runtime, children }: {
@@ -28,10 +30,11 @@ export function MiniAppRuntimeProvider({ manifest, session, i18n, notify, runtim
   const sdk = useMemo<MiniAppSdk>(() => {
     const writableChains = [...(manifest.walletChains ?? [])];
     const chainSdks = new Map<number, FlapChainSdk>();
-    return { context: { appId: manifest.artifactId, slug: manifest.slug!, manifest: structuredClone(manifest) }, session, i18n, notify, forChain: (chainId) => {
+    const readIpfsText = createIpfsTextReader();
+    return { context: { appId: manifest.artifactId, slug: manifest.slug!, manifest: structuredClone(manifest) }, session, i18n, notify, readIpfsText, forChain: (chainId) => {
       if (!runtime) throw new Error("This host has not enabled wallet operations for Apps.");
       let chainSdk = chainSdks.get(chainId);
-      if (!chainSdk) { chainSdk = createFlapChainSdk({ ...runtime, assertActive: () => { if (current.current.manifest !== manifest || current.current.runtime !== runtime) throw new Error("The host wallet or App context changed. Review the transaction again."); runtime.assertActive?.(); } }, { chainId, manifest, writableChains, i18n, notify }); chainSdks.set(chainId, chainSdk); }
+      if (!chainSdk) { chainSdk = createFlapChainSdk({ ...runtime, assertActive: () => { if (current.current.manifest !== manifest || current.current.runtime !== runtime) throw new Error("The host wallet or App context changed. Review the transaction again."); runtime.assertActive?.(); } }, { chainId, manifest, writableChains, i18n, notify, readIpfsText }); chainSdks.set(chainId, chainSdk); }
       return chainSdk;
     } };
   }, [manifest, runtime, session, i18n, notify]);

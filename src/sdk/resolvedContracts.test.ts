@@ -90,3 +90,26 @@ test("ownerOf checks and read overloads use the selected selector",async()=>{
  await f.runtime.validate(f.runtime.snapshot({contract:h,abi:overloaded,functionName:"pending",args:[1n]}),false);
  await assert.rejects(f.runtime.validate(f.runtime.snapshot({contract:h,abi:overloaded,functionName:"pending",args:[]}),false),/read-not-view/);
 });
+
+test("reviewed execute handles accept nested calldata and keep selector, value, ownership and snapshot checks",async()=>{
+ const signature="function execute(address target,uint256 value,bytes data,uint8 operation) payable returns(bytes)";
+ const custom:ManifestResolvedContract={...structuredClone(definition),allow:[signature],checks:[{kind:"owner",target:"resolved"}],payable:true,maxValueWei:"10"};
+ const f=fixture(custom);const h=await f.runtime.resolveContract("position",[1n]);
+ const request={contract:h,abi:parseAbi([signature]),functionName:"execute",args:[a(3),7n,"0x12345678",0],value:10n};
+ const prepared=f.runtime.snapshot(request);
+ request.args[2]="0xffffffff";
+ const checked=await f.runtime.validate(prepared,true);
+ assert.equal(checked.request.address,a(5));assert.equal(checked.request.args?.[2],"0x12345678");
+ // Same name does not authorize a different overload or a forged handle.
+ await assert.rejects(f.runtime.validate(f.runtime.snapshot({...request,abi:parseAbi(["function execute(address,uint256,bytes)"]),args:[a(3),0n,"0x"]}),true),/selector-not-allowed/);
+ assert.throws(()=>f.runtime.snapshot({...request,contract:{...h}}),/forged-or-expired-handle/);
+ await assert.rejects(f.runtime.validate(f.runtime.snapshot({...request,value:11n}),true),/value-not-allowed/);
+ f.state.owner=a(8);await assert.rejects(f.runtime.validate(prepared,true),/ownership-check-failed/);
+ f.state.owner=a(9);f.state.address=a(6);await assert.rejects(f.runtime.validate(prepared,true),/resolved-address-changed/);
+ const undeclared=fixture();const other=await undeclared.runtime.resolveContract("position",[1n]);
+ await assert.rejects(undeclared.runtime.validate(undeclared.runtime.snapshot({...request,contract:other}),true),/selector-not-allowed/);
+ const proxy=fixture({...custom,codeHash:undefined,codePattern:"eip6551-proxy"});
+ proxy.state.code=`0x363d3d373d3d3d363d73${a(4).slice(2)}5af43d82803e903d91602b57fd5bf3${"00".repeat(128)}`;
+ const account=await proxy.runtime.resolveContract("position",[1n]);
+ await proxy.runtime.validate(proxy.runtime.snapshot({...request,contract:account}),true);
+});

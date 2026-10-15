@@ -1,6 +1,6 @@
 # Vault-resolved contracts, version 1
 
-`match.bindings[].resolvedContracts` supports reviewed dynamic Vault-owned token/NFT modules without changing the Vault contract. It complements `withdrawNftAccount`; NULL bag withdrawal stays on the dedicated profile because it requires nested execution calldata, deployment pins and receipt-effect verification. A resolver must already exist on the Vault, accept one or more inputs and return exactly one address. NULL's `item(id)` tuple is not such a resolver.
+`match.bindings[].resolvedContracts` supports reviewed dynamic Vault-owned token/NFT modules without changing the Vault contract. It complements `withdrawNftAccount`; the dedicated NULL bag withdrawal profile provides deployment pins and receipt-effect verification. A resolver must already exist on the Vault, accept one or more inputs and return exactly one address. NULL's `item(id)` tuple is not such a resolver.
 
 Declare a policy only on its factory binding, for example:
 
@@ -42,11 +42,38 @@ For writes, the runtime re-resolves the address, checks code and fixed predicate
 ## Deliberately bounded rules
 
 - At most 8 definitions per factory binding, 16 write signatures per definition, 8 fixed checks. Resolver signatures are view/pure, have 1-32 inputs and exactly one address output.
-- Writes require an exact declared selector and reviewed ABI encoding. `execute`, `executeCall`, `executeBatch`, multicall, delegatecall, approvals and listed administrative methods/selectors are excluded. Dynamic `bytes` inputs, including tuple/array forms, are excluded to prevent nested calldata. These syntactic exclusions do not establish safety of a differently named function; review the code and arguments.
+- Writes require an exact declared selector and reviewed ABI encoding. A literal `execute` signature is allowed only when explicitly listed in `allow` on a human-reviewed resolver and called with its genuine handle; it may accept dynamic `bytes`, including tuple/array forms. `executeCall`, `executeBatch`, multicall, delegatecall, approvals and listed administrative methods/selectors remain excluded. Dynamic `bytes` inputs remain excluded for other write methods. These syntactic rules do not establish method safety; review the code and arguments.
 - Native value defaults to zero. `payable: true` requires a positive decimal `maxValueWei` and the selected function must be payable. The cap is per transaction, not a cumulative spending limit. General fee/gas ceilings remain unchanged.
 - `read` defaults to `"any"` view/pure ABI methods; use a signature list for tighter reads.
 - `codePattern: "eip6551-proxy"` verifies the full reference proxy shape including its footer. `codeHash` pins the runtime bytecode. `implementationCodeHash` is allowed only with that proxy pattern and pins its embedded implementation. A shape check alone does not prove registry provenance, NFT ownership or trusted implementation. Review/check these separately; NULL's dedicated profile does so.
 - Fixed checks: `owner` calls owner() on Vault/resolved target; `ownerOf` calls ownerOf(resolver argument) and compares with sender; `recipient` compares a method's address argument with sender; `balance` bounds a method's uint argument by token balanceOf(user/resolved). Function/argument indexes are explicit. No arbitrary predicate strings, callback, expression evaluation or DSL.
+
+## Reviewed execute exception
+
+An artifact may declare the actual reviewed execution ABI in a factory binding's `resolvedContracts[].allow`, for example:
+
+```json
+"allow": ["function execute(address target,uint256 value,bytes data,uint8 operation) payable returns (bytes)"]
+```
+
+Use that exact ABI with the genuine handle:
+
+```ts
+const account = await sdk.resolveContract("reviewed-account", [tokenId]);
+const prepared = await sdk.simulateContract({
+  contract: account,
+  abi: parseAbi(["function execute(address target,uint256 value,bytes data,uint8 operation) payable returns (bytes)"]),
+  functionName: "execute",
+  args: [target, 0n, calldata, 0],
+});
+const hash = await sdk.writeContract(prepared.request);
+```
+
+The resolver id and signature must be declared in the reviewed manifest. This is not a manifest `reviewed: true` switch: production still trusts only a host-accepted, hash-verified artifact and binding. Workbench keeps the manual-review warning, full signatures, code constraints and fixed checks, and specifically calls out nested targets, calldata/selectors, operation modes, amounts/value and contract-enforced authorization. The SDK validates the outer call and configured checks; it does not decode or allowlist the nested calldata. `maxValueWei` caps outer transaction value, not amounts or forwarded value encoded in arguments.
+
+The exception applies to genuine resolved handles only. Raw requests retain the NULL four-argument selector guard and EIP-6551 target restrictions. Undeclared overloads, forged/expired handles, handle+address overrides and caller changes to the component's manifest copy cannot grant permission. Re-resolution, code/ownership checks, value caps, simulation and wallet/chain checks still run before sending. The dedicated `withdrawNftAccount` API retains its deployment pins and detailed withdrawal receipt verification.
+
+`@flapsdk/vault-runtime@0.1.36` introduced this reviewed execute exception; `0.1.35` rejects these declarations. Upgrade Workbench and the main host to the same compatible published SDK before accepting execute artifacts. The `0.1.37` IPFS release preserves this scope. Manifest schema, package format and runtime contract versions are unchanged; no new declaration fields are needed.
 
 ## Raw targets and host integration
 
@@ -60,4 +87,6 @@ Local template and Workbench preview use `"warn"` to inventory legacy derived wr
 
 Run `yarn test:resolved-contracts`, `yarn test:runtime-provider`, `yarn test:nft-account-withdrawal`, lint/typecheck and checker selftests. Tests include genuine/forged/expired handles, post-resolution address/code/implementation/owner/wallet/chain changes, ABI/selectors, native-value caps, recipient/balance, overloads, manifest/context mutation and real React Provider wiring with mocked chain clients. They are not an audit or a real project's fork proof.
 
-Commit SDK changes, build one protected canary with `yarn runtime:pack:canary`, and run the same tarball in Workbench and the main host through `runtime:test:canary`. Official release packaging retains its existing freshness/main gate. After review/merge/release, update both consumers to the exact published runtime and lockfile. No npm publication, live approval, live transaction or contract modification is part of this branch.
+Commit SDK changes, build one protected canary with `yarn runtime:pack:canary`, and run the same tarball in Workbench and the main host through `runtime:test:canary`. Official release packaging retains its existing freshness/main gate. After review/merge/release, update both consumers to the exact published runtime and lockfile. Canary verification does not publish npm, approve a live artifact, send a transaction, or modify a contract.
+
+After packaging, also run `yarn test:runtime-provider --package` to exercise the generated host-client/SDK entrypoints in a browser, including reviewed execute calls. The runtime uses the automatic JSX transform and must mount without a global React variable.

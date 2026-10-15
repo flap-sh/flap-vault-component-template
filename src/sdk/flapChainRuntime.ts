@@ -1,5 +1,7 @@
 import { isAddress, isHex, decodeFunctionData, encodeFunctionData, type TransactionReceipt } from "viem";
 import { createAppWalletContracts } from "./appWalletContracts";
+import { createIpfsTextReader } from "./ipfsText";
+import { readFsiJson } from "./fsi";
 import type { ResolvedContractHandle } from "./resolvedContractTypes";
 import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
 import { readContractEventsInBlockRanges } from "./contractEvents";
@@ -23,6 +25,8 @@ export interface FlapChainSdk {
   getBlockNumber(): Promise<bigint>;
   getBalance(address?: Address): Promise<bigint>;
   getContractEvents<T = unknown>(request: ContractEventRequest): Promise<T[]>;
+  readIpfsText(cid: string, path?: string): Promise<string>;
+  readFsi<T = unknown>(path: string, params?: Record<string, string>): Promise<T>;
   uploadImage(file: Blob, options?: MediaUploadOptions): ReturnType<MediaUploader>;
   uploadText(text: string, options?: MediaUploadOptions): ReturnType<MediaUploader>;
   openExplorerTx(hash: Address): void;
@@ -64,6 +68,7 @@ function assertValue(value?: bigint) {
 }
 export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
   chainId: number; manifest: VaultManifest; writableChains: readonly number[]; i18n: FlapI18n; notify: FlapNotify;
+  readIpfsText?: (cid: string, path?: string) => Promise<string>;
 }): FlapChainSdk {
   const { chainId, i18n, notify } = input;
   const manifest = structuredClone(input.manifest);
@@ -144,6 +149,8 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
       if (!request.abi?.length || !request.eventName?.trim()) throw new Error("Event lookup requires an ABI and event name.");
       return readContractEventsInBlockRanges<T>({ fromBlock: request.fromBlock, toBlock: typeof request.toBlock === "bigint" ? request.toBlock : await runtime.getBlockNumber(chainId), readRange: async (range) => runtime.getContractEvents(chainId, { ...request, ...range }) as Promise<T[]> });
     },
+    readIpfsText: input.readIpfsText ?? createIpfsTextReader(),
+    readFsi: <T,>(path: string, params?: Record<string, string>) => readFsiJson<T>(manifest.endpoints ?? [], path, params),
     uploadImage: (file, options) => runtime.upload({ kind: "image", file, chainId, ...options }),
     uploadText: (text, options) => runtime.upload({ kind: "text", file: new Blob([text], { type: "text/plain;charset=utf-8" }), chainId, ...options }),
     openExplorerTx: (hash) => { if (chain.explorerBaseUrl && /^0x[0-9a-f]{64}$/i.test(hash)) runtime.openUrl(`${chain.explorerBaseUrl.replace(/\/$/, "")}/tx/${hash}`); },

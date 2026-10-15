@@ -19,7 +19,7 @@ await sdk.uploadImage(file, { signal: controller.signal });
 
 Both methods return `Promise<IpfsUploadResult>` containing `cid`, `uri`, and `gatewayUrl`. The gateway follows the existing active-chain configuration: `flap.mypinata.cloud` for 56/4663/46630 and the configured Flap testnet gateway for 97. Persist `cid` or `uri` when storing an IPFS reference; gateway URLs are derived presentation values. A successful response confirms pinning, rather than guaranteeing every gateway cache is already warm.
 
-SDK uploads are the controlled exception to the ban on component-owned upload flows. Components must not call Pinata, construct their own upload endpoints, pass credentials, use raw upload `fetch`/XHR, or select a gateway. Existing rendering rules still apply: `IpfsImage` / `IpfsBackground` require static immutable CIDs; `NftMetadataImage` resolves contract-selected NFT metadata. This API does not grant arbitrary dynamic `<img src>` or dynamic `IpfsImage cid` permission.
+SDK uploads are the controlled exception to the ban on component-owned upload flows. Components must not call Pinata, construct their own upload endpoints, pass credentials, use raw upload `fetch`/XHR, or select a gateway. Uploaded text CIDs may be read through `sdk.readIpfsText(cid)` or escaped `IpfsText cid={cid}`; uploaded image CIDs may be displayed with controlled `IpfsImage cid={cid}`. These dynamic sources require human review and runtime CID/path validation. `IpfsBackground` remains static CID-only, `NftMetadataImage` retains its contract-selected flow, and arbitrary `<img src>` stays blocked. See [dynamic IPFS content](ipfs-content.md).
 
 ## Host integration
 

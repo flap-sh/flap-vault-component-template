@@ -29,3 +29,11 @@ export function useFlapNotify() {
   const vault = useContext(RuntimeContext); const app = useContext(MiniAppContext);
   const runtime = app ?? vault; if (!runtime) throw new Error("A Flap runtime provider is required."); return runtime.notify;
 }
+
+/** Internal UI adapter: IPFS text is chain-independent on both host surfaces. */
+export function useFlapIpfsTextReader() {
+  const vault = useContext(RuntimeContext); const app = useContext(MiniAppContext);
+  const runtime = app ?? vault;
+  if (!runtime) throw new Error("IPFS content requires a Flap runtime provider.");
+  return runtime.readIpfsText;
+}

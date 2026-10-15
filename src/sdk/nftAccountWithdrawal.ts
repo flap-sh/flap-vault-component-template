@@ -27,7 +27,7 @@ function requireRule(ok: unknown, code: string): asserts ok {
 function same(a: unknown, b: unknown) { return typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase(); }
 function address(value: unknown): asserts value is Address { requireRule(typeof value === "string" && /^0x[0-9a-f]{40}$/i.test(value) && !zero.test(value), "invalid-address"); }
 
-/** Generic SDK writes must never serve as an alternative to the restricted entry. */
+/** Raw SDK writes retain the restricted entry; reviewed resolved handles use their own policy. */
 export function assertNoGenericNftAccountExecute(request: ContractWriteRequest) {
   if (!request.abi) return;
   const data = encodeFunctionData({ abi: request.abi, functionName: request.functionName, args: request.args });

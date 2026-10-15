@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
+import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
+import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -185,8 +187,6 @@ const WARNING = "warning";
 const INFO = "info";
 const TYPE_BINDING_KEYS = new Set(["vault" + "Type", "vault" + "Types"]);
 const UNSAFE_RESOURCE_SCHEMES = ["ipfs://", "ar://", "data:", "javascript:"];
-const IPFS_IMAGE_CID_RE = /^(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/;
-const IPFS_IMAGE_PATH_SEGMENT_RE = /^[A-Za-z0-9._~-]+$/;
 const ALLOWED_INLINE_SVG_TAGS = new Set([
   "svg",
   "g",
@@ -211,7 +211,7 @@ const INLINE_SVG_LOCAL_REF_RE = /^#[A-Za-z0-9_.:-]+$/;
 const FIX_HINTS = {
   "nft-account/invalid-declaration": "Declare only policyId and the supported profile on a factory binding.",
   "nft-account/host-only-provider": "Use named component-facing SDK APIs; never construct a runtime provider inside an artifact.",
-  "nft-account/use-restricted-entry": "Use sdk.withdrawNftAccount instead of generic execute.",
+  "nft-account/use-restricted-entry": "Use a genuine resolved handle with an explicitly declared, human-reviewed execute signature, or sdk.withdrawNftAccount for restricted NULL withdrawal.",
   "manual-review/nft-account-withdrawal": "Review deployment pins and upgrade authority; declaration does not grant host authorization.",
   "cli/missing-folder-name": "Run yarn vault:check <folder-name> with a registered Vault folder name.",
   "cli/missing-slug": "Run yarn vault:check <slug> with a registered Vault slug.",
@@ -275,7 +275,7 @@ const FIX_HINTS = {
   "endpoint-policy/no-credentials": "Remove username/password credentials from endpoint URLs. Workbench endpoint declarations must be bearerless HTTPS URLs.",
   "endpoint-policy/undeclared-url": "Remove the URL. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets; use approved runtime media, ExternalLink, or a reviewed externalFrame for other URL uses.",
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
-  "endpoint-policy/direct-fetch": "Use sdk.readOracle for provisioned data, or call only static absolute HTTPS endpoints without credentials and declared in manifest.endpoints.",
+  "endpoint-policy/direct-fetch": "Use sdk.readFsi for FSI requests, or use a fixed FSI fetch URL with encoded query values and literal GET/omit/error/no-referrer options. Other fetch targets must be static absolute HTTPS URLs declared in manifest.endpoints without credentials.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
   "manual-review/external-contract": "Fixed extra contract targets are review candidates only. Confirm the address, role, write/approval/value exposure, and deployment provenance before publish.",
   "manual-review/external-link": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it.",
@@ -326,8 +326,8 @@ const FIX_HINTS = {
   "media/mini-app-audio-too-large": `Keep each Vault UI and Mini App audio file at or below ${Math.round(MINI_APP_AUDIO_MAX_BYTES / 1024 / 1024)} MiB and total Vault UI and Mini App audio at or below ${Math.round(MINI_APP_AUDIO_TOTAL_MAX_BYTES / 1024 / 1024)} MiB.`,
   "manual-review/mini-app-audio-asset": "Vault UI and Mini App audio files require Flap human review for source/license, play timing, visible mute/pause control, fallback, and mobile impact before publish.",
   "media-policy/remote-media": "Remove remote media URLs. Use host-provided token media, controlled IpfsImage cid/path for immutable Vault/NFT images, or CID-only IpfsBackground.",
-  "media-policy/invalid-ipfs-image-cid": "Pass only a static image/directory CID to IpfsImage/IpfsBackground. Do not pass metadata CIDs, URLs, ipfs:// values, or dynamic CID expressions.",
-  "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic IpfsImage path values require a static validationPath that points to a representative image under the same CID.",
+  "media-policy/invalid-ipfs-image-cid": "Pass a bare file/directory CID to IpfsImage or IpfsText. Dynamic CIDs are runtime-validated; IpfsBackground remains static. URLs and ipfs:// values are blocked.",
+  "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic paths under static image CIDs require a static validationPath sample. Dynamic CID/path pairs are runtime-validated.",
   "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with tokenId and alt plus safe image presentation props. It consumes the shared SDK context internally; do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
   "media-policy/invalid-binance-image": "Import BinanceImage from @/src/ui and pass src plus localized alt without spread props, srcSet, referrerPolicy, loading, or decoding overrides. Static URLs must use HTTPS on the exact bin.bnbstatic.com host; any pathname is allowed.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
@@ -1508,10 +1508,15 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
       if (ts.isIdentifier(callee) && callee.text === "fetch") {
         const isGlobalFetch = !resolveVisibleLexicalBinding(callee, sourceFile, bindings);
         const target = node.arguments[0] ?? null;
-        const staticTarget = target ? tsStaticStringValue(target) : null;
+        const dynamicQueryPrefix = dynamicFsiQueryPrefix(target, ts, declaredFetchUrls, isDeclaredUrl);
+        const staticTarget = (target ? tsStaticStringValue(target) : null) ?? dynamicQueryPrefix;
         const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
+        const fsiSafetyIssue = isFsiFetchTarget(parsedTarget)
+          ? fsiFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, (callee) => !resolveVisibleLexicalBinding(callee, sourceFile, bindings))
+          : null;
         const allowed = Boolean(
           isGlobalFetch &&
+            !fsiSafetyIssue &&
             staticTarget &&
             parsedTarget &&
             parsedTarget.protocol === "https:" &&
@@ -1523,6 +1528,9 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
           allowed,
           isGlobalFetch,
           staticTarget,
+          dynamicQuery: Boolean(dynamicQueryPrefix),
+          fsiSafetyIssue,
+          targetExpression: target?.getText(sourceFile),
           parsedTarget,
           file,
           line: lineForIndex(content, tsNodeStart(node, sourceFile)),
@@ -1541,40 +1549,6 @@ function staticJsxStringAttribute(tag, attributeName) {
   const match = attrRegex.exec(tag);
   if (!match) return undefined;
   return match[1] ?? match[2] ?? match[4] ?? null;
-}
-
-function collectIpfsImageCidUsages(content, file) {
-  const usages = [];
-  const tagRegex = /<(IpfsImage|IpfsBackground)\b[^>]*>/g;
-  for (const tagMatch of content.matchAll(tagRegex)) {
-    const tag = tagMatch[0];
-    const index = tagMatch.index ?? 0;
-    const cid = staticJsxStringAttribute(tag, "cid");
-    const hasPath = /\bpath\s*=/.test(tag);
-    const hasValidationPath = /\bvalidationPath\s*=/.test(tag);
-    const staticPath = staticJsxStringAttribute(tag, "path");
-    const staticValidationPath = staticJsxStringAttribute(tag, "validationPath");
-    usages.push({
-      component: tagMatch[1],
-      cid: cid ? cid.trim() : cid,
-      path: hasPath ? (typeof staticPath === "string" ? staticPath.trim() : null) : undefined,
-      validationPath: hasValidationPath ? (typeof staticValidationPath === "string" ? staticValidationPath.trim() : null) : undefined,
-      file,
-      line: lineForIndex(content, index),
-    });
-  }
-  return usages;
-}
-
-function isValidIpfsImageCid(cid) {
-  return typeof cid === "string" && IPFS_IMAGE_CID_RE.test(cid);
-}
-
-function isValidIpfsImagePath(imagePath) {
-  if (typeof imagePath !== "string" || !imagePath || imagePath.length > 512 || imagePath.startsWith("/") || imagePath.endsWith("/")) return false;
-  return imagePath
-    .split("/")
-    .every((segment) => segment && segment !== "." && segment !== ".." && IPFS_IMAGE_PATH_SEGMENT_RE.test(segment));
 }
 
 function collectNftMetadataImageUsageIssues(content, file) {
@@ -4152,6 +4126,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const content = fs.readFileSync(item.path, "utf8");
     issues.push(...collectSourceSyntaxIssues(rel, content));
     const scanContent = stripCommentsForScanning(content);
+    issues.push(...collectFsiReadIssues(createTsSourceFile(rel, content), ts, manifest.endpoints, rel));
     const directFetchUsages = collectDirectFetchUsages(content, rel, declaredFetchUrls);
     const allowedDirectFetchTargetRanges = directFetchUsages.filter((usage) => usage.allowed && usage.targetRange).map((usage) => usage.targetRange);
     const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
@@ -4325,40 +4300,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...collectDynamicImportIssues(content, rel));
     issues.push(...collectReviewedFrameIssues(scanContent, rel, declaredFrames));
     const staticImgSrcUrls = collectStaticImgSrcUrls(scanContent, rel);
-    const ipfsImageCidUsages = collectIpfsImageCidUsages(scanContent, rel);
-    for (const usage of ipfsImageCidUsages) {
-      if (!isValidIpfsImageCid(usage.cid)) {
-        issues.push(
-          issue(
-            BLOCKING,
-            "media-policy/invalid-ipfs-image-cid",
-            "IpfsImage/IpfsBackground must receive a static image/directory CID. URLs, ipfs:// values, metadata CIDs, and dynamic CID expressions are not allowed.",
-            usage,
-          ),
-        );
-      }
-      const hasDynamicPath = usage.path === null;
-      const hasAnyPath = usage.path !== undefined;
-      const hasAnyValidationPath = usage.validationPath !== undefined;
-      const pathIsInvalid = typeof usage.path === "string" && !isValidIpfsImagePath(usage.path);
-      const validationPathIsInvalid = hasAnyValidationPath && !isValidIpfsImagePath(usage.validationPath);
-      const invalidPathContract =
-        (usage.component !== "IpfsImage" && (hasAnyPath || hasAnyValidationPath)) ||
-        pathIsInvalid ||
-        validationPathIsInvalid ||
-        (hasDynamicPath && !hasAnyValidationPath) ||
-        (!hasDynamicPath && hasAnyValidationPath);
-      if (invalidPathContract) {
-        issues.push(
-          issue(
-            BLOCKING,
-            "media-policy/invalid-ipfs-image-path",
-            "IpfsImage path must be a safe relative path. A dynamic path requires one static validationPath sample; static or missing paths must not declare validationPath. IpfsBackground does not support dynamic paths.",
-            usage,
-          ),
-        );
-      }
-    }
+    issues.push(...collectIpfsContentIssues(scanContent, rel).map((item) => issue(item.severity, item.ruleId, item.message, item)));
     issues.push(...collectNftMetadataImageUsageIssues(scanContent, rel));
     issues.push(...binanceImageAnalysis.issues);
     const requireRegex = /\brequire\s*\(/g;
@@ -4433,7 +4375,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "endpoint-policy/direct-fetch",
-            "fetch() targets inside Vault source must be static absolute HTTPS URLs without credentials and declared in manifest.endpoints for Flap review.",
+            usage.fsiSafetyIssue ?? "fetch() requires a declared static HTTPS URL, or encoded query-value interpolation on the platform FSI allowlist with explicit safe request options. Use sdk.readFsi for dynamic FSI paths.",
             { file: rel, line: usage.line },
           ),
         );
@@ -4445,6 +4387,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
             origin: usage.parsedTarget.origin,
             pathname: usage.parsedTarget.pathname,
             queryParams: queryParamsForUrl(usage.staticTarget),
+            dynamicQuery: usage.dynamicQuery,
+            targetExpression: usage.targetExpression,
             file: rel,
             line: usage.line,
           }),
@@ -4639,6 +4583,10 @@ function collectManualReview(issues) {
       origin: item.origin,
       pathname: item.pathname,
       queryParams: item.queryParams ?? {},
+      dynamicQuery: item.dynamicQuery ?? false,
+      pathExpression: item.pathExpression,
+      paramsExpression: item.paramsExpression,
+      targetExpression: item.targetExpression,
       file: item.file,
       line: item.line,
       field: item.field,

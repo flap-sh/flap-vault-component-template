@@ -20,3 +20,11 @@ test("artifacts cannot construct a provider with their own approvals", () => {
   }
   for (const code of ['import * as sdk from "@/src/sdk"', 'export * from "@/src/sdk"', 'import {useFlapSdk, type VaultComponentProps} from "@/src/sdk"']) assert.deepEqual(checkNftAccountSource(code, "Component.tsx"), []);
 });
+
+test("execute warnings explain the reviewed handle exception and preserve the raw withdrawal boundary", () => {
+  const [issue] = checkNftAccountSource('sdk.writeContract({contract: handle, functionName: "execute"})', "Component.tsx");
+  assert.equal(issue.severity, "warning");
+  assert.match(issue.message, /genuine sdk.resolveContract handle/);
+  assert.match(issue.message, /human-reviewed manifest/);
+  assert.match(issue.message, /Raw NULL execute remains blocked/);
+});

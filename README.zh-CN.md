@@ -17,6 +17,7 @@
 - [从零到已验证 Zip](#从零到已验证-zip)
 - [测试 CA 与工厂配置](./docs/vault-ui-test-ca.zh-CN.md)
 - [快速开始](#快速开始)
+- [动态 IPFS 内容](#动态-ipfs-内容)
 - [AI Agent 入口](#ai-agent-入口)
 - [添加一个 Vault UI](#添加一个-vault-ui)
 - [必需文件](#必需文件)
@@ -28,6 +29,8 @@
 这个公开模板用于构建受控的 Vault UI 和独立 Mini App v2 组件，并兼容已有的绑定 Token 的 Mini App v1。
 
 模板支持按 Vault V2 标准展示 NFT 图片。
+
+`0.1.37` 源码新增 `sdk.readIpfsText(cid, path?)`、只显示转义纯文本的 `IpfsText`，并允许 `IpfsImage` 使用动态裸 CID。详见 [动态 IPFS 内容](#动态-ipfs-内容) 和 [发布及升级说明](docs/releases/0.1.37.zh-CN.md)。
 
 标准 3D 能力通过版本化 `three-r3f-v1` 档案启用。省略 `mode` 的 7777 Vault UI 可使用 factory、单 Vault 或 token binding，但必须保持默认 Vault 壳并在 3D 大视觉前展示宿主风险状态；7777 和 8888 Mini App 都使用 token-only binding、双语 `displayTitle`、全高布局和完整 Mini App 规则，并豁免默认 Vault 风险状态标签检查。档案统一锁定 Three/R3F 依赖，允许包内递归且静态可追踪的源码、Shader 与 3D 资源；每个本地文件都必须从 `Component.tsx` 依赖图静态导入，直接把相对路径字符串传给 loader 不会被计入。档案同时要求确定性的 renderer 状态和降级属性；网络、钱包、存储、导航、Worker、远程资源和任意 npm 包仍然阻断。完整能力矩阵见 `docs/mini-app-3d.md`；首页公共示例区会展示Flap 街头、蝴蝶农场、能量竞技场、Flap Skies 和 7777 `three-r3f-example`。
 
@@ -377,7 +380,7 @@ Vault folder 是严格 source package 边界，只能包含：
 - shared runtime surface 之外的额外 SDK package 或 SDK-like wrapper
 - manifest 声明但缺失的 locale
 - 任一 manifest locale 缺失 i18n key
-- Vault source 中的远端图片 URL；不可避免的 Vault 专属不可变图片必须用 `@/src/ui` 的 `IpfsImage` 并传静态图片/目录 CID。NFT 目录内的动态路径只有在同时提供静态 `validationPath` 样本时才允许
+- Vault source 中的远端图片 URL；不可避免的 Vault 专属不可变图片使用 `@/src/ui` 的 `IpfsImage` 和静态或动态裸 CID。静态 CID 下的动态路径需提供静态 `validationPath` 样本；动态 CID/路径组合由运行时校验并进入人工审查
 - Component 自己传 SDK、提供 Vault V2 ABI、读取 metadata 或拼接 `tokenURIBase`；应使用 `NftMetadataImage`，只传入 token id，由组件内部读取共享 runtime context，再统一调用 `Vault.nft()` 与 `NFT.tokenURI(tokenId)` 并兼容 mode 0/1/2
 - 合约 read / write、event watch、log / filter call 或 gas estimate 指向 Vault / token / NFT / factory / declaration 边界之外的 router、bridge、aggregator 或无关合约
 - 用 type field 绑定，而不是 registry 控制的 chain / factory 或 chain / Vault target
@@ -386,7 +389,15 @@ Vault folder 是严格 source package 边界，只能包含：
 
 如果可通过 Flap SDK 或链上读取实现，就应避免外部 endpoint、oracle usage、第三方图片、额外固定合约 target 和其他外部资源。非 oracle endpoint 声明在 `manifest.json`；固定的非 token / 非 Vault / 非 factory 合约 target 声明在 `match.bindings[].externalContracts`；不可避免的 Vault 专属不可变图片使用 `IpfsImage cid` 并由 `vault:check` 校验；oracle config、media policy、actions、fallback、artifact id 和 version 属于 Flap Artifact Workbench / runtime。
 
-自定义不可变图片的路径是：先在 Vault package 外部上传并 pin 图片，再只把真实图片 CID 传给 `<IpfsImage cid="...">`。NFT 图片集合应整体上传为一个 IPFS 目录，然后用 `path={tokenId.toString() + ".png"}` 动态选择目录内图片，并提供一个真实静态样本 `validationPath="1.png"` 供 `vault:check` 验证。如果上传流程返回的是 metadata CID，需要先读取该 metadata JSON，从 `image` 字段里拿图片地址，再去掉 gateway URL 或 `ipfs://` 前缀，只保留图片 CID。不要在包里放 `imageUrl`、完整 gateway URL、metadata CID、CSS `url(...)`、动态 CID 或包含目录穿越/query/hash 的路径。
+自定义不可变图片使用 `<IpfsImage cid={imageCid}>`，真实图片 CID 可以动态取得，由运行时校验并供人工审查。静态 NFT 图片目录下可用 `path={tokenId.toString() + ".png"}` 动态选择图片，同时提供真实静态样本 `validationPath="1.png"`；动态 CID/路径组合在运行时校验。如果上传结果是 metadata CID，应先读取 JSON，提取图片 CID 和安全相对路径。不要将完整 gateway URL、metadata CID、CSS `url(...)` 或包含目录穿越/query/hash 的路径传作图片输入。
+
+## 动态 IPFS 内容
+
+使用 `sdk.readIpfsText(cid, path?)` 读取 UTF-8 文本或 JSON，`<IpfsText cid={textCid} />` 显示转义纯文本，`<IpfsImage cid={imageCid} />` 显示图片。CID 可以来自 FSI、合约状态或 `sdk.uploadText` / `sdk.uploadImage`，不要求项目方先提供业务样例。网关和校验由运行时控制，动态来源须人工审查；`IpfsBackground` 仍只接受静态 CID。
+
+详见 [API 说明](docs/ipfs-content.zh-CN.md) 和 [0.1.37 发布及升级说明](docs/releases/0.1.37.zh-CN.md)。正式使用前须等 npm 发布，再升级 Workbench 和主站；`0.1.36` 不包含此文本 API/组件。
+
+### 其他受控媒体与链接
 
 Vault V2 合约决定的 NFT 图片使用 `<NftMetadataImage tokenId={tokenId} ... />`。这是通用图片方案，组件内部直接读取 `VaultRuntimeProvider`，不需要业务侧传 `sdk`、NFT 地址或 Vault V2 图片 ABI。共享 runtime 内置最小 `Vault.nft()` 与 `NFT.tokenURI(tokenId)` ABI。Component 不读取 `tokenURIBase`、不判断 `.json`、不拼 URL。Mode 0/1 的 data JSON 在共享 runtime 内解析；mode 2 的 IPFS/HTTPS metadata 通过 host resolver，并将 HTTPS 连接绑定到已验证的公网 DNS 地址，同时执行 redirect、timeout、3,000,000 字节图片上限、MIME 和 SVG 安全限制。合法的 Pinata 专属网关 IPFS URL 会先按 CID/path 改写到 Pinata 公共网关。NFT 列表需要分页或只挂载可见 token id。Mint、sell、价格等其他业务函数仍使用项目自己的最小 `VaultABI.ts`。
 

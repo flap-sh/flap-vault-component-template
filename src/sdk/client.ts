@@ -80,3 +80,5 @@ export { FLAP_WALLET_RUNTIME_VERSION } from "./flapChainRuntime";
 export type { FlapChainSdk, FlapSendTransactionRequest, FlapTransactionReceipt } from "./flapChainRuntime";
 
 export type { AppWalletContract, AppResolvedContract } from "./appWalletPolicy.mjs";
+/** Controlled dynamic CID text reads and image rendering. */
+export const IPFS_CONTENT_VERSION = 1;
