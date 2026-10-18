@@ -31,6 +31,7 @@ import { fetchOracleJson } from "./oracle";
 import { readFsiJson } from "./fsi";
 import { createIpfsTextReader } from "./ipfsText";
 import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
+import { IpfsImageOptimizationContext } from "./imageOptimization";
 import { RuntimeContext } from "./runtimeStore";
 import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
 import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
@@ -51,6 +52,8 @@ interface ToastItem {
 }
 
 export interface RuntimeProviderProps {
+  /** Optional host image optimization; old artifacts need no new props. */
+  imageOptimizer?: import("./imageOptimization").IpfsImageOptimizer;
   children: ReactNode;
   manifest: VaultManifest;
   i18n: Record<string, Record<string, string>>;
@@ -99,7 +102,7 @@ function getPreviewOracleEndpoint(extraConfig: Record<string, unknown> | undefin
   return typeof endpoint === "string" ? endpoint : undefined;
 }
 
-export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, nftAccountWithdrawalPolicies = EMPTY_NFT_ACCOUNT_POLICIES, contractTargetPolicy = "strict" }: RuntimeProviderProps) {
+export function VaultRuntimeProvider({ imageOptimizer, children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, nftAccountWithdrawalPolicies = EMPTY_NFT_ACCOUNT_POLICIES, contractTargetPolicy = "strict" }: RuntimeProviderProps) {
   const [version, setVersion] = useState(0);
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
@@ -567,7 +570,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
 
   return (
     <RuntimeContext.Provider value={sdk}>
-      {children}
+      <IpfsImageOptimizationContext.Provider value={imageOptimizer}>{children}</IpfsImageOptimizationContext.Provider>
       <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2">
         {messages.map((message) => (
           <div key={message.id} className="pointer-events-auto">

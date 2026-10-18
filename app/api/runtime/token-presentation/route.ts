@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
       chainId,
       tokenAddress,
       flapHostOrigin: flapHostOriginFromEnv(),
+      signal: request.signal,
     });
 
     return NextResponse.json({ data });
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
       chainId,
       tokenAddresses,
       flapHostOrigin: flapHostOriginFromEnv(),
+      signal: request.signal,
     });
 
     return NextResponse.json({ data });

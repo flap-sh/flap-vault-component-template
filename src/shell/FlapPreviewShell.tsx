@@ -1,5 +1,6 @@
 "use client";
 
+import { optimizeIpfsImage } from "./ipfsImageOptimization";
 import { VaultRuntimeProvider } from "@/src/sdk/host";
 
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -478,6 +479,7 @@ export function FlapPreviewShell({ folderName, manifest, i18n, children }: FlapP
 
   return (
     <VaultRuntimeProvider
+      imageOptimizer={optimizeIpfsImage}
       manifest={manifest}
       i18n={i18n}
       runtimeContext={runtimeContextOverrides}

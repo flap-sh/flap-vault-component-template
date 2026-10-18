@@ -5,6 +5,9 @@ import type { Address, HostRuntimePresentationFetcher, HostTokenPresentation } f
 const DEFAULT_FLAP_HOST_ORIGIN = "https://flap.sh";
 const DEFAULT_RUNTIME_PRESENTATION_ENDPOINT = "/api/runtime/token-presentation";
 const DEFAULT_IPFS_GATEWAY = "https://flap.mypinata.cloud";
+const PRESENTATION_TIMEOUT_MS = 12_000;
+const PRESENTATION_ATTEMPT_TIMEOUT_MS = 4_000;
+const PRESENTATION_ATTEMPTS = 3;
 const LEGACY_IPFS_GATEWAY_HOSTS = new Set([
   "cf-ipfs.com",
   "pump.mypinata.cloud",
@@ -32,6 +35,8 @@ export interface ResolveHostPresentationInput {
   tokenAddress: Address;
   flapHostOrigin?: string;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 export interface ResolveHostPresentationBatchInput {
@@ -39,11 +44,100 @@ export interface ResolveHostPresentationBatchInput {
   tokenAddresses: Address[];
   flapHostOrigin?: string;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 export interface LocalHostPresentationFetcherOptions {
   endpoint?: string;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+}
+
+function withAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const aborted = () => reject(signal.reason);
+    signal.addEventListener("abort", aborted, { once: true });
+    if (signal.aborted) aborted();
+    operation.then(resolve, reject).finally(() => signal.removeEventListener("abort", aborted));
+  });
+}
+
+function retryDelay(milliseconds: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const aborted = () => { clearTimeout(timer); reject(signal.reason); };
+    const timer = setTimeout(() => { signal.removeEventListener("abort", aborted); resolve(); }, milliseconds);
+    signal.addEventListener("abort", aborted, { once: true });
+    if (signal.aborted) aborted();
+  });
+}
+
+function transientMetadataError(error: unknown) {
+  const value = error as { name?: string; message?: string; code?: string; cause?: { code?: string } } | undefined;
+  if (value?.name === "TimeoutError" || value?.name === "AbortError") return true;
+  const code = value?.cause?.code || value?.code;
+  if (code) return /^(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|UND_ERR_(?:SOCKET|CONNECT_TIMEOUT|HEADERS_TIMEOUT|BODY_TIMEOUT))$/.test(code);
+  return value?.name === "TypeError" && /fetch failed|network|failed to fetch/i.test(value.message || "");
+}
+
+function metadataPayload(value: unknown): HostMetadataResponseBody {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !("data" in value)) throw new Error("Host token metadata returned an invalid response schema.");
+  const payload = value as HostMetadataResponseBody;
+  if (payload.data !== null && (typeof payload.data !== "object" || Array.isArray(payload.data))) throw new Error("Host token metadata returned invalid data.");
+  return payload;
+}
+
+// This specific POST is a public read-only metadata query, never a wallet/write request.
+async function fetchHostMetadata(input: ResolveHostPresentationInput | ResolveHostPresentationBatchInput, origin: string, chain: string, addresses: Address[]) {
+  const timeoutMs = Number.isFinite(input.timeoutMs) && input.timeoutMs! > 0 ? Math.min(input.timeoutMs!, PRESENTATION_TIMEOUT_MS) : PRESENTATION_TIMEOUT_MS;
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(new DOMException("Host token metadata request timed out.", "TimeoutError")), timeoutMs);
+  const signal = input.signal ? AbortSignal.any([input.signal, deadline.signal]) : deadline.signal;
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const started = Date.now();
+  try {
+    for (let attempt = 0; attempt < PRESENTATION_ATTEMPTS; attempt++) {
+      signal.throwIfAborted();
+      const attemptController = new AbortController();
+      const attemptTimer = setTimeout(() => attemptController.abort(new DOMException("Host token metadata attempt timed out.", "TimeoutError")), Math.min(PRESENTATION_ATTEMPT_TIMEOUT_MS, Math.max(1, timeoutMs - (Date.now() - started))));
+      const attemptSignal = AbortSignal.any([signal, attemptController.signal]);
+      let payload: unknown;
+      let parsed = false;
+      let delay = 200 * (attempt + 1);
+      try {
+        const response = await withAbort<Response>(Promise.resolve().then(() => fetchImpl(`${origin}/api/tax-dashboard/metadata`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ chain, addresses: addresses.map((address) => address.toLowerCase()) }),
+          cache: "no-store",
+          signal: attemptSignal,
+        })), attemptSignal);
+        if (response.ok) {
+          payload = await withAbort(response.json(), attemptSignal);
+          parsed = true;
+        } else {
+          const retryable = response.status === 429 || (response.status >= 500 && response.status < 600);
+          const status = response.status;
+          const retryAfter = Number(response.headers.get("retry-after"));
+          if (Number.isFinite(retryAfter) && retryAfter > 0) delay = Math.min(1000, retryAfter * 1000);
+          await withAbort(Promise.resolve(response.body?.cancel()), attemptSignal);
+          if (!retryable || attempt === PRESENTATION_ATTEMPTS - 1) throw new Error(`Host token metadata request returned HTTP ${status}.`);
+        }
+      } catch (error) {
+        signal.throwIfAborted();
+        if (!transientMetadataError(error) || attempt === PRESENTATION_ATTEMPTS - 1) throw error;
+      } finally {
+        clearTimeout(attemptTimer);
+      }
+      if (parsed) return metadataPayload(payload);
+      await retryDelay(delay, signal);
+    }
+    throw new Error("Host token metadata request failed after bounded retries.");
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function normalizeOrigin(origin?: string) {
@@ -156,22 +250,7 @@ export async function loadFlapHostTokenPresentation(input: ResolveHostPresentati
   if (!tokenAddress) return null;
 
   const flapHostOrigin = normalizeOrigin(input.flapHostOrigin);
-  const fetchImpl = input.fetchImpl ?? fetch;
-  const response = await fetchImpl(`${flapHostOrigin}/api/tax-dashboard/metadata`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      chain: chainSlug,
-      addresses: [tokenAddress.toLowerCase()],
-    }),
-    cache: "no-store",
-  });
-
-  if (!response.ok) return null;
-
-  const payload = (await response.json()) as HostMetadataResponseBody;
+  const payload = await fetchHostMetadata(input, flapHostOrigin, chainSlug, [tokenAddress]);
   return toHostPresentation(input.chainId, tokenAddress, flapHostOrigin, resolveMetadataItem(payload, tokenAddress));
 }
 
@@ -185,22 +264,7 @@ export async function loadFlapHostTokenPresentationBatch(input: ResolveHostPrese
   if (!normalizedAddresses.length) return {};
 
   const flapHostOrigin = normalizeOrigin(input.flapHostOrigin);
-  const fetchImpl = input.fetchImpl ?? fetch;
-  const response = await fetchImpl(`${flapHostOrigin}/api/tax-dashboard/metadata`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      chain: chainSlug,
-      addresses: normalizedAddresses.map((tokenAddress) => tokenAddress.toLowerCase()),
-    }),
-    cache: "no-store",
-  });
-
-  if (!response.ok) return {};
-
-  const payload = (await response.json()) as HostMetadataResponseBody;
+  const payload = await fetchHostMetadata(input, flapHostOrigin, chainSlug, normalizedAddresses);
   return Object.fromEntries(
     normalizedAddresses.map((tokenAddress) => [
       tokenAddress,
@@ -243,8 +307,9 @@ export function createLocalHostPresentationFetcher(options: LocalHostPresentatio
     const response = await fetchImpl(`${endpoint}?${query.toString()}`, {
       method: "GET",
       cache: "no-store",
+      signal: options.signal,
     });
-    if (!response.ok) return null;
+    if (!response.ok) throw new Error(`Local token presentation request returned HTTP ${response.status}.`);
 
     const payload = (await response.json()) as { data?: unknown } | null;
     return parsePresentationPayload(payload?.data);
