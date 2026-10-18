@@ -70,7 +70,7 @@ async function main() {
   // Preserve Next.js client boundaries without turning host preflight helpers into client references.
   const hostReexport = '\nexport { VaultRuntimeProvider } from "./host-client.js";\n';
   await writeFile(path.join(OUT_DIR, "host.js"), (await readFile(path.join(OUT_DIR, "host.js"), "utf8")) + hostReexport);
-  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, type RuntimeProviderProps } from "./host-client.mjs";\n');
+  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, type RuntimeProviderProps, type IpfsImageOptimizer } from "./host-client.mjs";\n');
 
   const peerVersion = (name) => rootPackage.dependencies?.[name] ?? rootPackage.devDependencies?.[name];
   const packageManifest = {
@@ -147,6 +147,70 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
+
+## Optional host image optimization
+
+Hosts can pass an \`imageOptimizer\` to \`VaultRuntimeProvider\` from
+\`@flapsdk/vault-runtime/host\`. Import the \`IpfsImageOptimizer\` type from the
+same host-only entrypoint. The callback receives an already validated gateway
+\`src\`, plus optional legacy \`width\` and \`sizes\`, and returns only
+\`{ src, srcSet?, sizes? }\`; it does not replace the image element or its layout.
+Next.js remains a host dependency, not a runtime peer dependency.
+
+For example, a Next.js client host can use its existing provider props:
+
+\`\`\`tsx
+"use client";
+
+import { getImageProps } from "next/image";
+import {
+  VaultRuntimeProvider,
+  type IpfsImageOptimizer,
+  type RuntimeProviderProps,
+} from "@flapsdk/vault-runtime/host";
+
+const imageOptimizer: IpfsImageOptimizer = ({ src, width, sizes }) => {
+  const pixels = Number(width);
+  const knownWidth = Number.isFinite(pixels) && pixels > 0;
+  const { props } = getImageProps({
+    src,
+    alt: "",
+    fill: true,
+    sizes: sizes || (knownWidth ? String(pixels) + "px" : "100vw"),
+  });
+  // Keep unknown legacy dimensions intrinsic; do not add layout styles.
+  if (!sizes && !knownWidth) return { src: props.src };
+  return { src: props.src, srcSet: props.srcSet, sizes: props.sizes };
+};
+
+export function ImageOptimizedVaultHost(props: RuntimeProviderProps) {
+  return <VaultRuntimeProvider {...props} imageOptimizer={imageOptimizer} />;
+}
+\`\`\`
+
+Retain the existing manifest, runtime context, host result and children passed to
+the provider. Configure the Next.js host's image allowlist for the approved runtime
+gateway origins; never widen it to arbitrary remote images. Do not import this
+host API or \`next/image\` from a controlled Vault component.
+
+Existing artifacts using shared \`IpfsImage\` or \`IpfsBackground\` need no new
+required props or rebuilt component bytes when both host and runtime are upgraded.
+The runtime preserves CID/path validation, the native image element and existing
+CSS. Adapter errors retain direct loading; an optimized request failure retries
+the same gateway directly before moving to the next gateway. CID/path changes
+reset fallback state. Omitting the adapter preserves direct gateway rendering.
+Custom native images, CSS URLs, bundled image implementations and
+\`NftMetadataImage\` data URLs do not gain this optimization automatically.
+
+Published \`0.1.37\` does not implement this additive provider option. Host wiring
+alone cannot activate it on that release. Before production activation, obtain a
+separately authorized official runtime release, then update both consumer exact
+dependency pins and lockfiles to its verified published version and gitHead.
+Pre-merge package testing uses a clean, committed private canary and the same
+tarball in both consumers; never publish that canary or use it as release/ZIP
+provenance. Measure a real unchanged artifact and cold/warm image requests before
+claiming acceleration: cold requests still depend on the source gateway, and
+actual edge caching depends on the host deployment.
 
 ## Dynamic IPFS content
 

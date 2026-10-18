@@ -45,7 +45,7 @@ globalThis.hostContext=context;
 const i18n={en:{}};
 function Probe(){globalThis.sdk=useFlapSdk();React.useEffect(()=>{globalThis.providerRenders=(globalThis.providerRenders||0)+1;});return globalThis.ipfsProps?React.createElement('div',{id:'ipfs-content'},React.createElement(IpfsText,{cid:ipfsProps.textCid,...ipfsProps.textOverrides}),React.createElement(IpfsImage,{cid:ipfsProps.imageCid,alt:'post',...ipfsProps.imageOverrides})):null;}
 const root=createRoot(document.getElementById('root'));
-globalThis.renderProvider=(nextContext=context)=>{context=nextContext;globalThis.hostContext=context;root.render(React.createElement(VaultRuntimeProvider,{manifest,i18n,runtimeContext:context},React.createElement(Probe)));};
+globalThis.renderProvider=(nextContext=context)=>{context=nextContext;globalThis.hostContext=context;root.render(React.createElement(VaultRuntimeProvider,{manifest,i18n,runtimeContext:context,imageOptimizer:globalThis.imageOptimizer},React.createElement(Probe)));};
 globalThis.rerenderProvider=async(nextContext=context)=>{const before=globalThis.providerRenders;renderProvider(nextContext);while(globalThis.providerRenders===before)await new Promise(requestAnimationFrame);};
 globalThis.readOwner=(read=sdk.readContract,address=context.host.taxInfo.quoteToken,extra={})=>read({address,abi:parseAbi(['function owner() view returns(address)']),functionName:'owner',...extra});
 globalThis.encodeOwner=(owner)=>encodeFunctionResult({abi:parseAbi(['function owner() view returns(address)']),functionName:'owner',result:owner});
@@ -110,6 +110,11 @@ export const useBalance=()=>({data:undefined});`;
  const beforeInvalid=ipfsRequests;
  const rejectedIpfs=await page.evaluate(async()=>{try{await sdk.readIpfsText('https://unrelated.example/file');return false;}catch{return true;}});
  assert(rejectedIpfs);assert.equal(ipfsRequests,beforeInvalid);assert.equal(unrelatedRequests,0);
+ // Old calls gain host optimization through the actual provider, without new image props.
+ await page.evaluate(async()=>{globalThis.imageOptimizer=({src})=>({src:src+'?optimized=1'});await rerenderProvider();});
+ await page.waitForFunction(()=>document.querySelector('#ipfs-content img')?.getAttribute('src')?.endsWith('?optimized=1') && document.querySelector('#ipfs-content img')?.naturalWidth>0);
+ await page.evaluate(async()=>{globalThis.imageOptimizer=undefined;await rerenderProvider();});
+ assert.equal((await page.locator('#ipfs-content img').getAttribute('src')).includes('?optimized=1'),false);
  await page.evaluate(async()=>{globalThis.ipfsProps=undefined;await rerenderProvider();});
  // FSI authorization comes from the host manifest, never the component's copy.
  let fsiRequests=0;

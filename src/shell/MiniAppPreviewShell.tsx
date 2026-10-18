@@ -1,5 +1,6 @@
 "use client";
 
+import { optimizeIpfsImage } from "./ipfsImageOptimization";
 import { VaultRuntimeProvider } from "@/src/sdk/host";
 
 import { ReactNode, useEffect, useMemo, useState } from "react";
@@ -244,6 +245,7 @@ export function MiniAppPreviewShell({ folderName, manifest, i18n, children }: Mi
 
   return (
     <VaultRuntimeProvider
+      imageOptimizer={optimizeIpfsImage}
       manifest={manifest}
       i18n={i18n}
       runtimeContext={runtimeContextOverrides}

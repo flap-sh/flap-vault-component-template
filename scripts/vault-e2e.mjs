@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -17,6 +16,7 @@ import {
   sourceSha256FromFileHashes,
 } from "./e2e-report-utils.mjs";
 import { failAgent } from "./agent-error.mjs";
+import { spawnPreviewProcess } from "./e2e-preview-process.mjs";
 
 const ROOT = process.cwd();
 const HOST = "127.0.0.1";
@@ -59,8 +59,15 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv.slice(3));
 
+class E2EFailure extends Error {
+  constructor(options) {
+    super(options.message);
+    this.options = options;
+  }
+}
+
 function failE2E(code, message, fixHint, extra = {}) {
-  failAgent({
+  throw new E2EFailure({
     code,
     message,
     fixHint,
@@ -121,7 +128,8 @@ async function waitForReady(url, timeoutMs = 60_000) {
   let lastError;
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(Math.min(5000, Math.max(1, timeoutMs - (Date.now() - startedAt)))) });
+      await response.body?.cancel();
       if (response.ok) return;
       lastError = new Error(`HTTP ${response.status}`);
     } catch (error) {
@@ -200,27 +208,20 @@ async function startPreviewServer() {
 
   const port = args.port ? Number(args.port) : await findAvailablePort(3230);
   const baseUrl = `http://${HOST}:${port}`;
-  const child = spawn(YARN_COMMAND, ["dev", "-p", String(port), "-H", HOST], {
+  const preview = spawnPreviewProcess(YARN_COMMAND, ["dev", "-p", String(port), "-H", HOST], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(port) },
-    stdio: ["ignore", "pipe", "pipe"],
   });
-  const logs = [];
-  child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
-  child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
+  const { child } = preview;
   try {
     await waitForPreviewProcessReady(child, `${baseUrl}/${folderName}`);
     return {
       baseUrl,
-      stop: async () => {
-        child.kill("SIGTERM");
-        await sleep(500);
-        if (!child.killed) child.kill("SIGKILL");
-      },
-      logs,
+      stop: preview.stop,
+      diagnostics: preview.diagnostics,
     };
   } catch (error) {
-    child.kill("SIGTERM");
+    await preview.stop();
     if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
       failE2E(
         "vault-e2e/dev-server-command-missing",
@@ -233,23 +234,23 @@ async function startPreviewServer() {
       "vault-e2e/server-not-ready",
       `Preview server did not become ready: ${error instanceof Error ? error.message : String(error)}`,
       "Fix preview startup, then rerun yarn vault:e2e <folder-name>.",
-      { command: YARN_COMMAND, logs: logs.join("").split("\n").slice(-60) },
+      { command: YARN_COMMAND, ...preview.diagnostics() },
     );
   }
 }
 
-async function verifyPreviewSource(baseUrl, expectedComponentSha256, expectedLaunchConfigSha256) {
+async function verifyPreviewSource(baseUrl, expectedComponentSha256, expectedLaunchConfigSha256, previewServer) {
   const endpoint = new URL("/api/runtime/e2e-source", baseUrl);
   endpoint.searchParams.set("folderName", folderName);
   let response;
   try {
-    response = await fetch(endpoint);
+    response = await fetch(endpoint, { signal: AbortSignal.timeout(10_000) });
   } catch (error) {
     failE2E(
       "vault-e2e/preview-source-unavailable",
       `Could not verify the preview source: ${error instanceof Error ? error.message : String(error)}`,
       "Run E2E against the current template preview server and retry.",
-      { endpoint: endpoint.toString() },
+      { endpoint: endpoint.toString(), cause: error?.cause?.code || error?.code || "unknown", previewServer: previewServer?.diagnostics?.() },
     );
   }
   if (!response.ok) {
@@ -257,7 +258,7 @@ async function verifyPreviewSource(baseUrl, expectedComponentSha256, expectedLau
       "vault-e2e/preview-source-unavailable",
       `Preview source verification returned HTTP ${response.status}.`,
       "Run E2E against the current template preview server and retry.",
-      { endpoint: endpoint.toString() },
+      { endpoint: endpoint.toString(), previewServer: previewServer?.diagnostics?.() },
     );
   }
   const payload = await response.json();
@@ -472,7 +473,7 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
   const externalRequests = [];
   page.on("console", (message) => {
     if (["error", "warning"].includes(message.type())) {
-      consoleMessages.push({ type: message.type(), text: message.text().slice(0, 500) });
+      consoleMessages.push({ type: message.type(), text: message.text().slice(0, 500), location: message.location() });
     }
   });
   page.on("pageerror", (error) => pageErrors.push(error.message.slice(0, 500)));
@@ -591,149 +592,161 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
   }
 }
 
-if (!folderName) {
-  failE2E("vault-e2e/missing-folder", "Usage: yarn vault:e2e <folder-name>", "Pass the Vault folder name to test.");
-}
-
-const vaultDir = path.join(ROOT, "src", "vaults", folderName);
-const manifestPath = path.join(vaultDir, "manifest.json");
-if (!fs.existsSync(manifestPath)) {
-  failE2E("vault-e2e/missing-vault", `Vault folder not found: ${folderName}`, "Run yarn vault:scaffold <folder-name> or pass an existing Vault folder name.");
-}
-
-const manifest = readJson(manifestPath);
-const hasLaunchConfig = Array.isArray(manifest.surfaces) && manifest.surfaces.includes("launch-config");
-const skipRiskStatus = manifest.mode === MINI_APP_MODE;
-const has3D = Array.isArray(manifest.capabilities) && manifest.capabilities.includes("three-r3f-v1");
-let binding;
-try {
-  binding = selectE2EBinding(manifest, {
-    chainId: asChainId(args.chain || process.env.VAULT_E2E_CHAIN_ID),
-    tokenAddress: asAddress(args.token || process.env.VAULT_E2E_TOKEN_ADDRESS),
-    vaultAddress: asAddress(args.vault || process.env.VAULT_E2E_VAULT_ADDRESS),
-    factoryAddress: asAddress(args.factory || process.env.VAULT_E2E_FACTORY_ADDRESS),
-  });
-} catch (error) {
-  failE2E("vault-e2e/missing-test-token", error instanceof Error ? error.message : String(error), "Add a real non-placeholder token address under manifest match.bindings[].tokenAddresses, or pass --token only for local self-test.");
-}
-
-const outDir = path.join(ROOT, E2E_DIST_DIR, folderName);
-fs.rmSync(outDir, { recursive: true, force: true });
-fs.mkdirSync(path.join(outDir, "screenshots"), { recursive: true });
-fs.mkdirSync(path.join(outDir, "traces"), { recursive: true });
-
-const sourceFileSha256 = collectSourceHashes(ROOT, folderName);
-const sourceSha256 = sourceSha256FromFileHashes(sourceFileSha256);
-let browser;
-let server;
-let previewSource;
-const checks = [];
-try {
-  browser = await launchChromium();
-  server = await startPreviewServer();
-  previewSource = await verifyPreviewSource(
-    server.baseUrl,
-    sourceFileSha256[`src/vaults/${folderName}/Component.tsx`],
-    hasLaunchConfig ? sourceFileSha256[`src/vaults/${folderName}/LaunchConfig.tsx`] : undefined,
-  );
-  for (const viewport of VIEWPORTS) {
-    for (const phase of REQUIRED_PHASES) {
-      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, skipRiskStatus, has3D }));
-    }
-    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true, skipRiskStatus, has3D }));
-    if (hasLaunchConfig) {
-      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "launch-config", skipRiskStatus: true, launchConfig: true }));
-    }
-    if (has3D) checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "default", skipRiskStatus, has3D, forceNoWebGL2: true }));
+async function main() {
+  if (!folderName) {
+    failE2E("vault-e2e/missing-folder", "Usage: yarn vault:e2e <folder-name>", "Pass the Vault folder name to test.");
   }
-  if (has3D) {
-    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", skipRiskStatus, has3D, reducedMotion: true }));
-    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", skipRiskStatus, has3D, contextLoss: true }));
+
+  const vaultDir = path.join(ROOT, "src", "vaults", folderName);
+  const manifestPath = path.join(vaultDir, "manifest.json");
+  if (!fs.existsSync(manifestPath)) {
+    failE2E("vault-e2e/missing-vault", `Vault folder not found: ${folderName}`, "Run yarn vault:scaffold <folder-name> or pass an existing Vault folder name.");
   }
-} finally {
-  if (browser) await browser.close();
-  if (server) await server.stop();
-}
 
-const allIssues = checks.flatMap((check) => check.issues.map((issue) => ({ ...issue, checkId: check.id, viewport: check.viewport, phase: check.phase })));
-const issueCounts = allIssues.reduce(
-  (acc, issue) => {
-    acc[issue.ruleId] = (acc[issue.ruleId] ?? 0) + 1;
-    return acc;
-  },
-  {},
-);
-const blocking = allIssues.length;
-const report = {
-  kind: E2E_REPORT_KIND,
-  schemaVersion: E2E_REPORT_VERSION,
-  generatedBy: E2E_REPORT_TOOL,
-  generatedAt: new Date().toISOString(),
-  folderName,
-  artifactId: manifest.artifactId,
-  sourcePackage: `src/vaults/${folderName}`,
-  sourceSha256,
-  fileSha256: sourceFileSha256,
-  previewSource,
-  manifestSha256: sourceFileSha256[`src/vaults/${folderName}/manifest.json`],
-  schemaSha256: sourceFileSha256[MANIFEST_SCHEMA_PATH],
-  binding: {
-    chainId: binding.chainId,
-    tokenAddress: binding.tokenAddress,
-    vaultAddress: binding.vaultAddress,
-    factoryAddress: binding.factoryAddress,
-    tokenPolicy: binding.tokenPolicy,
-  },
-  viewports: VIEWPORTS,
-  phases: REQUIRED_PHASES,
-  passed: blocking === 0,
-  summary: {
-    blocking,
-    warning: 0,
-    info: checks.length,
-  },
-  layoutCheckSummary: {
-    horizontalOverflow: issueCounts["layout/horizontal-overflow"] ?? 0,
-    scopeOutOfViewport: issueCounts["layout/scope-out-of-viewport"] ?? 0,
-    textOverflow: issueCounts["layout/text-overflow"] ?? 0,
-    controlCovered: issueCounts["layout/control-covered"] ?? 0,
-    controlOverlap: issueCounts["layout/control-overlap"] ?? 0,
-    riskStatus: (issueCounts["layout/risk-status-not-visible"] ?? 0) + (issueCounts["layout/risk-status-too-low"] ?? 0),
-    wrongNetworkState: issueCounts["wallet/wrong-network-state-missing"] ?? 0,
-    renderErrors: (issueCounts["render/framework-error"] ?? 0) + (issueCounts["render/token-unavailable"] ?? 0) + (issueCounts["render/console-error"] ?? 0),
-  },
-  checks,
-};
+  const manifest = readJson(manifestPath);
+  const hasLaunchConfig = Array.isArray(manifest.surfaces) && manifest.surfaces.includes("launch-config");
+  const skipRiskStatus = manifest.mode === MINI_APP_MODE;
+  const has3D = Array.isArray(manifest.capabilities) && manifest.capabilities.includes("three-r3f-v1");
+  let binding;
+  try {
+    binding = selectE2EBinding(manifest, {
+      chainId: asChainId(args.chain || process.env.VAULT_E2E_CHAIN_ID),
+      tokenAddress: asAddress(args.token || process.env.VAULT_E2E_TOKEN_ADDRESS),
+      vaultAddress: asAddress(args.vault || process.env.VAULT_E2E_VAULT_ADDRESS),
+      factoryAddress: asAddress(args.factory || process.env.VAULT_E2E_FACTORY_ADDRESS),
+    });
+  } catch (error) {
+    failE2E("vault-e2e/missing-test-token", error instanceof Error ? error.message : String(error), "Add a real non-placeholder token address under manifest match.bindings[].tokenAddresses, or pass --token only for local self-test.");
+  }
 
-const reportPath = path.join(outDir, "qa-report.json");
-fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  const outDir = path.join(ROOT, E2E_DIST_DIR, folderName);
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(path.join(outDir, "screenshots"), { recursive: true });
+  fs.mkdirSync(path.join(outDir, "traces"), { recursive: true });
 
-if (!report.passed) {
-  failE2E(
-    "vault-e2e/checks-failed",
-    `${folderName} E2E failed with ${blocking} blocking issue(s).`,
-    `Open ${path.relative(ROOT, reportPath)}, inspect screenshots/traces, fix the layout/state issue, then rerun yarn vault:e2e ${folderName}.`,
-    {
-      reportPath: path.relative(ROOT, reportPath),
-      summary: report.summary,
-      layoutCheckSummary: report.layoutCheckSummary,
-      issues: allIssues.slice(0, 20),
+  const sourceFileSha256 = collectSourceHashes(ROOT, folderName);
+  const sourceSha256 = sourceSha256FromFileHashes(sourceFileSha256);
+  let browser;
+  let server;
+  let previewSource;
+  const checks = [];
+  try {
+    browser = await launchChromium();
+    server = await startPreviewServer();
+    previewSource = await verifyPreviewSource(
+      server.baseUrl,
+      sourceFileSha256[`src/vaults/${folderName}/Component.tsx`],
+      hasLaunchConfig ? sourceFileSha256[`src/vaults/${folderName}/LaunchConfig.tsx`] : undefined,
+      server,
+    );
+    for (const viewport of VIEWPORTS) {
+      for (const phase of REQUIRED_PHASES) {
+        checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, skipRiskStatus, has3D }));
+      }
+      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true, skipRiskStatus, has3D }));
+      if (hasLaunchConfig) {
+        checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "launch-config", skipRiskStatus: true, launchConfig: true }));
+      }
+      if (has3D) checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "default", skipRiskStatus, has3D, forceNoWebGL2: true }));
+    }
+    if (has3D) {
+      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", skipRiskStatus, has3D, reducedMotion: true }));
+      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", skipRiskStatus, has3D, contextLoss: true }));
+    }
+  } finally {
+    try {
+      if (browser) await browser.close();
+    } finally {
+      if (server) await server.stop();
+    }
+  }
+
+  const allIssues = checks.flatMap((check) => check.issues.map((issue) => ({ ...issue, checkId: check.id, viewport: check.viewport, phase: check.phase })));
+  const issueCounts = allIssues.reduce(
+    (acc, issue) => {
+      acc[issue.ruleId] = (acc[issue.ruleId] ?? 0) + 1;
+      return acc;
     },
+    {},
   );
+  const blocking = allIssues.length;
+  const report = {
+    kind: E2E_REPORT_KIND,
+    schemaVersion: E2E_REPORT_VERSION,
+    generatedBy: E2E_REPORT_TOOL,
+    generatedAt: new Date().toISOString(),
+    folderName,
+    artifactId: manifest.artifactId,
+    sourcePackage: `src/vaults/${folderName}`,
+    sourceSha256,
+    fileSha256: sourceFileSha256,
+    previewSource,
+    manifestSha256: sourceFileSha256[`src/vaults/${folderName}/manifest.json`],
+    schemaSha256: sourceFileSha256[MANIFEST_SCHEMA_PATH],
+    binding: {
+      chainId: binding.chainId,
+      tokenAddress: binding.tokenAddress,
+      vaultAddress: binding.vaultAddress,
+      factoryAddress: binding.factoryAddress,
+      tokenPolicy: binding.tokenPolicy,
+    },
+    viewports: VIEWPORTS,
+    phases: REQUIRED_PHASES,
+    passed: blocking === 0,
+    summary: {
+      blocking,
+      warning: 0,
+      info: checks.length,
+    },
+    layoutCheckSummary: {
+      horizontalOverflow: issueCounts["layout/horizontal-overflow"] ?? 0,
+      scopeOutOfViewport: issueCounts["layout/scope-out-of-viewport"] ?? 0,
+      textOverflow: issueCounts["layout/text-overflow"] ?? 0,
+      controlCovered: issueCounts["layout/control-covered"] ?? 0,
+      controlOverlap: issueCounts["layout/control-overlap"] ?? 0,
+      riskStatus: (issueCounts["layout/risk-status-not-visible"] ?? 0) + (issueCounts["layout/risk-status-too-low"] ?? 0),
+      wrongNetworkState: issueCounts["wallet/wrong-network-state-missing"] ?? 0,
+      renderErrors: (issueCounts["render/framework-error"] ?? 0) + (issueCounts["render/token-unavailable"] ?? 0) + (issueCounts["render/console-error"] ?? 0),
+    },
+    checks,
+  };
+
+  const reportPath = path.join(outDir, "qa-report.json");
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+
+  if (!report.passed) {
+    failE2E(
+      "vault-e2e/checks-failed",
+      `${folderName} E2E failed with ${blocking} blocking issue(s).`,
+      `Open ${path.relative(ROOT, reportPath)}, inspect screenshots/traces, fix the layout/state issue, then rerun yarn vault:e2e ${folderName}.`,
+      {
+        reportPath: path.relative(ROOT, reportPath),
+        summary: report.summary,
+        layoutCheckSummary: report.layoutCheckSummary,
+        issues: allIssues.slice(0, 20),
+      },
+    );
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        folderName,
+        reportPath: path.relative(ROOT, reportPath),
+        summary: report.summary,
+        binding: report.binding,
+        screenshots: checks.map((check) => check.screenshot).filter(Boolean),
+        traces: checks.map((check) => check.trace).filter(Boolean),
+      },
+      null,
+      2,
+    ),
+  );
+
 }
 
-console.log(
-  JSON.stringify(
-    {
-      ok: true,
-      folderName,
-      reportPath: path.relative(ROOT, reportPath),
-      summary: report.summary,
-      binding: report.binding,
-      screenshots: checks.map((check) => check.screenshot).filter(Boolean),
-      traces: checks.map((check) => check.trace).filter(Boolean),
-    },
-    null,
-    2,
-  ),
-);
+main().catch((error) => {
+  if (error instanceof E2EFailure) failAgent(error.options);
+  failAgent({ code: "vault-e2e/runner-failed", message: error instanceof Error ? error.message : String(error), fixHint: "Inspect the E2E runner and preview logs, then rerun the current source." });
+});
