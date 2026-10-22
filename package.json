@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "check": "yarn lint && yarn typecheck",
     "test:fsi": "node --test src/sdk/fsi.test.mjs scripts/fsi-endpoint-policy.test.mjs",
-    "ci": "yarn test:ipfs-content && yarn test:fsi && yarn test:runtime-provider && yarn test:resolved-contracts && yarn test:nft-account-withdrawal && yarn test:media-upload && yarn test:vault-audio && yarn test:launch-config && yarn test:video-session && yarn test:binance-image && yarn test:nft-metadata && yarn test:contract-write-fees && yarn test:contract-events && yarn test:runtime-oracle && yarn test:tax-info && yarn test:mini-app-preview-host && yarn test:runtime-package-mode && yarn lint && yarn typecheck && yarn template:freshness:selftest && yarn vault:check:selftest && yarn vault:verify-package:selftest && yarn vault:check example && yarn vault:e2e example && yarn vault:package example && yarn vault:verify-package dist/example.zip && yarn vault:check dex-listed-example && yarn vault:e2e dex-listed-example && yarn vault:package dex-listed-example && yarn vault:verify-package dist/dex-listed-example.zip && yarn vault:check action-gallery-example && yarn vault:e2e action-gallery-example && yarn vault:package action-gallery-example && yarn vault:verify-package dist/action-gallery-example.zip && yarn vault:check community-buyback-example && yarn vault:e2e community-buyback-example && yarn vault:package community-buyback-example && yarn vault:verify-package dist/community-buyback-example.zip && yarn vault:check flapixel-example && yarn vault:e2e flapixel-example && yarn vault:package flapixel-example && yarn vault:verify-package dist/flapixel-example.zip && yarn build && yarn runtime:package && yarn runtime:verify-package && yarn preview:smoke && yarn preview:smoke:real",
+    "test:preview-process": "node --test scripts/preview-process.test.mjs",
+    "ci": "yarn test:preview-process && yarn test:ipfs-content && yarn test:fsi && yarn test:runtime-provider && yarn test:resolved-contracts && yarn test:nft-account-withdrawal && yarn test:media-upload && yarn test:vault-audio && yarn test:launch-config && yarn test:video-session && yarn test:binance-image && yarn test:nft-metadata && yarn test:contract-write-fees && yarn test:contract-events && yarn test:runtime-oracle && yarn test:tax-info && yarn test:mini-app-preview-host && yarn test:runtime-package-mode && yarn lint && yarn typecheck && yarn template:freshness:selftest && yarn vault:check:selftest && yarn vault:verify-package:selftest && yarn vault:check example && yarn vault:e2e example && yarn vault:package example && yarn vault:verify-package dist/example.zip && yarn vault:check dex-listed-example && yarn vault:e2e dex-listed-example && yarn vault:package dex-listed-example && yarn vault:verify-package dist/dex-listed-example.zip && yarn vault:check action-gallery-example && yarn vault:e2e action-gallery-example && yarn vault:package action-gallery-example && yarn vault:verify-package dist/action-gallery-example.zip && yarn vault:check community-buyback-example && yarn vault:e2e community-buyback-example && yarn vault:package community-buyback-example && yarn vault:verify-package dist/community-buyback-example.zip && yarn vault:check flapixel-example && yarn vault:e2e flapixel-example && yarn vault:package flapixel-example && yarn vault:verify-package dist/flapixel-example.zip && yarn build && yarn runtime:package && yarn runtime:verify-package && yarn preview:smoke && yarn preview:smoke:real",
     "test:launch-config": "node --experimental-strip-types --test src/sdk/launchConfig.test.mjs src/shell/previewSurface.test.mjs",
     "test:nft-metadata": "node --experimental-strip-types --test app/api/runtime/nft-metadata/requestBody.test.ts",
     "test:binance-image": "node --experimental-strip-types --test src/ui/binanceImageUrl.test.ts",
@@ -66,7 +67,7 @@
     "decimal.js": "^10.4.3",
     "lucide-react": "^0.546.0",
     "mpegts.js": "1.8.2",
-    "next": "15.5.23",
+    "next": "15.5.28",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwind-merge": "^2.6.0",
@@ -76,6 +77,7 @@
     "wagmi": "^2.12.14"
   },
   "resolutions": {
+    "sharp": "0.35.5",
     "qr": "0.5.1"
   },
   "devDependencies": {
@@ -85,7 +87,7 @@
     "@types/react-dom": "19.2.4",
     "autoprefixer": "^10.4.22",
     "eslint": "^8.57.1",
-    "eslint-config-next": "15.5.23",
+    "eslint-config-next": "15.5.28",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
     "tsup": "^8.5.0",

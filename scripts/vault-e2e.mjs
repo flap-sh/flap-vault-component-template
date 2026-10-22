@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { startNextPreview } from "./preview-process.mjs";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -20,7 +20,6 @@ import { failAgent } from "./agent-error.mjs";
 
 const ROOT = process.cwd();
 const HOST = "127.0.0.1";
-const YARN_COMMAND = process.platform === "win32" ? "yarn.cmd" : "yarn";
 const DEFAULT_WALLET_ADDRESS = "0x0000000000000000000000000000000000000EaE";
 const DEFAULT_WRONG_CHAIN_ID = 1;
 const MINI_APP_MODE = "mini-app";
@@ -191,6 +190,22 @@ async function launchChromium() {
   }
 }
 
+async function stopPreviewForE2E(preview, startupError) {
+  try {
+    await preview.stop();
+  } catch (error) {
+    failE2E(
+      "vault-e2e/cleanup-failed",
+      `Could not stop the owned preview server: ${error instanceof Error ? error.message : String(error)}`,
+      "Inspect the preview process cleanup error, fix it, and rerun yarn vault:e2e <folder-name>.",
+      {
+        cleanupError: error instanceof Error ? error.message : String(error),
+        ...(startupError ? { startupError: startupError instanceof Error ? startupError.message : String(startupError) } : {}),
+      },
+    );
+  }
+}
+
 async function startPreviewServer() {
   if (args["base-url"] || process.env.VAULT_E2E_BASE_URL) {
     const baseUrl = String(args["base-url"] || process.env.VAULT_E2E_BASE_URL).replace(/\/$/, "");
@@ -200,40 +215,37 @@ async function startPreviewServer() {
 
   const port = args.port ? Number(args.port) : await findAvailablePort(3230);
   const baseUrl = `http://${HOST}:${port}`;
-  const child = spawn(YARN_COMMAND, ["dev", "-p", String(port), "-H", HOST], {
-    cwd: ROOT,
-    env: { ...process.env, PORT: String(port) },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  let preview;
   const logs = [];
-  child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
-  child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
   try {
+    preview = startNextPreview(["dev", "-p", String(port), "-H", HOST], {
+      cwd: ROOT,
+      env: { ...process.env, PORT: String(port) },
+    });
+    const { child } = preview;
+    child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
+    child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
     await waitForPreviewProcessReady(child, `${baseUrl}/${folderName}`);
     return {
       baseUrl,
-      stop: async () => {
-        child.kill("SIGTERM");
-        await sleep(500);
-        if (!child.killed) child.kill("SIGKILL");
-      },
+      stop: () => preview.stop(),
       logs,
     };
   } catch (error) {
-    child.kill("SIGTERM");
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+    if (preview) await stopPreviewForE2E(preview, error);
+    if (error && typeof error === "object" && "code" in error && (error.code === "ENOENT" || error.code === "MODULE_NOT_FOUND")) {
       failE2E(
         "vault-e2e/dev-server-command-missing",
-        `Could not start the preview server because ${YARN_COMMAND} was not found.`,
-        "Install Yarn and ensure it is on PATH, then rerun yarn vault:e2e <folder-name>.",
-        { command: YARN_COMMAND },
+        `Could not start the preview server because the local Next.js command was not found.`,
+        "Run yarn install to restore the local Next.js dependency, then rerun yarn vault:e2e <folder-name>.",
+        { command: "next dev" },
       );
     }
     failE2E(
       "vault-e2e/server-not-ready",
       `Preview server did not become ready: ${error instanceof Error ? error.message : String(error)}`,
       "Fix preview startup, then rerun yarn vault:e2e <folder-name>.",
-      { command: YARN_COMMAND, logs: logs.join("").split("\n").slice(-60) },
+      { command: "next dev", logs: logs.join("").split("\n").slice(-60) },
     );
   }
 }
@@ -652,7 +664,7 @@ try {
   }
 } finally {
   if (browser) await browser.close();
-  if (server) await server.stop();
+  if (server) await stopPreviewForE2E(server);
 }
 
 const allIssues = checks.flatMap((check) => check.issues.map((issue) => ({ ...issue, checkId: check.id, viewport: check.viewport, phase: check.phase })));
