@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState, type ComponentType } from "react";
 import { useReadContract } from "wagmi";
+import { useSearchParams } from "next/navigation";
 import {
   isVaultLaunchConfigResultForSchema, parseVaultLaunchSchema, VAULT_LAUNCH_SCHEMA_ABI,
   type VaultLaunchConfigComponentProps, type VaultLaunchConfigResult,
@@ -9,6 +10,7 @@ import {
 } from "@/src/sdk";
 import { useLang } from "@/src/i18n/useLang";
 import { Alert, Button } from "@/src/ui";
+import { selectLaunchConfigPreviewBinding } from "./launchConfigPreview";
 
 const EXAMPLE_SCHEMA: VaultLaunchSchema = {
   isArray: false,
@@ -28,7 +30,8 @@ export function LaunchConfigPreviewShell({ folderName, manifest, i18n, Component
   const { lang, languageCode } = useLang();
   const copy = lang.home.surfaces;
   const messages = i18n[languageCode] ?? i18n.en ?? {};
-  const binding = manifest.match.bindings.find((entry) => entry.factoryAddress);
+  const params = useSearchParams();
+  const binding = selectLaunchConfigPreviewBinding(manifest, params);
   const fixture = folderName === "example";
   const schemaRead = useReadContract({
     chainId: binding?.chainId,
@@ -38,10 +41,11 @@ export function LaunchConfigPreviewShell({ folderName, manifest, i18n, Component
     query: { enabled: !fixture && Boolean(binding?.factoryAddress), retry: 1, staleTime: 60_000 },
   });
   const schema = useMemo(() => {
+    if (!binding) return null;
     if (fixture) return EXAMPLE_SCHEMA;
     if (!schemaRead.data) return null;
     try { return parseVaultLaunchSchema(schemaRead.data); } catch { return null; }
-  }, [fixture, schemaRead.data]);
+  }, [binding, fixture, schemaRead.data]);
   const scope = [binding?.chainId, binding?.factoryAddress, JSON.stringify(schema)].join(":");
   const [returned, setReturned] = useState<{ scope: string; value: unknown } | null>(null);
   const onChange = useCallback((value: VaultLaunchConfigResult) => { setReturned({ scope, value }); }, [scope]);
@@ -63,7 +67,11 @@ export function LaunchConfigPreviewShell({ folderName, manifest, i18n, Component
           <p className="text-sm leading-6 text-[#84888C]">{copy.hostBoundary}</p>
           <Alert tone={fixture ? "warning" : "info"}>{fixture ? copy.fixtureNotice : copy.liveSchemaNotice}</Alert>
         </div>
-        <div data-vault-e2e-scope="vault-preview" data-launch-config-preview="true" className="rounded-lg border border-[#303236] bg-[#070808] p-3 sm:p-5">
+        <div data-vault-e2e-scope="vault-preview" data-launch-config-preview="true"
+          data-launch-config-schema={schema ? JSON.stringify(schema) : undefined}
+          data-launch-config-chain-id={binding?.chainId}
+          data-launch-config-factory-address={binding?.factoryAddress}
+          className="rounded-lg border border-[#303236] bg-[#070808] p-3 sm:p-5">
           {!binding ? <Alert tone="danger">{copy.missingFactory}</Alert>
             : !schema ? <Alert tone={schemaRead.isError || (!schemaRead.isPending && schemaRead.data) ? "danger" : "info"}>
               {schemaRead.isPending ? copy.schemaLoading : copy.schemaFailed}
