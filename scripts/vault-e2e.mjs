@@ -17,6 +17,7 @@ import {
   sourceSha256FromFileHashes,
 } from "./e2e-report-utils.mjs";
 import { failAgent } from "./agent-error.mjs";
+import { runLaunchConfigChecks } from "./launch-config-e2e.mjs";
 
 const ROOT = process.cwd();
 const HOST = "127.0.0.1";
@@ -57,6 +58,7 @@ function parseArgs(argv) {
 }
 
 const args = parseArgs(process.argv.slice(3));
+let launchConfigFixture;
 
 function failE2E(code, message, fixHint, extra = {}) {
   failAgent({
@@ -513,25 +515,12 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
       issues.push({ ruleId: "render/token-unavailable", message: "Preview marked the runtime token as unavailable." });
     }
     if (launchConfig) {
-      const launchConfigRoot = previewScope.locator("[data-flap-launch-config='true']");
-      if ((await launchConfigRoot.count()) !== 1) {
-        issues.push({ ruleId: "launch-config/component-missing", message: "Launch Config preview did not render the named LaunchConfig export." });
+      const previewChainId = await previewScope.getAttribute("data-launch-config-chain-id");
+      const previewFactory = await previewScope.getAttribute("data-launch-config-factory-address");
+      if (previewChainId !== String(binding.chainId) || previewFactory?.toLowerCase() !== binding.factoryAddress?.toLowerCase()) {
+        issues.push({ ruleId: "launch-config/schema-binding-mismatch", message: "Launch Config preview did not select the requested chain/factory binding." });
       } else {
-        const input = launchConfigRoot.locator("input").first();
-        const confirm = previewScope.locator("[data-launch-config-confirm='true']");
-        // Both shipped threshold forms reject zero; do not assume a 100-token minimum for every factory.
-        await input.fill("0");
-        if (!(await confirm.isDisabled())) {
-          issues.push({ ruleId: "launch-config/invalid-state", message: "Host Confirm remained enabled for invalid Launch Config values." });
-        }
-        await input.fill("1000");
-        if (await confirm.isDisabled()) {
-          issues.push({ ruleId: "launch-config/valid-state", message: "Host Confirm did not enable after valid Launch Config values." });
-        }
-        const nextPreviewText = await previewScope.innerText();
-        if (!nextPreviewText.includes("1000000000000000000000")) {
-          issues.push({ ruleId: "launch-config/structured-output", message: "Launch Config preview did not emit the expected host-visible structured value." });
-        }
+        issues.push(...await runLaunchConfigChecks({ page, previewScope, fixture: launchConfigFixture }));
       }
     }
     const layout = await page.evaluate(layoutCheckScript, skipRiskStatus);
@@ -615,6 +604,16 @@ if (!fs.existsSync(manifestPath)) {
 
 const manifest = readJson(manifestPath);
 const hasLaunchConfig = Array.isArray(manifest.surfaces) && manifest.surfaces.includes("launch-config");
+if (args["launch-config-fixture"]) {
+  try {
+    if (!hasLaunchConfig) throw new Error("The artifact does not declare launch-config.");
+    const fixturePath = path.resolve(ROOT, args["launch-config-fixture"]);
+    if (fs.statSync(fixturePath).size > 256 * 1024) throw new Error("The fixture exceeds 256 KiB.");
+    launchConfigFixture = readJson(fixturePath);
+  } catch (error) {
+    failE2E("vault-e2e/invalid-launch-config-fixture", error instanceof Error ? error.message : String(error), "Pass --launch-config-fixture <path> to a JSON file containing inputs and expected base-unit values. See docs/launch-config.md.");
+  }
+}
 const skipRiskStatus = manifest.mode === MINI_APP_MODE;
 const has3D = Array.isArray(manifest.capabilities) && manifest.capabilities.includes("three-r3f-v1");
 let binding;
@@ -715,6 +714,7 @@ const report = {
     renderErrors: (issueCounts["render/framework-error"] ?? 0) + (issueCounts["render/token-unavailable"] ?? 0) + (issueCounts["render/console-error"] ?? 0),
   },
   checks,
+  ...(launchConfigFixture ? { launchConfigFixture } : {}),
 };
 
 const reportPath = path.join(outDir, "qa-report.json");

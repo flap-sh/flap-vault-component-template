@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 55,
+  "version": 56,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -710,6 +710,7 @@
     }
   },
   "e2ePolicy": {
+    "launchConfig": "Read the selected factory schema from the preview host. Identify controls by schema field name using name, id or data-launch-config-field; a single-field form may use one unmarked control. Numeric inputs are base units unless data-launch-config-unit=human explicitly opts into schema decimals conversion. For business constraints, pass --launch-config-fixture with JSON inputs and expected base-unit values outside the Vault source folder. Compare typed structured values exactly, exercise invalid/clear states where representable, and retain all passing-report/source-hash packaging requirements. Unsupported schemas or missing test configuration are blocking, never skipped.",
     "supportedProofChains": { "56": "mainnet-fallback", "97": "testnet", "4663": "robinhood-mainnet", "46630": "robinhood-testnet" },
     "v2": "yarn vault:e2e is a deterministic Playwright gate for DOM rendering, responsive layout, phase states, wrong-network states, and recursive source/asset-hash-bound proof. It must not depend on AI image judgment.",
     "localInstall": "First-time local and Windows environments may need yarn playwright install chromium before vault:e2e can launch Chromium. Missing-browser failures must be emitted as machine-readable JSON.",
