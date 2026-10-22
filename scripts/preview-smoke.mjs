@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { startNextPreview } from "./preview-process.mjs";
 import net from "node:net";
 import process from "node:process";
 
@@ -77,16 +77,16 @@ function assertNotIncludes(content, unexpected, label) {
 }
 
 async function main() {
-  const child = spawn("yarn", ["start", "-p", String(PORT), "-H", HOST], {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, PORT: String(PORT) },
-  });
-
+  let preview;
+  let failure;
   const logs = [];
-  child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
-  child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
-
   try {
+    preview = startNextPreview(["start", "-p", String(PORT), "-H", HOST], {
+      env: { ...process.env, PORT: String(PORT) },
+    });
+    const { child } = preview;
+    child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
+    child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
     await waitForReady(`${BASE_URL}/example`);
     const previewUrl = `${BASE_URL}/example?chainId=56&tokenAddress=${TOKEN}&factoryAddress=${FACTORY}&marketPhase=internal-market`;
     const exampleHtml = await assertOk(previewUrl, "example preview route");
@@ -121,6 +121,7 @@ async function main() {
       ),
     );
   } catch (error) {
+    failure = error;
     console.error(
       JSON.stringify(
         {
@@ -146,9 +147,18 @@ async function main() {
     );
     process.exitCode = 1;
   } finally {
-    child.kill("SIGTERM");
-    await sleep(500);
-    if (!child.killed) child.kill("SIGKILL");
+    try {
+      if (preview) await preview.stop();
+    } catch (error) {
+      console.error(JSON.stringify({
+        ok: false,
+        code: "preview-smoke/cleanup-failed",
+        error: error instanceof Error ? error.message : String(error),
+        ...(failure ? { startupError: failure instanceof Error ? failure.message : String(failure) } : {}),
+        fixHint: "Fix preview process cleanup and rerun yarn preview-smoke.",
+      }, null, 2));
+      process.exitCode = 1;
+    }
   }
 }
 
