@@ -1,6 +1,8 @@
 "use client";
 
 export * from "./contract";
+export * from "./miniApp";
+export * from "./miniAppRuntime";
 export * from "./erc20";
 export * from "./format";
 export * from "./ipfsImage";
@@ -73,5 +75,10 @@ export const NFT_ACCOUNT_WITHDRAWAL_VERSION = 1;
 
 export type { ManifestResolvedContract, ResolvedContractCheck, ResolvedContractHandle } from "./resolvedContractTypes";
 export const RESOLVED_CONTRACTS_VERSION = 1;
+
+export { FLAP_WALLET_RUNTIME_VERSION } from "./flapChainRuntime";
+export type { FlapChainSdk, FlapSendTransactionRequest, FlapTransactionReceipt } from "./flapChainRuntime";
+
+export type { AppWalletContract, AppResolvedContract } from "./appWalletPolicy.mjs";
 /** Controlled dynamic CID text reads and image rendering. */
 export const IPFS_CONTENT_VERSION = 1;

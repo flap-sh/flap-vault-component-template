@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { assertPreviewPublishedIdentity } from "./template-release-channel.mjs";
+import { execFileSync } from "node:child_process";
+import { isStandaloneApp } from "./standalone-app.mjs";
 import path from "node:path";
 import crypto from "node:crypto";
 import process from "node:process";
@@ -20,7 +23,7 @@ import { runVaultCheckWithTokenContracts } from "./vault-check.mjs";
 
 const ROOT = process.cwd();
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 6;
+let PACKAGE_FORMAT_VERSION = 6;
 const PACKAGE_TOOL = "yarn vault:package";
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const TEMPLATE_NAME = "flap-vault-ui-template";
@@ -32,6 +35,14 @@ const templateVersion = rootPackage.version;
 const runtimePackageVersion = rootPackage.version;
 const freshness = await assertTemplateFresh({ folderName });
 const runtimePackageGitHead = freshness.checks?.npm?.latestGitHead;
+if (freshness.checks?.npm?.npmTag === "next") {
+  try {
+    assertPreviewPublishedIdentity({ localVersion: templateVersion, publishedVersion: freshness.checks.npm.latestVersion, head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), publishedHead: runtimePackageGitHead });
+  } catch (error) {
+    failAgent({ code: "package/preview-runtime-unpublished", message: error.message, fixHint: "Wait for the maintainer to publish this exact SDK version with the next tag, then retry app:package.", extra: { runtimePackageVersion, runtimePackageGitHead } });
+  }
+}
+
 if (!runtimePackageGitHead) {
   failAgent({
     code: "package/runtime-git-head-missing",
@@ -66,6 +77,7 @@ if (hasBlocking) {
 
 const vaultDir = path.join(ROOT, "src", "vaults", folderName);
 const manifest = JSON.parse(fs.readFileSync(path.join(vaultDir, "manifest.json"), "utf8"));
+if (isStandaloneApp(manifest)) PACKAGE_FORMAT_VERSION = 7;
 const e2eReportPath = findE2EReportPath(ROOT, folderName);
 if (!fs.existsSync(e2eReportPath)) {
   failAgent({

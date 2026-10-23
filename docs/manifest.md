@@ -1,5 +1,7 @@
 # Manifest
 
+**Development support:** new projects use Vault UI or [Mini App v2](from-zero-mini-app.md). [Mini App v1](mini-app-v1.md) is deprecated for new development; any token-bound Mini App rules/examples on this page are retained for existing-App compatibility and maintenance only.
+
 `manifest.json` is intentionally small. It is only the developer-facing match and review boundary, not the place to configure Flap internal runtime behavior.
 
 ## Choosing a Test CA
@@ -477,6 +479,12 @@ import { ReviewedFrame } from "@/src/ui";
 Raw `<iframe>`, more than one `ReviewedFrame`, `document.createElement("iframe")`, `srcDoc`, dynamic `src={chartUrl}`, template-string URLs, postMessage handlers, wallet connection inside frames, and frame-driven quotes/risk/settlement/transaction flows are blocked. A frame declaration enters Flap review; it is not automatically approved and can still be rejected. `manifest.externalFrames` does not allow `fetch(...)`, user-facing navigation, scripts, images, or arbitrary provider domains.
 
 `vault:check` prints the valid frame declaration in `review.externalFrames[]` and includes the full iframe `src` in the `manual-review/external-frame` warning so Workbench can surface it directly for human review.
+
+## Independent Mini Apps (manifest v2)
+
+This explicit protocol takes precedence over the token requirements below **only** for `schemaVersion: 2`, `mode: "mini-app"`, `appModel: "standalone"` and a valid `slug`. Standalone Apps have `match.bindings: []`, no CA/factory/Vault or required chain, and canonical `/apps/{slug}` URLs. Old Mini Apps remain token-scoped.
+
+Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for reviewed wallet/contract operations. `useMiniAppSdk()` remains compatible for host identity/session access. See `docs/mini-app-wallet.md`; declare walletChains and exact walletContracts instead of broadening Vault bindings. Never add fake token addresses or zero-address runtime bindings. Source-package format 7 and E2E schema 3 require current source hashes and successful guest/connected checks on PC, iPad and H5. Existing provenance, import, endpoint, media and review boundaries still apply. The preview's session fixture is development-only; production sessions must come from the Flap host. See `docs/standalone-mini-apps.md`.
 
 ## Reviewed NFT account withdrawal
 

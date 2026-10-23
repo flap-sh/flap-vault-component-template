@@ -1,11 +1,19 @@
 # Flap Vault UI Template
 
-`three-r3f-v1` 支持三种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI、token-scoped `7777` Tax Token Mini App，以及 token-scoped `8888` 零税 Mini App。两种 Mini App 都必须显式使用 `--mode mini-app`，采用 token-only binding，且同一 artifact 的 token 后缀必须全部为 `7777` 或全部为 `8888`，不能混用。7777 Vault UI 和 7777 Mini App 都必须显式提供真实已部署的 `--token`。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
+**开发先读：**[Vault UI / Mini App v2 与代码复用](./docs/development.zh-CN.md) · [v2 从零开发](./docs/from-zero-mini-app.zh-CN.md)。
+
+**新开发仅支持 Vault UI 和 Mini App v2**，共用一套模板和 SDK。v2 合并完成后两者统一在 `main` 维护：Vault UI 使用 `vault:*`，独立 App 使用 `app:*`，入口为 `/apps/{slug}`，不绑定 CA/工厂。`feat/mini-app-v2` 是过渡整合分支。**Mini App v1 停止新开发，旧应用继续兼容。** 见 [main 整合与发布状态](./docs/main-migration.zh-CN.md) 和 [v1 兼容说明](./docs/mini-app-v1.zh-CN.md)。下文绑定 Token 的规则用于 Vault UI 和旧 v1 维护，不适用于 v2。
+
+**发布状态（2026-10-23 核对）：**计划正式 `latest` 为 **`0.1.38`，尚未发布**，Vault UI 与 Mini App v2 共用；发布后历史 next 版本统一标记弃用，保留下载。当前 npm `latest` 为 `0.1.37`，`next` 为 `0.1.40-next.0`。更新的整合源码还包含 main 的依赖、构建和 E2E 更新，生成源码 ZIP 前需配套发布。合入 `main` 不等于 SDK 已发布，也不会自动切换现有 `app:*` 的发布引用策略。开发与打包状态分别见 [main 迁移说明](./docs/main-migration.zh-CN.md) 和 [v2 快速开始](./docs/mini-app-v2-quickstart.md)。
+
+以下绑定 Token 的 Mini App 都是**仅供旧应用兼容维护的 v1**；新 App 一律使用上方 v2 开发指南。旧脚手架会提示弃用。`three-r3f-v1` 在这些旧模型中支持三种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI、token-scoped `7777` Tax Token Mini App，以及 token-scoped `8888` 零税 Mini App。两种 Mini App 都必须显式使用 `--mode mini-app`，采用 token-only binding，且同一 artifact 的 token 后缀必须全部为 `7777` 或全部为 `8888`，不能混用。7777 Vault UI 和 7777 Mini App 都必须显式提供真实已部署的 `--token`。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
 
 [English](./README.md)
 
 ## 目录
 
+- [选择 Vault UI / Mini App v2](./docs/development.zh-CN.md)
+- [Mini App v2 从零开发](./docs/from-zero-mini-app.zh-CN.md)
 - [从零到已验证 Zip](#从零到已验证-zip)
 - [测试 CA 与工厂配置](./docs/vault-ui-test-ca.zh-CN.md)
 - [快速开始](#快速开始)
@@ -18,7 +26,7 @@
 - [常用命令](#常用命令)
 - [许可证](#许可证)
 
-这个仓库是一个公开模板，用于构建受控的 Flap Vault UI 组件。
+这个公开模板用于构建受控的 Vault UI 和独立 Mini App v2 组件，并兼容已有的绑定 Token 的 Mini App v1。
 
 模板支持按 Vault V2 标准展示 NFT 图片。
 

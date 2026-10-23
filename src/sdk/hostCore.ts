@@ -14,3 +14,8 @@ export * from "./types";
 export type * from "./nftAccountTypes";
 
 export type * from "./resolvedContractTypes";
+
+export * from "./miniApp";
+export * from "./flapChainRuntime";
+
+export { parseAppWalletContracts } from "./appWalletPolicy.mjs";

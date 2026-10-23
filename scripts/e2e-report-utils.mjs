@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { isStandaloneApp, APP_SESSION_PHASES, standaloneReportIssues } from "./standalone-app.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -199,6 +200,7 @@ function manifestTokenAddresses(manifest) {
 }
 
 export function selectE2EBinding(manifest, overrides = {}) {
+  if (isStandaloneApp(manifest)) return { appModel: "standalone", slug: manifest.slug };
   const bindings = Array.isArray(manifest?.match?.bindings) ? manifest.match.bindings : [];
   const requestedChainId = Number.isInteger(overrides.chainId) ? overrides.chainId : undefined;
   const candidates = bindings
@@ -235,6 +237,7 @@ export function selectE2EBinding(manifest, overrides = {}) {
 
 export function summarizeE2EReportForMarker(report) {
   return {
+    ...(report?.binding?.appModel === "standalone" ? { appModel: "standalone", slug: report.binding.slug } : {}),
     passed: report?.passed === true,
     reportFile: E2E_REPORT_PACKAGE_PATH,
     sourceSha256: report?.sourceSha256,
@@ -264,7 +267,7 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
     addIssue("e2e-report/invalid-json", "E2E report must be a JSON object.");
     return;
   }
-  if (report.kind !== E2E_REPORT_KIND || report.schemaVersion !== E2E_REPORT_VERSION) {
+  if (report.kind !== E2E_REPORT_KIND || report.schemaVersion !== (isStandaloneApp(manifest) ? 3 : E2E_REPORT_VERSION)) {
     addIssue("e2e-report/invalid-kind", `E2E report must be ${E2E_REPORT_KIND} schema version ${E2E_REPORT_VERSION}.`);
   }
   if (report.generatedBy !== E2E_REPORT_TOOL) {
@@ -321,6 +324,9 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
     addIssue("e2e-report/manifest-sha-mismatch", "E2E report manifestSha256 must match manifest.json in fileSha256.");
   }
 
+  if (isStandaloneApp(manifest)) {
+    for (const problem of standaloneReportIssues(report, manifest)) addIssue("e2e-report/standalone-session-check", `Missing or invalid standalone App session proof: ${problem}.`);
+  } else {
   const binding = report.binding ?? {};
   if (!SUPPORTED_E2E_CHAIN_IDS.has(binding.chainId) || !normalizeAddress(binding.tokenAddress)) {
     addIssue("e2e-report/missing-test-token", "E2E report must bind to a supported-chain token used for package testing.");
@@ -363,12 +369,13 @@ export function validateE2EReportObject(report, { root, folderName, manifest, ex
     });
   }
 
+  }
   const viewports = new Set(Array.isArray(report.viewports) ? report.viewports.map((item) => item.id) : []);
   for (const viewport of REQUIRED_VIEWPORTS) {
     if (!viewports.has(viewport)) addIssue("e2e-report/missing-viewport", `E2E report is missing viewport ${viewport}.`);
   }
   const phases = new Set(Array.isArray(report.phases) ? report.phases : []);
-  for (const phase of REQUIRED_PHASES) {
+  for (const phase of isStandaloneApp(manifest) ? APP_SESSION_PHASES : REQUIRED_PHASES) {
     if (!phases.has(phase)) addIssue("e2e-report/missing-phase", `E2E report is missing phase ${phase}.`);
   }
 }

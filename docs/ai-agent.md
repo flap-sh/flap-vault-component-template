@@ -1,5 +1,18 @@
 # AI Agent Implementation Guide
 
+New development supports **Vault UI** or **Mini App v2** (standalone) only. **Mini App v1 is deprecated for new development; existing Apps remain compatible.** Do not generate new v1 projects. Read [the development/reuse guide](development.md) ([中文](development.zh-CN.md)) and [v2 walkthrough](from-zero-mini-app.md). Vault UI uses `vault:*`; standalone v2 uses `app:*`, empty bindings and no required test CA. Both will be maintained on `main` after the v2 merge. Until the command/release migration is complete, follow [main integration status](main-migration.md) for the current source references and package readiness. Retain existing v1 routes, bindings, SDK and validation for maintenance; see [v1 compatibility](mini-app-v1.md). Reuse SDK/UI/ABI/business code, but do not invent bound context or share artifact identities. Follow the exact published-version requirements in the [preview quickstart](mini-app-v2-quickstart.md).
+
+## Main integration and Mini App v2 releases
+
+Vault UI and Mini App v2 share one SDK and will be maintained on `main` after the v2 merge. `feat/mini-app-v2` is the transition branch. Read [the current migration and release status](main-migration.md) before selecting a source checkout or generating a ZIP. The planned shared stable release is **`0.1.38` on latest, not yet published**; historical next versions will be deprecated after that release, with downloads retained. Current App commands still use next-channel preview references and must migrate to main/latest before release; this documentation does not change those guards or publish a runtime. The integration source has changed dependency/build inputs and also updates E2E tooling since the last npm publication and needs a matching release before packaging. Use `vault:*` for Vault UI and `app:*` for v2, preserve separate manifests/identities/proofs, and retain existing v1 compatibility. Local E2E and private canaries do not replace exact published-source provenance.
+
+## Independent Mini Apps (manifest v2)
+
+This explicit protocol takes precedence over the token requirements below **only** for `schemaVersion: 2`, `mode: "mini-app"`, `appModel: "standalone"` and a valid `slug`. Standalone Apps have `match.bindings: []`, no CA/factory/Vault or required chain, and canonical `/apps/{slug}` URLs. Old Mini Apps remain token-scoped.
+
+Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for reviewed wallet/contract operations. `useMiniAppSdk()` remains compatible for host identity/session access. See `docs/mini-app-wallet.md`; declare walletChains and exact walletContracts instead of broadening Vault bindings. Never add fake token addresses or zero-address runtime bindings. Source-package format 7 and E2E schema 3 require current source hashes and successful guest/connected checks on PC, iPad and H5. Existing provenance, import, endpoint, media and review boundaries still apply. The preview's session fixture is development-only; production sessions must come from the Flap host. See `docs/standalone-mini-apps.md`.
+
+
 This repository is designed for AI agents that generate controlled Flap Vault UI source packages.
 
 Use this guide as the stable entry point before editing files.
@@ -223,7 +236,7 @@ Do not use:
 - CommonJS `require(...)`; use static ESM imports only.
 - Dynamic imports inside Vault source.
 - Direct browser network/media APIs such as `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`.
-- Clipboard access or programmatic copy, including `navigator.clipboard`, `document.execCommand("copy")`, aliases, and computed property access. Render the value only; the host owns copy actions.
+- Clipboard access or programmatic copy, including `navigator.clipboard`, `document.execCommand("copy")`, aliases, and computed property access. Use the host-owned `CopyButton` from `@/src/ui` for user-triggered copying. Direct clipboard access remains blocked.
 - Browser storage, cookie, navigation, Worker, cross-context messaging including postMessage listeners, geolocation, permission, or notification APIs.
 - External URLs outside approved explorer/link hosts, `ExternalLink`, `BinanceImage` on the exact `bin.bnbstatic.com` host, reviewed `manifest.externalFrames`, or a direct static `fetch(...)` covered by `manifest.endpoints`. Declaring a URL in `manifest.endpoints` does not authorize images or other non-fetch resources. Raw remote `<img>` and full gateway image URLs remain blocked; immutable Vault-specific images must use `IpfsImage cid` or `IpfsBackground cid`, and Vault UI and Mini App audio must be packaged as reviewed local top-level audio assets.
 - More than one `ReviewedFrame`, or external frames unless declared in `manifest.externalFrames` and rendered through `ReviewedFrame` with static string literal props that exactly match the declaration.

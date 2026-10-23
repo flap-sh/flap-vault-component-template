@@ -1,5 +1,7 @@
 # Safety Boundaries
 
+**Development support:** new projects use Vault UI or [Mini App v2](from-zero-mini-app.md). [Mini App v1](mini-app-v1.md) is deprecated for new development; any token-bound Mini App rules/examples on this page are retained for existing-App compatibility and maintenance only.
+
 Custom Vault UI is controlled business UI, not an arbitrary app surface.
 
 ## Blocking
@@ -20,7 +22,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Browser-global member access except safe timer APIs and reviewed explorer-only `window.open`.
 - Browser navigation APIs such as arbitrary `window.open`, bare `open(...)`, `location`, or `history` mutation. `window.open` is allowed only for current-chain explorer address/transaction URLs with `noopener` or `noreferrer`.
 - Worker and cross-context APIs such as `Worker`, `SharedWorker`, `navigator.serviceWorker`, `BroadcastChannel`, `postMessage`, or message event listeners.
-- All clipboard access and programmatic copy paths, including `navigator.clipboard`, `document.execCommand("copy")`, `ClipboardItem`, aliases, and string-indexed or variable-indexed computed browser-global access. Render the value only; the host owns copy actions.
+- All clipboard access and programmatic copy paths, including `navigator.clipboard`, `document.execCommand("copy")`, `ClipboardItem`, aliases, and string-indexed or variable-indexed computed browser-global access. Use the host-owned `CopyButton` from `@/src/ui` for user-triggered copying. Direct clipboard access remains blocked.
 - Browser permission APIs such as `navigator.geolocation`, `navigator.permissions`, or `Notification`.
 - Raw iframe, iframe `srcDoc`, direct HTML replacement, or script injection, including `document.write`, `document.writeln`, `document.open`, `document.close`, `innerHTML`, `outerHTML`, and `insertAdjacentHTML`.
 - Unsafe inline SVG JSX, including script-capable or mixed-content nodes, event attributes, `foreignObject`, `image`, `use`, external URLs, non-local `url(...)`, `style` `url(...)` / `@import`, `href` / `src` except static local fragments, and spread attributes.

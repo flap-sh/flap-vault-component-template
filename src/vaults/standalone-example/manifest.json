@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "mode": "mini-app",
+  "appModel": "standalone",
+  "slug": "standalone-example",
+  "artifactId": "vaultui_standalone-example_6TCER3T0TPH20FAV7HWAQB4SF2",
+  "name": "standalone-example",
+  "displayTitle": {
+    "en": "Independent Mini App",
+    "zh": "独立小程序"
+  },
+  "match": {
+    "bindings": []
+  },
+  "i18n": [
+    "en",
+    "zh",
+    "ko"
+  ]
+}

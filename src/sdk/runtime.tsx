@@ -26,6 +26,8 @@ import type {
   VaultRuntimeContext,
   VaultRuntimeContextOverrides,
 } from "./types";
+import { useFlapWalletRuntime } from "./useFlapWalletRuntime";
+import { createFlapChainSdk } from "./flapChainRuntime";
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
 import { readFsiJson } from "./fsi";
@@ -537,8 +539,18 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
   // Components receive a separate data copy, never the host authorization input.
   const componentContext = useMemo(() => structuredClone(runtimeContext), [runtimeContext]);
 
+  const chainRuntime = useFlapWalletRuntime({ connect: wallet.connect, mediaUploader: mediaUploader ?? defaultMediaUploader });
+  const forChain = useCallback((chainId: number) => createFlapChainSdk({
+    ...chainRuntime,
+    // Reuse the Vault's strict target and resolver policies for scoped access too.
+    simulateContract: async (_chainId, request) => { if (_chainId !== runtimeContext.chainId) throw new Error("Vault writes require the bound network."); return (await simulateContract(request)).result; },
+    writeContract: async (_chainId, request) => { if (_chainId !== runtimeContext.chainId) throw new Error("Vault writes require the bound network."); return writeContract(request); },
+    sendTransaction: async () => { throw new Error("Raw transactions require a reviewed standalone App."); },
+  }, { chainId, manifest, writableChains: [runtimeContext.chainId], i18n: i18nApi, notify, readIpfsText }), [chainRuntime, manifest, runtimeContext.chainId, i18nApi, notify, readIpfsText, simulateContract, writeContract]);
+
   const sdk = useMemo<FlapVaultSdk>(
     () => ({
+      forChain,
       context: componentContext,
       i18n: i18nApi,
       notify,
@@ -562,7 +574,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, readIpfsText, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
+    [forChain, getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, readIpfsText, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
   );
 
   return (

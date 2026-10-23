@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { startNextPreview } from "./preview-process.mjs";
 import fs from "node:fs";
+import { isStandaloneApp, APP_SESSION_PHASES } from "./standalone-app.mjs";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
@@ -305,6 +306,7 @@ function buildPreviewUrl(baseUrl, binding, phase, wrongNetwork = false, launchCo
     if (!["en", "zh"].includes(args.lang)) failE2E("vault-e2e/invalid-language", `Unsupported preview language: ${args.lang}`, "Use --lang en or --lang zh, or omit it to use the preview default.");
     url.searchParams.set("lang", args.lang);
   }
+  if (binding.appModel === "standalone") { url.searchParams.set("appSession", phase === "connected" ? "connected" : "guest"); return url.toString(); }
   const resolvedPhase = phase === "dex-listed" ? "dex-listed" : "internal-market";
   const tokenStatusCode = resolvedPhase === "dex-listed" ? "2" : "1";
   url.searchParams.set("chainId", String(binding.chainId));
@@ -559,6 +561,8 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
     if (!contextLoss && blockingPageErrors.length) issues.push({ ruleId: "render/page-error", message: "Browser emitted page errors.", pageErrors: blockingPageErrors });
     await page.screenshot({ path: screenshotPath, fullPage: true });
     await context.tracing.stop({ path: tracePath });
+    const session = binding.appModel === "standalone" ? await page.locator("[data-app-session]").getAttribute("data-app-session") : undefined;
+    if (binding.appModel === "standalone" && session !== (phase === "connected" ? "connected" : "guest")) issues.push({ ruleId: "app/session-mismatch", message: "App preview did not render the requested session fixture." });
     await context.close();
     return {
       id: traceName,
@@ -566,6 +570,7 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
       phase,
       wrongNetwork,
       url,
+      ...(binding.appModel === "standalone" ? { session } : {}),
       passed: issues.length === 0,
       issues,
       screenshot: path.relative(ROOT, screenshotPath),
@@ -604,6 +609,8 @@ if (!fs.existsSync(manifestPath)) {
 
 const manifest = readJson(manifestPath);
 const hasLaunchConfig = Array.isArray(manifest.surfaces) && manifest.surfaces.includes("launch-config");
+const standalone = isStandaloneApp(manifest);
+const requiredPhases = standalone ? APP_SESSION_PHASES : REQUIRED_PHASES;
 if (args["launch-config-fixture"]) {
   try {
     if (!hasLaunchConfig) throw new Error("The artifact does not declare launch-config.");
@@ -648,10 +655,10 @@ try {
     hasLaunchConfig ? sourceFileSha256[`src/vaults/${folderName}/LaunchConfig.tsx`] : undefined,
   );
   for (const viewport of VIEWPORTS) {
-    for (const phase of REQUIRED_PHASES) {
+    for (const phase of requiredPhases) {
       checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, skipRiskStatus, has3D }));
     }
-    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true, skipRiskStatus, has3D }));
+    if (!standalone) checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true, skipRiskStatus, has3D }));
     if (hasLaunchConfig) {
       checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "launch-config", skipRiskStatus: true, launchConfig: true }));
     }
@@ -677,7 +684,7 @@ const issueCounts = allIssues.reduce(
 const blocking = allIssues.length;
 const report = {
   kind: E2E_REPORT_KIND,
-  schemaVersion: E2E_REPORT_VERSION,
+  schemaVersion: standalone ? 3 : E2E_REPORT_VERSION,
   generatedBy: E2E_REPORT_TOOL,
   generatedAt: new Date().toISOString(),
   folderName,
@@ -688,7 +695,7 @@ const report = {
   previewSource,
   manifestSha256: sourceFileSha256[`src/vaults/${folderName}/manifest.json`],
   schemaSha256: sourceFileSha256[MANIFEST_SCHEMA_PATH],
-  binding: {
+  binding: standalone ? binding : {
     chainId: binding.chainId,
     tokenAddress: binding.tokenAddress,
     vaultAddress: binding.vaultAddress,
@@ -696,7 +703,7 @@ const report = {
     tokenPolicy: binding.tokenPolicy,
   },
   viewports: VIEWPORTS,
-  phases: REQUIRED_PHASES,
+  phases: requiredPhases,
   passed: blocking === 0,
   summary: {
     blocking,

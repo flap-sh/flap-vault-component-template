@@ -1,7 +1,7 @@
 # Dynamic IPFS text and images
 
-First runtime version: `0.1.37`. `0.1.36` does not contain the text API/component.
-See [release and upgrade notes](releases/0.1.37.md) for publication order and host
+Stable Vault UI first supports this in `0.1.37`. Mini App v2 requires the coordinated `0.1.39-next.0` preview release, which merges main and adapts the shared reader/component to the independent App provider. `0.1.38-next.0` does not contain this capability.
+See [preview release and upgrade notes](releases/0.1.39-next.0.md) for publication order and host
 requirements; a source version bump alone does not mean npm has been published.
 
 Use `sdk.readIpfsText(cid, path?)` to read an immutable UTF-8 text or JSON file.
@@ -14,7 +14,8 @@ import { useFlapSdk } from "@/src/sdk";
 import { IpfsImage, IpfsText } from "@/src/ui";
 
 // Inside a component using its existing SDK/context:
-const sdk = useFlapSdk();
+const sdk = useFlapSdk(); // Vault UI
+// Mini App v2: const sdk = useFlapSdk({ chainId: 56 });
 const textCid = (await sdk.uploadText("A test post")).cid;
 const body = await sdk.readIpfsText(textCid);
 // For JSON content: const post = JSON.parse(await sdk.readIpfsText(jsonCid));
@@ -49,7 +50,7 @@ remain blocked. A dynamic path below a **static** image CID still requires a sta
 `IpfsBackground` remains static CID-only; NFT tokenURI images continue to use
 `NftMetadataImage`.
 
-Upgrade both Workbench and Flap hosts to the published `0.1.37` runtime before
+Upgrade both Workbench and Flap hosts to the published `0.1.39-next.0` runtime for Mini App v2 before
 rollout. Workbench also needs the matching static IPFS policy; updating its npm
 dependency alone does not update its checker. Runtime feature detection is
 `IPFS_CONTENT_VERSION === 1` / `runtime-contract.sdkFeatures.ipfsContent === 1`.

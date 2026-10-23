@@ -1,5 +1,7 @@
 # 7777 Vault UI and 7777/8888 Mini App 3D capability
 
+**Lifecycle:** new projects support Vault UI or standalone Mini App v2 only. Token-bound Mini App v1 is deprecated for new development; its examples, routes and capability rules below remain for compatibility and maintenance. For a new 3D App, start with [the v2 walkthrough](from-zero-mini-app.md) and the standalone capability rules in [the protocol](standalone-mini-apps.md); do not use a legacy v1 scaffold.
+
 Flap supports standard 3D experiences through the versioned `three-r3f-v1` capability on three explicit surfaces: a mode-less 7777 Vault UI, a token-scoped 7777 Tax Token Mini App, or a token-scoped 8888 zero-tax Mini App. It is opt-in and does not widen any unrelated Vault UI permission.
 
 `three-r3f-v1` is a stable capability and security boundary, not a dependency-major label. Current source authoring and new Workbench builds use the `react19-r3f9` dependency revision. Existing format-6 source packages and already-published artifacts that record the original `react18-r3f8` revision remain supported; they do not need to rename the capability or change product code solely for this migration.

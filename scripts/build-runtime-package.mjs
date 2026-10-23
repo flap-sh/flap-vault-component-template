@@ -35,15 +35,15 @@ function runtimePackageError(code, message, fixHint) {
   return error;
 }
 
-function assertCleanCommittedCanarySource() {
+function assertCleanCommittedCanarySource(label = "Canary") {
   const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], {
     cwd: ROOT,
     encoding: "utf8",
   }).trim();
   if (status) {
     throw runtimePackageError(
-      "runtime-package/canary-dirty",
-      "Canary runtime packages require a clean committed worktree so their gitHead provenance is exact.",
+      `runtime-package/${label === "Canary" ? "canary" : "next"}-dirty`,
+      `${label} runtime packages require a clean committed worktree so their gitHead provenance is exact.`,
       "Commit the intended runtime changes and remove unrelated untracked files, then rerun yarn runtime:pack:canary.",
     );
   }
@@ -51,7 +51,10 @@ function assertCleanCommittedCanarySource() {
 
 async function main() {
   const mode = parseRuntimePackageMode(process.argv.slice(2));
-  if (mode === "release") await assertTemplateFresh();
+  if (mode === "release") {
+    if (process.env.FLAP_TEMPLATE_CHANNEL === "next") assertCleanCommittedCanarySource("Next prerelease");
+    await assertTemplateFresh();
+  }
   else assertCleanCommittedCanarySource();
 
   execFileSync(yarnCommand(), ["tsup", "--config", "tsup.runtime.config.ts"], {
@@ -68,9 +71,9 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
   await Promise.all([ensureUseClient("sdk.js"), ensureUseClient("ui.js"), ensureUseClient("host-client.js")]);
   // Preserve Next.js client boundaries without turning host preflight helpers into client references.
-  const hostReexport = '\nexport { VaultRuntimeProvider } from "./host-client.js";\n';
+  const hostReexport = '\nexport { VaultRuntimeProvider, useFlapWalletRuntime } from "./host-client.js";\n';
   await writeFile(path.join(OUT_DIR, "host.js"), (await readFile(path.join(OUT_DIR, "host.js"), "utf8")) + hostReexport);
-  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, type RuntimeProviderProps } from "./host-client.mjs";\n');
+  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, useFlapWalletRuntime, type RuntimeProviderProps } from "./host-client.mjs";\n');
 
   const peerVersion = (name) => rootPackage.dependencies?.[name] ?? rootPackage.devDependencies?.[name];
   const packageManifest = {
@@ -119,7 +122,8 @@ async function main() {
 
   const runtimeContract = {
     runtimeContractVersion: 1,
-    sdkFeatures: { nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1 },
+    uiFeatures: { copyButton: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -148,7 +152,7 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
 
-## Dynamic IPFS content
+## Shared Vault UI and Mini App v2\n\nThe preview channel includes standalone App wallet operations through\n\`useFlapSdk({ chainId })\` and the host-owned \`CopyButton\` from \`./ui\`.\nVault UI keeps \`useFlapSdk()\` and its token-bound context. Both use this one\npackage; existing token-bound Mini Apps remain compatible.\n\n## Dynamic IPFS content
 
 Stable runtime \`0.1.37\` introduces \`sdk.readIpfsText(cid, path?)\`, which returns
 UTF-8 text or JSON as a string, and \`IpfsText\` for escaped plain-text display.
@@ -158,7 +162,7 @@ The SDK exports \`IPFS_CONTENT_VERSION = 1\`; the runtime contract advertises
 
 Vault source keeps the \`@/src/sdk\` and \`@/src/ui\` authoring aliases. Obtain
 \`sdk\` with \`useFlapSdk()\`, then call the reader from an async effect or event
-handler. Import \`IpfsText\` and \`IpfsImage\` from the UI alias for rendering:
+handler. Independent Mini App v2 uses \`useFlapSdk({ chainId: 56 })\`;\nits chain SDK exposes the same reader and reviewed \`readFsi\` API.\nImport \`IpfsText\` and \`IpfsImage\` from the UI alias for rendering:
 
 \`\`\`tsx
 const body = await sdk.readIpfsText(textCid);

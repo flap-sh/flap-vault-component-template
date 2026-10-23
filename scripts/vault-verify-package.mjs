@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import crypto from "node:crypto";
 import fs from "node:fs";
+import { isStandaloneApp } from "./standalone-app.mjs";
 import path from "node:path";
 import process from "node:process";
 import zlib from "node:zlib";
@@ -18,7 +19,7 @@ import { capabilityFileExtensions, isThreeR3FArtifact, manifestCapabilityIds } f
 import { collectE2EReportErc20TokenIssues, collectManifestErc20TokenIssues } from "./erc20-token-validation.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
-const PACKAGE_FORMAT_VERSION = 6;
+let PACKAGE_FORMAT_VERSION = 6;
 const PACKAGE_MARKER_FILE = "flap-vault-package.json";
 const PACKAGE_METADATA_FILE = "package-metadata.json";
 const SCHEMA_FILE = "schemas/manifest.schema.json";
@@ -248,6 +249,7 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
 
   const marker = readJsonEntry(entries, PACKAGE_MARKER_FILE);
   const folderName = marker.folderName;
+  PACKAGE_FORMAT_VERSION = marker.formatVersion === 7 ? 7 : 6;
   if (marker.kind !== PACKAGE_KIND) {
     issues.push(jsonIssue("package-verify/invalid-kind", `Package kind must be ${PACKAGE_KIND}.`, "Regenerate the package with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
   }
@@ -292,6 +294,7 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
   if (!issues.length) {
     const manifestPath = `src/vaults/${folderName}/manifest.json`;
     const manifest = entries.has(manifestPath) ? readJsonEntry(entries, manifestPath) : undefined;
+    if ((marker.formatVersion === 7) !== isStandaloneApp(manifest)) issues.push(jsonIssue("package-verify/app-format", "Standalone v2 Apps require package format 7; token-scoped artifacts require format 6.", "Regenerate using yarn vault:package."));
     const sourceFiles = expectedSourceFiles(folderName, names, manifest);
     const expectedFiles = new Set([PACKAGE_MARKER_FILE, PACKAGE_METADATA_FILE, SCHEMA_FILE, MINI_APP_CAPABILITY_CONFIG_PATH, E2E_REPORT_PACKAGE_PATH, ...sourceFiles]);
     if (!selfContained) {

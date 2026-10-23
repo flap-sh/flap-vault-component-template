@@ -541,7 +541,7 @@ async function main() {
   if (requestedMode !== undefined && requestedMode !== "mini-app") {
     fail('--mode may only be "mini-app". Omit it for the default Vault UI.', {
       code: "manifest-schema/invalid-mode",
-      fixHint: 'Pass --mode mini-app for a token-scoped 7777 or 8888 Mini App, or omit --mode for Vault UI.',
+      fixHint: 'Omit --mode for new Vault UI, or use yarn app:scaffold <slug> for Mini App v2. --mode mini-app is retained only for existing v1 maintenance.',
     });
   }
   validateArtifactId(artifactId, folderName);
@@ -769,6 +769,10 @@ async function main() {
         },
       ],
     });
+  }
+
+  if (isMiniApp) {
+    console.error("[mini-app-v1/deprecated] Mini App v1 is deprecated for new development. Use yarn app:scaffold <slug> for Mini App v2. Existing v1 Apps remain compatible; legacy scaffolding is retained for maintenance only. See docs/mini-app-v1.md.");
   }
 
   console.log(

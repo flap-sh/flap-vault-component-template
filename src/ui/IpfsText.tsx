@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useFlapSdk } from "../sdk/runtimeStore";
+import { useFlapIpfsTextReader } from "../sdk/runtimeStore";
 import { cn } from "./utils";
 
 export interface IpfsTextProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children" | "dangerouslySetInnerHTML"> {
@@ -12,7 +12,7 @@ export interface IpfsTextProps extends Omit<React.HTMLAttributes<HTMLSpanElement
 
 /** Displays escaped plain text. JSON parsing and business-specific field mapping stay with the caller. */
 export function IpfsText({ cid, path, fallback = null, className, ...props }: IpfsTextProps) {
-  const { readIpfsText } = useFlapSdk();
+  const readIpfsText = useFlapIpfsTextReader();
   const key = JSON.stringify([typeof cid === "string" ? cid : null, typeof path === "string" ? path : null]);
   const [result, setResult] = React.useState<{ key: string; text?: string; state: "ready" | "error" }>();
   React.useEffect(() => {

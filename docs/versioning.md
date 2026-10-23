@@ -43,16 +43,34 @@ archive match, and preserve the existing `next` tag. Finally update consumer exa
 pins and Yarn lockfiles, deploy matching host/checker changes, and verify the real
 upload/gateway workflow. A successful npm publish does not upgrade deployed hosts.
 
+## Main source integration
+
+Vault UI and Mini App v2 will share `main` after the v2 merge, while `vault:*` and `app:*` retain distinct model/proof workflows. A source branch is not an npm channel. See [main integration status](main-migration.md) ([中文](main-migration.zh-CN.md)) for the current release identities, unpublished integration inputs and the command/CI transition still required before main-based App submission. The planned shared stable release is **`0.1.38` under latest**, not yet published. App commands, release-contract metadata and CI must be migrated to main/latest before release, then hosts must deploy the same exact stable runtime. All historical next versions will be deprecated after stable publication, with downloads retained; see [the version list and upgrade plan](main-migration.md#planned-stable-upgrade-and-preview-deprecation). This documentation does not perform publication, npm deprecation or changes to the implemented guards.
+
 ## Explicit next SDK releases
 
-When a maintainer explicitly requests an npm testing release from official `next`, use a version such as `0.1.32-next.0`, commit and push it to official `next`, and build from a clean checkout at exactly that remote head. Select that official ref for the existing freshness checks; do not remove the checks or publish a private canary:
+Release freshness is channel-specific. The following table describes the current implementation during the main integration; it is not the target main-based App configuration:
+
+| Workflow | Official source | npm metadata used |
+| --- | --- | --- |
+| Stable Vault/template commands | `origin/main` | `@flapsdk/vault-runtime` on `latest` only |
+| App v2 preview commands | `origin/feat/mini-app-v2` | `@flapsdk/vault-runtime` on `next` only |
+| Preview runtime release | `origin/next` | `@flapsdk/vault-runtime` on `next` only |
+
+There is no cross-channel version comparison. Advancing `latest` does not make an unchanged preview stale or require a new `next` release. Each channel still requires the official source head, a version at least as new as its own npm tag, and the published commit in its history. App v2 source ZIPs additionally require the exact published `next` version and unchanged runtime/build/protocol inputs from that published ancestor. This does not certify SDK API compatibility or replace host/Workbench version alignment.
+
+Documentation and official authoring tools can advance `feat/mini-app-v2` without a new SDK release. Update and push that developer branch; leave the npm tag and the runtime release branch at their published identity. Developers pull the current official template head. Packaging compares actual file changes, including renames/deletions, rather than commit messages. It allows documentation, agent guidance, authoring scripts and separately checked App source; every other path is pinned by default. SDK/UI source, dependencies, build configuration, schemas/capability configuration, the runtime builder and ZIP/E2E protocol scripts remain pinned. Local SDK/tool edits are rejected, including staged and untracked files. Local App source/preview registration and docs remain allowed. The ZIP still records npm's published `runtimePackageGitHead`; source/E2E hashes and receiving Workbench review are unchanged.
+
+When a maintainer explicitly requests an npm testing release from official `next`, use a version such as `0.1.40-next.0`, commit and push the same source commit to official `feat/mini-app-v2` and `next`, and build from a clean checkout at exactly that remote head. Select both the preview channel and official release ref; do not remove the checks or publish a private canary:
 
 ```bash
-FLAP_TEMPLATE_FRESHNESS_REF=upstream/next yarn runtime:package
+FLAP_TEMPLATE_FRESHNESS_REF=upstream/next yarn runtime:package:next
 yarn runtime:verify-package
 ```
 
-`upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The normal npm-latest ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
+`upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The npm `next` ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
+
+`@flapsdk/vault-runtime@0.1.40-next.0` is published on npm `next`, with `gitHead` `0d21863aa19bde5ad6712d760d3badea6a28e3a4`; stable `latest` remains `0.1.37` (checked 2026-10-23). That identity applies only to matching source inputs. The integration now contains newer dependency/build changes and E2E tooling updates and cannot reuse it for new ZIPs. See [main integration status](main-migration.md). Publish a matching runtime only when authorized, then align command/CI source references, the main host and Workbench. Documentation-only changes do not remove an existing unpublished-runtime blocker.
 
 ## Agent Contract Version
 
@@ -129,3 +147,13 @@ yarn vault:verify-package dist/example.zip
 yarn runtime:package
 yarn runtime:verify-package
 ```
+
+## Independent Mini Apps (manifest v2)
+
+This explicit protocol takes precedence over the token requirements below **only** for `schemaVersion: 2`, `mode: "mini-app"`, `appModel: "standalone"` and a valid `slug`. Standalone Apps have `match.bindings: []`, no CA/factory/Vault or required chain, and canonical `/apps/{slug}` URLs. Old Mini Apps remain token-scoped.
+
+Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for reviewed wallet/contract operations. `useMiniAppSdk()` remains compatible for host identity/session access. See `docs/mini-app-wallet.md`; declare walletChains and exact walletContracts instead of broadening Vault bindings. Never add fake token addresses or zero-address runtime bindings. Source-package format 7 and E2E schema 3 require current source hashes and successful guest/connected checks on PC, iPad and H5. Existing provenance, import, endpoint, media and review boundaries still apply. The preview's session fixture is development-only; production sessions must come from the Flap host. See `docs/standalone-mini-apps.md`.
+
+## Main integration and Mini App v2 releases
+
+Vault UI and Mini App v2 share one SDK and will be maintained on `main` after the v2 merge. `feat/mini-app-v2` is the transition branch. Read [the current migration and release status](main-migration.md) before selecting a source checkout or generating a ZIP. The planned shared stable release is **`0.1.38` on latest, not yet published**; historical next versions will be deprecated after that release, with downloads retained. Current App commands still use next-channel preview references and must migrate to main/latest before release; this documentation does not change those guards or publish a runtime. The integration source has changed dependency/build inputs and also updates E2E tooling since the last npm publication and needs a matching release before packaging. Use `vault:*` for Vault UI and `app:*` for v2, preserve separate manifests/identities/proofs, and retain existing v1 compatibility. Local E2E and private canaries do not replace exact published-source provenance.

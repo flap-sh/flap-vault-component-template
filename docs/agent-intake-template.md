@@ -1,5 +1,7 @@
 # Agent Intake Template
 
+**Development support:** new projects use Vault UI or [Mini App v2](from-zero-mini-app.md). [Mini App v1](mini-app-v1.md) is deprecated for new development; any token-bound Mini App rules/examples on this page are retained for existing-App compatibility and maintenance only.
+
 Use this guide to collect all required inputs from the user before generating a new Vault UI.
 
 Do not begin implementation until every required input is confirmed. Optional inputs should be asked but may be skipped if the user has no preference.

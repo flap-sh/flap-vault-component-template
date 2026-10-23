@@ -220,6 +220,12 @@ export interface VaultManifestDisplayTitle {
 }
 
 export interface VaultManifest {
+  schemaVersion?: 2;
+  appModel?: "standalone";
+  slug?: string;
+  /** Standalone App networks that may request wallet writes. Omitted means read-only. */
+  walletChains?: number[];
+  walletContracts?: import("./appWalletPolicy.mjs").AppWalletContract[];
   artifactId: string;
   name: string;
   displayTitle?: VaultManifestDisplayTitle;
@@ -455,6 +461,7 @@ export interface MediaUploadRequest extends MediaUploadOptions {
 export type MediaUploader = (request: MediaUploadRequest) => Promise<IpfsUploadResult>;
 
 export interface FlapVaultSdk {
+  forChain(chainId: number): import("./flapChainRuntime").FlapChainSdk;
   context: VaultRuntimeContext;
   i18n: FlapI18n;
   notify: FlapNotify;

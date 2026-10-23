@@ -5,6 +5,8 @@ description: Generate or update a controlled Flap custom Vault UI inside flap-va
 
 # Flap Vault UI Generator
 
+**Development lifecycle:** new projects support Vault UI or Mini App v2 only. Mini App v1 is deprecated for new development; retain existing routes, bindings, SDK/context and validation for maintenance. Do not generate a new v1 App. For new Apps follow [the v2 walkthrough](../../docs/from-zero-mini-app.md); for legacy maintenance use [v1 compatibility](../../docs/mini-app-v1.md).
+
 Use this skill inside `flap-vault-ui-template` to create or update a private custom Vault UI package.
 
 ## Core Rule
@@ -152,6 +154,10 @@ Fix blocking issues before finishing. `vault:e2e` is deterministic Playwright DO
 - `references/patterns.md`: choose an implementation pattern.
 - `references/check-rules.md`: understand blocking/warning rules.
 - `docs/ui-pattern-snippets.md`: public-safe UI organization and state-flow snippets.
+
+## Main integration and Mini App v2 releases
+
+Vault UI and Mini App v2 share one SDK and will be maintained on `main` after the v2 merge. `feat/mini-app-v2` is the transition branch. Read [the current migration and release status](../../docs/main-migration.md) before selecting a source checkout or generating a ZIP. The planned shared stable release is **`0.1.38` on latest, not yet published**; historical next versions will be deprecated after that release, with downloads retained. Current App commands still use next-channel preview references and must migrate to main/latest before release; this documentation does not change those guards or publish a runtime. The integration source has changed dependency/build inputs and also updates E2E tooling since the last npm publication and needs a matching release before packaging. Use `vault:*` for Vault UI and `app:*` for v2, preserve separate manifests/identities/proofs, and retain existing v1 compatibility. Local E2E and private canaries do not replace exact published-source provenance.
 
 Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](../../docs/resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.
 

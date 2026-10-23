@@ -52,6 +52,7 @@ globalThis.encodeOwner=(owner)=>encodeFunctionResult({abi:parseAbi(['function ow
 globalThis.testWrite=async()=>{const handle=await sdk.resolveContract('position',[1n]);const prepared=await sdk.simulateContract({contract:handle,abi:parseAbi(['function claim(uint256 amount)']),functionName:'claim',args:[1n]});return sdk.writeContract(prepared.request);};
 globalThis.renderProvider();`;
  const wagmi=`export const useAccount=()=>({address:globalThis.env.state.user,isConnected:true});
+const config={chains:[{id:56,name:"BNB"}]}; export const useConfig=()=>config;
 export const useChainId=()=>globalThis.env.state.chain;
 const connect=()=>{};const connectors=[];const disconnect=()=>{};const switchChainAsync=async()=>{};
 export const useConnect=()=>({connect,connectors});export const useDisconnect=()=>({disconnect});

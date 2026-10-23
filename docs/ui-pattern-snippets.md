@@ -1,5 +1,7 @@
 # UI Pattern Snippets
 
+**Development support:** new projects use Vault UI or [Mini App v2](from-zero-mini-app.md). [Mini App v1](mini-app-v1.md) is deprecated for new development; any token-bound Mini App rules/examples on this page are retained for existing-App compatibility and maintenance only.
+
 Use this file when an Agent needs to match the Flap Vault UI style without copying private Flap frontend code.
 
 These snippets are sanitized implementation patterns. They intentionally omit private project names, component names, factory addresses, token addresses, endpoint URLs, internal file paths, and unreleased business rules.
