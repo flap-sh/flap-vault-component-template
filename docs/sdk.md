@@ -422,11 +422,13 @@ Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](reso
 
 ## FSI queries
 
-The platform query allowlist currently contains only `https://bsc-debug.butterfly.army/fsi/v1` (the exact HTTPS origin and `/fsi/v1` or its child paths). Declare this prefix in `manifest.endpoints` for human review. Every direct FSI `fetch` (static or templated) must declare literal `method: "GET"`, `credentials: "omit"`, `redirect: "error"` and `referrerPolicy: "no-referrer"` options without spreads or overrides; optional `cache: "no-store"` is allowed. Fixed-path templates may interpolate only query values wrapped in the global `encodeURIComponent(value)` after a literal `?`. Use `sdk.readFsi(relativePath, params)` for dynamic paths and parameter objects. Raw and encoded dot segments and encoded separators are rejected before URL normalization. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
+The platform query allowlist contains `https://fsi.taxed.fun/fsi/v1` and the legacy `https://bsc-debug.butterfly.army/fsi/v1` (each exact HTTPS origin and `/fsi/v1` or its child paths). Declare the root prefix you intend to use in `manifest.endpoints`, as a string or array, for human review. `sdk.readFsi(relativePath, params)` uses the declared host; declaring only the legacy prefix preserves legacy routing, while declaring both prefixes selects `https://fsi.taxed.fun/fsi/v1` regardless of array order. It does not fall back to the other host when a request fails. Every direct FSI `fetch` (static or templated) must declare literal `method: "GET"`, `credentials: "omit"`, `redirect: "error"` and `referrerPolicy: "no-referrer"` options without spreads or overrides; optional `cache: "no-store"` is allowed. Fixed-path templates may interpolate only query values wrapped in the global `encodeURIComponent(value)` after a literal `?`. Use `sdk.readFsi(relativePath, params)` for dynamic paths and parameter objects. Raw and encoded dot segments and encoded separators are rejected before URL normalization. Other origins and paths retain the static-fetch policy. This exception does not authorize images, navigation, frames, `/fsi/versions`, or emitter-specific manifest fields. Review output retains dynamic path/query expressions.
 
 ```json
-{ "endpoints": "https://bsc-debug.butterfly.army/fsi/v1" }
+{ "endpoints": "https://fsi.taxed.fun/fsi/v1" }
 ```
+
+The declaration must be the root `/fsi/v1` URL (an optional trailing slash is accepted), without query parameters. A domain-only URL or a specific child endpoint does not satisfy the declaration requirement. Existing non-FSI endpoint declarations may remain in the same array. Review output records the prefix selected by the SDK, including its dynamic path and query expressions.
 
 ```tsx
 const sdk = useFlapSdk();
@@ -441,7 +443,7 @@ Paths are relative to `/fsi/v1/` and contain no chain ID, query, fragment, or tr
 For a fixed path, this direct call also passes the query exception when covered by the declaration:
 
 ```tsx
-await fetch(`https://bsc-debug.butterfly.army/fsi/v1/by-key/account?templateId=G&limit=${encodeURIComponent(limit)}`, {
+await fetch(`https://fsi.taxed.fun/fsi/v1/by-key/account?templateId=G&limit=${encodeURIComponent(limit)}`, {
   method: "GET",
   credentials: "omit",
   redirect: "error",
@@ -453,7 +455,7 @@ Every raw FSI fetch, including a static URL, must use that literal options objec
 
 For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain blocked. Both paths require GET, omitted credentials/referrer and rejected redirects. `sdk.readFsi` also reports non-success HTTP responses as errors. Raw and encoded dot segments, encoded separators/double encoding and control characters are rejected before URL normalization, even when normalization would stay within the FSI prefix. Query values may contain these characters because they are encoded separately. FSI is an off-chain display cache; funds and settlement decisions must read on-chain state. The current allowlisted deployment determines the chain; a different chain or domain needs a separately reviewed platform allowlist change.
 
-`sdk.readFsi` is available from `@flapsdk/vault-runtime@0.1.36`; `0.1.35` hosts do not implement it. Upgrade Workbench and Flap hosts before accepting components that call it. Feature-branch verification uses a private canary package and does not alter consumer dependency pins.
+`sdk.readFsi` is available from `@flapsdk/vault-runtime@0.1.36`; `0.1.35` hosts do not implement it. Support for `https://fsi.taxed.fun/fsi/v1` is an unreleased addition; published `0.1.38` supports only the legacy prefix. Upgrade Workbench's checker and both Workbench and Flap host runtimes to a release containing this endpoint policy before accepting components that declare the new prefix. Feature-branch verification uses a private canary package and does not alter consumer dependency pins.
 
 ## Controlled dynamic IPFS content
 

@@ -26,6 +26,10 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+### FSI endpoint compatibility
+
+- Add `https://fsi.taxed.fun/fsi/v1` alongside the legacy FSI prefix. `sdk.readFsi` selects the declared host and prefers the new host when both are declared, with matching endpoint review evidence. Exact-origin/path validation, manifest declaration, safe fetch options, query encoding and human review remain required. This is an unreleased change; hosts and Workbench must upgrade their runtime and checker together.
+
 ### Security
 
 - Hardened `vault:check` against obfuscation bypasses of the line-regex layer with a new AST-based, constant-folding security pass. It now blocks: hardcoded addresses and external URLs assembled from `+`/`` `${}` ``/`Array.join`/`String.fromCharCode` fragments; aliased and indirect `eval` (`const e = eval`, `(0, eval)`); string-variable `setTimeout`/`setInterval` callbacks; computed `["constructor"]` and `Reflect.construct`/`Reflect.apply` escapes; `Reflect`/comma-operator indirect `fetch`; `React.createElement("iframe"/"script")` including concatenated tags; computed `["innerHTML"]`/`["outerHTML"]`/`["insertAdjacentHTML"]` writes; bare injected-provider identifiers (`ethereum`, `BinanceChain`, `tronWeb`, …) and dynamic-method wallet RPC; and typed browser-global aliasing (`const g: any = window`).

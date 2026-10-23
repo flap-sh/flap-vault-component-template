@@ -113,8 +113,10 @@ export const useBalance=()=>({data:undefined});`;
  assert(rejectedIpfs);assert.equal(ipfsRequests,beforeInvalid);assert.equal(unrelatedRequests,0);
  await page.evaluate(async()=>{globalThis.ipfsProps=undefined;await rerenderProvider();});
  // FSI authorization comes from the host manifest, never the component's copy.
- let fsiRequests=0;
- await page.route('https://bsc-debug.butterfly.army/fsi/v1/**', route=>{fsiRequests++;return route.fulfill({json:{items:[],nextCursor:'a/b+c=='}});});
+ const fsiRequestOrigins=[];
+ for(const origin of ['https://bsc-debug.butterfly.army','https://fsi.taxed.fun']){
+  await page.route(`${origin}/fsi/v1/**`, route=>{fsiRequestOrigins.push(new URL(route.request().url()).origin);return route.fulfill({json:{items:[],nextCursor:'a/b+c=='}});});
+ }
  const fsi=await page.evaluate(async()=>{
   const saved=sdk.readFsi;
   sdk.context.manifest.endpoints='https://bsc-debug.butterfly.army/fsi/v1';
@@ -126,17 +128,26 @@ export const useBalance=()=>({data:undefined});`;
    try{await saved(path);rejectedPaths.push('allowed');}catch(e){rejectedPaths.push(e.message);}
   }
   const result=await saved('by-key/account',{templateId:'G',cursor:'a/b+c=='});
+  hostManifest.endpoints='https://fsi.taxed.fun/fsi/v1';
+  await rerenderProvider({...hostContext});
+  sdk.context.manifest.endpoints='https://bsc-debug.butterfly.army/fsi/v1';
+  const newResult=await saved('by-key/account',{templateId:'G'});
+  hostManifest.endpoints=['https://bsc-debug.butterfly.army/fsi/v1','https://fsi.taxed.fun/fsi/v1'];
+  await rerenderProvider({...hostContext});
+  const preferredResult=await saved('by-key/account',{templateId:'G'});
   delete hostManifest.endpoints;
   await rerenderProvider({...hostContext});
   let revoked;try{await saved('by-key/account');revoked='allowed';}catch(e){revoked=e.message;}
-  return {stable:saved===sdk.readFsi,forged,revoked,result,rejectedPaths};
+  return {stable:saved===sdk.readFsi,forged,revoked,result,newResult,preferredResult,rejectedPaths};
  });
  assert(fsi.stable,'FSI callback must remain stable across host updates');
  assert.match(fsi.forged,/manifest.endpoints/);
  assert.match(fsi.revoked,/manifest.endpoints/);
  assert.deepEqual(fsi.result,{items:[],nextCursor:'a/b+c=='});
+ assert.deepEqual(fsi.newResult,fsi.result);
+ assert.deepEqual(fsi.preferredResult,fsi.result);
  fsi.rejectedPaths.forEach(message=>assert.match(message,/FSI path traversal/));
- assert.equal(fsiRequests,1,'Rejected FSI paths must never reach the network');
+ assert.deepEqual(fsiRequestOrigins,['https://bsc-debug.butterfly.army','https://fsi.taxed.fun','https://fsi.taxed.fun'],'Retained reads must use the current host declaration and reject unauthorized requests before fetch');
  // Retained read callbacks must use the latest authorization context and RPC client.
  const readStability=await page.evaluate(async()=>{
   const first=sdk.readContract;globalThis.savedRead=first;
