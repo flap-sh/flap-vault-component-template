@@ -10,11 +10,11 @@ Vault UI 与 Mini App v2 已统一在官方 `main` 维护，共用一套模板�
 | --- | --- |
 | 源码整合 | Mini App v2 已通过 `02e68e4` 合入 main |
 | 源码分支 | Vault UI 与 Mini App v2 都使用 `main` |
-| App 命令 / 发布元数据 / CI | 已实现 main/latest，接受包括 `0.1.38` 在内的正式版本 |
-| 正式版 | **`0.1.38`**，已发布到 npm latest |
-| 已发布 npm `latest` | `0.1.38`，来源 `1220ee9813f73eafd434decb365a08ae6a681445` |
+| App 命令 / 发布元数据 / CI | 已实现 main/latest，接受包括 `0.1.39` 在内的正式版本 |
+| 正式版 | **`0.1.39`**，已发布到 npm latest |
+| 已发布 npm `latest` | `0.1.39`，来源 `78c355f080a60770cfd64d71d94c525204d61583` |
 | 历史 npm `next` | `0.1.40-next.0`，已弃用；使用 latest |
-| App ZIP 工具 | 真实 `0.1.38` 下检查、打包与验证已通过；主站、Workbench 上线仍单独安排 |
+| App ZIP 工具 | 使用已发布 `0.1.39` 身份并重新生成证明；保留历史 `0.1.38` 检查、打包与验证记录 |
 | 历史 next 版本 | 全部八个已标记弃用，保留下载 |
 
 源码合并或修改版本号不会发布 npm、移动 dist-tag、升级已部署宿主或批准 App 上线。正式 `0.1.38` 源码包含共用 App 钱包、动态 IPFS/FSI、长文本 CopyButton 及合并后的构建、依赖更新；其 runtime 输入不同于旧发布版本，不能沿用旧正式版或 next 的 ZIP 证明。
@@ -38,22 +38,22 @@ yarn dev
 | 流程 | 源码 / npm 通道 |
 | --- | --- |
 | `vault:*` | 官方 `origin/main` / latest |
-| `app:*` | 官方 `origin/main` / latest，接受正式 `0.1.38` |
+| `app:*` | 官方 `origin/main` / latest，接受正式 `0.1.39` |
 | `runtime:package` | 干净且已提交的官方 main / latest，生成的 publishConfig 显式使用 latest |
 | `runtime:package:next` | 仅在明确授权预览发布时使用官方 `origin/next` / next |
 
-使用 fork 的维护者设置 `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`，upstream 必须指向官方 Flap 仓库。App 命令拒绝预览或本地引用及 fork 远端。主 CI 与 App 验证工作流使用 latest；App 工作流运行在官方 main。通道各自检查自己的 npm tag，`next=0.1.40-next.0` 不影响正式 `0.1.38`。
+使用 fork 的维护者设置 `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`，upstream 必须指向官方 Flap 仓库。App 命令拒绝预览或本地引用及 fork 远端。主 CI 与 App 验证工作流使用 latest；App 工作流运行在官方 main。通道各自检查自己的 npm tag，`next=0.1.40-next.0` 不影响正式 `0.1.39`。
 
 在官方 main 上，npm 发布前可以运行 App 检查、本地游客/已连接 E2E 和构建。App 源码 ZIP 与普通本地验证要求**精确匹配已发布 latest 版本、真实 gitHead 祖先关系及 runtime、依赖、构建、协议输入**。官方纯文档或开发工具提交可以更新并保留原身份；本地 SDK/工具改动、私有 canary 和伪造证明均不能替代发布。
 
-`0.1.38` 已公开发布到 npm latest，真实 App 打包和普通验证已通过。发布前的 `package/runtime-unpublished` 拦截也已验证，后续仍会阻止未发布 runtime 输入，不要改写版本或 metadata 绕过校验。见[发布记录](releases/0.1.38.zh-CN.md)。
+`0.1.39` 已公开发布到 npm latest，来源 `78c355f080a60770cfd64d71d94c525204d61583`。归档核验与 FSI 上线要求见[当前发布记录](releases/0.1.39.zh-CN.md)。`0.1.38` 的真实 App 打包验证和未发布 runtime 拦截结果保留在[历史发布记录](releases/0.1.38.zh-CN.md)，不改写为 `0.1.39` 证明。新源码 ZIP 必须匹配当前已发布身份和当前源码绑定的 E2E 证明。
 
 ## 正式版升级与预览版弃用
 
-`0.1.38` 已发布，维护者仍需在 Workbench、主站精确固定并部署同一 runtime 与配套校验输入：
+`0.1.39` 已发布，维护者仍需在 Workbench、主站精确固定并部署同一 runtime 与配套校验输入：
 
 ```bash
-yarn add --exact @flapsdk/vault-runtime@0.1.38
+yarn add --exact @flapsdk/vault-runtime@0.1.39
 ```
 
 App 开发者更新已宣布的 main 模板，保留 App 目录和注册，重新生成检查、E2E、打包、验证证明，不需要在 App 目录安装 npm 包。按公告选择正式目标，不要按数字挑最大的历史预发布版。本次迁移无需额外发布 next。

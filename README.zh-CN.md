@@ -4,7 +4,7 @@
 
 **新开发仅支持 Vault UI 和 Mini App v2**，共用一套模板和 SDK。两者现已统一在 `main` 维护：Vault UI 使用 `vault:*`，独立 App 使用 `app:*`，入口为 `/apps/{slug}`，不绑定 CA/工厂。**Mini App v1 停止新开发，旧应用继续兼容。** 见 [main 整合与发布状态](./docs/main-migration.zh-CN.md) 和 [v1 兼容说明](./docs/mini-app-v1.zh-CN.md)。下文绑定 Token 的规则用于 Vault UI 和旧 v1 维护，不适用于 v2。
 
-**发布状态（2026-10-23 核对）：** **`@flapsdk/vault-runtime@0.1.38` 已发布到 npm latest**，来源 `1220ee9813f73eafd434decb365a08ae6a681445`。Vault UI 与 Mini App v2 共用 main/latest，支持 App 检查、E2E、打包与验证。历史八个 next 版本已全部标记弃用，保留下载。接收新提交前，主站、Workbench 仍需使用同一精确正式 runtime 及配套校验输入。见 [main/latest 迁移](./docs/main-migration.zh-CN.md)和 [v2 快速开始](./docs/mini-app-v2-quickstart.md)。
+**发布状态（2026-10-23 核对）：** **`@flapsdk/vault-runtime@0.1.39` 已发布到 npm latest**，来源 `78c355f080a60770cfd64d71d94c525204d61583`。Vault UI 与 Mini App v2 共用 main/latest，支持 App 检查、E2E、打包与验证。历史八个 next 版本已全部标记弃用，保留下载。接收新提交前，主站、Workbench 仍需使用同一精确正式 runtime 及配套校验输入。见 [main/latest 迁移](./docs/main-migration.zh-CN.md)和 [v2 快速开始](./docs/mini-app-v2-quickstart.md)。
 
 以下绑定 Token 的 Mini App 都是**仅供旧应用兼容维护的 v1**；新 App 一律使用上方 v2 开发指南。旧脚手架会提示弃用。`three-r3f-v1` 在这些旧模型中支持三种表面：省略 `mode` 且证明 token 全部以 `7777` 结尾的 Vault UI、token-scoped `7777` Tax Token Mini App，以及 token-scoped `8888` 零税 Mini App。两种 Mini App 都必须显式使用 `--mode mini-app`，采用 token-only binding，且同一 artifact 的 token 后缀必须全部为 `7777` 或全部为 `8888`，不能混用。7777 Vault UI 和 7777 Mini App 都必须显式提供真实已部署的 `--token`。仅 8888 Mini App 在没有项目测试 token 时可以省略 `--token`，由脚手架按所选支持链使用 Flap 已部署的标准 `8888` 预览 token；该 token 只用于预览/E2E 证明，不是项目生产 CA 限制，并且仍执行正常的已部署 ERC20 校验。
 
