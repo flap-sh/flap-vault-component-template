@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 56,
+  "version": 57,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -1594,7 +1594,8 @@
     },
     "v2": "yarn vault:e2e is a deterministic Playwright gate for DOM rendering, responsive layout, phase states, wrong-network states, and recursive source/asset-hash-bound proof. It must not depend on AI image judgment.",
     "localInstall": "First-time local and Windows environments may need yarn playwright install chromium before vault:e2e can launch Chromium. Missing-browser failures must be emitted as machine-readable JSON.",
-    "writeUiOrigin": "A local tx hash, wallet trace, or report can prove that a transaction exists and targets the expected token/Vault, but it cannot cryptographically prove that the transaction was initiated by the developer's local UI. Strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner that replays the source package and verifies the tx by RPC."
+    "writeUiOrigin": "A local tx hash, wallet trace, or report can prove that a transaction exists and targets the expected token/Vault, but it cannot cryptographically prove that the transaction was initiated by the developer's local UI. Strong write-UI origin assurance requires a platform-controlled Playwright + wallet runner that replays the source package and verifies the tx by RPC.",
+    "launchConfig": "Read the selected factory schema from the preview host. Identify controls by schema field name using name, id or data-launch-config-field; a single-field form may use one unmarked control. Numeric inputs are base units unless data-launch-config-unit=human explicitly opts into schema decimals conversion. For business constraints, pass --launch-config-fixture with JSON inputs and expected base-unit values outside the Vault source folder. Compare typed structured values exactly, exercise invalid/clear states where representable, and retain all passing-report/source-hash packaging requirements. Unsupported schemas or missing test configuration are blocking, never skipped."
   },
   "preview": {
     "routePattern": "http://localhost:3000/{folder-name}",

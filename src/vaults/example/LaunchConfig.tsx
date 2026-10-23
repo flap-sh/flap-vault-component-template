@@ -69,6 +69,8 @@ export default function ExampleLaunchConfig({
               {message(messages, "launchConfig.labels.minimumBurn")}
             </span>
             <Input
+              name="minBurnAmount"
+              data-launch-config-unit="human"
               value={amount}
               inputMode="numeric"
               onChange={(event) => setAmount(event.target.value)}

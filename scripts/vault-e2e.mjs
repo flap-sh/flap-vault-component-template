@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { startNextPreview } from "./preview-process.mjs";
 import fs from "node:fs";
 import { isStandaloneApp, APP_SESSION_PHASES } from "./standalone-app.mjs";
 import net from "node:net";
@@ -18,10 +18,10 @@ import {
   sourceSha256FromFileHashes,
 } from "./e2e-report-utils.mjs";
 import { failAgent } from "./agent-error.mjs";
+import { runLaunchConfigChecks } from "./launch-config-e2e.mjs";
 
 const ROOT = process.cwd();
 const HOST = "127.0.0.1";
-const YARN_COMMAND = process.platform === "win32" ? "yarn.cmd" : "yarn";
 const DEFAULT_WALLET_ADDRESS = "0x0000000000000000000000000000000000000EaE";
 const DEFAULT_WRONG_CHAIN_ID = 1;
 const MINI_APP_MODE = "mini-app";
@@ -59,6 +59,7 @@ function parseArgs(argv) {
 }
 
 const args = parseArgs(process.argv.slice(3));
+let launchConfigFixture;
 
 function failE2E(code, message, fixHint, extra = {}) {
   failAgent({
@@ -192,6 +193,22 @@ async function launchChromium() {
   }
 }
 
+async function stopPreviewForE2E(preview, startupError) {
+  try {
+    await preview.stop();
+  } catch (error) {
+    failE2E(
+      "vault-e2e/cleanup-failed",
+      `Could not stop the owned preview server: ${error instanceof Error ? error.message : String(error)}`,
+      "Inspect the preview process cleanup error, fix it, and rerun yarn vault:e2e <folder-name>.",
+      {
+        cleanupError: error instanceof Error ? error.message : String(error),
+        ...(startupError ? { startupError: startupError instanceof Error ? startupError.message : String(startupError) } : {}),
+      },
+    );
+  }
+}
+
 async function startPreviewServer() {
   if (args["base-url"] || process.env.VAULT_E2E_BASE_URL) {
     const baseUrl = String(args["base-url"] || process.env.VAULT_E2E_BASE_URL).replace(/\/$/, "");
@@ -201,40 +218,37 @@ async function startPreviewServer() {
 
   const port = args.port ? Number(args.port) : await findAvailablePort(3230);
   const baseUrl = `http://${HOST}:${port}`;
-  const child = spawn(YARN_COMMAND, ["dev", "-p", String(port), "-H", HOST], {
-    cwd: ROOT,
-    env: { ...process.env, PORT: String(port) },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  let preview;
   const logs = [];
-  child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
-  child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
   try {
+    preview = startNextPreview(["dev", "-p", String(port), "-H", HOST], {
+      cwd: ROOT,
+      env: { ...process.env, PORT: String(port) },
+    });
+    const { child } = preview;
+    child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
+    child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
     await waitForPreviewProcessReady(child, `${baseUrl}/${folderName}`);
     return {
       baseUrl,
-      stop: async () => {
-        child.kill("SIGTERM");
-        await sleep(500);
-        if (!child.killed) child.kill("SIGKILL");
-      },
+      stop: () => preview.stop(),
       logs,
     };
   } catch (error) {
-    child.kill("SIGTERM");
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+    if (preview) await stopPreviewForE2E(preview, error);
+    if (error && typeof error === "object" && "code" in error && (error.code === "ENOENT" || error.code === "MODULE_NOT_FOUND")) {
       failE2E(
         "vault-e2e/dev-server-command-missing",
-        `Could not start the preview server because ${YARN_COMMAND} was not found.`,
-        "Install Yarn and ensure it is on PATH, then rerun yarn vault:e2e <folder-name>.",
-        { command: YARN_COMMAND },
+        `Could not start the preview server because the local Next.js command was not found.`,
+        "Run yarn install to restore the local Next.js dependency, then rerun yarn vault:e2e <folder-name>.",
+        { command: "next dev" },
       );
     }
     failE2E(
       "vault-e2e/server-not-ready",
       `Preview server did not become ready: ${error instanceof Error ? error.message : String(error)}`,
       "Fix preview startup, then rerun yarn vault:e2e <folder-name>.",
-      { command: YARN_COMMAND, logs: logs.join("").split("\n").slice(-60) },
+      { command: "next dev", logs: logs.join("").split("\n").slice(-60) },
     );
   }
 }
@@ -503,25 +517,12 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
       issues.push({ ruleId: "render/token-unavailable", message: "Preview marked the runtime token as unavailable." });
     }
     if (launchConfig) {
-      const launchConfigRoot = previewScope.locator("[data-flap-launch-config='true']");
-      if ((await launchConfigRoot.count()) !== 1) {
-        issues.push({ ruleId: "launch-config/component-missing", message: "Launch Config preview did not render the named LaunchConfig export." });
+      const previewChainId = await previewScope.getAttribute("data-launch-config-chain-id");
+      const previewFactory = await previewScope.getAttribute("data-launch-config-factory-address");
+      if (previewChainId !== String(binding.chainId) || previewFactory?.toLowerCase() !== binding.factoryAddress?.toLowerCase()) {
+        issues.push({ ruleId: "launch-config/schema-binding-mismatch", message: "Launch Config preview did not select the requested chain/factory binding." });
       } else {
-        const input = launchConfigRoot.locator("input").first();
-        const confirm = previewScope.locator("[data-launch-config-confirm='true']");
-        // Both shipped threshold forms reject zero; do not assume a 100-token minimum for every factory.
-        await input.fill("0");
-        if (!(await confirm.isDisabled())) {
-          issues.push({ ruleId: "launch-config/invalid-state", message: "Host Confirm remained enabled for invalid Launch Config values." });
-        }
-        await input.fill("1000");
-        if (await confirm.isDisabled()) {
-          issues.push({ ruleId: "launch-config/valid-state", message: "Host Confirm did not enable after valid Launch Config values." });
-        }
-        const nextPreviewText = await previewScope.innerText();
-        if (!nextPreviewText.includes("1000000000000000000000")) {
-          issues.push({ ruleId: "launch-config/structured-output", message: "Launch Config preview did not emit the expected host-visible structured value." });
-        }
+        issues.push(...await runLaunchConfigChecks({ page, previewScope, fixture: launchConfigFixture }));
       }
     }
     const layout = await page.evaluate(layoutCheckScript, skipRiskStatus);
@@ -610,6 +611,16 @@ const manifest = readJson(manifestPath);
 const hasLaunchConfig = Array.isArray(manifest.surfaces) && manifest.surfaces.includes("launch-config");
 const standalone = isStandaloneApp(manifest);
 const requiredPhases = standalone ? APP_SESSION_PHASES : REQUIRED_PHASES;
+if (args["launch-config-fixture"]) {
+  try {
+    if (!hasLaunchConfig) throw new Error("The artifact does not declare launch-config.");
+    const fixturePath = path.resolve(ROOT, args["launch-config-fixture"]);
+    if (fs.statSync(fixturePath).size > 256 * 1024) throw new Error("The fixture exceeds 256 KiB.");
+    launchConfigFixture = readJson(fixturePath);
+  } catch (error) {
+    failE2E("vault-e2e/invalid-launch-config-fixture", error instanceof Error ? error.message : String(error), "Pass --launch-config-fixture <path> to a JSON file containing inputs and expected base-unit values. See docs/launch-config.md.");
+  }
+}
 const skipRiskStatus = manifest.mode === MINI_APP_MODE;
 const has3D = Array.isArray(manifest.capabilities) && manifest.capabilities.includes("three-r3f-v1");
 let binding;
@@ -659,7 +670,7 @@ try {
   }
 } finally {
   if (browser) await browser.close();
-  if (server) await server.stop();
+  if (server) await stopPreviewForE2E(server);
 }
 
 const allIssues = checks.flatMap((check) => check.issues.map((issue) => ({ ...issue, checkId: check.id, viewport: check.viewport, phase: check.phase })));
@@ -710,6 +721,7 @@ const report = {
     renderErrors: (issueCounts["render/framework-error"] ?? 0) + (issueCounts["render/token-unavailable"] ?? 0) + (issueCounts["render/console-error"] ?? 0),
   },
   checks,
+  ...(launchConfigFixture ? { launchConfigFixture } : {}),
 };
 
 const reportPath = path.join(outDir, "qa-report.json");
