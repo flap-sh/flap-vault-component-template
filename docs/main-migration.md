@@ -10,11 +10,11 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | --- | --- |
 | Source integration | Mini App v2 merged into main in `02e68e4` |
 | Source branch | `main` for Vault UI and Mini App v2 |
-| App commands / release metadata / CI | Implemented on main/latest, accepting stable versions including `0.1.38` |
-| Stable version | **`0.1.38`**, published to npm latest |
-| Published npm `latest` | `0.1.38`, source `1220ee9813f73eafd434decb365a08ae6a681445` |
+| App commands / release metadata / CI | Implemented on main/latest, accepting stable versions including `0.1.39` |
+| Stable version | **`0.1.39`**, published to npm latest |
+| Published npm `latest` | `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583` |
 | Historical npm `next` | `0.1.40-next.0`, deprecated; use latest |
-| App ZIP tooling | Real check/package/verification passed with published `0.1.38`; host/Workbench rollout remains separate |
+| App ZIP tooling | Use the published `0.1.39` identity and regenerate proofs; historical `0.1.38` check/package/verification remains recorded |
 | Historical next versions | All eight are deprecated; downloads remain available |
 
 A source merge or version edit does not publish npm, move dist-tags, upgrade deployed hosts or approve an App. The stable `0.1.38` source includes the shared App wallet, dynamic IPFS/FSI, long-text CopyButton and the merged build/dependency updates. Its runtime inputs differ from previous publications, so an older stable/next package cannot supply its ZIP provenance.
@@ -38,22 +38,22 @@ App authors import `@/src/sdk` and `@/src/ui` from the template. Do not install 
 | Workflow | Source / npm channel |
 | --- | --- |
 | `vault:*` | Official `origin/main` / latest |
-| `app:*` | Official `origin/main` / latest; stable `0.1.38` is accepted |
+| `app:*` | Official `origin/main` / latest; stable `0.1.39` is accepted |
 | `runtime:package` | Clean committed official main / latest; generated publishConfig explicitly uses latest |
 | `runtime:package:next` | Explicitly authorized preview release from official `origin/next` / next |
 
-Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.0` does not invalidate stable `0.1.38`.
+Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.0` does not invalidate stable `0.1.39`.
 
 App check, local guest/connected E2E and build can run before npm publication from the official main checkout. App source ZIPs and normal local verification require the **exact published latest version, real gitHead ancestry and matching runtime/dependency/build/protocol inputs**. Official documentation/authoring-only descendants can retain that identity. Local SDK/tool edits, private canaries and fabricated proof cannot.
 
-`0.1.38` is now public on npm latest. Real App packaging and normal verification pass with the published identity. The prepublication `package/runtime-unpublished` gate was also verified; it continues to block future unpublished runtime inputs. Never rewrite version strings or metadata to bypass it. See [the release record](releases/0.1.38.md).
+`0.1.39` is public on npm latest, source `78c355f080a60770cfd64d71d94c525204d61583`. See [the current release record](releases/0.1.39.md) for archive verification and FSI rollout. The real App package/verification and unpublished-runtime gate results from `0.1.38` remain in [its historical release record](releases/0.1.38.md); they are not relabeled as `0.1.39` proof. New source ZIPs require the current published identity and current source-bound E2E proof.
 
 ## Stable upgrade and preview deprecation
 
-With `0.1.38` published, maintainers must pin and deploy the same runtime and validation inputs in Workbench and the main host:
+With `0.1.39` published, maintainers must pin and deploy the same runtime and validation inputs in Workbench and the main host:
 
 ```bash
-yarn add --exact @flapsdk/vault-runtime@0.1.38
+yarn add --exact @flapsdk/vault-runtime@0.1.39
 ```
 
 App authors update the announced main template, preserve their App source/registration and regenerate check, E2E, package and verification proof. They do not install the npm package in their App folder. Choose the announced stable target rather than the numerically highest historical prerelease. No additional next release is needed for this migration.

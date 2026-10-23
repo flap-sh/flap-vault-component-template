@@ -13,11 +13,11 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
-Release candidate `0.1.39` adds the second reviewed FSI endpoint. Follow [the 0.1.39 release guide](releases/0.1.39.md) ([简体中文](releases/0.1.39.zh-CN.md)) for official-main packaging, registry verification and matching host/checker rollout. Publication is pending; npm `latest` remains `0.1.38` until the verified archive is published.
+`0.1.39` is published on npm `latest`, source `78c355f080a60770cfd64d71d94c525204d61583`, adding the second reviewed FSI endpoint. Follow [the 0.1.39 release guide](releases/0.1.39.md) ([简体中文](releases/0.1.39.zh-CN.md)) for verified archive identity and matching host/checker rollout. The historical `0.1.38` release record remains below.
 
-The `0.1.38` main/latest release and host rollout are documented in
+The historical `0.1.38` main/latest release and host rollout are documented in
 [the release guide](releases/0.1.38.md) ([简体中文](releases/0.1.38.zh-CN.md)).
-`0.1.38` is published on npm latest, source `1220ee9813f73eafd434decb365a08ae6a681445`; all historical next versions are deprecated.
+`0.1.38` was published on npm latest, source `1220ee9813f73eafd434decb365a08ae6a681445`; its publication and next-deprecation history remain unchanged.
 Prepare the root version and documentation on a branch from the latest official
 `main`, commit as the SDK maintainer, and merge the release PR before building the
 publishable package. A feature/release branch may be tested with a private canary
@@ -48,7 +48,7 @@ upload/gateway workflow. A successful npm publish does not upgrade deployed host
 
 ## Main source integration
 
-Vault UI and Mini App v2 share official main/latest while retaining distinct model/proof workflows. Stable **`0.1.38` is published**, source `1220ee9813f73eafd434decb365a08ae6a681445`. All eight historical next versions are deprecated with downloads retained. App commands, release metadata and CI use main/latest; hosts and Workbench must deploy the same exact stable runtime and matching validation inputs. See [release identity](main-migration.md) ([中文](main-migration.zh-CN.md)) and [deprecation record](main-migration.md#stable-upgrade-and-preview-deprecation).
+Vault UI and Mini App v2 share official main/latest while retaining distinct model/proof workflows. Current stable **`0.1.39` is published**, source `78c355f080a60770cfd64d71d94c525204d61583`. All eight historical next versions are deprecated with downloads retained. App commands, release metadata and CI use main/latest; hosts and Workbench must deploy the same exact stable runtime and matching validation inputs. See [release identity](main-migration.md) ([中文](main-migration.zh-CN.md)) and [deprecation record](main-migration.md#stable-upgrade-and-preview-deprecation).
 
 ## Explicit next SDK releases
 
@@ -73,7 +73,7 @@ yarn runtime:verify-package
 
 `upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The npm `next` ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
 
-`@flapsdk/vault-runtime@0.1.38` is published on latest with source `1220ee9813f73eafd434decb365a08ae6a681445` (checked 2026-10-23). Historical `0.1.40-next.0` and all earlier next releases are deprecated. Stable App ZIPs use the exact latest identity and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance independently. Future runtime input changes require their own matching publication. See [main/latest status](main-migration.md).
+`@flapsdk/vault-runtime@0.1.39` is published on latest with source `78c355f080a60770cfd64d71d94c525204d61583` (checked 2026-10-23). Historical `0.1.40-next.0` and all earlier next releases are deprecated. Stable App ZIPs use the exact latest identity and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance independently. Future runtime input changes require their own matching publication. See [main/latest status](main-migration.md).
 
 ## Agent Contract Version
 
@@ -159,4 +159,4 @@ Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for revi
 
 ## Main integration and Mini App v2 releases
 
-Vault UI and Mini App v2 now share official `main` and npm `latest`, with stable template version **`0.1.38`**. `app:*` accepts stable versions and uses the official main reference; `vault:*` retains Vault UI and existing v1 maintenance. App ZIPs require the exact published latest version/gitHead and unchanged runtime/build/protocol inputs; docs/authoring-only descendants are allowed, local SDK/tool edits and private canaries are not. **npm `0.1.38` is published on latest**, with source `1220ee9813f73eafd434decb365a08ae6a681445`; real App check/package/verification has passed. All eight historical next versions are deprecated, with downloads retained. Hosts and Workbench still need the exact stable runtime and matching validation inputs before accepting new submissions. Explicit `runtime:package:next` remains isolated on the next channel. See [release status](main-migration.md).
+Vault UI and Mini App v2 now share official `main` and npm `latest`, with published stable runtime version **`0.1.39`**. `app:*` accepts stable versions and uses the official main reference; `vault:*` retains Vault UI and existing v1 maintenance. App ZIPs require the exact published latest version/gitHead and unchanged runtime/build/protocol inputs; docs/authoring-only descendants are allowed, local SDK/tool edits and private canaries are not. **npm `0.1.39` is published on latest**, with source `78c355f080a60770cfd64d71d94c525204d61583`; it adds the second reviewed FSI endpoint. All eight historical next versions are deprecated, with downloads retained. Hosts and Workbench still need the exact stable runtime and matching validation inputs before accepting new submissions. Explicit `runtime:package:next` remains isolated on the next channel. See [release status](main-migration.md).

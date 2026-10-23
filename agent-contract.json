@@ -1685,7 +1685,7 @@
       "Fetch the exact main head from the official flap-sh repository. Reject forks and arbitrary refs; fork maintainers may select the official upstream/main reference.",
       "App source ZIP runtime version and runtimePackageGitHead must equal the published latest package. Current official template HEAD may advance through docs/authoring-tool commits only if runtime source, dependencies, build inputs and ZIP/E2E protocol remain unchanged from the published ancestor. Unpublished versions, next packages and private canaries cannot be stable App ZIP provenance.",
       "Local SDK/tool edits are rejected; local App source and preview registration in src/vaults plus documentation are allowed. App source retains separate manifest, checker, source-hash and guest/connected E2E gates.",
-      "Stable 0.1.38 is published on npm latest from 1220ee9813f73eafd434decb365a08ae6a681445. All eight historical next versions are deprecated, with downloads retained. Real App packaging/verification passed. Hosts and Workbench must use the exact stable runtime and matching validation inputs; local preview sessions remain fixtures."
+      "Stable 0.1.39 is published on npm latest from 78c355f080a60770cfd64d71d94c525204d61583, adding the second reviewed FSI endpoint. All eight historical next versions remain deprecated, with downloads retained. Hosts and Workbench must use the exact stable runtime and matching validation inputs; local preview sessions remain fixtures. The 0.1.38 publication and its App packaging/verification results remain historical records."
     ],
     "quickstart": "docs/mini-app-v2-quickstart.md"
   },

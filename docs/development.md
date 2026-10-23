@@ -19,7 +19,7 @@ Flap provides one template repository, one `@flapsdk/vault-runtime` package, sha
 | Authoring commands | `vault:scaffold`, `vault:check`, `vault:e2e`, `vault:package` | `app:scaffold`, then `app:*` |
 | Source/E2E proof | Format 6 / report v2; manifest test token | Format 7 / report v3; guest/connected × PC/iPad/H5 |
 | Source branch | `main` | `main` |
-| Stable release | Published `0.1.38` / npm `latest` | Same `0.1.38` / npm `latest` |
+| Stable release | Published `0.1.39` / npm `latest` | Same `0.1.39` / npm `latest` |
 | Current command/release routing | `vault:*` / main / npm `latest` | `app:*` / main / npm `latest`; see [release status](main-migration.md) |
 
 Start with [Vault UI from zero](from-zero-vault-ui.md) or [Mini App v2 from zero](from-zero-mini-app.md). A project can deliver both a Vault UI and an App. They are reviewed/submitted separately and can reuse the same contracts and business code. Launching the Vault UI does not automatically publish either Mini App.
@@ -36,11 +36,11 @@ Release snapshot checked on 2026-10-23:
 
 | Item | Status |
 | --- | --- |
-| Shared stable release | **`0.1.38`**, published; historical next versions are deprecated, with downloads retained |
-| Published npm `latest` (independent of Git main) | `0.1.38`, npm `gitHead` `1220ee9813f73eafd434decb365a08ae6a681445` |
-| Historical npm `next` | `0.1.40-next.0`, deprecated; use stable `0.1.38` |
+| Shared stable release | **`0.1.39`**, published; historical next versions are deprecated, with downloads retained |
+| Published npm `latest` (independent of Git main) | `0.1.39`, npm `gitHead` `78c355f080a60770cfd64d71d94c525204d61583` |
+| Historical npm `next` | `0.1.40-next.0`, deprecated; use stable `0.1.39` |
 
-npm latest now publishes the shared stable `0.1.38`, including the explicit-chain hook, `walletContracts`, dynamic IPFS/FSI and long-text CopyButton. App commands and CI use main/latest. Source ZIPs require the exact published runtime version/gitHead and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance without another SDK publication. Hosts and Workbench must pin and deploy the same exact stable runtime and matching validation inputs. See [main/latest release status](main-migration.md). SDK publication is separate from App approval.
+npm latest now publishes the shared stable `0.1.39`, including the explicit-chain hook, `walletContracts`, dynamic IPFS/FSI and long-text CopyButton. App commands and CI use main/latest. Source ZIPs require the exact published runtime version/gitHead and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance without another SDK publication. Hosts and Workbench must pin and deploy the same exact stable runtime and matching validation inputs. See [main/latest release status](main-migration.md). SDK publication is separate from App approval.
 
 “Mini App v1/v2” describes the product/binding model. It is unrelated to npm semver (`0.1.35`), `runtimeContractVersion: 1`, or E2E report versions. A v2 App may still use runtime contract version 1. Identify the model from its manifest, not its name, SDK version, or token address alone. A partially specified or invalid v2 manifest must be rejected, never silently treated as v1.
 
