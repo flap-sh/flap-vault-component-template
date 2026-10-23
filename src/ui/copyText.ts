@@ -1,6 +1,9 @@
+// Count UTF-16 code units, matching JavaScript string.length. Keep large values bounded.
+export const MAX_COPY_TEXT_LENGTH = 1_048_576;
+
 /** Clipboard writes are private to the trusted runtime UI, never an artifact SDK method. */
 export function isCopyableText(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0 && value.length <= 4096 && !value.includes("\0");
+  return typeof value === "string" && value.length <= MAX_COPY_TEXT_LENGTH && value.trim().length > 0 && !value.includes("\0");
 }
 
 export async function writeCopyText(value: string): Promise<boolean> {

@@ -9,7 +9,7 @@ import { getCopyButtonMessages } from "./copyButtonMessages";
 import { isCopyableText, writeCopyText } from "./copyText";
 
 export interface CopyButtonProps {
-  /** Plain text copied exactly as provided, at most 4096 characters. */
+  /** Plain text copied exactly as provided, at most 1,048,576 UTF-16 code units (JavaScript string.length). */
   value: string;
   /** Optional localized visible label. Omit for an icon-only button. */
   label?: string;

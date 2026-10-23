@@ -1,13 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node type stripping requires source extensions.
-import { isCopyableText, writeCopyText } from "./copyText.ts";
+import { MAX_COPY_TEXT_LENGTH, isCopyableText, writeCopyText } from "./copyText.ts";
 // @ts-expect-error Node type stripping requires source extensions.
 import { getCopyButtonMessages } from "./copyButtonMessages.ts";
 
 test("only bounded nonempty plain text is copyable", () => {
-  for (const value of [undefined, null, 1, {}, "", " ", "x".repeat(4097), "a\0b"]) assert.equal(isCopyableText(value), false);
-  for (const value of ["0x123", "中文", "a\nb", "x".repeat(4096)]) assert.equal(isCopyableText(value), true);
+  for (const value of [undefined, null, 1, {}, "", " ", "x".repeat(MAX_COPY_TEXT_LENGTH + 1), "a\0b"]) assert.equal(isCopyableText(value), false);
+  for (const value of ["0x123", "中文", "a\nb", "x".repeat(MAX_COPY_TEXT_LENGTH)]) assert.equal(isCopyableText(value), true);
+});
+
+test("long skills.md and Unicode use the same UTF-16 bound without truncation", () => {
+  assert.equal(MAX_COPY_TEXT_LENGTH, 1_048_576);
+  const markdown = "# skills.md\n\n中文说明 🦋\n```ts\nconst task = 'copy all';\n```\n".repeat(1_000);
+  assert.ok(markdown.length > 4096);
+  assert.equal(isCopyableText(markdown), true);
+  assert.equal(isCopyableText("中文".repeat(MAX_COPY_TEXT_LENGTH / 2)), true);
+  assert.equal(isCopyableText("🦋".repeat(MAX_COPY_TEXT_LENGTH / 2)), true);
+  assert.equal(isCopyableText("🦋".repeat(MAX_COPY_TEXT_LENGTH / 2) + "x"), false);
+  assert.equal(isCopyableText(" ".repeat(MAX_COPY_TEXT_LENGTH)), false);
+  assert.equal(isCopyableText(markdown + "\0"), false);
 });
 
 test("copy is harmless during server rendering", async () => {

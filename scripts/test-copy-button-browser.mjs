@@ -57,6 +57,30 @@ try {
  assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),"0x286184b2660a2822671a33f24c4517f593947777");
  const render=async(mode,locale="en",value="0x123",disabled=false,label)=>{await page.evaluate(args=>renderCopy(...args),[mode,locale,value,disabled,label]);await page.waitForTimeout(40);};
  const state=async(expected)=>page.waitForFunction(value=>document.querySelector('[data-flap-ui="copy-button"]')?.dataset.flapCopyState===value,expected);
+ // Read back the actual OS clipboard: exercise both shared providers with long Markdown,
+ // the exact upper bound, and the browser's real selection fallback before adding mocks.
+ const maxLength = 1_048_576;
+ const markdown = "# skills.md\n\n中文说明 🦋\n```ts\nconst task = 'copy all';\n```\n".repeat(1_000);
+ const boundary = "🦋".repeat(maxLength / 2);
+ for (const mode of ["vault", "app"]) {
+  for (const value of [markdown, boundary]) {
+   await render(mode,"en",value);assert.equal(await button.isEnabled(),true);
+   await button.click();await state("copied");
+   assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),value,`${mode}: native clipboard must retain the entire value`);
+  }
+  await page.evaluate(()=>{
+   globalThis.nativeClipboard=navigator.clipboard;
+   Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText:async()=>{throw new Error("Exercise selection fallback");}}});
+  });
+  try {
+   await render(mode,"en",markdown);await button.click();await state("copied");
+   assert.equal(await page.evaluate(()=>nativeClipboard.readText()),markdown,`${mode}: real selection fallback must retain long Markdown`);
+   assert.equal(await page.locator("textarea").count(),0);
+   assert.equal(await button.evaluate(el=>el===document.activeElement),true);
+  } finally {
+   await page.evaluate(()=>Object.defineProperty(navigator,"clipboard",{configurable:true,value:nativeClipboard}));
+  }
+ }
  await page.evaluate(()=>{
   globalThis.writes=[];globalThis.copyMode="ok";
   Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText:async value=>{writes.push(value);if(copyMode==="pending")await new Promise(r=>{globalThis.releaseCopy=r;});if(copyMode==="denied")throw new Error("Denied");}}});
@@ -70,15 +94,15 @@ try {
   assert.deepEqual(await page.evaluate(()=>writes),["0x123"]);
   await render(mode,"en"," 0x456 ");await button.focus();await page.keyboard.press("Enter");await state("copied");
   assert.equal(await page.evaluate(()=>writes.at(-1))," 0x456 ","Copy exactly the displayed value");
-  for(const invalid of [""," ","x".repeat(4097),"a\0b"]){await render(mode,"en",invalid);assert.equal(await button.isDisabled(),true);}
+  for(const invalid of [""," ","x".repeat(maxLength + 1),"a\0b"]){await render(mode,"en",invalid);assert.equal(await button.isDisabled(),true);}
   await render(mode,"en","0x789",true);assert.equal(await button.isDisabled(),true);
   await render(mode,"zh-CN","0xabc");assert.equal(await button.getAttribute("aria-label"),"复制");
   await render(mode,"ko","0xdef");assert.equal(await button.getAttribute("aria-label"),"복사");
   await render(mode,"en","pending");await page.evaluate(()=>copyMode="pending");await button.click();await state("copying");assert.equal(await button.isDisabled(),true);
   await page.evaluate(()=>releaseCopy());await state("copied");
   await page.evaluate(()=>{copyMode="denied";globalThis.fallbackOk=true;});
-  await render(mode,"en","fallback");await button.click();await state("copied");
-  assert.equal(await page.evaluate(()=>fallbackValue),"fallback");assert.equal(await page.locator("textarea").count(),0);assert.equal(await button.evaluate(el=>el===document.activeElement),true);
+  await render(mode,"en",markdown);await button.click();await state("copied");
+  assert.equal(await page.evaluate(()=>fallbackValue),markdown);assert.equal(await page.locator("textarea").count(),0);assert.equal(await button.evaluate(el=>el===document.activeElement),true);
   await render(mode,"en","fullscreen");await page.locator("#fullscreen").click();await page.waitForFunction(()=>!!document.fullscreenElement);await button.click();await state("copied");
   assert.equal(await page.evaluate(()=>fallbackParent),true);await page.evaluate(()=>document.exitFullscreen());
   await render(mode,"en","failure");await page.evaluate(()=>{fallbackOk=false;notifications.length=0;});await button.click();await state("failed");
@@ -91,5 +115,5 @@ try {
  await page.evaluate(()=>{renderCopy("vault","en","replacement");});await page.waitForTimeout(40);await page.evaluate(()=>releaseCopy());await page.waitForTimeout(40);
  assert.deepEqual(await page.evaluate(()=>notifications),[]);
  assert.deepEqual(errors,[]);
- console.log(JSON.stringify({ok:true,consumer:ROOT,surfaces:["Vault UI","Mini App v2"],checks:["real clipboard","trusted click","keyboard","exact value","invalid/disabled","en/zh/ko","pending","fallback","focus restore","fullscreen","failure","changed value","unmount"]}));
+ console.log(JSON.stringify({ok:true,consumer:ROOT,surfaces:["Vault UI","Mini App v2"],checks:["real clipboard","long Markdown/Unicode exact copy","1 Mi UTF-16 boundary","real long-text fallback","trusted click","keyboard","exact value","invalid/disabled","en/zh/ko","pending","fallback","focus restore","fullscreen","failure","changed value","unmount"]}));
 }finally{await browser?.close();await new Promise(r=>server?server.close(r):r());await rm(tmp,{recursive:true,force:true});}
