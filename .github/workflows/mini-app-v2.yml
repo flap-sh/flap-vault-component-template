@@ -25,6 +25,9 @@ jobs:
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: yarn playwright install --with-deps chromium
+      - run: yarn test:preview-process
+      - run: yarn test:launch-config
+      - run: yarn test:launch-config:browser
       - run: yarn test:release-channel
       - run: yarn test:mini-app
       - run: yarn test:standalone-app
