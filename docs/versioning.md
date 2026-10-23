@@ -13,6 +13,8 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
+Release candidate `0.1.39` adds the second reviewed FSI endpoint. Follow [the 0.1.39 release guide](releases/0.1.39.md) ([简体中文](releases/0.1.39.zh-CN.md)) for official-main packaging, registry verification and matching host/checker rollout. Publication is pending; npm `latest` remains `0.1.38` until the verified archive is published.
+
 The `0.1.38` main/latest release and host rollout are documented in
 [the release guide](releases/0.1.38.md) ([简体中文](releases/0.1.38.zh-CN.md)).
 `0.1.38` is published on npm latest, source `1220ee9813f73eafd434decb365a08ae6a681445`; all historical next versions are deprecated.
