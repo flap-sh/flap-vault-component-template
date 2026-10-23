@@ -19,7 +19,7 @@
 | 创建和校验 | `vault:scaffold`，再执行 `vault:*` | `app:scaffold`，再执行 `app:*` |
 | 打包和 E2E | 格式 6 / 报告 v2，需要真实测试 Token | 格式 7 / 报告 v3，游客/已连接 × PC/iPad/H5 |
 | 源码分支 | `main` | `main` |
-| 正式发布目标 | `0.1.38` / npm `latest`（尚未发布） | 共用 `0.1.38` / npm `latest` |
+| 正式发布版本 | 已发布 `0.1.38` / npm `latest` | 共用 `0.1.38` / npm `latest` |
 | 当前命令 / 发布路由 | `vault:*` / main / npm `latest` | `app:*` / main / npm `latest`，见[发布状态](main-migration.zh-CN.md) |
 
 从 [Vault UI 入门](from-zero-vault-ui.md) 或 [Mini App v2 从零开发](from-zero-mini-app.zh-CN.md) 开始。一个项目可以同时提交 Vault UI 和独立 App，两者可以操作同一套合约、复用业务代码，但有各自的包和审核流程。Vault UI 上线不会自动让 Mini App 上线。
@@ -36,11 +36,11 @@ v1 使用 `/{chain}/{tokenCA}/mini-app`，manifest 为 `mode: "mini-app"` 和 to
 
 | 项目 | 状态 |
 | --- | --- |
-| 计划正式目标 | **`0.1.38`**，尚未发布；发布后历史 next 版本统一标记弃用，保留下载 |
-| 已发布 npm `latest`（与 Git main 分开） | 已发布 `0.1.37`，npm 来源提交为 `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
-| 已发布 npm `next` | **`0.1.40-next.0`**，npm 来源提交为 `0d21863aa19bde5ad6712d760d3badea6a28e3a4`；包含 main 0.1.37 和独立 App 共用钱包能力 |
+| 共用正式版 | **`0.1.38`**，已发布；历史 next 已全部标记弃用，保留下载 |
+| 已发布 npm `latest`（与 Git main 分开） | `0.1.38`，npm 来源提交为 `1220ee9813f73eafd434decb365a08ae6a681445` |
+| 历史 npm `next` | `0.1.40-next.0`，已弃用；使用正式 `0.1.38` |
 
-源码分支整合不会改变 npm dist-tag。已发布的 `0.1.40-next.0` 包含显式选链 Hook、`walletContracts` 等 v2 API，不能据此认为 `latest` 也已支持。当前 main 模板版本为 `0.1.38`，App 命令及 CI 已使用 main/latest，不能沿用旧 runtime 身份提交 ZIP，见 [main 整合与打包状态](main-migration.zh-CN.md)。匹配的 npm 发布及宿主配套上线宣布完成后，按发布说明选择官方源码，并让主站、Workbench 使用相同精确 runtime。仅修改文档无需发布 SDK；改变 runtime 输入的源码合并需要配套发布。SDK 发布与 App 审核上线仍是两件事。
+npm latest 已发布共用正式版 `0.1.38`，包含显式选链 Hook、`walletContracts`、动态 IPFS/FSI 与长文本 CopyButton；App 命令、CI 使用 main/latest。源码 ZIP 精确匹配已发布 runtime 版本/gitHead 及 runtime、构建、协议输入，官方纯文档和开发工具提交可独立更新，无需再发布 SDK。主站、Workbench 仍需精确固定并部署同一正式 runtime 与配套校验输入。见 [main/latest 发布状态](main-migration.zh-CN.md)。SDK 发布与 App 审核上线仍是两件事。
 
 Mini App **v1/v2** 区分产品和绑定模式；npm **0.1.35** 区分 SDK 发布；`runtimeContractVersion: 1` 区分宿主产物协议，E2E 报告也有自己的版本。v2 App 使用 runtime contract 1 是正常的。应根据 manifest 判断 App 类型，不能只看名字、SDK 版本或某个 CA。v2 标识不完整或不合法时应报错，不能悄悄当成 v1。
 

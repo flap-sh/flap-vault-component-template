@@ -11,11 +11,11 @@ Vault UI 与 Mini App v2 已统一在官方 `main` 维护，共用一套模板�
 | 源码整合 | Mini App v2 已通过 `02e68e4` 合入 main |
 | 源码分支 | Vault UI 与 Mini App v2 都使用 `main` |
 | App 命令 / 发布元数据 / CI | 已实现 main/latest，接受包括 `0.1.38` 在内的正式版本 |
-| 准备中的正式版 | **`0.1.38`**，尚未发布到 npm |
-| 已发布 npm `latest` | `0.1.37`，来源 `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
-| 已发布 npm `next` | `0.1.40-next.0`，来源 `0d21863aa19bde5ad6712d760d3badea6a28e3a4` |
-| 新 App ZIP 提交 | 等待匹配的 `0.1.38` 发布与主站、Workbench 配套上线 |
-| 历史 next 版本 | 正式版发布后标记弃用，保留下载 |
+| 正式版 | **`0.1.38`**，已发布到 npm latest |
+| 已发布 npm `latest` | `0.1.38`，来源 `1220ee9813f73eafd434decb365a08ae6a681445` |
+| 历史 npm `next` | `0.1.40-next.0`，已弃用；使用 latest |
+| App ZIP 工具 | 真实 `0.1.38` 下检查、打包与验证已通过；主站、Workbench 上线仍单独安排 |
+| 历史 next 版本 | 全部八个已标记弃用，保留下载 |
 
 源码合并或修改版本号不会发布 npm、移动 dist-tag、升级已部署宿主或批准 App 上线。正式 `0.1.38` 源码包含共用 App 钱包、动态 IPFS/FSI、长文本 CopyButton 及合并后的构建、依赖更新；其 runtime 输入不同于旧发布版本，不能沿用旧正式版或 next 的 ZIP 证明。
 
@@ -46,11 +46,11 @@ yarn dev
 
 在官方 main 上，npm 发布前可以运行 App 检查、本地游客/已连接 E2E 和构建。App 源码 ZIP 与普通本地验证要求**精确匹配已发布 latest 版本、真实 gitHead 祖先关系及 runtime、依赖、构建、协议输入**。官方纯文档或开发工具提交可以更新并保留原身份；本地 SDK/工具改动、私有 canary 和伪造证明均不能替代发布。
 
-npm latest 仍为 `0.1.37` 时，打包 `0.1.38` 会以 `package/runtime-unpublished` 拦截。等待发布，不要改写版本或包内 metadata。E2E 与私有 canary 仅验证联调，不代表 npm 已发布。见[发布检查单](releases/0.1.38.zh-CN.md)。
+`0.1.38` 已公开发布到 npm latest，真实 App 打包和普通验证已通过。发布前的 `package/runtime-unpublished` 拦截也已验证，后续仍会阻止未发布 runtime 输入，不要改写版本或 metadata 绕过校验。见[发布记录](releases/0.1.38.zh-CN.md)。
 
-## 计划中的正式版升级与预览版弃用
+## 正式版升级与预览版弃用
 
-`0.1.38` 发布后，维护者在 Workbench、主站精确固定并部署同一 runtime 与配套校验输入：
+`0.1.38` 已发布，维护者仍需在 Workbench、主站精确固定并部署同一 runtime 与配套校验输入：
 
 ```bash
 yarn add --exact @flapsdk/vault-runtime@0.1.38
@@ -58,7 +58,7 @@ yarn add --exact @flapsdk/vault-runtime@0.1.38
 
 App 开发者更新已宣布的 main 模板，保留 App 目录和注册，重新生成检查、E2E、打包、验证证明，不需要在 App 目录安装 npm 包。按公告选择正式目标，不要按数字挑最大的历史预发布版。本次迁移无需额外发布 next。
 
-正式版发布后，弃用当前全部八个 next：`0.1.32-next.0`、`0.1.32-next.1`、`0.1.33-next.0`、`0.1.33-next.1`、`0.1.36-next.0`、`0.1.38-next.0`、`0.1.39-next.0`、`0.1.40-next.0`。提示引导升级至 `@flapsdk/vault-runtime@0.1.38` 与配套官方 main 模板。保留旧包下载以兼容现有锁文件。本次源码修改不执行 npm 发布或弃用。
+当前全部八个历史 next 已弃用：`0.1.32-next.0`、`0.1.32-next.1`、`0.1.33-next.0`、`0.1.33-next.1`、`0.1.36-next.0`、`0.1.38-next.0`、`0.1.39-next.0`、`0.1.40-next.0`。弃用提示引导升级至 `@flapsdk/vault-runtime@0.1.38` 与配套官方 main 模板。保留旧包下载以兼容现有锁文件。正式版和全部八个弃用标记已通过公开 registry 核实；这不等于消费项目已部署。
 
 ## 支持的开发类型不变
 

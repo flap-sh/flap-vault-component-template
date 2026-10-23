@@ -11,11 +11,11 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | Source integration | Mini App v2 merged into main in `02e68e4` |
 | Source branch | `main` for Vault UI and Mini App v2 |
 | App commands / release metadata / CI | Implemented on main/latest, accepting stable versions including `0.1.38` |
-| Prepared stable version | **`0.1.38`**, not yet published to npm |
-| Published npm `latest` | `0.1.37`, source `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
-| Published npm `next` | `0.1.40-next.0`, source `0d21863aa19bde5ad6712d760d3badea6a28e3a4` |
-| New App ZIP submission | Waiting for matching `0.1.38` publication and host/Workbench rollout |
-| Historical next versions | To be deprecated after stable publication; downloads remain available |
+| Stable version | **`0.1.38`**, published to npm latest |
+| Published npm `latest` | `0.1.38`, source `1220ee9813f73eafd434decb365a08ae6a681445` |
+| Historical npm `next` | `0.1.40-next.0`, deprecated; use latest |
+| App ZIP tooling | Real check/package/verification passed with published `0.1.38`; host/Workbench rollout remains separate |
+| Historical next versions | All eight are deprecated; downloads remain available |
 
 A source merge or version edit does not publish npm, move dist-tags, upgrade deployed hosts or approve an App. The stable `0.1.38` source includes the shared App wallet, dynamic IPFS/FSI, long-text CopyButton and the merged build/dependency updates. Its runtime inputs differ from previous publications, so an older stable/next package cannot supply its ZIP provenance.
 
@@ -46,11 +46,11 @@ Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstre
 
 App check, local guest/connected E2E and build can run before npm publication from the official main checkout. App source ZIPs and normal local verification require the **exact published latest version, real gitHead ancestry and matching runtime/dependency/build/protocol inputs**. Official documentation/authoring-only descendants can retain that identity. Local SDK/tool edits, private canaries and fabricated proof cannot.
 
-While npm latest is `0.1.37`, packaging `0.1.38` stops with `package/runtime-unpublished`. Wait for publication; do not rewrite version strings or package metadata. E2E and a private canary verify integration, not npm publication. See [the release checklist](releases/0.1.38.md).
+`0.1.38` is now public on npm latest. Real App packaging and normal verification pass with the published identity. The prepublication `package/runtime-unpublished` gate was also verified; it continues to block future unpublished runtime inputs. Never rewrite version strings or metadata to bypass it. See [the release record](releases/0.1.38.md).
 
-## Planned stable upgrade and preview deprecation
+## Stable upgrade and preview deprecation
 
-After `0.1.38` is published, maintainers pin and deploy the same runtime and validation inputs in Workbench and the main host:
+With `0.1.38` published, maintainers must pin and deploy the same runtime and validation inputs in Workbench and the main host:
 
 ```bash
 yarn add --exact @flapsdk/vault-runtime@0.1.38
@@ -58,7 +58,7 @@ yarn add --exact @flapsdk/vault-runtime@0.1.38
 
 App authors update the announced main template, preserve their App source/registration and regenerate check, E2E, package and verification proof. They do not install the npm package in their App folder. Choose the announced stable target rather than the numerically highest historical prerelease. No additional next release is needed for this migration.
 
-Deprecate all eight currently published next versions after the stable release: `0.1.32-next.0`, `0.1.32-next.1`, `0.1.33-next.0`, `0.1.33-next.1`, `0.1.36-next.0`, `0.1.38-next.0`, `0.1.39-next.0` and `0.1.40-next.0`. The message should direct users to `@flapsdk/vault-runtime@0.1.38` and the matching official main template. Keep old packages downloadable for existing lockfiles. This source update does not publish or deprecate registry packages.
+All eight historical next versions are now deprecated: `0.1.32-next.0`, `0.1.32-next.1`, `0.1.33-next.0`, `0.1.33-next.1`, `0.1.36-next.0`, `0.1.38-next.0`, `0.1.39-next.0` and `0.1.40-next.0`. Their messages direct users to `@flapsdk/vault-runtime@0.1.38` and the matching official main template. Keep old packages downloadable for existing lockfiles. The stable release and all eight deprecation flags were verified against the public registry; this does not deploy consumer applications.
 
 ## Supported models stay the same
 

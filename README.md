@@ -4,7 +4,7 @@
 
 **New development supports Vault UI and Mini App v2 only**, sharing one template and SDK. Both are maintained on `main`: use `vault:*` for Vault UI and `app:*` for independent Apps at `/apps/{slug}`, without CA/factory bindings. **Mini App v1 is deprecated for new development; existing Apps remain compatible.** See [main integration and release status](./docs/main-migration.md) and [v1 compatibility](./docs/mini-app-v1.md). The bound-Token rules below cover Vault UI and existing v1 maintenance, not v2.
 
-**Release status (checked 2026-10-23):** the planned stable `latest` is **`0.1.38`**, not yet published. It will be the shared Vault UI / Mini App v2 release; historical next versions will be deprecated afterward, with downloads retained. Currently npm `latest` is `0.1.37` and `next` is `0.1.40-next.0`. App commands, release metadata and CI now use main/latest and accept stable `0.1.38`. App ZIP submission still requires its matching npm publication and coordinated host/Workbench rollout. Use the [migration status](./docs/main-migration.md) and [v2 quickstart](./docs/mini-app-v2-quickstart.md) to distinguish local development from package readiness.
+**Release status (checked 2026-10-23):** **`@flapsdk/vault-runtime@0.1.38` is published on npm latest**, with source `1220ee9813f73eafd434decb365a08ae6a681445`. Vault UI and Mini App v2 share main/latest; App check, E2E, package and verification are supported. All eight historical next versions are deprecated, with downloads retained. Hosts and Workbench must use the same exact stable runtime and matching validation inputs before accepting new submissions. See [main/latest migration](./docs/main-migration.md) and the [v2 quickstart](./docs/mini-app-v2-quickstart.md).
 
 [简体中文](./README.zh-CN.md)
 

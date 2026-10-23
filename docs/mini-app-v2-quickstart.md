@@ -10,18 +10,18 @@ Start with [Vault UI / Mini App v2 and code reuse](development.md) ([中文](dev
 | --- | --- |
 | Official repository | `https://github.com/flap-sh/flap-vault-component-template` |
 | Source branch | `main` for Vault UI and Mini App v2 |
-| Planned stable `latest` | **`0.1.38`**, not yet published; shared by Vault UI and Mini App v2 after migration |
-| Historical next versions | Deprecated after the stable release, with downloads retained |
-| Published npm `latest` | `0.1.37` |
-| Published npm `next` | `0.1.40-next.0` |
+| Shared stable `latest` | **`0.1.38`**, published for Vault UI and Mini App v2 |
+| Historical next versions | All eight deprecated, with downloads retained |
+| Published npm `latest` | `0.1.38`, source `1220ee9813f73eafd434decb365a08ae6a681445` |
+| Historical npm `next` | `0.1.40-next.0`, deprecated |
 | Published next source / npm `gitHead` | `0d21863aa19bde5ad6712d760d3badea6a28e3a4` |
 | App command / CI routing | Official main / npm latest, stable `0.1.38` |
-| Current App ZIP readiness | Pending matching npm `0.1.38` publication and host/Workbench rollout |
+| Current App ZIP tooling | Real check/package/verification passed with published `0.1.38`; align receiving hosts |
 | Example | `src/vaults/standalone-example`, local `/standalone-example` |
 
 `0.1.40-next.0` includes shared App wallet operations through `useFlapSdk({ chainId })`, dynamic IPFS/FSI and the shared [CopyButton](copy-button.md), including long-text copying up to 1,048,576 UTF-16 code units. It is published, but it does not describe every newer source commit. The current main template has advanced to stable `0.1.38`, including dependency/build and E2E tooling updates. **Do not use an older published package as this template’s runtime identity.**
 
-A source merge does not publish npm or upgrade hosts. `latest` and `next` remain channels for one package; their freshness checks are independent. Do not assume stable `latest` already has the v2 APIs because main now contains the v2 source.
+`0.1.38` is published on latest and includes the shared v2 APIs. SDK publication does not upgrade deployed hosts or approve an App. Latest and next remain independent channels for one package; all historical next versions are deprecated.
 
 ## Start developing
 
@@ -60,27 +60,27 @@ yarn app:package my-app
 yarn app:verify-package dist/my-app.zip
 ```
 
-App check, local E2E and build use official main/latest. **ZIP packaging requires the exact matching npm release: `0.1.38` is not yet published.** Until it is, packaging stops with `package/runtime-unpublished`; do not edit proof metadata or reuse `0.1.37` / an old next runtime. The [release status](main-migration.md#command-behavior-during-the-transition) records the implemented main/latest policy and pending publication/host rollout.
+App check, E2E, build, packaging and verification use official main/latest. **`0.1.38` is published**, and real App package/verification has passed. ZIP provenance still requires the exact published version/gitHead and matching runtime/build/protocol inputs; the [release status](main-migration.md#command-behavior-during-the-transition) records host rollout requirements.
 
 E2E covers PC, iPad and H5 in guest and connected states (six checks), current source/asset hashes and preview-source identity. Install Chromium with `yarn playwright install chromium` once if necessary. `yarn app:build` also runs freshness preflight; a local compilation or private canary cannot replace a successful source-package preflight.
 
 Once the coordinated release is announced, use its official checkout and exact published runtime identity, then upload only generated `dist/my-app.zip` to the designated App v2 testing Workbench. Workbench and the main host must pin the matching runtime and validation inputs. Source format 7, E2E schema 3 and human review remain required; a successful upload is not approval to launch.
 
-A published runtime commit must be in the template history and its runtime, dependency, build and ZIP/E2E protocol inputs must match. Docs and official authoring-only commits may be newer without another SDK publication; the current integration also changes pinned inputs, so that exception does not apply. Do not substitute current `latest=0.1.37`, a historical next package, private canary, fork/local ref or edited ZIP metadata as provenance. Use the exact `0.1.38` main/latest identity after publication. Maintainers using a fork select the documented official `upstream` reference, not the fork's branch.
+The published runtime commit must be in the template history and its runtime, dependency, build and ZIP/E2E protocol inputs must match. Official docs and authoring-only descendants may be newer without another SDK publication. Do not substitute historical stable/next packages, a private canary, fork/local ref or edited metadata as provenance. Fork maintainers select the official `upstream/main` reference.
 
 Before switching/updating source, save or commit App work separately. Reapply the App folder and preview registration onto the announced source, preserving identity and regenerating E2E/ZIP evidence. Personal extra commits can trigger ahead/diverged checks; automatic fast-forward never discards conflicting local work.
 
 ## Stable migration
 
-Main consolidates source maintenance; it does not itself promote `next` to `latest`. The planned stable release is **`0.1.38` under latest**, not yet published. App commands, release metadata and CI now accept main/latest; the main host and Workbench must pin and deploy the matching runtime after its publication. Both Vault UI and v2 use that stable release; no additional next release is planned for this migration. After publication, all historical next versions will be marked deprecated with an upgrade message, while downloads remain available. See [the migration plan](main-migration.md#planned-stable-upgrade-and-preview-deprecation). Vault UI and App remain distinct delivery/review models using the shared SDK. Existing v1 Apps remain compatible.
+Vault UI and Mini App v2 now use official main and published **`0.1.38` on latest**. All eight historical next releases are deprecated, with downloads retained. The main host and Workbench still need the matching stable runtime and validation inputs before accepting new submissions; SDK publication is separate from deployment and App approval. See [the upgrade/deprecation record](main-migration.md#stable-upgrade-and-preview-deprecation). Existing v1 Apps remain compatible.
 
 ## 中文快速说明
 
 1. Vault UI 和 Mini App v2 都从官方 `main` 获取源码，使用 Node 24、Yarn 1.22。
 2. `app:scaffold my-app`、`yarn dev` 用于创建和预览独立 App。目录仍叫 `src/vaults`，但 v2 不绑定 CA、工厂或 Vault；主站入口为 `/apps/{slug}`。
 3. Vault UI 使用 `useFlapSdk()` 与 `vault:*`；v2 使用 `useFlapSdk({ chainId })` 与 `app:*`，共用 SDK、UI、钱包和业务代码，身份、权限与证明各自独立。
-4. 计划正式版为 **`0.1.38`（尚未发布）**，发布后两类开发统一使用 main/latest；全部历史 next 将标记弃用并保留下载。当前 npm 仍为 `latest=0.1.37`、`next=0.1.40-next.0`。整合源码已改变依赖、构建输入，不能沿用旧身份提交 ZIP。
-5. `app:*` 和 CI 已使用 main/latest，接受正式 `0.1.38`；检查、本地 E2E、构建可执行，ZIP 打包等待匹配 npm 发布。发布后重新生成检查、E2E、打包和验证证明。
+4. 正式 **`0.1.38` 已发布到 latest**，源码为 `1220ee9813f73eafd434decb365a08ae6a681445`；全部八个历史 next 已标记弃用，保留下载。两类开发统一使用 main/latest。
+5. `app:*` 和 CI 使用 main/latest，真实检查、打包和验证已通过。更新官方模板后重新执行检查、E2E、打包与验证；runtime 输入和 npm 发布身份必须精确匹配。
 6. 本地 E2E、私有 canary 不代替正式来源证明；Workbench 与主站需配套，App 上线仍需审核。Mini App v1 停止新开发，旧应用兼容保留。
 
 详细状态见 [main 分支整合与发布说明](main-migration.zh-CN.md)，操作流程见 [v2 从零开发](from-zero-mini-app.zh-CN.md)。
