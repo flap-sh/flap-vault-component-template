@@ -26,9 +26,9 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
-### FSI endpoint compatibility
+### FSI endpoint compatibility (0.1.39 release candidate)
 
-- Add `https://fsi.taxed.fun/fsi/v1` alongside the legacy FSI prefix. `sdk.readFsi` selects the declared host and prefers the new host when both are declared, with matching endpoint review evidence. Exact-origin/path validation, manifest declaration, safe fetch options, query encoding and human review remain required. This is an unreleased change; hosts and Workbench must upgrade their runtime and checker together.
+- Add `https://fsi.taxed.fun/fsi/v1` alongside the legacy FSI prefix. `sdk.readFsi` selects the declared host and prefers the new host when both are declared, with matching endpoint review evidence. Exact-origin/path validation, manifest declaration, safe fetch options, query encoding and human review remain required. This change is prepared for `0.1.39`, pending npm publication; hosts and Workbench must upgrade their runtime and checker together.
 
 ### Security
 
