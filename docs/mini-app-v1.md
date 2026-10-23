@@ -35,6 +35,6 @@ These commands apply to an existing `my-token-app` folder with its required real
 
 ## Reuse or move to v2
 
-Reuse views, translations, ABIs and business functions as described in the [shared development guide](development.md#what-code-can-be-reused). To create a separate v2 App, scaffold a new App on `feat/mini-app-v2`, port reusable code, adapt target selection and wallet permissions, and regenerate its own format-7 guest/connected proof. Preserve the existing v1 artifact and binding unless a migration is explicitly planned.
+Reuse views, translations, ABIs and business functions as described in the [shared development guide](development.md#what-code-can-be-reused). To create a separate v2 App, follow the [main integration status](main-migration.md) to select the source branch, scaffold a new App, port reusable code, adapt target selection and wallet permissions, and regenerate its own format-7 guest/connected proof. Preserve the existing v1 artifact and binding unless a migration is explicitly planned.
 
-Deleting token bindings alone does not convert a v1 App into v2. Do not change a v1 artifact's identity into an unrelated v2 App or invent an empty/zero Token/Vault context. The [v2 walkthrough](from-zero-mini-app.md) explains the independent workflow and pending shared-wallet release.
+Deleting token bindings alone does not convert a v1 App into v2. Do not change a v1 artifact's identity into an unrelated v2 App or invent an empty/zero Token/Vault context. The [v2 walkthrough](from-zero-mini-app.md) explains the independent workflow and current shared-runtime release status.

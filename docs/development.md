@@ -18,7 +18,9 @@ Flap provides one template repository, one `@flapsdk/vault-runtime` package, sha
 | Local preview | `/{folder-name}` | `/{slug}` in the independent App shell |
 | Authoring commands | `vault:scaffold`, `vault:check`, `vault:e2e`, `vault:package` | `app:scaffold`, then `app:*` |
 | Source/E2E proof | Format 6 / report v2; manifest test token | Format 7 / report v3; guest/connected × PC/iPad/H5 |
-| Branch/channel | `main` / npm `latest` | `feat/mini-app-v2` / npm `next` during preview |
+| Source branch after the v2 merge | `main` | `main` (currently integrated on `feat/mini-app-v2`) |
+| Planned stable release after migration | `0.1.38` / npm `latest` (not yet published) | Same `0.1.38` / npm `latest` |
+| Current command/release routing | `vault:*` / main / npm `latest` | `app:*` / preview references / npm `next`; see [transition status](main-migration.md) |
 
 Start with [Vault UI from zero](from-zero-vault-ui.md) or [Mini App v2 from zero](from-zero-mini-app.md). A project can deliver both a Vault UI and an App. They are reviewed/submitted separately and can reuse the same contracts and business code. Launching the Vault UI does not automatically publish either Mini App.
 
@@ -34,10 +36,11 @@ Release snapshot checked on 2026-10-23:
 
 | Item | Status |
 | --- | --- |
-| Official `main` / npm `latest` | `0.1.37`, npm `gitHead` `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
+| Planned stable target | **`0.1.38`**, not yet published; historical next versions will be deprecated after release, with downloads retained |
+| Published npm `latest` (independent of Git main) | `0.1.37`, npm `gitHead` `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
 | Published npm `next` | **`0.1.40-next.0`**, npm `gitHead` `0d21863aa19bde5ad6712d760d3badea6a28e3a4`; includes main 0.1.37 plus shared App wallet operations |
 
-Do not assume npm `latest` contains the standalone v2 wallet APIs documented on this preview branch. The explicit-chain hook and `walletContracts` described here are available in published `0.1.40-next.0`. Use the current official template head with unchanged published runtime inputs, and the same exact runtime in the main host and testing Workbench. Documentation and official authoring-tool updates can advance the template without a new SDK release. Source ZIP packaging is available after checks and E2E pass; SDK publication does not by itself approve an App for production. See [preview release quickstart](mini-app-v2-quickstart.md).
+The source-branch consolidation does not change npm dist-tags. Published `0.1.40-next.0` contains the explicit-chain hook and `walletContracts`; `latest` must not be assumed to contain those v2 APIs. The current integration head also includes newer dependency/build/E2E changes and cannot reuse that published runtime identity for ZIP submission. See [main integration and package readiness](main-migration.md). After a matching release and command/CI migration are announced, use the specified official source and the same exact runtime in Workbench and the main host. Documentation-only updates do not require a new SDK publication; a source merge with changed runtime inputs does. SDK publication is separate from App approval.
 
 “Mini App v1/v2” describes the product/binding model. It is unrelated to npm semver (`0.1.35`), `runtimeContractVersion: 1`, or E2E report versions. A v2 App may still use runtime contract version 1. Identify the model from its manifest, not its name, SDK version, or token address alone. A partially specified or invalid v2 manifest must be rejected, never silently treated as v1.
 

@@ -18,7 +18,9 @@
 | 本地预览 | `/{folder-name}` | `/{slug}`，独立 App 壳 |
 | 创建和校验 | `vault:scaffold`，再执行 `vault:*` | `app:scaffold`，再执行 `app:*` |
 | 打包和 E2E | 格式 6 / 报告 v2，需要真实测试 Token | 格式 7 / 报告 v3，游客/已连接 × PC/iPad/H5 |
-| 分支 / 通道 | `main` / npm `latest` | 预览期为 `feat/mini-app-v2` / npm `next` |
+| v2 合并后的源码分支 | `main` | `main`（当前在 `feat/mini-app-v2` 整合） |
+| 迁移后的计划正式版 | `0.1.38` / npm `latest`（尚未发布） | 共用 `0.1.38` / npm `latest` |
+| 当前命令 / 发布路由 | `vault:*` / main / npm `latest` | `app:*` / 预览引用 / npm `next`，见[过渡状态](main-migration.zh-CN.md) |
 
 从 [Vault UI 入门](from-zero-vault-ui.md) 或 [Mini App v2 从零开发](from-zero-mini-app.zh-CN.md) 开始。一个项目可以同时提交 Vault UI 和独立 App，两者可以操作同一套合约、复用业务代码，但有各自的包和审核流程。Vault UI 上线不会自动让 Mini App 上线。
 
@@ -34,10 +36,11 @@ v1 使用 `/{chain}/{tokenCA}/mini-app`，manifest 为 `mode: "mini-app"` 和 to
 
 | 项目 | 状态 |
 | --- | --- |
-| 官方 `main` / npm `latest` | 已发布 `0.1.37`，npm 来源提交为 `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
+| 计划正式目标 | **`0.1.38`**，尚未发布；发布后历史 next 版本统一标记弃用，保留下载 |
+| 已发布 npm `latest`（与 Git main 分开） | 已发布 `0.1.37`，npm 来源提交为 `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
 | 已发布 npm `next` | **`0.1.40-next.0`**，npm 来源提交为 `0d21863aa19bde5ad6712d760d3badea6a28e3a4`；包含 main 0.1.37 和独立 App 共用钱包能力 |
 
-不要认为 npm `latest` 一定包含本预览分支文档中的独立 App v2 钱包接口。这里带 `chainId` 的共用 Hook、`walletContracts` 等能力已包含在发布后的 `0.1.40-next.0` 中。使用官方模板的最新提交，runtime 输入保持与已发布版本一致；主站和测试 Workbench 也需使用同一精确 runtime 版本。文档和官方开发工具可以独立更新，无需为此重新发布 SDK。通过校验和 E2E 后即可生成源码 ZIP；SDK 已发布不代表 App 已获准上线。分支与更新步骤见[预览版快速开始](mini-app-v2-quickstart.md)。
+源码分支整合不会改变 npm dist-tag。已发布的 `0.1.40-next.0` 包含显式选链 Hook、`walletContracts` 等 v2 API，不能据此认为 `latest` 也已支持。当前整合 HEAD 还包含更新的依赖、构建和 E2E 输入，不能沿用旧 runtime 身份提交 ZIP，见 [main 整合与打包状态](main-migration.zh-CN.md)。配套发布及命令、CI 切换宣布完成后，按发布说明选择官方源码，并让主站、Workbench 使用相同精确 runtime。仅修改文档无需发布 SDK；改变 runtime 输入的源码合并需要配套发布。SDK 发布与 App 审核上线仍是两件事。
 
 Mini App **v1/v2** 区分产品和绑定模式；npm **0.1.35** 区分 SDK 发布；`runtimeContractVersion: 1` 区分宿主产物协议，E2E 报告也有自己的版本。v2 App 使用 runtime contract 1 是正常的。应根据 manifest 判断 App 类型，不能只看名字、SDK 版本或某个 CA。v2 标识不完整或不合法时应报错，不能悄悄当成 v1。
 

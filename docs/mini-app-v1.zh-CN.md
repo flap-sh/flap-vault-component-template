@@ -35,6 +35,6 @@ yarn vault:verify-package dist/my-token-app.zip
 
 ## 复用代码或迁移到 v2
 
-界面、翻译、ABI、业务函数的复用方式见[统一开发指南](development.zh-CN.md#哪些代码能直接复用)。新增独立 v2 时，在 `feat/mini-app-v2` 分支创建新的 App，迁移可复用代码，适配目标选择和钱包权限，再生成独立的格式 7 游客/已连接测试证明。除非明确规划迁移，保留原有 v1 产物和绑定。
+界面、翻译、ABI、业务函数的复用方式见[统一开发指南](development.zh-CN.md#哪些代码能直接复用)。新增独立 v2 时，按 [main 整合状态](main-migration.zh-CN.md)选择源码分支并创建新的 App，迁移可复用代码，适配目标选择和钱包权限，再生成独立的格式 7 游客/已连接测试证明。除非明确规划迁移，保留原有 v1 产物和绑定。
 
 仅删除 Token binding 不会把 v1 自动变成 v2。不要把旧 v1 artifact 的身份改成无关的新 App，也不要伪造空/零地址的 Token/Vault 上下文。独立流程和钱包版本发布状态见 [v2 从零开发](from-zero-mini-app.zh-CN.md)。
