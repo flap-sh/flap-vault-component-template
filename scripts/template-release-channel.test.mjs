@@ -4,12 +4,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { assertOfficialPreviewRemote, assertPreviewPublishedIdentity, assertPreviewTemplate, templateReleasePolicy } from "./template-release-channel.mjs";
+import { assertAppReleasePolicy, assertAppTemplate, assertOfficialPreviewRemote, assertPreviewPublishedIdentity, assertPublishedRuntimeIdentity, assertPreviewTemplate, templateReleasePolicy } from "./template-release-channel.mjs";
 
 test("stable commands keep main/latest and preview selects the explicit official channel", () => {
   assert.equal(templateReleasePolicy({}).officialRef, "origin/main");
   assert.equal(templateReleasePolicy({}).npmTag, "latest");
-  assert.equal(templateReleasePolicy({ FLAP_TEMPLATE_CHANNEL: "next" }).officialRef, "origin/feat/mini-app-v2");
+  assert.equal(templateReleasePolicy({ FLAP_TEMPLATE_CHANNEL: "next" }).officialRef, "origin/next");
   assert.equal(templateReleasePolicy({ FLAP_TEMPLATE_CHANNEL: "next", FLAP_TEMPLATE_FRESHNESS_REF: "upstream/next" }).npmTag, "next");
   for (const ref of ["HEAD", "origin/main", "origin/random", "origin/feat/mini-app-v2/extra"]) assert.throws(() => templateReleasePolicy({ FLAP_TEMPLATE_CHANNEL: "next", FLAP_TEMPLATE_FRESHNESS_REF: ref }));
   assert.throws(() => templateReleasePolicy({ FLAP_TEMPLATE_CHANNEL: "beta" }));
@@ -118,4 +118,40 @@ test("next source packaging accepts standalone apps and rejects legacy packages"
     fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "0.1.32" }));
     assert.throws(() => assertPreviewTemplate(root));
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("stable App commands select main/latest and accept 0.1.38 without weakening model checks", (t) => {
+  assert.equal(assertAppReleasePolicy({}).officialRef, "origin/main");
+  assert.equal(assertAppReleasePolicy({ FLAP_TEMPLATE_FRESHNESS_REF: "upstream/main" }).npmTag, "latest");
+  for (const env of [{ FLAP_TEMPLATE_CHANNEL: "next" }, { FLAP_TEMPLATE_FRESHNESS_REF: "HEAD" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/feat/mini-app-v2" }, { FLAP_TEMPLATE_NPM_PACKAGE: "other" }]) {
+    assert.throws(() => assertAppReleasePolicy(env), /require the official main/);
+  }
+  const repo = previewRepository(t);
+  repo.write("package.json", JSON.stringify({ version: "0.1.38" }));
+  repo.write("src/vaults/example/manifest.json", JSON.stringify({ schemaVersion: 2, mode: "mini-app", appModel: "standalone", slug: "example", match: { bindings: [] } }));
+  assert.doesNotThrow(() => assertAppTemplate(repo.root, "example"));
+  assert.throws(() => assertAppTemplate(repo.root, "../example"));
+  repo.write("src/vaults/example/manifest.json", JSON.stringify({ mode: "mini-app", match: { bindings: [{ chainId: 56 }] } }));
+  assert.throws(() => assertAppTemplate(repo.root, "example"), /standalone/);
+  for (const version of ["0.1.40-next.0", "0.1.38-canary.abc", "0.01.38", "invalid"]) {
+    repo.write("package.json", JSON.stringify({ version }));
+    assert.throws(() => assertAppTemplate(repo.root), /stable template version/);
+  }
+});
+
+test("stable App ZIPs require the exact published latest identity before submission", (t) => {
+  const repo = previewRepository(t);
+  repo.write("package.json", JSON.stringify({ version: "0.1.38" }));
+  repo.commit("stable runtime");
+  const identity = { root: repo.root, channel: "latest", localVersion: "0.1.38", publishedVersion: "0.1.38", head: repo.git(["rev-parse", "HEAD"]), publishedHead: repo.git(["rev-parse", "HEAD"]) };
+  assert.equal(assertPublishedRuntimeIdentity(identity).status, "exact-published-commit");
+  for (const changes of [{ publishedVersion: "0.1.37" }, { publishedVersion: "0.1.40-next.0" }, { channel: "next" }, { publishedHead: undefined }, { publishedHead: "a".repeat(40) }]) {
+    assert.throws(() => assertPublishedRuntimeIdentity({ ...identity, ...changes }));
+  }
+  repo.write("docs/development.md", "Stable docs\n");
+  repo.commit("update docs");
+  assert.equal(assertPublishedRuntimeIdentity({ ...identity, head: repo.git(["rev-parse", "HEAD"]) }).status, "published-runtime-source");
+  repo.write("src/sdk/client.ts", "changed runtime\n");
+  repo.commit("runtime update");
+  assert.throws(() => assertPublishedRuntimeIdentity({ ...identity, head: repo.git(["rev-parse", "HEAD"]) }), /matching npm latest runtime/);
 });

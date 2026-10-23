@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { assertPreviewPublishedIdentity } from "./template-release-channel.mjs";
+import { assertPublishedRuntimeIdentity, isStandaloneTarget } from "./template-release-channel.mjs";
 import { execFileSync } from "node:child_process";
 import { isStandaloneApp } from "./standalone-app.mjs";
 import path from "node:path";
@@ -35,11 +35,12 @@ const templateVersion = rootPackage.version;
 const runtimePackageVersion = rootPackage.version;
 const freshness = await assertTemplateFresh({ folderName });
 const runtimePackageGitHead = freshness.checks?.npm?.latestGitHead;
-if (freshness.checks?.npm?.npmTag === "next") {
+const npmTag = freshness.checks?.npm?.npmTag;
+if (npmTag === "next" || isStandaloneTarget(ROOT, folderName)) {
   try {
-    assertPreviewPublishedIdentity({ localVersion: templateVersion, publishedVersion: freshness.checks.npm.latestVersion, head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), publishedHead: runtimePackageGitHead });
+    assertPublishedRuntimeIdentity({ channel: npmTag, localVersion: templateVersion, publishedVersion: freshness.checks.npm.latestVersion, head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), publishedHead: runtimePackageGitHead });
   } catch (error) {
-    failAgent({ code: "package/preview-runtime-unpublished", message: error.message, fixHint: "Wait for the maintainer to publish this exact SDK version with the next tag, then retry app:package.", extra: { runtimePackageVersion, runtimePackageGitHead } });
+    failAgent({ code: npmTag === "next" ? "package/preview-runtime-unpublished" : "package/runtime-unpublished", message: error.message, fixHint: `Wait for the maintainer to publish this exact SDK version with the ${npmTag} tag, then retry app:package.`, extra: { runtimePackageVersion, runtimePackageGitHead } });
   }
 }
 

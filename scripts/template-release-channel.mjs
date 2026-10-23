@@ -6,7 +6,7 @@ import { isStandaloneApp } from "./standalone-app.mjs";
 export function templateReleasePolicy(env = process.env) {
   const channel = env.FLAP_TEMPLATE_CHANNEL?.trim() || "latest";
   if (!["latest", "next"].includes(channel)) throw new Error("FLAP_TEMPLATE_CHANNEL must be latest or next.");
-  const officialRef = env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || (channel === "next" ? "origin/feat/mini-app-v2" : "origin/main");
+  const officialRef = env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || (channel === "next" ? "origin/next" : "origin/main");
   const packageName = env.FLAP_TEMPLATE_NPM_PACKAGE?.trim() || "@flapsdk/vault-runtime";
   if (channel === "next" && (!/^[a-zA-Z0-9_-]+\/(?:feat\/mini-app-v2|next)$/.test(officialRef) || packageName !== "@flapsdk/vault-runtime")) {
     throw new Error("The next channel requires the official feat/mini-app-v2 or next ref and @flapsdk/vault-runtime.");
@@ -14,10 +14,37 @@ export function templateReleasePolicy(env = process.env) {
   return { channel, npmTag: channel, officialRef, packageName };
 }
 
-export function assertOfficialPreviewRemote(remoteUrl) {
+export function assertOfficialTemplateRemote(remoteUrl) {
   const url = remoteUrl?.replace(/\.git$/, "");
   if (!["https://github.com/flap-sh/flap-vault-component-template", "git@github.com:flap-sh/flap-vault-component-template", "ssh://git@github.com/flap-sh/flap-vault-component-template"].includes(url)) {
-    throw new Error("The next channel must fetch flap-sh/flap-vault-component-template, not a fork or local ref.");
+    throw new Error("Release commands must fetch flap-sh/flap-vault-component-template, not a fork or local ref.");
+  }
+}
+
+// Retain the preview helper for explicitly authorized next runtime releases.
+export const assertOfficialPreviewRemote = assertOfficialTemplateRemote;
+
+export function assertAppReleasePolicy(env = process.env) {
+  const policy = templateReleasePolicy(env);
+  if (policy.channel !== "latest" || !/^[a-zA-Z0-9_-]+\/main$/.test(policy.officialRef) || policy.packageName !== "@flapsdk/vault-runtime") {
+    throw new Error("App commands require the official main ref and @flapsdk/vault-runtime on latest.");
+  }
+  return policy;
+}
+
+export function isStandaloneTarget(root, folderName) {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(folderName || "")) return false;
+  try { return isStandaloneApp(JSON.parse(fs.readFileSync(path.join(root, "src/vaults", folderName, "manifest.json"), "utf8"))); }
+  catch { return false; }
+}
+
+export function assertAppTemplate(root, folderName) {
+  const { version } = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version || "")) {
+    throw new Error("App commands require a committed stable template version such as 0.1.38 from main/latest.");
+  }
+  if (folderName !== undefined && !isStandaloneTarget(root, folderName)) {
+    throw new Error("App commands require a valid standalone Mini App v2 folder and manifest. Vault UI and existing token-bound Apps use vault:*.");
   }
 }
 
@@ -54,10 +81,11 @@ function isAuthoringOnly(file) {
     || (file.startsWith("scripts/") && !PUBLISHED_PROTOCOL_SCRIPTS.has(file));
 }
 
-export function assertPreviewPublishedIdentity({ localVersion, publishedVersion, head, publishedHead, root = process.cwd() }) {
-  if (!/^\d+\.\d+\.\d+-next\.\d+$/.test(localVersion || "") || localVersion !== publishedVersion
+export function assertPublishedRuntimeIdentity({ localVersion, publishedVersion, head, publishedHead, root = process.cwd(), channel = "latest" }) {
+  const versionPattern = channel === "next" ? /^\d+\.\d+\.\d+-next\.\d+$/ : /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+  if (!["latest", "next"].includes(channel) || !versionPattern.test(localVersion || "") || localVersion !== publishedVersion
       || !/^[a-f0-9]{40}$/i.test(publishedHead || "") || !/^[a-f0-9]{40}$/i.test(head || "")) {
-    throw new Error("Use the exact published npm next version and a verified source commit; an older next package or a private canary cannot be App ZIP provenance.");
+    throw new Error(`Use the exact published npm ${channel} version and a verified source commit; an unpublished version, another channel or a private canary cannot be App ZIP provenance.`);
   }
   const git = (args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: "pipe" });
   const files = (args) => git(args).split("\0").filter(Boolean);
@@ -65,13 +93,13 @@ export function assertPreviewPublishedIdentity({ localVersion, publishedVersion,
     if (git(["rev-parse", "HEAD"]).trim() !== head) throw new Error("Template HEAD changed during packaging.");
     git(["merge-base", "--is-ancestor", publishedHead, head]);
   } catch {
-    throw new Error("The template must contain the exact source commit published to npm next; unrelated commits cannot supply runtime provenance.");
+    throw new Error(`The template must contain the exact source commit published to npm ${channel}; unrelated commits cannot supply runtime provenance.`);
   }
 
   const committed = files(["diff", "--name-only", "--no-renames", "-z", publishedHead, head, "--"]);
   const runtimeChanges = committed.filter((file) => !isAuthoringOnly(file));
   if (runtimeChanges.length) {
-    throw new Error(`Publish a matching npm next runtime before packaging: runtime source, dependencies, build configuration or package protocol changed (${runtimeChanges.join(", ")}).`);
+    throw new Error(`Publish a matching npm ${channel} runtime before packaging: runtime source, dependencies, build configuration or package protocol changed (${runtimeChanges.join(", ")}).`);
   }
 
   // App source/registration and docs may be local work; SDK and tools may not.
@@ -82,4 +110,8 @@ export function assertPreviewPublishedIdentity({ localVersion, publishedVersion,
     throw new Error(`Restore local runtime/tool edits before packaging (${uncommitted.join(", ")}); App source belongs in src/vaults/{slug}.`);
   }
   return { status: head === publishedHead ? "exact-published-commit" : "published-runtime-source", templateGitHead: head, runtimePackageGitHead: publishedHead };
+}
+
+export function assertPreviewPublishedIdentity(input) {
+  return assertPublishedRuntimeIdentity({ ...input, channel: "next" });
 }

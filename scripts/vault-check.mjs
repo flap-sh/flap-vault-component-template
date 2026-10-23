@@ -7,6 +7,7 @@ import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
 import { checkStandaloneWalletManifest, checkStandaloneWalletSource } from "./standalone-wallet-policy.mjs";
+import { isStandaloneTarget } from "./template-release-channel.mjs";
 import { isStandaloneApp } from "./standalone-app.mjs";
 
 import { checkNftAccountDeclarations, checkNftAccountSource, collectNftAccountReview } from "./nft-account-policy.mjs";
@@ -4548,11 +4549,11 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
   return issues;
 }
 
-function buildAgentNextActions(issues) {
+function buildAgentNextActions(issues, folderName) {
   const blocking = issues.filter((item) => item.severity === BLOCKING);
   const warnings = issues.filter((item) => item.severity === WARNING);
   const source = blocking.length ? blocking : warnings;
-  if (!source.length) return [`Run yarn ${process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "app:package" : "vault:package"} <folder-name> and preview the registered route.`];
+  if (!source.length) return [`Run yarn ${isStandaloneTarget(ROOT, folderName) ? "app:package" : "vault:package"} <folder-name> and preview the registered route.`];
   return source.slice(0, 8).map((item) => ({
     ruleId: item.ruleId,
     severity: item.severity,
@@ -4716,12 +4717,12 @@ function buildCheckReport(folderName, issues) {
     review: collectManualReview(issues),
     agent: {
       verdict: blocking > 0 ? "fix-blocking" : warning > 0 ? "review-warnings" : "package-ready",
-      nextActions: buildAgentNextActions(issues),
+      nextActions: buildAgentNextActions(issues, folderName),
       allowedVaultFiles: [...REQUIRED_FILES, ...OPTIONAL_SURFACE_FILES],
       capabilityProfiles: loadMiniAppCapabilityConfig(ROOT).profiles,
       allowedMiniAppAudioExtensions: MINI_APP_AUDIO_ASSET_EXTENSIONS,
       allowedLocalRelativeImports: [...ALLOWED_RELATIVE_IMPORTS],
-      packageCommand: `yarn ${process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "app:package" : "vault:package"} ${folderName || "<folder-name>"}`,
+      packageCommand: `yarn ${isStandaloneTarget(ROOT, folderName) ? "app:package" : "vault:package"} ${folderName || "<folder-name>"}`,
     },
     issues,
   };

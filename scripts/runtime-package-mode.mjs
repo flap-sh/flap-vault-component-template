@@ -17,14 +17,22 @@ export function createCanaryVersion(baseVersion, gitHead) {
   return `${versionWithoutBuild}${separator}canary.${gitHead.slice(0, 12).toLowerCase()}`;
 }
 
+export function assertRuntimeReleaseChannel(version, channel) {
+  const stable = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version || "");
+  const preview = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-next\.(0|[1-9]\d*)$/.test(version || "");
+  if ((channel === "latest" && stable) || (channel === "next" && preview)) return;
+  throw new Error(`Runtime release ${version} must match its ${channel} channel: stable versions use main/latest and next prereleases require explicit next release commands.`);
+}
+
 export function createRuntimePackageIdentity({ baseVersion, gitHead, mode }) {
   if (mode === "release") {
     const prereleaseChannel = SEMVER_PATTERN.exec(baseVersion)?.[4]?.split(".")[0];
+    assertRuntimeReleaseChannel(baseVersion, prereleaseChannel === "next" ? "next" : "latest");
     return {
       mode,
       version: baseVersion,
       private: false,
-      publishConfig: { access: "public", ...(prereleaseChannel === "next" ? { tag: "next" } : {}) },
+      publishConfig: { access: "public", tag: prereleaseChannel === "next" ? "next" : "latest" },
       canary: undefined,
     };
   }

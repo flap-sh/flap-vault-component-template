@@ -101,3 +101,13 @@ test("latest freshness ignores next and retains its version and provenance check
   assert.notEqual(unrelated.status, 0);
   assert.equal(JSON.parse(unrelated.stderr).code, "template-freshness/npm-git-head-mismatch");
 });
+
+test("stable 0.1.38 freshness ignores the numerically newer historical next release", (t) => {
+  const stable = fixture(t, { channel: "latest", version: "0.1.38" });
+  for (const next of [undefined, { version: "0.1.40-next.0", gitHead: "f".repeat(40) }]) {
+    const result = stable.run({ latest: stable.metadata, ...(next ? { next } : {}) });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout).tags, ["latest"]);
+    assert.equal(JSON.parse(result.stdout).status, "up-to-date");
+  }
+});

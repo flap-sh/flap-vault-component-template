@@ -2,73 +2,64 @@
 
 [简体中文](main-migration.zh-CN.md) · [Development guide](development.md) · [Mini App v2 quickstart](mini-app-v2-quickstart.md)
 
-Vault UI and Mini App v2 will be maintained together on `main` after the v2 merge. They share this repository, one `@flapsdk/vault-runtime` package, UI components and the host wallet. `feat/mini-app-v2` is the integration branch during this transition, not a permanent second SDK. Use `vault:*` for Vault UI and `app:*` for independent v2 Apps; their manifests, host contexts, identities, permissions and package proofs remain distinct.
+Vault UI and Mini App v2 are maintained together on official `main`. They share one template, one `@flapsdk/vault-runtime` package, public UI components and the host wallet. Use `vault:*` for Vault UI and `app:*` for standalone v2 Apps. Manifests, identities, permissions, contexts and package proofs remain distinct.
 
 ## Current status — checked 2026-10-23
 
 | Item | Status |
 | --- | --- |
-| Source integration | `main` has been merged into `feat/mini-app-v2`; merging v2 back into `main` is being prepared |
-| Source branch after that merge | `main`, for both Vault UI and Mini App v2 |
-| npm `latest` | `0.1.37`, published source `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
-| npm `next` | `0.1.40-next.0`, published source `0d21863aa19bde5ad6712d760d3badea6a28e3a4` |
-| Planned npm `latest` | **`0.1.38`**, not yet published; one stable runtime for Vault UI and Mini App v2 |
-| Historical `next` versions | To be deprecated after `0.1.38` is published; downloads remain available |
-| Merged source ZIP readiness | Pending `0.1.38` and the main/latest command, contract and CI transition |
+| Source integration | Mini App v2 merged into main in `02e68e4` |
+| Source branch | `main` for Vault UI and Mini App v2 |
+| App commands / release metadata / CI | Implemented on main/latest, accepting stable versions including `0.1.38` |
+| Prepared stable version | **`0.1.38`**, not yet published to npm |
+| Published npm `latest` | `0.1.37`, source `ad40bab7dfc976d20dd82050aeec17fef18a39b3` |
+| Published npm `next` | `0.1.40-next.0`, source `0d21863aa19bde5ad6712d760d3badea6a28e3a4` |
+| New App ZIP submission | Waiting for matching `0.1.38` publication and host/Workbench rollout |
+| Historical next versions | To be deprecated after stable publication; downloads remain available |
 
-A Git merge does not publish npm, move a dist-tag, upgrade Workbench or the main host, approve an App, or change its production route. `main` is a source branch; `latest` and `next` are channels for the same package. Do not infer SDK capabilities from the branch name alone.
-
-`0.1.40-next.0` is a real published package and supports shared App wallet operations, dynamic IPFS/FSI and long-text CopyButton. The integration source now additionally contains Next.js `15.5.28`, preview/build changes and E2E tooling updates. The changed dependency/build inputs do not match that publication and are outside the authoring-only exception. The unchanged root version does not make the newer source eligible for `0.1.40-next.0` ZIP provenance. A matching new release is required; no new SDK is published as part of this documentation update.
+A source merge or version edit does not publish npm, move dist-tags, upgrade deployed hosts or approve an App. The stable `0.1.38` source includes the shared App wallet, dynamic IPFS/FSI, long-text CopyButton and the merged build/dependency updates. Its runtime inputs differ from previous publications, so an older stable/next package cannot supply its ZIP provenance.
 
 ## Source checkout and local development
 
-After the v2 merge is announced, new Vault UI and v2 projects use:
+Use Node.js 24 and Yarn 1.22:
 
 ```bash
 git clone --branch main https://github.com/flap-sh/flap-vault-component-template.git
 cd flap-vault-component-template
 yarn install --frozen-lockfile
+yarn app:scaffold my-app
+yarn dev
 ```
 
-Before that merge, use `--branch feat/mini-app-v2` for v2 source development and local preview. The current integration head is not a ready-to-submit source-package release. Keep App work in `src/vaults/{slug}`, preserve its artifact ID/slug and preview registration, and save local work before switching branches. Follow the release note before generating new upload proof.
-
-App authors import `@/src/sdk` and `@/src/ui` from the template; do not install a second SDK or wallet provider in the App folder. Hosts install the exact published npm runtime. See [code reuse](development.md#what-code-can-be-reused).
+App authors import `@/src/sdk` and `@/src/ui` from the template. Do not install another runtime or wallet provider inside the App folder. Keep `src/vaults/{slug}`, artifact ID, immutable slug and preview registration when updating. Save local work before switching from the retired integration branch. See [code reuse](development.md#what-code-can-be-reused).
 
 ## Command behavior during the transition
 
-The current implementation has not yet migrated its release references:
-
-| Workflow | Current source reference / channel |
+| Workflow | Source / npm channel |
 | --- | --- |
-| `vault:*` | Official `origin/main` / npm `latest` |
-| `app:*` | Official `origin/feat/mini-app-v2` / npm `next` |
-| `runtime:package:next` | Official `origin/next` / npm `next` |
+| `vault:*` | Official `origin/main` / latest |
+| `app:*` | Official `origin/main` / latest; stable `0.1.38` is accepted |
+| `runtime:package` | Clean committed official main / latest; generated publishConfig explicitly uses latest |
+| `runtime:package:next` | Explicitly authorized preview release from official `origin/next` / next |
 
-The `app:*` wrapper still requires a prerelease template version, and the next-channel reference policy currently accepts only `feat/mini-app-v2` or `next`, not `main`. Checkout of `main` alone cannot migrate these rules. Fork maintainers select the documented official `upstream` reference instead of a fork, not a local ref or manually edited proof.
+Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.0` does not invalidate stable `0.1.38`.
 
-The scaffold/local preview, E2E results and a private canary can validate integration work. They do not authorize an upload from unpublished runtime inputs. The normal check/build/package preflights can reject the integration checkout until source references and published identity agree. Do not change version strings, proof metadata or guards to make that checkout look published.
+App check, local guest/connected E2E and build can run before npm publication from the official main checkout. App source ZIPs and normal local verification require the **exact published latest version, real gitHead ancestry and matching runtime/dependency/build/protocol inputs**. Official documentation/authoring-only descendants can retain that identity. Local SDK/tool edits, private canaries and fabricated proof cannot.
 
-Before announcing main-based package submission, maintainers need to:
-
-1. Migrate the App command wrapper, prerelease-only assertion, source-reference policy, `agent-contract.json` release metadata and App CI to official `main` / npm `latest`. Both Vault UI and v2 should accept the stable `0.1.38` template, while keeping their model/proof workflows distinct and any future preview-channel checks independent.
-2. Prepare and verify `0.1.38` from clean official-main source, publish it under `latest`, then record its actual `gitHead` and integrity. This is the planned release, not a statement that it is already published.
-3. Pin and deploy `@flapsdk/vault-runtime@0.1.38` and matching validation inputs in Workbench and the main host, then rerun check, E2E, package and verification from the announced template source.
-4. After the stable release is available, mark every historical `next` prerelease listed below deprecated with an upgrade message pointing to `0.1.38`. Keep those packages downloadable for existing lockfiles; do not unpublish them.
-
-Until then, packaging from the merged integration head is pending. Existing published-runtime artifacts remain compatible; this source merge does not replace their runtime or approve a new App version.
+While npm latest is `0.1.37`, packaging `0.1.38` stops with `package/runtime-unpublished`. Wait for publication; do not rewrite version strings or package metadata. E2E and a private canary verify integration, not npm publication. See [the release checklist](releases/0.1.38.md).
 
 ## Planned stable upgrade and preview deprecation
 
-After `0.1.38` is published and the matching host/Workbench rollout is announced, both products use main/latest. No additional next release is planned for this migration. Host and Workbench maintainers update their exact dependency with:
+After `0.1.38` is published, maintainers pin and deploy the same runtime and validation inputs in Workbench and the main host:
 
 ```bash
 yarn add --exact @flapsdk/vault-runtime@0.1.38
 ```
 
-App authors instead update the announced official main template, preserve their App folder and preview registration, then regenerate check/E2E/ZIP proof. They do not install the npm package inside their App folder. Select the announced exact stable version rather than the numerically highest prerelease: `0.1.40-next.0` is a historical preview, not the planned stable target.
+App authors update the announced main template, preserve their App source/registration and regenerate check, E2E, package and verification proof. They do not install the npm package in their App folder. Choose the announced stable target rather than the numerically highest historical prerelease. No additional next release is needed for this migration.
 
-The deprecation plan covers all eight next versions currently published: `0.1.32-next.0`, `0.1.32-next.1`, `0.1.33-next.0`, `0.1.33-next.1`, `0.1.36-next.0`, `0.1.38-next.0`, `0.1.39-next.0` and `0.1.40-next.0`. The deprecation message should say: “This preview is deprecated. Upgrade to @flapsdk/vault-runtime@0.1.38 and the matching official main template.” This documentation update does not perform npm deprecation or remove packages. Existing built Apps retain compatibility; new submissions must follow the announced stable release policy.
+Deprecate all eight currently published next versions after the stable release: `0.1.32-next.0`, `0.1.32-next.1`, `0.1.33-next.0`, `0.1.33-next.1`, `0.1.36-next.0`, `0.1.38-next.0`, `0.1.39-next.0` and `0.1.40-next.0`. The message should direct users to `@flapsdk/vault-runtime@0.1.38` and the matching official main template. Keep old packages downloadable for existing lockfiles. This source update does not publish or deprecate registry packages.
 
 ## Supported models stay the same
 
-New development supports Vault UI and Mini App v2. Mini App v1 remains deprecated for new projects, with existing routes, bindings and maintenance compatibility retained. Main-branch integration does not convert v1, bind v2 to a token, or merge a project's Vault and App identities. Vault UI and Mini App v2 remain separate review/submission deliverables.
+New development supports Vault UI and Mini App v2. Mini App v1 is deprecated for new projects; existing routes, bindings, runtime and maintenance compatibility remain. Main consolidation does not convert v1, bind v2 to a token, or merge a project's Vault/App identities. Vault UI and standalone App remain separate review/submission deliverables.

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertRuntimePackageIdentity,
+  assertRuntimeReleaseChannel,
   createCanaryVersion,
   createRuntimePackageIdentity,
   parseRuntimePackageMode,
@@ -33,13 +34,13 @@ test("marks canary packages private and records provenance", () => {
   });
 });
 
-test("next prereleases default to the next npm tag while stable releases keep their config", () => {
+test("release packages explicitly select next or latest according to their version", () => {
   const preview = createRuntimePackageIdentity({ baseVersion: "0.1.32-next.0", gitHead: GIT_HEAD, mode: "release" });
   assert.equal(preview.version, "0.1.32-next.0");
   assert.equal(preview.private, false);
   assert.deepEqual(preview.publishConfig, { access: "public", tag: "next" });
-  const stable = createRuntimePackageIdentity({ baseVersion: "0.1.31", gitHead: GIT_HEAD, mode: "release" });
-  assert.deepEqual(stable.publishConfig, { access: "public" });
+  const stable = createRuntimePackageIdentity({ baseVersion: "0.1.38", gitHead: GIT_HEAD, mode: "release" });
+  assert.deepEqual(stable.publishConfig, { access: "public", tag: "latest" });
 });
 
 test("next release verification rejects a package that could accidentally update latest", () => {
@@ -94,4 +95,21 @@ test("rejects canary manifests that could be published or have stale provenance"
       }),
     /provenance/,
   );
+});
+
+test("stable 0.1.38 release rejects preview channels and unsafe prerelease identities", () => {
+  assert.doesNotThrow(() => assertRuntimeReleaseChannel("0.1.38", "latest"));
+  assert.doesNotThrow(() => assertRuntimeReleaseChannel("0.1.40-next.0", "next"));
+  for (const [version, channel] of [["0.1.38", "next"], ["0.1.40-next.0", "latest"], ["0.1.38", "beta"], ["0.1.38-canary.abc", "latest"]]) {
+    assert.throws(() => assertRuntimeReleaseChannel(version, channel), /must match/);
+  }
+  for (const baseVersion of ["invalid", "0.1.38-beta.0", "0.1.38-next.0.canary.abc"]) {
+    assert.throws(() => createRuntimePackageIdentity({ baseVersion, gitHead: GIT_HEAD, mode: "release" }), /must match/);
+  }
+  const version = "0.1.38";
+  const input = { manifest: { version, gitHead: GIT_HEAD, publishConfig: { access: "public", tag: "latest" } }, runtimeContract: { packageVersion: version }, rootVersion: version, gitHead: GIT_HEAD, mode: "release" };
+  assert.doesNotThrow(() => assertRuntimePackageIdentity(input));
+  for (const publishConfig of [{ access: "public" }, { access: "public", tag: "next" }]) {
+    assert.throws(() => assertRuntimePackageIdentity({ ...input, manifest: { ...input.manifest, publishConfig } }), /publishConfig/);
+  }
 });

@@ -5,7 +5,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
-import { createRuntimePackageIdentity, parseRuntimePackageMode } from "./runtime-package-mode.mjs";
+import { assertRuntimeReleaseChannel, createRuntimePackageIdentity, parseRuntimePackageMode } from "./runtime-package-mode.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -42,9 +42,9 @@ function assertCleanCommittedCanarySource(label = "Canary") {
   }).trim();
   if (status) {
     throw runtimePackageError(
-      `runtime-package/${label === "Canary" ? "canary" : "next"}-dirty`,
+      `runtime-package/${label === "Canary" ? "canary" : label === "Next prerelease" ? "next" : "release"}-dirty`,
       `${label} runtime packages require a clean committed worktree so their gitHead provenance is exact.`,
-      "Commit the intended runtime changes and remove unrelated untracked files, then rerun yarn runtime:pack:canary.",
+      "Commit the intended runtime changes and remove unrelated untracked files, then rerun the requested runtime packaging command.",
     );
   }
 }
@@ -52,7 +52,9 @@ function assertCleanCommittedCanarySource(label = "Canary") {
 async function main() {
   const mode = parseRuntimePackageMode(process.argv.slice(2));
   if (mode === "release") {
-    if (process.env.FLAP_TEMPLATE_CHANNEL === "next") assertCleanCommittedCanarySource("Next prerelease");
+    const { version } = await readJson(path.join(ROOT, "package.json"));
+    assertRuntimeReleaseChannel(version, process.env.FLAP_TEMPLATE_CHANNEL || "latest");
+    assertCleanCommittedCanarySource(process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "Next prerelease" : "Stable release");
     await assertTemplateFresh();
   }
   else assertCleanCommittedCanarySource();
@@ -152,7 +154,7 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
 
-## Shared Vault UI and Mini App v2\n\nThe preview channel includes standalone App wallet operations through\n\`useFlapSdk({ chainId })\` and the host-owned \`CopyButton\` from \`./ui\`.\nVault UI keeps \`useFlapSdk()\` and its token-bound context. Both use this one\npackage; existing token-bound Mini Apps remain compatible.\n\n## Dynamic IPFS content
+## Shared Vault UI and Mini App v2\n\nThis shared runtime supports standalone App wallet operations through\n\`useFlapSdk({ chainId })\` and the host-owned \`CopyButton\` from \`./ui\`.\nVault UI keeps \`useFlapSdk()\` and its token-bound context. Both use this one\npackage; existing token-bound Mini Apps remain compatible.\nStable development uses the official main template and npm latest.\nThe shared CopyButton copies up to 1,048,576 UTF-16 code units without truncation.\n\n## Dynamic IPFS content
 
 Stable runtime \`0.1.37\` introduces \`sdk.readIpfsText(cid, path?)\`, which returns
 UTF-8 text or JSON as a string, and \`IpfsText\` for escaped plain-text display.

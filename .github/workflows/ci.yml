@@ -10,6 +10,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     env:
+      FLAP_TEMPLATE_CHANNEL: latest
       FLAP_TEMPLATE_FRESHNESS_REF: ${{ github.event_name == 'pull_request' && format('origin/pr-{0}-head', github.event.number) || 'origin/main' }}
     steps:
       - name: Checkout
@@ -32,7 +33,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: yarn playwright install --with-deps chromium
 
       - name: Validate
         run: yarn ci

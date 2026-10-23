@@ -13,8 +13,9 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
-The `0.1.37` feature and consumer rollout requirements are documented in
-[the release guide](releases/0.1.37.md) ([简体中文](releases/0.1.37.zh-CN.md)).
+The planned `0.1.38` main/latest rollout is documented in
+[the release guide](releases/0.1.38.md) ([简体中文](releases/0.1.38.zh-CN.md)).
+`0.1.38` is prepared in source and is not yet published to npm.
 Prepare the root version and documentation on a branch from the latest official
 `main`, commit as the SDK maintainer, and merge the release PR before building the
 publishable package. A feature/release branch may be tested with a private canary
@@ -45,23 +46,23 @@ upload/gateway workflow. A successful npm publish does not upgrade deployed host
 
 ## Main source integration
 
-Vault UI and Mini App v2 will share `main` after the v2 merge, while `vault:*` and `app:*` retain distinct model/proof workflows. A source branch is not an npm channel. See [main integration status](main-migration.md) ([中文](main-migration.zh-CN.md)) for the current release identities, unpublished integration inputs and the command/CI transition still required before main-based App submission. The planned shared stable release is **`0.1.38` under latest**, not yet published. App commands, release-contract metadata and CI must be migrated to main/latest before release, then hosts must deploy the same exact stable runtime. All historical next versions will be deprecated after stable publication, with downloads retained; see [the version list and upgrade plan](main-migration.md#planned-stable-upgrade-and-preview-deprecation). This documentation does not perform publication, npm deprecation or changes to the implemented guards.
+Vault UI and Mini App v2 share `main`, while `vault:*` and `app:*` retain distinct model/proof workflows. A source branch is not an npm channel. See [main integration status](main-migration.md) ([中文](main-migration.zh-CN.md)) for the current release identities, unpublished integration inputs and the publication/host rollout still required before App submission. The planned shared stable release is **`0.1.38` under latest**, not yet published. App commands, release-contract metadata and CI now use main/latest; after npm publication, hosts must deploy the same exact stable runtime. All historical next versions will be deprecated after stable publication, with downloads retained; see [the version list and upgrade plan](main-migration.md#planned-stable-upgrade-and-preview-deprecation). This update prepares the code and configuration; it does not publish npm or deprecate registry versions.
 
 ## Explicit next SDK releases
 
-Release freshness is channel-specific. The following table describes the current implementation during the main integration; it is not the target main-based App configuration:
+Release freshness is channel-specific. Both stable models use main/latest. Preview releases remain explicitly selected and independent:
 
 | Workflow | Official source | npm metadata used |
 | --- | --- | --- |
 | Stable Vault/template commands | `origin/main` | `@flapsdk/vault-runtime` on `latest` only |
-| App v2 preview commands | `origin/feat/mini-app-v2` | `@flapsdk/vault-runtime` on `next` only |
+| Stable App v2 commands | `origin/main` | `@flapsdk/vault-runtime` on `latest` only |
 | Preview runtime release | `origin/next` | `@flapsdk/vault-runtime` on `next` only |
 
-There is no cross-channel version comparison. Advancing `latest` does not make an unchanged preview stale or require a new `next` release. Each channel still requires the official source head, a version at least as new as its own npm tag, and the published commit in its history. App v2 source ZIPs additionally require the exact published `next` version and unchanged runtime/build/protocol inputs from that published ancestor. This does not certify SDK API compatibility or replace host/Workbench version alignment.
+There is no cross-channel version comparison. Advancing `latest` does not make an unchanged preview stale or require a new `next` release. Each channel still requires the official source head, a version at least as new as its own npm tag, and the published commit in its history. Stable App v2 source ZIPs additionally require the exact published `latest` version and unchanged runtime/build/protocol inputs from that published ancestor. This does not certify SDK API compatibility or replace host/Workbench version alignment.
 
-Documentation and official authoring tools can advance `feat/mini-app-v2` without a new SDK release. Update and push that developer branch; leave the npm tag and the runtime release branch at their published identity. Developers pull the current official template head. Packaging compares actual file changes, including renames/deletions, rather than commit messages. It allows documentation, agent guidance, authoring scripts and separately checked App source; every other path is pinned by default. SDK/UI source, dependencies, build configuration, schemas/capability configuration, the runtime builder and ZIP/E2E protocol scripts remain pinned. Local SDK/tool edits are rejected, including staged and untracked files. Local App source/preview registration and docs remain allowed. The ZIP still records npm's published `runtimePackageGitHead`; source/E2E hashes and receiving Workbench review are unchanged.
+Documentation and official authoring tools can advance `main` without a new SDK release when runtime/build/protocol inputs remain unchanged. Update the official developer branch; leave npm tags at their published identities until an authorized release. Developers pull the current official template head. Packaging compares actual file changes, including renames/deletions, rather than commit messages. It allows documentation, agent guidance, authoring scripts and separately checked App source; every other path is pinned by default. SDK/UI source, dependencies, build configuration, schemas/capability configuration, the runtime builder and ZIP/E2E protocol scripts remain pinned. Local SDK/tool edits are rejected, including staged and untracked files. Local App source/preview registration and docs remain allowed. The ZIP still records npm's published `runtimePackageGitHead`; source/E2E hashes and receiving Workbench review are unchanged.
 
-When a maintainer explicitly requests an npm testing release from official `next`, use a version such as `0.1.40-next.0`, commit and push the same source commit to official `feat/mini-app-v2` and `next`, and build from a clean checkout at exactly that remote head. Select both the preview channel and official release ref; do not remove the checks or publish a private canary:
+When a maintainer explicitly requests an npm testing release from official `next`, use a version such as `0.1.40-next.0`, commit and push the reviewed preview source to official `next`, and build from a clean checkout at exactly that remote head. Select both the preview channel and official release ref; do not remove the checks or publish a private canary:
 
 ```bash
 FLAP_TEMPLATE_FRESHNESS_REF=upstream/next yarn runtime:package:next
@@ -70,7 +71,7 @@ yarn runtime:verify-package
 
 `upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The npm `next` ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
 
-`@flapsdk/vault-runtime@0.1.40-next.0` is published on npm `next`, with `gitHead` `0d21863aa19bde5ad6712d760d3badea6a28e3a4`; stable `latest` remains `0.1.37` (checked 2026-10-23). That identity applies only to matching source inputs. The integration now contains newer dependency/build changes and E2E tooling updates and cannot reuse it for new ZIPs. See [main integration status](main-migration.md). Publish a matching runtime only when authorized, then align command/CI source references, the main host and Workbench. Documentation-only changes do not remove an existing unpublished-runtime blocker.
+`@flapsdk/vault-runtime@0.1.40-next.0` is published on npm `next`, with `gitHead` `0d21863aa19bde5ad6712d760d3badea6a28e3a4`; stable `latest` remains `0.1.37` (checked 2026-10-23). That identity applies only to matching source inputs. The integration now contains newer dependency/build changes and E2E tooling updates and cannot reuse it for new ZIPs. See [main integration status](main-migration.md). Publish prepared `0.1.38` under latest only when authorized, then align the main host and Workbench. Documentation-only changes do not remove an existing unpublished-runtime blocker.
 
 ## Agent Contract Version
 
@@ -156,4 +157,4 @@ Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for revi
 
 ## Main integration and Mini App v2 releases
 
-Vault UI and Mini App v2 share one SDK and will be maintained on `main` after the v2 merge. `feat/mini-app-v2` is the transition branch. Read [the current migration and release status](main-migration.md) before selecting a source checkout or generating a ZIP. The planned shared stable release is **`0.1.38` on latest, not yet published**; historical next versions will be deprecated after that release, with downloads retained. Current App commands still use next-channel preview references and must migrate to main/latest before release; this documentation does not change those guards or publish a runtime. The integration source has changed dependency/build inputs and also updates E2E tooling since the last npm publication and needs a matching release before packaging. Use `vault:*` for Vault UI and `app:*` for v2, preserve separate manifests/identities/proofs, and retain existing v1 compatibility. Local E2E and private canaries do not replace exact published-source provenance.
+Vault UI and Mini App v2 now share official `main` and npm `latest`, with stable template version **`0.1.38`**. `app:*` accepts stable versions and uses the official main reference; `vault:*` retains Vault UI and existing v1 maintenance. App ZIPs require the exact published latest version/gitHead and unchanged runtime/build/protocol inputs; docs/authoring-only descendants are allowed, local SDK/tool edits and private canaries are not. **npm `0.1.38` is not yet published**: checks, local E2E and release preparation can run, but App packaging waits for matching publication and host/Workbench rollout. Historical next versions will be deprecated afterward, with downloads retained. Explicit `runtime:package:next` remains isolated on the next channel. See [release status](main-migration.md).

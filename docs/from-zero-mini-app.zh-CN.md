@@ -6,7 +6,7 @@
 
 ## 1. 获取配套模板
 
-使用 Node.js 24 和 Yarn 1.22。**v2 合并宣布完成后，Vault UI 与 v2 统一从 main 开始。** 合并前做 v2 本地开发时，将下方命令替换为 `--branch feat/mini-app-v2`。先看[源码与打包状态](main-migration.zh-CN.md)；当前整合 HEAD 仍待配套 runtime 发布及命令切换。
+使用 Node.js 24 和 Yarn 1.22。**Vault UI 与 Mini App v2 都使用 main/latest。** 模板已准备为正式 `0.1.38`；提交 App ZIP 前先看[发布状态](main-migration.zh-CN.md)，该 npm 版本仍待发布。
 
 ```bash
 git clone --branch main https://github.com/flap-sh/flap-vault-component-template.git
@@ -16,7 +16,7 @@ yarn install --frozen-lockfile
 
 模板已经包含 SDK 源码，不需要在 App 目录执行 `npm install @flapsdk/vault-runtime`。npm runtime 由 Workbench 和主站安装；提交前，模板发布版本与两个宿主必须配套。
 
-`@flapsdk/vault-runtime@0.1.40-next.0` 已发布到 npm `next`，正式 `latest` 保持 `0.1.37`。计划共用正式版为 **latest 上的 `0.1.38`，尚未发布**，发布后历史 next 版本统一标记弃用，保留下载。当前预览版是包的发布身份，不代表任意更新的源码 HEAD 都可打包；当前整合源码已改变 runtime 输入。从 main 提交包仍待[发布及命令切换](main-migration.zh-CN.md)，期间可进行脚手架、本地预览和 E2E 开发。不要安装第二套 SDK，也不要把未发布源码改成旧版本身份。
+`@flapsdk/vault-runtime@0.1.40-next.0` 已发布到 npm `next`，正式 `latest` 保持 `0.1.37`。计划共用正式版为 **latest 上的 `0.1.38`，尚未发布**，发布后历史 next 版本统一标记弃用，保留下载。当前预览版是包的发布身份，不代表任意更新的源码 HEAD 都可打包；当前整合源码已改变 runtime 输入。从 main 提交包仍待[匹配的 npm 发布及宿主上线](main-migration.zh-CN.md)，期间可进行脚手架、本地预览和 E2E 开发。不要安装第二套 SDK，也不要把未发布源码改成旧版本身份。
 
 ## 2. 创建 App
 
@@ -114,7 +114,7 @@ yarn app:package my-app
 yarn app:verify-package dist/my-app.zip
 ```
 
-E2E 检查 PC/iPad/H5 的游客和已连接状态，共六项，同时验证当前源码/资源 hash 和预览源码身份。`yarn app:build` 也会先执行来源预检。**此提交流程以已宣布的配套发布为前提。** 当前 App 命令仍选择官方预览引用及 npm `next`，切换到 main 不会自动改变该策略。整合 HEAD 需新的匹配 runtime 后才能提交 ZIP，见[迁移状态](main-migration.zh-CN.md)。纯文档更新可以保留原发布证明，runtime、构建、协议输入变化则不能。
+E2E 检查 PC/iPad/H5 的游客和已连接状态，共六项，同时验证当前源码/资源 hash 和预览源码身份。`yarn app:build` 也会先执行来源预检。**此提交流程以已宣布的配套发布为前提。** App 命令已选择官方 main 与 npm latest，支持正式 `0.1.38`；当前模板仍需匹配的 runtime 发布后才能提交 ZIP，见[迁移状态](main-migration.zh-CN.md)。纯文档更新可以保留原发布证明，runtime、构建、协议输入变化则不能。
 
 将生成的 ZIP 提交到指定 App v2 测试 Workbench，并提供 slug、展示标题、功能概述、接口声明、钱包合约权限及升级权限说明。不要包含密钥。Workbench 负责构建 runtime artifact；人工审核和主站发布决定上线。上传/构建通过不等于已批准上线。
 
@@ -127,6 +127,6 @@ E2E 检查 PC/iPad/H5 的游客和已连接状态，共六项，同时验证当�
 | `useFlapSdk` 提示必须选择链 | v2 使用 `useFlapSdk({ chainId })`，无参数写法属于绑定上下文的 Vault/v1 |
 | 缺少 `context.tokenAddress` / `vaultAddress` | v2 自己选 Token 和目标，不要伪造宿主上下文 |
 | `app:*` 拒绝 manifest | 检查完整 v2 标识和 `match.bindings: []`；v1 使用 `vault:*` |
-| `package/preview-runtime-unpublished` | 对照快速开始中的 npm `next` 发布身份，核对本地版本和 HEAD，使用官方最新模板并保持已发布 runtime 输入一致；计划正式版迁移宣布完成前，等待匹配发布，不要改用当前 latest `0.1.37` 或私有 canary |
+| `package/runtime-unpublished` | 等待 `0.1.38` 发布到 latest，核对本地版本、官方 main 与发布 gitHead，不要沿用 `0.1.37` 或私有 canary 的证明 |
 | 本地正常，Workbench 拒绝 | 核对 runtime/gitHead、当前 E2E hash、包格式和审核声明 |
 | 公开接口仅在 Flap 内失败 | 核对服务端实际响应的 CORS/跨站策略是否允许宿主 origin |

@@ -6,12 +6,12 @@ import process from "node:process";
 import { failAgent } from "./agent-error.mjs";
 import { readNpmPackageTagMetadata } from "./npm-registry.mjs";
 
-import { templateReleasePolicy, assertOfficialPreviewRemote, assertPreviewTemplate } from "./template-release-channel.mjs";
+import { templateReleasePolicy, assertAppReleasePolicy, assertAppTemplate, assertOfficialTemplateRemote, assertPreviewTemplate, isStandaloneTarget } from "./template-release-channel.mjs";
 
 const ROOT = process.cwd();
 let CHANNEL_POLICY;
 try { CHANNEL_POLICY = templateReleasePolicy(); }
-catch (error) { failAgent({ code: "template-freshness/invalid-channel", message: error.message, fixHint: "Use the documented stable or App next commands." }); }
+catch (error) { failAgent({ code: "template-freshness/invalid-channel", message: error.message, fixHint: "Use the documented main/latest commands, or an explicitly authorized next runtime release." }); }
 const OFFICIAL_REF = CHANNEL_POLICY.officialRef;
 const NPM_PACKAGE_NAME = CHANNEL_POLICY.packageName;
 const NPM_TAG = CHANNEL_POLICY.npmTag;
@@ -312,12 +312,22 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
   }
 
   const remote = remoteFromRef(OFFICIAL_REF);
+  const appWorkflow = process.env.FLAP_TEMPLATE_WORKFLOW === "app" || isStandaloneTarget(ROOT, folderName);
+  if (NPM_TAG === "latest" && appWorkflow) {
+    try {
+      assertAppReleasePolicy();
+      assertAppTemplate(ROOT, folderName);
+      assertOfficialTemplateRemote(git(["remote", "get-url", remote]));
+    } catch (error) {
+      failFreshness({ code: "template-freshness/app-source", message: error.message, fixHint: "Use official main/latest; fork maintainers may select the official upstream/main ref.", folderName });
+    }
+  }
   if (NPM_TAG === "next") {
     try {
       assertPreviewTemplate(ROOT, folderName);
-      assertOfficialPreviewRemote(git(["remote", "get-url", remote]));
+      assertOfficialTemplateRemote(git(["remote", "get-url", remote]));
     } catch (error) {
-      failFreshness({ code: "template-freshness/preview-source", message: error.message, fixHint: "Clone the official flap-sh template and use its feat/mini-app-v2 branch; maintainers may release the same commit from official next.", folderName });
+      failFreshness({ code: "template-freshness/preview-source", message: error.message, fixHint: "Use official next only for an explicitly authorized preview release. App development uses official main/latest.", folderName });
     }
   }
   try {

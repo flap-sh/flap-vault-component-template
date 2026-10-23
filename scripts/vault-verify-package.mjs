@@ -6,6 +6,8 @@ import path from "node:path";
 import process from "node:process";
 import zlib from "node:zlib";
 import { failAgent } from "./agent-error.mjs";
+import { execFileSync } from "node:child_process";
+import { assertPublishedRuntimeIdentity } from "./template-release-channel.mjs";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
   E2E_REPORT_PACKAGE_PATH,
@@ -301,6 +303,14 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
       const currentVersion = readCurrentPackageVersion();
       const freshness = await assertTemplateFresh({ folderName });
       const currentRuntimeGitHead = freshness.checks?.npm?.latestGitHead;
+      if (isStandaloneApp(manifest)) {
+        try {
+          assertPublishedRuntimeIdentity({ channel: freshness.checks.npm.npmTag, localVersion: currentVersion, publishedVersion: freshness.checks.npm.latestVersion,
+            head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), publishedHead: currentRuntimeGitHead });
+        } catch (error) {
+          issues.push(jsonIssue("package-verify/runtime-unpublished", error.message, "Use the exact published main/latest runtime and regenerate the App ZIP.", { file: PACKAGE_MARKER_FILE }));
+        }
+      }
       const currentSchemaSha256 = sha256(readPackageFileBuffer(path.join(process.cwd(), SCHEMA_FILE)));
       const packageSchemaSha256 = entries.has(SCHEMA_FILE) ? sha256(entries.get(SCHEMA_FILE)) : undefined;
       const currentCapabilitySha256 = sha256(readPackageFileBuffer(path.join(process.cwd(), MINI_APP_CAPABILITY_CONFIG_PATH)));

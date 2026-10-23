@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 57,
+  "version": 58,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -1670,10 +1670,10 @@
     "walkthrough": "docs/from-zero-mini-app.md",
     "legacyV1Documentation": "docs/mini-app-v1.md"
   },
-  "standalonePreviewRelease": {
-    "branch": "feat/mini-app-v2",
+  "standaloneRelease": {
+    "branch": "main",
     "npmPackage": "@flapsdk/vault-runtime",
-    "npmTag": "next",
+    "npmTag": "latest",
     "commands": [
       "yarn app:check {folder-name}",
       "yarn app:e2e {folder-name}",
@@ -1681,11 +1681,11 @@
       "yarn app:verify-package dist/{folder-name}.zip"
     ],
     "rules": [
-      "Only standalone manifest v2 Apps may use this source-package preview channel.",
-      "Fetch the exact head from the official flap-sh repository. Reject forks and arbitrary refs.",
-      "Source ZIP runtime version and runtimePackageGitHead must equal the published next package. Current official template HEAD may advance through docs/authoring-tool commits if runtime source, dependencies, build inputs and ZIP/E2E protocol remain unchanged from that published ancestor. Private canaries cannot be ZIP provenance.",
-      "Local SDK/tool edits are rejected; local App source and preview registration in src/vaults plus documentation are allowed. App source retains its separate manifest, checker, source-hash and E2E gates.",
-      "Legacy Vault/token Mini App commands retain main/latest; preview sessions are local fixtures."
+      "Vault UI and standalone Mini App v2 share official main and npm latest. app:* accepts committed stable versions such as 0.1.38; vault:* retains Vault UI and existing token-bound App compatibility.",
+      "Fetch the exact main head from the official flap-sh repository. Reject forks and arbitrary refs; fork maintainers may select the official upstream/main reference.",
+      "App source ZIP runtime version and runtimePackageGitHead must equal the published latest package. Current official template HEAD may advance through docs/authoring-tool commits only if runtime source, dependencies, build inputs and ZIP/E2E protocol remain unchanged from the published ancestor. Unpublished versions, next packages and private canaries cannot be stable App ZIP provenance.",
+      "Local SDK/tool edits are rejected; local App source and preview registration in src/vaults plus documentation are allowed. App source retains separate manifest, checker, source-hash and guest/connected E2E gates.",
+      "The planned stable release 0.1.38 is not yet published. Package submission waits for its matching publication and host/Workbench rollout. Local preview sessions remain fixtures."
     ],
     "quickstart": "docs/mini-app-v2-quickstart.md"
   },
