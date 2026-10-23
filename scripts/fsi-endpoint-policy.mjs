@@ -1,10 +1,10 @@
-import { FSI_QUERY_PREFIX, hasFsiQueryDeclaration, isFsiQueryUrl } from "../src/sdk/fsiPolicy.mjs";
+import { FSI_QUERY_PREFIXES, resolveFsiQueryPrefix, isFsiQueryUrl } from "../src/sdk/fsiPolicy.mjs";
 
-const fsiBase = new URL(FSI_QUERY_PREFIX);
+const fsiBases = FSI_QUERY_PREFIXES.map((prefix) => new URL(prefix));
 // Select the policy even when credentials, fragments or encoded syntax make
 // the URL invalid; an invalid FSI URL must not fall back to generic fetch rules.
 export function isFsiFetchTarget(url) {
-  return url?.origin === fsiBase.origin && (url.pathname === fsiBase.pathname || url.pathname.startsWith(`${fsiBase.pathname}/`));
+  return fsiBases.some((base) => url?.origin === base.origin && (url.pathname === base.pathname || url.pathname.startsWith(`${base.pathname}/`)));
 }
 
 function unwrap(node, ts) {
@@ -69,18 +69,20 @@ export function collectFsiReadIssues(sourceFile, ts, endpoints, file) {
       (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "readFsi") ||
       (ts.isIdentifier(node.expression) && node.expression.text === "readFsi")
     )) {
-      const allowed = hasFsiQueryDeclaration(endpoints);
+      const prefix = resolveFsiQueryPrefix(endpoints);
+      const allowed = prefix !== null;
+      const reviewPrefix = prefix ?? FSI_QUERY_PREFIXES[0];
       issues.push({
         severity: allowed ? "warning" : "blocking",
         ruleId: allowed ? "manual-review/external-endpoint" : "endpoint-policy/fsi-declaration-required",
         message: allowed
           ? "sdk.readFsi uses the platform query allowlist. Review the declared FSI prefix, dynamic path and query parameters before publish."
-          : `sdk.readFsi requires ${FSI_QUERY_PREFIX} in manifest.endpoints for review.`,
-        fixHint: `Declare ${FSI_QUERY_PREFIX} in manifest.endpoints and use sdk.readFsi for dynamic paths and query parameters.`,
+          : `sdk.readFsi requires ${FSI_QUERY_PREFIXES.join(" or ")} in manifest.endpoints for review.`,
+        fixHint: `Declare ${FSI_QUERY_PREFIXES.join(" or ")} in manifest.endpoints and use sdk.readFsi for dynamic paths and query parameters.`,
         source: "sdk.readFsi",
-        url: FSI_QUERY_PREFIX,
-        origin: new URL(FSI_QUERY_PREFIX).origin,
-        pathname: new URL(FSI_QUERY_PREFIX).pathname,
+        url: reviewPrefix,
+        origin: new URL(reviewPrefix).origin,
+        pathname: new URL(reviewPrefix).pathname,
         dynamicQuery: true,
         pathExpression: node.arguments[0]?.getText(sourceFile),
         paramsExpression: node.arguments[1]?.getText(sourceFile),

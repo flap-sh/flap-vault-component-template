@@ -154,6 +154,18 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
 
+## FSI queries
+
+Declare \`https://fsi.taxed.fun/fsi/v1\` in \`manifest.endpoints\` to use
+\`sdk.readFsi(relativePath, params)\` with the current FSI host. The legacy
+\`https://bsc-debug.butterfly.army/fsi/v1\` prefix remains supported. Only
+declaring the legacy prefix preserves legacy routing; declaring both selects
+the current host regardless of array order. Failed requests never fall back
+to the other host. Both require an exact reviewed root declaration and retain
+the HTTPS origin, path, GET, credential and redirect restrictions.
+Hosts and Workbench must deploy matching runtime and checker policies before
+accepting source packages that declare the new endpoint.
+
 ## Shared Vault UI and Mini App v2\n\nThis shared runtime supports standalone App wallet operations through\n\`useFlapSdk({ chainId })\` and the host-owned \`CopyButton\` from \`./ui\`.\nVault UI keeps \`useFlapSdk()\` and its token-bound context. Both use this one\npackage; existing token-bound Mini Apps remain compatible.\nStable development uses the official main template and npm latest.\nThe shared CopyButton copies up to 1,048,576 UTF-16 code units without truncation.\n\n## Dynamic IPFS content
 
 Stable runtime \`0.1.37\` introduces \`sdk.readIpfsText(cid, path?)\`, which returns

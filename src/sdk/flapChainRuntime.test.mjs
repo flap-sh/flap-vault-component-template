@@ -116,3 +116,30 @@ test("chain SDK shares bounded IPFS reads and snapshots the reviewed FSI declara
     assert.equal(calls.length, 2);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test("chain SDK uses the new FSI deployment only when its host manifest declares it", async () => {
+  const legacy = "https://bsc-debug.butterfly.army/fsi/v1";
+  const current = "https://fsi.taxed.fun/fsi/v1";
+  const f = fixture();
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, options) => {
+      calls.push([url, options]);
+      return Response.json({ items: [] });
+    };
+    for (const [endpoints, expectedPrefix] of [
+      [legacy, legacy], [current, current], [[legacy, current], current], [[current, legacy], current],
+    ]) {
+      const sdk = createFlapChainSdk(f.runtime, { chainId: 56, writableChains: [], i18n: {}, notify: {}, manifest: { ...f.manifest, endpoints } });
+      assert.deepEqual(await sdk.readFsi("by-key/account", { cursor: "a/b+c==" }), { items: [] });
+      const [url, options] = calls.at(-1);
+      assert.equal(new URL(url).origin + new URL(url).pathname, expectedPrefix + "/by-key/account");
+      assert.equal(new URL(url).searchParams.get("cursor"), "a/b+c==");
+      assert.equal(options.credentials, "omit");
+      assert.equal(options.redirect, "error");
+      await assert.rejects(sdk.readFsi("../versions"), /traversal/);
+    }
+    assert.equal(calls.length, 4, "invalid paths must not issue requests to either deployment");
+  } finally { globalThis.fetch = originalFetch; }
+});
