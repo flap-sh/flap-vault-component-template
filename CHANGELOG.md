@@ -11,6 +11,14 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
 
+## [0.1.40-next.1] - 2026-10-24
+
+### Added
+
+- Next-channel testing release of shared location, motion and orientation services, SDK hooks and host-owned real/mock adapters. Optional `deviceCapabilities` declarations preserve unchanged Vault UI and Mini App behavior; permission, actual availability, cancellation, timeouts and page visibility are handled by the Runtime.
+- Source checks and package metadata validate declared device access while keeping raw browser sensor/permission APIs host-only. Runtime contract version remains 1 and advertises `sdkFeatures.deviceSensors=1`.
+- Generated npm README documents the device API and fallback responsibilities. This prerelease targets npm `next`; stable `latest=0.1.39` and consumer deployments remain separate.
+
 ## [0.1.39] - 2026-10-23
 
 ### Added
