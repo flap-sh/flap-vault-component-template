@@ -417,6 +417,9 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
       if (JSON.stringify(marker.capabilities ?? null) !== JSON.stringify(manifest.capabilities ?? null)) {
         issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker capabilities do not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
       }
+      if (JSON.stringify(marker.deviceCapabilities ?? null) !== JSON.stringify(manifest.deviceCapabilities ?? null)) {
+        issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker deviceCapabilities do not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
+      }
       if (JSON.stringify(marker.displayTitle ?? null) !== JSON.stringify(manifest.displayTitle ?? null)) {
         issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker displayTitle does not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
       }
@@ -469,6 +472,7 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
         metadata.runtimeContractVersion !== marker.runtimeContractVersion ||
         (metadata.mode ?? undefined) !== (marker.mode ?? undefined) ||
         JSON.stringify(metadata.capabilities ?? null) !== JSON.stringify(marker.capabilities ?? null) ||
+        JSON.stringify(metadata.deviceCapabilities ?? null) !== JSON.stringify(marker.deviceCapabilities ?? null) ||
         JSON.stringify(metadata.displayTitle ?? null) !== JSON.stringify(marker.displayTitle ?? null) ||
         JSON.stringify(metadata.e2e) !== JSON.stringify(marker.e2e)
       ) {

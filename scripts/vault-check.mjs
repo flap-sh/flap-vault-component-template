@@ -2,6 +2,7 @@
 import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
 import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
+import { checkDeviceCapabilityManifest, collectDeviceCapabilityIssues } from "./device-capability-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -48,7 +49,7 @@ const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.j
 const OPTIONAL_SURFACE_FILES = ["LaunchConfig.tsx"];
 const ALLOWED_VAULT_FILES = new Set([...REQUIRED_FILES, ...OPTIONAL_SURFACE_FILES]);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI", "./LaunchConfig"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "surfaces", "schemaVersion", "appModel", "slug", "walletChains", "walletContracts"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "deviceCapabilities", "surfaces", "schemaVersion", "appModel", "slug", "walletChains", "walletContracts"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts", "nftAccountWithdrawals", "resolvedContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
@@ -3494,6 +3495,7 @@ function checkManifest(manifest, folderName) {
 
   const issues = [];
   issues.push(...checkStandaloneWalletManifest(manifest));
+  issues.push(...checkDeviceCapabilityManifest(manifest));
   const isMiniAppMode = manifest?.mode === MINI_APP_MODE;
   const capabilities = manifestCapabilityIds(manifest);
   for (const key of Object.keys(manifest || {})) {
@@ -3503,7 +3505,7 @@ function checkManifest(manifest, folderName) {
         issue(
           BLOCKING,
           ruleId,
-          `manifest.json field ${key} is not developer-declared. Keep manifest limited to artifactId, name, Mini App-only displayTitle and capabilities, match, i18n, optional mode, layout, endpoints, and externalFrames.`,
+          `manifest.json field ${key} is not developer-declared. Use the documented manifest fields; optional deviceCapabilities declares reviewed Runtime device access.`,
           { field: key },
         ),
       );
@@ -4302,6 +4304,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...collectReviewedFrameIssues(scanContent, rel, declaredFrames));
     const staticImgSrcUrls = collectStaticImgSrcUrls(scanContent, rel);
     issues.push(...collectIpfsContentIssues(scanContent, rel).map((item) => issue(item.severity, item.ruleId, item.message, item)));
+    issues.push(...collectDeviceCapabilityIssues(scanContent, rel, manifest).map((item) => issue(item.severity, item.ruleId, item.message, item)));
     issues.push(...collectNftMetadataImageUsageIssues(scanContent, rel));
     issues.push(...binanceImageAnalysis.issues);
     const requireRegex = /\brequire\s*\(/g;

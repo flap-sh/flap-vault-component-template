@@ -10,6 +10,8 @@ The template supports Vault V2-standard NFT image display.
 
 ## Hooks
 
+Device location, motion and orientation are available through the declared, host-owned device service; see [device sensors](device-sensors.md) ([中文](device-sensors.zh-CN.md)). The receiving Runtime must declare `sdkFeatures.deviceSensors=1`. This is an additive feature under development; the previously published `0.1.39` package does not provide it.
+
 ```ts
 import { useFlapSdk, useVaultContext, useFlapI18n, useFlapNotify, useFlapWallet } from "@/src/sdk";
 ```

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 58,
+  "version": 59,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -30,6 +30,14 @@
     "index": "docs/agent-entrypoints.md"
   },
   "packageManager": "yarn",
+  "deviceSensors": {
+    "documentation": "docs/device-sensors.md",
+    "manifestField": "deviceCapabilities",
+    "values": ["location", "motion", "orientation"],
+    "runtimeFeature": "sdkFeatures.deviceSensors=1",
+    "hooks": ["useGeolocation", "useDeviceMotion", "useDeviceOrientation"],
+    "rule": "Device APIs belong to the host/runtime. Declare only the capabilities needed, request them from an explicit user click through the shared SDK, wait for valid data, and provide a business-appropriate fallback. Keep native browser sensor APIs forbidden. Omitted declarations preserve existing packages and trigger no prompts."
+  },
   "miniAppCapabilities": {
     "profileConfig": "config/mini-app-capability-profiles.json",
     "documentation": "docs/mini-app-3d.md",
@@ -225,6 +233,7 @@
       "i18n",
       "mode",
       "capabilities",
+      "deviceCapabilities",
       "layout",
       "endpoints",
       "externalFrames",
@@ -479,7 +488,23 @@
     },
     "forbidden-api/browser-permission": {
       "severity": "blocking",
-      "fixAction": "Do not request browser permissions from a Vault component. The host/runtime owns permissioned browser capabilities."
+      "fixAction": "Do not request browser permissions through native APIs. Declare deviceCapabilities and use the shared Runtime device hooks/channels for location, motion or orientation."
+    },
+    "device-policy/invalid-capabilities": {
+      "severity": "blocking",
+      "fixAction": "Omit deviceCapabilities or use an array containing only unique location, motion and orientation values."
+    },
+    "device-policy/undeclared-capability": {
+      "severity": "blocking",
+      "fixAction": "Declare the exact SDK device capability in manifest.deviceCapabilities, or remove its use."
+    },
+    "device-policy/dynamic-capability": {
+      "severity": "blocking",
+      "fixAction": "Select a static SDK device channel so its reviewed declaration can be checked."
+    },
+    "runtime-policy/device-sensors-unavailable": {
+      "severity": "blocking",
+      "fixAction": "Upgrade the shared Runtime and both receiving hosts to a release that declares sdkFeatures.deviceSensors=1."
     },
     "forbidden-api/browser-storage": {
       "severity": "blocking",
@@ -759,7 +784,7 @@
     },
     "manifest-schema/disallowed-field": {
       "severity": "blocking",
-      "fixAction": "Remove internal runtime fields. Developer manifest fields are artifactId, name, displayTitle for Mini App only, match, i18n, optional mode, layout, endpoints, and optional reviewed externalFrames. chain IDs are declared inside match.bindings entries."
+      "fixAction": "Remove internal runtime fields. Developer manifest fields are artifactId, name, displayTitle for Mini App only, match, i18n, optional mode, layout, endpoints, optional reviewed externalFrames and deviceCapabilities. chain IDs are declared inside match.bindings entries."
     },
     "manifest-schema/display-title-mini-app-only": {
       "severity": "blocking",
