@@ -2,6 +2,8 @@
 
 Vault UI 和 Mini App 共用 Runtime 设备服务。组件只调用 SDK；浏览器权限和传感器访问由宿主负责。此增量功能要求 `runtime-contract.json` 中有 `sdkFeatures.deviceSensors=1`；此前发布的稳定版 `0.1.39` 不包含本功能。
 
+测试版 `0.1.40-next.1` 已发布到 npm `next`；正式 `latest` 仍为 `0.1.39`。测试宿主请固定安装该预发布版本，并同步对应 schema／policy；见[测试版与发布校验记录](releases/0.1.40-next.1.md)。
+
 在 `manifest.json` 中只声明实际需要的能力：
 
 ```json
