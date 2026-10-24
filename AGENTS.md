@@ -21,6 +21,7 @@ This repository is a public template for controlled Flap Vault UI components. It
 
 Core rules:
 
+- Location, motion and orientation use the shared Runtime device hooks/channels with optional `manifest.deviceCapabilities`; see [device sensors](docs/device-sensors.md) ([中文](docs/device-sensors.zh-CN.md)). Request only after a user click, wait for valid data and provide an explicit fallback. Raw browser sensor/permission APIs stay forbidden; declarations never grant permission or expand the source-file boundary. Existing manifests without the field remain compatible and trigger no prompts.
 - Custom Vault UI is a controlled business component, not a free-form website container.
 - For AI-agent-driven work, read `agent-contract.json` and `docs/ai-agent.md` before editing.
 - Prefer `yarn vault:scaffold <folder-name> --chain 97 --factory 0xTestnetFactory --token 0xReal7777TestToken --chain 56 --factory 0xMainnetFactory` for factory-scoped UI that will launch on mainnet, or `yarn vault:scaffold <folder-name> --chain 56 --vault 0x... --token 0x...` for single-Vault UI without a factory; it creates the strict core package and registers the preview folder name.

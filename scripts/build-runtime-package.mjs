@@ -125,7 +125,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, deviceSensors: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -153,6 +153,32 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
+
+## Location and motion sensors
+
+This release adds \`useGeolocation()\`, \`useDeviceMotion()\` and
+\`useDeviceOrientation()\` to \`./sdk\`, with \`DEVICE_SENSORS_VERSION = 1\`
+and \`sdkFeatures.deviceSensors = 1\`. Declare only the channels used in
+\`manifest.deviceCapabilities\`: \`location\`, \`motion\`, \`orientation\`.
+Vault UI can also use \`useFlapSdk().device\`; standalone Mini Apps can use
+\`useMiniAppSdk().device\`. Each channel provides \`getSnapshot()\`,
+\`subscribe(listener)\`, \`request(options?)\` and \`stop()\`.
+
+Call \`request()\` directly from a user click. Mounting or subscribing never
+requests permission or starts collection. Permission and actual data are
+separate: use readings only after \`status === "active"\` and non-null data.
+Handle refusal, unsupported/insecure environments, policy restrictions,
+timeout, missing data and background pauses with usable click/touch/manual
+fallbacks. Location is a system estimate; inspect accuracy and timestamp.
+
+The \`./host\` entry exports \`createBrowserDeviceSensors\` and
+\`createMockDeviceSensors\`; providers accept a host-owned \`deviceSensors\`
+adapter and scope it to the declaration. Mock values are explicitly marked.
+Components cannot create adapters or call raw browser permission APIs.
+Old manifests without device declarations retain their behavior and do not
+request permissions. Phone and wallet support still requires real-device tests.
+
+${packageIdentity.version.includes("-next.") ? "This package is an explicit next-channel testing release. Install its exact version; stable latest and deployed hosts are not upgraded by this publication.\n" : ""}
 
 ## FSI queries
 

@@ -19,3 +19,5 @@ export * from "./miniApp";
 export * from "./flapChainRuntime";
 
 export { parseAppWalletContracts } from "./appWalletPolicy.mjs";
+export { DEVICE_SENSORS_VERSION, createBrowserDeviceSensors, createMockDeviceSensors } from "./deviceSensors";
+export type { BrowserDeviceSensorsOptions, MockDeviceSensorsOptions, DeviceSensorEnvironment, DeviceSensors } from "./deviceSensors";

@@ -38,6 +38,7 @@ Consult these for detail when the startup sequence doesn't answer a specific que
 
 - `docs/manifest.md` — manifest field rules, ABI policy, and locale validation
 - `docs/sdk.md` — full SDK hook surface, context fields, and taxinfo host context
+- `docs/device-sensors.md` — declared Runtime location/motion/orientation, user-triggered permissions, compatibility states and fallback
 - `docs/safety-boundaries.md` — blocking and allowed behavior reference
 - `docs/prd.md` — product scope, implemented acceptance criteria, and explicit non-goals
 - `docs/agent-entrypoints.md` — supported agents, entry points, and startup steps
