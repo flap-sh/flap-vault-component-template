@@ -11,6 +11,13 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
 
+## [0.1.40-next.3] - 2026-10-26
+
+### Fixed
+
+- Preserve optional `mapCapabilities` in both source-package marker and metadata, and verify their exact agreement with the manifest. This fixes Workbench rejection of otherwise valid street-map Apps while retaining legacy package compatibility.
+- Publish matching next-channel source provenance for the corrected packager/verifier and add developer sensor/map integration guidance. Runtime APIs, existing package formats and stable main/latest rules are unchanged.
+
 ## [0.1.40-next.2] - 2026-10-25
 
 ### Added

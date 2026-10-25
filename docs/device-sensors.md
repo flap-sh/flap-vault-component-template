@@ -2,7 +2,7 @@
 
 Location, motion and orientation are shared Runtime features for Vault UI and Mini Apps. Components use the SDK; hosts own browser access and permission handling. This additive feature requires `runtime-contract.json` to advertise `sdkFeatures.deviceSensors=1`; it is not included in the previously published stable `0.1.39` package.
 
-The explicit testing release `0.1.40-next.1` is published under npm `next`; stable `latest` remains `0.1.39`. See the [test release and publication evidence](releases/0.1.40-next.1.md). Use an exact prerelease pin in testing consumers and coordinate their schema/policy integration.
+The published `0.1.40-next.2` testing Runtime contains these APIs together with Mini App routing and the shared street map. The follow-up `0.1.40-next.3` is being prepared to align map source-package metadata and verification; do not describe it as published until its release is confirmed. Stable `latest` remains `0.1.39`. Testing consumers must use the same exact published version and matching schema/policy inputs. See the [next.2 publication evidence](releases/0.1.40-next.2.md) and the [developer integration guide](device-map-integration.zh-CN.md) for the coordinated follow-up and testing commands.
 
 ## Component integration
 
@@ -46,4 +46,4 @@ Workbench checks declaration/schema, records device access for review and reject
 
 ## Coordinated rollout
 
-Validate a commit-bound private canary in both hosts first. Deploy a published supporting Runtime on the main site and Workbench before accepting new device-dependent packages. Old artifacts continue to load unchanged. A host must check the feature before evaluating a new artifact that imports new device hooks; an old host cannot make an unknown hook work merely by showing a component-level fallback.
+Deploy the same published supporting Runtime and matching policy inputs on the testing main site and Workbench before accepting new device-dependent packages. A private canary remains an optional pre-publication consumer test and cannot be source-ZIP provenance. Explicit next source-package testing is limited to standalone Mini App v2 and retains official-next freshness, exact published version/gitHead, E2E and archive verification; ordinary `app:*` commands and legacy packages retain main/latest. See the [integration guide](device-map-integration.zh-CN.md). Old artifacts continue to load unchanged. A host must check the feature before evaluating a new artifact that imports new device hooks; an old host cannot make an unknown hook work merely by showing a component-level fallback.

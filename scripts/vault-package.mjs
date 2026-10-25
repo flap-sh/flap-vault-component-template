@@ -187,6 +187,7 @@ const packageMarker = {
   ...(manifest.mode ? { mode: manifest.mode } : {}),
   ...(manifest.capabilities ? { capabilities: manifest.capabilities } : {}),
   ...(manifest.deviceCapabilities ? { deviceCapabilities: manifest.deviceCapabilities } : {}),
+  ...(manifest.mapCapabilities ? { mapCapabilities: manifest.mapCapabilities } : {}),
   ...(manifest.surfaces ? { surfaces: manifest.surfaces } : {}),
   packagedAt,
   check: {
@@ -220,6 +221,7 @@ const metadata = {
   ...(manifest.mode ? { mode: manifest.mode } : {}),
   ...(manifest.capabilities ? { capabilities: manifest.capabilities } : {}),
   ...(manifest.deviceCapabilities ? { deviceCapabilities: manifest.deviceCapabilities } : {}),
+  ...(manifest.mapCapabilities ? { mapCapabilities: manifest.mapCapabilities } : {}),
   ...(manifest.surfaces ? { surfaces: manifest.surfaces } : {}),
   bindingKeys: (manifest.match?.bindings || []).flatMap(bindingKeysForEntry),
   packagedAt,

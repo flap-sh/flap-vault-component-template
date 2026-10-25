@@ -19,6 +19,7 @@ import {
 } from "./e2e-report-utils.mjs";
 import { capabilityFileExtensions, isThreeR3FArtifact, manifestCapabilityIds } from "./mini-app-capabilities.mjs";
 import { collectE2EReportErc20TokenIssues, collectManifestErc20TokenIssues } from "./erc20-token-validation.mjs";
+import { checkMapCapabilityManifest } from "./map-capability-policy.mjs";
 
 const PACKAGE_KIND = "flap-vault-ui-source-package";
 let PACKAGE_FORMAT_VERSION = 6;
@@ -408,6 +409,11 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
     }
 
     if (manifest) {
+      for (const [file, declaration] of [[manifestPath, manifest], [PACKAGE_MARKER_FILE, marker]]) {
+        for (const issue of checkMapCapabilityManifest(declaration).filter((item) => item.severity === "blocking")) {
+          issues.push(jsonIssue("package-verify/metadata-mismatch", issue.message, "Regenerate with yarn vault:package <folder-name> using a valid map declaration.", { file, field: "mapCapabilities" }));
+        }
+      }
       if (manifest.artifactId !== marker.artifactId) {
         issues.push(jsonIssue("package-verify/artifact-id-mismatch", "Package marker artifactId does not match manifest.json.", "Regenerate with yarn vault:package <folder-name> from the current source.", { file: "manifest.json" }));
       }
@@ -419,6 +425,9 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
       }
       if (JSON.stringify(marker.deviceCapabilities ?? null) !== JSON.stringify(manifest.deviceCapabilities ?? null)) {
         issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker deviceCapabilities do not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
+      }
+      if (JSON.stringify(marker.mapCapabilities ?? null) !== JSON.stringify(manifest.mapCapabilities ?? null)) {
+        issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker mapCapabilities do not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
       }
       if (JSON.stringify(marker.displayTitle ?? null) !== JSON.stringify(manifest.displayTitle ?? null)) {
         issues.push(jsonIssue("package-verify/metadata-mismatch", "Package marker displayTitle does not match manifest.json.", "Regenerate with yarn vault:package <folder-name>; metadata must not be hand-edited.", { file: PACKAGE_MARKER_FILE }));
@@ -459,6 +468,9 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
 
     if (entries.has(PACKAGE_METADATA_FILE)) {
       const metadata = readJsonEntry(entries, PACKAGE_METADATA_FILE);
+      for (const issue of checkMapCapabilityManifest(metadata).filter((item) => item.severity === "blocking")) {
+        issues.push(jsonIssue("package-verify/metadata-mismatch", issue.message, "Regenerate with yarn vault:package <folder-name> using a valid map declaration.", { file: PACKAGE_METADATA_FILE, field: "mapCapabilities" }));
+      }
       if (
         metadata.packageKind !== PACKAGE_KIND ||
         metadata.packageFormatVersion !== PACKAGE_FORMAT_VERSION ||
@@ -473,6 +485,7 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
         (metadata.mode ?? undefined) !== (marker.mode ?? undefined) ||
         JSON.stringify(metadata.capabilities ?? null) !== JSON.stringify(marker.capabilities ?? null) ||
         JSON.stringify(metadata.deviceCapabilities ?? null) !== JSON.stringify(marker.deviceCapabilities ?? null) ||
+        JSON.stringify(metadata.mapCapabilities ?? null) !== JSON.stringify(marker.mapCapabilities ?? null) ||
         JSON.stringify(metadata.displayTitle ?? null) !== JSON.stringify(marker.displayTitle ?? null) ||
         JSON.stringify(metadata.e2e) !== JSON.stringify(marker.e2e)
       ) {

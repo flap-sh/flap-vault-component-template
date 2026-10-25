@@ -1,6 +1,6 @@
 {
   "name": "flap-vault-ui-template",
-  "version": "0.1.40-next.2",
+  "version": "0.1.40-next.3",
   "private": true,
   "license": "MIT",
   "packageManager": "yarn@1.22.22",
@@ -70,7 +70,7 @@
     "test:preview-process": "node --test scripts/preview-process.test.mjs",
     "test:launch-config:browser": "node --test scripts/launch-config-e2e.browser.test.mjs",
     "test:device-capability-policy": "node --test scripts/device-capability-policy.test.mjs scripts/device-capability-checker.test.mjs",
-    "test:street-map": "node --experimental-strip-types --test src/ui/streetMapPolicy.test.mjs scripts/map-capability-policy.test.mjs scripts/street-map-assets.test.mjs"
+    "test:street-map": "node --experimental-strip-types --test src/ui/streetMapPolicy.test.mjs scripts/map-capability-policy.test.mjs scripts/street-map-assets.test.mjs scripts/map-source-package.test.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

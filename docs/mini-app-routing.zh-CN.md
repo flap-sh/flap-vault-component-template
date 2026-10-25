@@ -1,7 +1,9 @@
 # Mini App 子路由
 
-这是尚未纳入正式 Runtime 的增量候选能力。先使用绑定提交的私有 canary
-完成消费者验证，保留现有正式发布、模板新鲜度和源码 ZIP 来源校验。
+此增量能力已包含在 `0.1.40-next.2` 测试 Runtime 中，正式 `latest=0.1.39`
+尚不包含。正在准备后续 `0.1.40-next.3`，对齐地图源码包元数据及核验；须确认该版本
+发布并与接收宿主匹配后使用。正式发布、模板新鲜度和源码 ZIP 来源校验继续保留。
+测试步骤见[开发者接入说明](device-map-integration.zh-CN.md)。
 
 独立 Mini App v2 从 `@/src/sdk` 导入 `useMiniAppRouter()`，获得相对应用根目录的
 `pathname`、只解码一次的不可变 `segments`、保留重复参数的 `search`，以及
@@ -35,5 +37,7 @@ artifact 加载器、Provider 和应用组件必须放在变化子路由上方�
 push/replace、前进后退、状态保持、Next history 标记、语言参数及陈旧回调。
 Workbench 根据有效 SDK import 检查已安装 Runtime 是否支持路由；运行时在调用
 `useMiniAppRouter()` 时通过兼容层核对 SDK 路由版本和 export，hook 还要求宿主提供适配器。
-先部署两端匹配的宿主，再接受依赖路由的应用。正式源码 ZIP 仍须等待匹配 Runtime 发布并固定版本，私有 canary
-只用于消费者测试。完整 API 与接入细节见[英文文档](mini-app-routing.md)。
+先部署两端匹配的宿主，再接受依赖路由的应用。显式 next 源码包测试仅适用于独立 Mini App v2，
+并保留官方 next 新鲜度、精确已发布 npm 版本/gitHead、E2E 和 ZIP 核验。
+普通 `app:*` 继续使用 main/latest，测试时按[接入说明](device-map-integration.zh-CN.md)
+使用显式 next 命令。私有 canary 只用于消费者测试，不能充当来源。完整 API 与接入细节见[英文文档](mini-app-routing.md)。

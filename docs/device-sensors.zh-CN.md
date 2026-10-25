@@ -2,7 +2,7 @@
 
 Vault UI 和 Mini App 共用 Runtime 设备服务。组件只调用 SDK；浏览器权限和传感器访问由宿主负责。此增量功能要求 `runtime-contract.json` 中有 `sdkFeatures.deviceSensors=1`；此前发布的稳定版 `0.1.39` 不包含本功能。
 
-测试版 `0.1.40-next.1` 已发布到 npm `next`；正式 `latest` 仍为 `0.1.39`。测试宿主请固定安装该预发布版本，并同步对应 schema／policy；见[测试版与发布校验记录](releases/0.1.40-next.1.md)。
+已发布的 `0.1.40-next.2` 测试 Runtime 同时包含设备 API、Mini App 子路由和街道地图。为对齐地图源码包元数据及核验，正在准备后续 `0.1.40-next.3`；确认发布前不能将其视为已发布版本。正式 `latest` 仍为 `0.1.39`。测试宿主须固定同一已发布版本并同步 schema／policy。见[next.2 发布记录](releases/0.1.40-next.2.zh-CN.md)和[开发者接入说明](device-map-integration.zh-CN.md)，以后者的后续测试版本及命令为准。
 
 在 `manifest.json` 中只声明实际需要的能力：
 
@@ -26,4 +26,4 @@ Runtime 统一技术状态和生命周期；组件负责业务替代操作，例
 
 Workbench 校验声明、输出人工审查信息并检查 Runtime 特性。原生定位、权限、`DeviceMotionEvent`、`DeviceOrientationEvent`、Generic Sensor 构造器和直接运动事件监听继续禁止。同页运行的组件并未因此获得独立浏览器安全沙箱。
 
-先用同一份提交绑定的私有 canary 验证两个宿主，再发布和部署支持版本，最后接收依赖新接口的组件。旧组件无需重打包。宿主应在执行新组件之前检查特性，避免旧宿主加载未知 hook 时崩溃。
+先在主站测试环境和 Workbench 部署同一已发布 Runtime 及配套策略，再接收依赖新接口的组件。私有 canary 仍可用于发布前消费者测试，不能充当源码 ZIP 来源。显式 next 源码包测试只适用于独立 Mini App v2，仍须通过官方 next 新鲜度、精确 npm 版本/gitHead、E2E 和归档核验；普通 `app:*` 命令及旧类型源码包保留 main/latest。具体命令见[接入说明](device-map-integration.zh-CN.md)。旧组件无需重打包。宿主应在执行新组件之前检查特性，避免旧宿主加载未知 hook 时崩溃。

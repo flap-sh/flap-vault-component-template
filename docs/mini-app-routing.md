@@ -1,9 +1,12 @@
 # Mini App routing
 
-This additive Runtime candidate supports generic subroutes within an existing
-standalone Mini App v2. It is not part of the published stable runtime. Test a
-commit-bound private canary first; preserve the official publication, freshness
-and source-ZIP provenance gates.
+This additive Runtime feature supports generic subroutes within an existing
+standalone Mini App v2. It is included in the published `0.1.40-next.2` testing
+Runtime; stable `latest=0.1.39` does not include it. A coordinated follow-up
+`0.1.40-next.3` is being prepared for map source-package metadata and verification.
+Use that follow-up only after publication is confirmed, with matching receiving
+hosts. Preserve official publication, freshness and source-ZIP provenance gates.
+See the [developer integration guide](device-map-integration.zh-CN.md).
 
 ## Application API
 
@@ -81,5 +84,9 @@ its installed Runtime supports those imports. At runtime, invoking
 `useMiniAppRouter()` checks the SDK routing version/export through the
 compatibility shim, and the hook requires a host-provided adapter. Deploy both
 compatible receiving hosts before accepting new route-dependent packages.
-Release and pin the matching published Runtime before normal source ZIP
-packaging; a private canary is consumer-test input only.
+Pin the same published Runtime in both testing consumers. The explicit next
+source-package path is for standalone Mini App v2 only and retains official-next
+freshness, exact published version/gitHead, E2E and ZIP verification. Ordinary
+`app:*` remains main/latest; use the documented explicit next commands in the
+[integration guide](device-map-integration.zh-CN.md) for testing. A private canary
+is consumer-test input only, never package provenance.
