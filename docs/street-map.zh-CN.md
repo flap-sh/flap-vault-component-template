@@ -1,48 +1,102 @@
 # 共享街道地图
 
-现有 Vault UI 和独立小程序可从 `@/src/ui` 导入薄组件 `FlapStreetMap`。请使用已发布的 `0.1.40-next.3` 测试 Runtime 和修正的源码打包器，当前固定的正式 Runtime `0.1.39` 没有此导出；安装前请查看[发布状态](releases/0.1.40-next.3.zh-CN.md)和[开发者接入说明](device-map-integration.zh-CN.md)。两个接收宿主都必须先具备 `uiFeatures.streetMap=1` 和 `FlapStreetMap` 导出，才能接收依赖地图的新包。旧包保持兼容。
+`@/src/ui` 的 `FlapStreetMap` 将地图渲染统一交给共享 Runtime。已发布的 `0.1.40-next.3` 测试版提供基础街道地图和传感器；**本文新增的点位展示能力尚未发布，需要后续匹配的 next 测试版**。正式 `0.1.39` 没有地图导出，请勿认为安装 next.3 就具备下面的新接口。参见 [next.3 发布记录](releases/0.1.40-next.3.zh-CN.md)和[接入说明](device-map-integration.zh-CN.md)。
 
-在原 manifest 中合并可选声明：
+在原 manifest 合并 `"mapCapabilities": ["street-map-v1"]`。声明名称及既有源码包格式不变；它独立于 `deviceCapabilities` 和 3D `capabilities`，不开放原始 MapLibre、地图 URL／样式／Worker、网络、HTML 弹窗、存储或权限 API。既有 Vault UI、旧小程序和基础地图产物保持兼容；原 Vault 绑定、风险状态及业务操作仍须保留。
 
-```json
-{ "mapCapabilities": ["street-map-v1"] }
+[CATCH 完整示例](../examples/street-map/Component.tsx)、[英中韩翻译](../examples/street-map/i18n.json)和 [manifest 片段](../examples/street-map/manifest.fragment.json)展示全部新增能力，合并到已有合规源码目录即可。定位按钮另需 `deviceCapabilities:["location"]`。示例只含演示数据，不执行领取写入。
+
+## 点位字段与原数据适配
+
+原 `{id, lat, lng, title}` 和 `onSelectPoint(id)` 继续有效；新增字段全部可选：
+
+```ts
+interface FlapStreetMapPoint {
+  id: string;
+  lat: number;
+  lng: number;
+  title: string;
+  symbol?: string;
+  rarity?: "common" | "rare" | "epic" | "legendary";
+  place?: string;
+  city?: string;
+  amount?: string | number;
+  expiresAt?: number;
+  respawnAt?: number;
+  kind?: "store" | "event";
+}
 ```
 
-它独立于 3D 的 `capabilities` 和传感器的 `deviceCapabilities`，不会开放开发者直接导入 MapLibre、请求网络、创建 Worker、指定地图 URL 或使用浏览器权限 API。继续使用现有审核和 `component.mjs` 流程；没有新增沙箱、代理、服务、部署或存储能力。
+CATCH 原数据没有 `title` 时，用 `place` 或本地化兜底文案补齐。后端可空的 `expiresAt`／`respawnAt` 统一转成 `undefined`，不能传 `null`。两者均为 **Unix epoch 毫秒时间戳**，不是秒或剩余时长；确认后端字段为秒时，显式乘 `1000`。省略 `expiresAt` 表示没有期限，`0` 表示已过期；`respawnAt > now` 表示冷却中。已过期的点即使冷却结束也保持失效样式。这些时间和客户端时钟仅参与展示。`amount` 只作文本展示，不参与计算或领取授权；大数／高精度数量建议传字符串。
 
-把[完整示例](../examples/street-map/Component.tsx)复制到已有组件目录，合并[中英翻译](../examples/street-map/i18n.json)和 [manifest 片段](../examples/street-map/manifest.fragment.json)。可选的定位按钮另需 `deviceCapabilities:["location"]`。业务文案仍放入组件自己的 `i18n.json`，原 Runtime provider 提供声明和翻译。
+最多 2,000 个点；ID 必须非空、唯一且不超过 128 字符，必填 title 最多 256 字符。坐标须为有限数字，经度 ±180、纬度 ±85.051129。可选 symbol／place／city 分别最多 32／160／80 字符；可选文本不接受 ASCII 控制字符。amount 字符串最多 128 字符，数字须为非负有限值且不超过 `Number.MAX_SAFE_INTEGER`。时间戳须为 `0..8640000000000000` 内的安全整数。非法输入在加载引擎前进入 `unavailable/invalid-input`。
+
+## 展示属性
+
+| 属性 | 行为 |
+| --- | --- |
+| `points`、`center`、`zoom`、`userLocation` | 点位与视口；zoom 限制为 3–18。更新 userLocation 仅更新位置点和范围圈，不强制移动视口。 |
+| `rarityColors` | 可选的四级稀有度部分调色板；每项只接受六位十六进制颜色，如 `#22c55e`，不接受短 hex、CSS 色名、表达式或 URL。 |
+| `cityClusters` | 默认 `true`。zoom **≤7.2** 时，按去除首尾空格的 city 聚合普通门店，显示城市名与总点数；点击飞到城市中心、zoom 12。zoom >7.2 后改为单点。无城市门店继续显示；活动不参与城市计数。 |
+| `showPointLabels` | 默认 `true`。门店在 zoom **>10.5** 时显示 `symbol · place`；不足时依次回退 place、symbol、title。 |
+| `showEventCountdowns` | 默认 `true`。`kind:"event"` 走独立活动图层和标签，设置 expiresAt 时追加倒计时。单有 `rarity:"legendary"` 仍是普通门店，不会变成活动。 |
+| `claimRadiusMeters` | 以 userLocation 为圆心的展示范围，单位为**米**，有限数字 `0..100000`；省略或 0 不画圈，不能用作领取范围证明。 |
+| `selectedPointId`、`onSelectionChange` | 受控选中和完整原点位回调，清理时回调 `null`。不传 selectedPointId 使用内部状态；显式传 null 清空受控选择。 |
+| `renderPointDetails(point, context)` | 项目提供的本地化 React 详情内容，放入地图详情槽，不接受 HTML 字符串弹窗。 |
+| `showNavigation`、`showScale` | 两者默认均为 `false`，显式开启缩放／朝北按钮和米制比例尺。 |
+| `controlLabels` | 本地化 zoomIn、zoomOut、resetBearing、closeDetails，各为不超过 128 字符的非空文本；缺省为英文。 |
+| `onSelectPoint`、`onStateChange`、`fallback`、`className` | 保留原回调和列表降级，外容器最低 400px，不得隐藏／遮住署名。 |
+
+默认颜色：普通绿 `#22c55e`、稀有蓝 `#3b82f6`、史诗紫 `#a855f7`、传奇金 `#fbbf24`。冷却或过期点变灰并去掉光晕，选中点有描边。城市数量包括冷却／过期门店；业务需要排除时，先过滤传入数据。用户位置为呼吸点，遵守减少动态效果设置；地图自身不申请 GPS。
+
+## 选中与业务详情
 
 ```tsx
-import { FlapStreetMap, type FlapStreetMapPoint } from "@/src/ui";
+import { FlapStreetMap, STREET_MAP_PRESENTATION_V1 } from "@/src/ui";
 
-const points: FlapStreetMapPoint[] = [
-  { id: "shop-1", lat: 31.2304, lng: 121.4737, title: t("map.shop") },
-];
+// selected 是 string | null；points 和 renderDetails 来自项目业务。
 <FlapStreetMap
   points={points}
-  center={{ lat: 31.2304, lng: 121.4737 }}
-  zoom={12}
-  userLocation={userLocation}
-  onSelectPoint={selectShop}
-  onStateChange={setMapState}
-  fallback={shopList}
+  selectedPointId={selected}
+  onSelectionChange={point => setSelected(point?.id ?? null)}
+  renderPointDetails={renderDetails}
+  claimRadiusMeters={200}
+  showNavigation
+  showScale
 />;
 ```
 
-`points` 最多 2,000 条，ID 非空、唯一且不超过 128 字符，标题最多 256 字符；可选稀有度为 `common|rare|epic|legendary`。经度必须是 ±180 内的有限数字，纬度为 ±85.051129。非法输入直接进入 `unavailable/invalid-input`，不加载地图引擎。缩放限制为 3–18。传入 `center` 可控制视口；更新 `userLocation` 只更新定位点，不强制移动视口。默认列表将标题作为 React 文本渲染，没有 HTML 弹窗接口。`className` 可调整外容器，不能隐藏或覆盖地图署名。
+增强产物使用不可变的 `STREET_MAP_PRESENTATION_V1` UI 导出作为能力 sentinel，完整示例展示了实际引用。受控模式必须接收点位及 `null` 回调并更新父状态；当前点从 points 删除时地图会请求清空，切换业务视图或离开页面时也应清理选中。详情槽接收原始点位（包括 amount），以及：
 
-状态为 `{status:"loading"|"ready"|"unavailable", reason?}`；不可用原因包括 `not-declared`、`invalid-input`、`unsupported`、`load-failed`、`timeout`、`context-lost`。请提供本地化的门店列表或手动选择降级，保证没有地图时仍可操作业务。默认降级是点位标题按钮列表。WebGL2/Worker 不兼容、资源错误、上下文丢失或启动超过 15 秒都会释放地图并显示降级。需要重试时有意重新挂载。卸载及 React StrictMode 重播会清理资源；点位、定位点和回调更新使用最新 props。MapLibre 6.15 会在页面内保留共享 Worker 池用于后续地图，这里上限为两个 Worker，可能保留到页面关闭；地图卸载会释放 canvas、地图订阅和 ResizeObserver，不强拆其缓存的全局 dispatcher，也不修改官方内部实现。`map.remove()` 清理地图实例，不承诺 CPU/GPU 硬隔离。地图挂载不会自动申请定位或采集位置。
+| context 字段 | 含义 |
+| --- | --- |
+| `nowMs` | 当前展示时钟，epoch 毫秒。 |
+| `coolingDown`、`expired` | 冷却和过期状态；可能同时为 true。 |
+| `cooldownRemainingMs` | 距 respawnAt 的非负毫秒；省略或已结束为 0。 |
+| `eventRemainingMs` | 距 expiresAt 的非负毫秒；省略为 null，普通门店也可使用。 |
+| `distanceMeters` | 用户位置到点位的大圆距离估算，缺少位置时为 null。 |
+| `claimRadiusMeters` | 传入的展示半径，省略为 null。 |
+| `withinDisplayRadius` | 只比较几何距离与半径；没有位置／半径时为 null。 |
+| `close()` | 清除内部选中，或调用受控的 onSelectionChange(null)。 |
 
-定位继续使用原 `useGeolocation()`，在明确的用户点击中直接调用 `request()`。仅在 `status === "active"` 且有真实数据时传坐标，检查精度和时间，并区分估算位置、模拟数据。拒绝权限或定位失败时仍可使用列表；地图自身不会申请或推断定位。
+完整示例展示代币、稀有度、数量、地点、城市、坐标、距离、范围估算、冷却、过期、活动倒计时和时钟。CATCH 的完整领取资格、库存等业务状态可从 `renderPointDetails` 的项目闭包读取。**客户端定位、距离、范围及时间不能授予领取资格或执行领取次数限制。** 真实资格、数量和写入继续走现有合约／可信服务；地图不提供持久领取记录或设备身份。
 
-## 宿主静态资源与包校验
+## 权限与降级
 
-Runtime 按需打包精确的 `maplibre-gl@6.15.0`，不从 CDN 加载脚本。包内提供官方未经修改的 `runtime-map/maplibre-6.15.0-worker.mjs` 和 `runtime-map/LICENSE.maplibre.txt`。宿主复制到 `public/runtime-map/`，以同源固定路径 `/runtime-map/maplibre-6.15.0-worker.mjs` 提供 Worker，不能重定向到 HTML 或其他版本。Worker SHA256：
+定位使用 `useGeolocation()`，在明确的用户点击中直接调用 request。仅在 active 且有数据时传坐标，同时检查精度／采样时间，并标明 `mode:"mock"`。拒绝权限时保留列表；用户要求定位到当前位置时再显式更新 center。持续跟踪需要显式 watch 请求与停止控制，详见[设备服务](device-sensors.zh-CN.md)。
 
-```
+地图状态为 `{status:"loading"|"ready"|"unavailable", reason?}`；原因包括 not-declared、invalid-input、unsupported、load-failed、timeout、context-lost。应提供本地化的门店列表／手动操作降级；默认是按 title 选择点位的按钮列表，自定义列表可更新受控选择，地图失败后仍能使用同一详情槽。WebGL2／Worker 不兼容、资源失败、上下文丢失或 15 秒启动超时会释放地图并降级，需要重试时有意重新挂载。点位、定位及回调使用最新 props；倒计时在后台暂停，卸载时清理。
+
+## 宿主资源与能力校验
+
+基础地图需要两个接收宿主均提供 `uiFeatures.streetMap=1` 和 FlapStreetMap 导出；增强产物另需 **`uiFeatures.streetMapPresentation=1` 与 `STREET_MAP_PRESENTATION_V1=1`**。Workbench 记录真实 required UI export，旧宿主会在导入前拒绝不支持的增强产物。不要手改 marker 或 metadata；接收端须先部署匹配 Runtime／checker，npm 发布不等于宿主已升级。`street-map-v1` 声明和既有源码包格式不变。
+
+Runtime 按需打包精确的 `maplibre-gl@6.15.0`，不用 CDN 引擎。将包内官方未修改的 Worker 和许可证复制到宿主 `public/runtime-map/`；固定同源路径 `/runtime-map/maplibre-6.15.0-worker.mjs` 必须返回 JavaScript，不能跳转到 HTML 或其他版本。SHA256：
+
+```text
 1c69066368331aae63967ed24a9affcf962cf55fcc6d8f532a8b040f736dbcfa
 ```
 
-`runtime-contract.json` 记录能力与 Worker 身份；构建和包验证检查字节、UI 导出及包内资源。Node 导入 UI 时不执行浏览器地图引擎。组件仅注入最小作用域 CSS；禁用远端署名 HTML，改为固定的 OpenFreeMap/OpenMapTiles/OpenStreetMap 安全链接。
+构建与验证检查 contract、字节、UI 导出及 tarball 资源；Node 导入 UI 时不执行浏览器地图引擎。卸载会清理 map 的 canvas、订阅、ResizeObserver 和时钟；MapLibre 仍保留页面级共享池用于后续地图，这里上限两个 Worker，不承诺 CPU／GPU 硬隔离。
 
-地图直接请求固定 OpenFreeMap HTTPS 服务，逐一检查样式、TileJSON、矢量/栅格瓦片、字体与 sprite；在 MapLibre 相应加载路径支持的范围内传 `credentials:"omit"` 和 `referrerPolicy:"no-referrer"`。开发者不能传入 URL。这是受限地图适配器，不是浏览器网络隔离：重定向和第三方服务变化仍受浏览器及提供方控制。对方可以看到客户端 IP 与地图视口，没有可用性保证。提供方路径改变会关闭地图并降级，可能需要审核后的 Runtime 更新。请在实际支持的手机与钱包 WebView 上验证；桌面浏览器通过不等于真机兼容。
+仅接受固定 OpenFreeMap 深色样式、TileJSON、瓦片、字体与 sprite；在引擎相应加载路径支持的范围内使用 `credentials:"omit"`／`referrerPolicy:"no-referrer"`。保留固定署名。服务方可看到客户端 IP 与地图区域；重定向和服务变化仍受浏览器／提供方控制，没有可用性保证，非预期资源路径关闭地图并降级。本次增强不扩大资源策略。仍须在目标手机和钱包 WebView 实测，桌面检查不能证明硬件兼容。

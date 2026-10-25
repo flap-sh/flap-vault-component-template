@@ -194,7 +194,7 @@ async function main() {
   if ("VaultRuntimeProvider" in sdkModule || typeof hostModule.VaultRuntimeProvider !== "function") throw new Error("Provider must be host-only.");
 
   await verifyStreetMapWorker(path.join(packageDir, STREET_MAP_ASSET_CONTRACT.workerPath));
-  if (typeof uiModule.FlapStreetMap !== "function" || runtimeContract.uiFeatures?.streetMap !== 1 || JSON.stringify(runtimeContract.streetMap) !== JSON.stringify(STREET_MAP_ASSET_CONTRACT)) throw new Error("Street map export, capability or fixed Worker integrity mismatch.");
+  if (typeof uiModule.FlapStreetMap !== "function" || runtimeContract.uiFeatures?.streetMap !== 1 || uiModule.STREET_MAP_PRESENTATION_V1 !== 1 || runtimeContract.uiFeatures?.streetMapPresentation !== 1 || JSON.stringify(runtimeContract.streetMap) !== JSON.stringify(STREET_MAP_ASSET_CONTRACT)) throw new Error("Street map export, presentation capability or fixed Worker integrity mismatch.");
 
   if (typeof uiModule.CopyButton !== "function" || runtimeContract.uiFeatures?.copyButton !== 1) {
     throw new Error("The shared runtime must export CopyButton and declare uiFeatures.copyButton version 1.");

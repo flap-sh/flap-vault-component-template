@@ -55,6 +55,12 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ## [Unreleased]
 
+### Street map presentation (not published)
+
+- Extend the existing `street-map-v1` component with optional CATCH-style point fields, rarity colors, cooldown/expiry states, named-city bubbles, store labels, independent event countdowns, selection, React details, a pulsing user marker and a meter-based range circle. Navigation and metric scale remain opt-in.
+- Advertise `uiFeatures.streetMapPresentation=1` and immutable `STREET_MAP_PRESENTATION_V1=1` for receiving-host checks before importing enhanced artifacts. Existing point callbacks, Vault UI, basic maps and source-package formats remain compatible.
+- Keep fixed MapLibre 6.15.0/OpenFreeMap resources and the exact Worker unchanged. Client location, distance, radius and time remain display estimates; claim authorization and persistent records remain application responsibilities. These enhancements are not included in the published `0.1.40-next.3` package.
+
 ### Security
 
 - Hardened `vault:check` against obfuscation bypasses of the line-regex layer with a new AST-based, constant-folding security pass. It now blocks: hardcoded addresses and external URLs assembled from `+`/`` `${}` ``/`Array.join`/`String.fromCharCode` fragments; aliased and indirect `eval` (`const e = eval`, `(0, eval)`); string-variable `setTimeout`/`setInterval` callbacks; computed `["constructor"]` and `Reflect.construct`/`Reflect.apply` escapes; `Reflect`/comma-operator indirect `fetch`; `React.createElement("iframe"/"script")` including concatenated tags; computed `["innerHTML"]`/`["outerHTML"]`/`["insertAdjacentHTML"]` writes; bare injected-provider identifiers (`ethereum`, `BinanceChain`, `tronWeb`, …) and dynamic-method wallet RPC; and typed browser-global aliasing (`const g: any = window`).
