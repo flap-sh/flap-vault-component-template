@@ -22,8 +22,9 @@ The folder/artifact ID convention is retained for source tooling compatibility. 
 
 Standalone Apps can use host-owned generic subroutes such as
 `/apps/{slug}/bnb/{ca}`, `/apps/{slug}/orders/{id}` or `/apps/{slug}/settings`.
-This is an unpublished additive Runtime candidate: use private canaries for
-consumer testing until a coordinated Runtime release and host deployment.
+This is the unpublished routing-only stable `0.1.40` candidate: use private
+canaries for consumer testing until the coordinated Runtime release and host
+deployment. The separate sensor `next` release is unchanged.
 See [Mini App routing](mini-app-routing.md) ([中文](mini-app-routing.zh-CN.md))
 for the SDK, persistent preview and compatibility requirements. Routes remain
 separate from manifest bindings and grant no new contract permissions.

@@ -13,6 +13,8 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
+Upcoming `0.1.40` contains Mini App routing only and is **not yet published**. Stable `latest` remains `0.1.39`; the sensor testing release `next=0.1.40-next.1` stays independent. Prepare and test the release branch with private canaries, then wait for usable maintainer npm authentication before the official-main merge and publishable build. See [the pending guide](releases/0.1.40.md) ([中文](releases/0.1.40.zh-CN.md)).
+
 `0.1.39` is published on npm `latest`, source `78c355f080a60770cfd64d71d94c525204d61583`, adding the second reviewed FSI endpoint. Follow [the 0.1.39 release guide](releases/0.1.39.md) ([简体中文](releases/0.1.39.zh-CN.md)) for verified archive identity and matching host/checker rollout. The historical `0.1.38` release record remains below.
 
 The historical `0.1.38` main/latest release and host rollout are documented in

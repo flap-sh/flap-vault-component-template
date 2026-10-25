@@ -4,7 +4,7 @@
 
 Vault UI 与 Mini App v2 已统一在官方 `main` 维护，共用一套模板、一个 `@flapsdk/vault-runtime`、公共 UI 和宿主钱包。Vault UI 使用 `vault:*`，独立 v2 App 使用 `app:*`；manifest、身份、权限、上下文和打包证明仍各自独立。
 
-## 当前状态（2026-10-23 核对）
+## 当前状态（2026-10-25 核对）
 
 | 项目 | 状态 |
 | --- | --- |
@@ -12,10 +12,14 @@ Vault UI 与 Mini App v2 已统一在官方 `main` 维护，共用一套模板�
 | 源码分支 | Vault UI 与 Mini App v2 都使用 `main` |
 | App 命令 / 发布元数据 / CI | 已实现 main/latest，接受包括 `0.1.39` 在内的正式版本 |
 | 正式版 | **`0.1.39`**，已发布到 npm latest |
+| 下一正式候选 | **`0.1.40`**，仅 Mini App 子路由；尚未发布，准备期间官方 main 保持不变 |
 | 已发布 npm `latest` | `0.1.39`，来源 `78c355f080a60770cfd64d71d94c525204d61583` |
-| 历史 npm `next` | `0.1.40-next.0`，已弃用；使用 latest |
+| 当前 npm `next` | `0.1.40-next.1`，独立设备传感器测试版；本次子路由发布不修改该通道 |
+| 历史 npm `next` | 截至 `0.1.40-next.0` 的八个历史版本已弃用，保留下载 |
 | App ZIP 工具 | 使用已发布 `0.1.39` 身份并重新生成证明；保留历史 `0.1.38` 检查、打包与验证记录 |
 | 历史 next 版本 | 全部八个已标记弃用，保留下载 |
+
+独立 `0.1.40` 发布分支仅增加宿主管理的通用 App 子路由，不包含传感器改动。发布仍等待维护者可用的 npm 身份、官方 main 审核合并及核验后的正式构建。不可发布私有 canary，也不可用本地版本号变更替代源码 ZIP 来源。见[待发布准备说明](releases/0.1.40.zh-CN.md)。
 
 源码合并或修改版本号不会发布 npm、移动 dist-tag、升级已部署宿主或批准 App 上线。正式 `0.1.38` 源码包含共用 App 钱包、动态 IPFS/FSI、长文本 CopyButton 及合并后的构建、依赖更新；其 runtime 输入不同于旧发布版本，不能沿用旧正式版或 next 的 ZIP 证明。
 
@@ -42,7 +46,7 @@ yarn dev
 | `runtime:package` | 干净且已提交的官方 main / latest，生成的 publishConfig 显式使用 latest |
 | `runtime:package:next` | 仅在明确授权预览发布时使用官方 `origin/next` / next |
 
-使用 fork 的维护者设置 `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`，upstream 必须指向官方 Flap 仓库。App 命令拒绝预览或本地引用及 fork 远端。主 CI 与 App 验证工作流使用 latest；App 工作流运行在官方 main。通道各自检查自己的 npm tag，`next=0.1.40-next.0` 不影响正式 `0.1.39`。
+使用 fork 的维护者设置 `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`，upstream 必须指向官方 Flap 仓库。App 命令拒绝预览或本地引用及 fork 远端。主 CI 与 App 验证工作流使用 latest；App 工作流运行在官方 main。通道各自检查自己的 npm tag，`next=0.1.40-next.1` 不影响正式 `0.1.39`。
 
 在官方 main 上，npm 发布前可以运行 App 检查、本地游客/已连接 E2E 和构建。App 源码 ZIP 与普通本地验证要求**精确匹配已发布 latest 版本、真实 gitHead 祖先关系及 runtime、依赖、构建、协议输入**。官方纯文档或开发工具提交可以更新并保留原身份；本地 SDK/工具改动、私有 canary 和伪造证明均不能替代发布。
 

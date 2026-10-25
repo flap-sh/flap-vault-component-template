@@ -1,7 +1,9 @@
 # Mini App 子路由
 
-这是尚未纳入正式 Runtime 的增量候选能力。先使用绑定提交的私有 canary
-完成消费者验证，保留现有正式发布、模板新鲜度和源码 ZIP 来源校验。
+这是待发布正式版 `0.1.40` 的独立子路由能力，尚未公开发布。npm `latest` 仍为
+`0.1.39`，`next=0.1.40-next.1` 保留独立传感器测试范围。先使用绑定提交的私有
+canary 完成消费者验证，保留现有正式发布、模板新鲜度和源码 ZIP 来源校验。
+见[待发布说明](releases/0.1.40.zh-CN.md)。
 
 独立 Mini App v2 从 `@/src/sdk` 导入 `useMiniAppRouter()`，获得相对应用根目录的
 `pathname`、只解码一次的不可变 `segments`、保留重复参数的 `search`，以及

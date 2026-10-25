@@ -4,6 +4,8 @@ New development supports **Vault UI and Mini App v2 only**. **Mini App v1 is dep
 
 ## Main integration and Mini App v2 releases
 
+Upcoming stable **`0.1.40`** is prepared for **Mini App routing only** and remains unpublished. npm `latest` is still `0.1.39`; the independent sensor testing channel remains `next=0.1.40-next.1`. Do not merge or publish this candidate until maintainer npm authentication is available. Existing publication/provenance requirements remain unchanged. See [pending release status](docs/releases/0.1.40.md).
+
 `0.1.39` adds `https://fsi.taxed.fun/fsi/v1` while preserving the legacy endpoint. The stable package is published; receiving hosts must still deploy matching runtime/checker policies. See [0.1.39 release and upgrade notes](docs/releases/0.1.39.md).
 
 Vault UI and Mini App v2 now share official `main` and npm `latest`, with published stable runtime version **`0.1.39`**. `app:*` accepts stable versions and uses the official main reference; `vault:*` retains Vault UI and existing v1 maintenance. App ZIPs require the exact published latest version/gitHead and unchanged runtime/build/protocol inputs; docs/authoring-only descendants are allowed, local SDK/tool edits and private canaries are not. **npm `0.1.39` is published on latest**, with source `78c355f080a60770cfd64d71d94c525204d61583`; it adds the second reviewed FSI endpoint. All eight historical next versions are deprecated, with downloads retained. Hosts and Workbench still need the exact stable runtime and matching validation inputs before accepting new submissions. Explicit `runtime:package:next` remains isolated on the next channel. See [release status](docs/main-migration.md).
