@@ -3,6 +3,7 @@ import { checkResolvedContractDeclarations, checkResolvedContractSource, collect
 import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import { checkDeviceCapabilityManifest, collectDeviceCapabilityIssues } from "./device-capability-policy.mjs";
+import { collectMiniAppRoutingIssues } from "./mini-app-routing-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -4538,6 +4539,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       issues.push(issue(BLOCKING, "contract-abi/number-bigint", "Avoid Number(...) for token amounts used in transaction logic.", { file: rel }));
     }
     issues.push(...checkStandaloneWalletSource(content, rel, manifest));
+    issues.push(...collectMiniAppRoutingIssues(content, rel, manifest));
     issues.push(...collectContractInteractionIssues(content, rel, contractPolicy));
     const i18nCallRegex = /(?:^|[^\w.])(?:t|i18n\.t)\(\s*["'`]([^"'`]+)["'`]/g;
     for (const match of scanContent.matchAll(i18nCallRegex)) {
