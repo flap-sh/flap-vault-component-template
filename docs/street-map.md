@@ -1,6 +1,6 @@
 # Shared street map
 
-`FlapStreetMap` from `@/src/ui` is a small, fixed street-map surface for existing Vault UI and Mini Apps. It is published in the `0.1.40-next.2` testing Runtime; the pinned stable Runtime `0.1.39` does not provide it. See [release status](releases/0.1.40-next.2.md) before installing. Both receiving hosts must advertise `uiFeatures.streetMap=1` and the `FlapStreetMap` UI export before accepting map-dependent packages. Existing packages remain compatible.
+`FlapStreetMap` from `@/src/ui` is a small, fixed street-map surface for existing Vault UI and Mini Apps. Use the published `0.1.40-next.3` testing Runtime and corrected source packager; the pinned stable Runtime `0.1.39` does not provide it. See [release status](releases/0.1.40-next.3.md) and the [developer integration guide](device-map-integration.zh-CN.md) before installing. Both receiving hosts must advertise `uiFeatures.streetMap=1` and the `FlapStreetMap` UI export before accepting map-dependent packages. Existing packages remain compatible.
 
 Merge this optional declaration into the existing manifest:
 

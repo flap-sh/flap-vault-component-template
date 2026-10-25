@@ -1,11 +1,10 @@
 # Mini App routing
 
 This additive Runtime feature supports generic subroutes within an existing
-standalone Mini App v2. It is included in the published `0.1.40-next.2` testing
-Runtime; stable `latest=0.1.39` does not include it. A coordinated follow-up
-`0.1.40-next.3` is being prepared for map source-package metadata and verification.
-Use that follow-up only after publication is confirmed, with matching receiving
-hosts. Preserve official publication, freshness and source-ZIP provenance gates.
+standalone Mini App v2. It is included in the published `0.1.40-next.3` testing
+Runtime, which also fixes map source-package metadata and verification; stable
+`latest=0.1.39` does not include it. Use matching receiving hosts and preserve
+official publication, freshness and source-ZIP provenance gates.
 See the [developer integration guide](device-map-integration.zh-CN.md).
 
 ## Application API

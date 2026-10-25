@@ -2,7 +2,7 @@
 
 Vault UI 和 Mini App 共用 Runtime 设备服务。组件只调用 SDK；浏览器权限和传感器访问由宿主负责。此增量功能要求 `runtime-contract.json` 中有 `sdkFeatures.deviceSensors=1`；此前发布的稳定版 `0.1.39` 不包含本功能。
 
-已发布的 `0.1.40-next.2` 测试 Runtime 同时包含设备 API、Mini App 子路由和街道地图。为对齐地图源码包元数据及核验，正在准备后续 `0.1.40-next.3`；确认发布前不能将其视为已发布版本。正式 `latest` 仍为 `0.1.39`。测试宿主须固定同一已发布版本并同步 schema／policy。见[next.2 发布记录](releases/0.1.40-next.2.zh-CN.md)和[开发者接入说明](device-map-integration.zh-CN.md)，以后者的后续测试版本及命令为准。
+已发布的 `0.1.40-next.3` 测试 Runtime 包含设备 API、Mini App 子路由、街道地图，以及修正后的地图源码包元数据和核验。正式 `latest` 仍为 `0.1.39`。测试宿主须固定同一已发布版本并同步 schema／policy。见[发布记录](releases/0.1.40-next.3.zh-CN.md)和[开发者接入说明](device-map-integration.zh-CN.md)，其中包含准确测试命令和部署前提。
 
 在 `manifest.json` 中只声明实际需要的能力：
 

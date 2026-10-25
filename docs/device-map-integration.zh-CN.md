@@ -4,7 +4,7 @@
 
 ## 测试版本与接入范围
 
-正在准备 `@flapsdk/vault-runtime@0.1.40-next.3`，用于本次三端联调。**须先确认 next.3 已发布，主站测试环境和 Workbench 已安装同一版本及配套校验输入，再进行上传测试。** `next.2` 已发布且包含设备／路由／地图 API，但模板遗漏地图源码包元数据，不能将它作为本次地图 ZIP 接入的最终版本。正式 `latest` 保持 `0.1.39`。
+`@flapsdk/vault-runtime@0.1.40-next.3` 已发布到 npm `next`，源码提交为 `4bf5f3bb111993cdb9167ba18e9ec225b351c79f`，用于本次三端联调。主站和 Workbench 的 `feat/device-sensors` 分支已固定同一版本及配套校验输入。**实际上传前仍须部署这两个测试分支，并确认测试环境运行相同版本；本次没有部署主站或 Workbench。** `next.2` 的地图源码包元数据遗漏已在本版修正，请使用 `next.3`。正式 `latest` 保持 `0.1.39`。见[发布记录](releases/0.1.40-next.3.zh-CN.md)。
 
 | 功能 | 开发者使用方式 | 声明 |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ yarn dev --port 3047
 
 预览可以先验证布局、门店选择和失败降级。手机真实传感器测试必须使用 HTTPS 测试站点；手机打开 `http://电脑局域网IP:3047` 不满足安全环境要求。实际上传使用的 Workbench 与实际运行的主站也必须部署本次测试分支，安装 npm 包不会自动完成部署。
 
-宿主工程在确认 next.3 发布后精确安装：
+宿主工程精确安装：
 
 ```sh
 yarn add --exact @flapsdk/vault-runtime@0.1.40-next.3
@@ -166,7 +166,7 @@ GPS 数据字段为 `latitude`／`longitude`，传给地图时要转换成 `lat`
 ```sh
 mkdir -p public/runtime-map
 cp node_modules/@flapsdk/vault-runtime/runtime-map/maplibre-6.15.0-worker.mjs public/runtime-map/
-cp node_modules/@flapsdk/vault-runtime/runtime-map/LICENSE.maplibre.txt public/runtime-map/
+cp node_modules/@flapsdk/vault-runtime/runtime-map/LICENSE.maplibre.txt public/runtime-map/maplibre-6.15.0-LICENSE.txt
 ```
 
 Worker 必须在同源固定路径 `/runtime-map/maplibre-6.15.0-worker.mjs` 返回 JavaScript，不能返回 HTML、重定向或其他版本。Worker SHA-256 为：
@@ -210,3 +210,9 @@ FLAP_TEMPLATE_CHANNEL=next FLAP_TEMPLATE_FRESHNESS_REF=origin/next yarn vault:ve
 | freshness／runtime provenance 失败 | 按 JSON 的 code／fixHint 更新官方分支和精确版本，不编辑归档元数据 |
 
 详细 API：[设备服务](device-sensors.zh-CN.md)、[街道地图](street-map.zh-CN.md)、[子路由](mini-app-routing.zh-CN.md)。
+
+## 本说明的验证记录
+
+2026-10-26，按上面的完整示例创建独立 `store-map-probe` 测试 App，检查无 blocking；PC／iPad／H5 × guest／connected 六项真实模板 E2E 全部通过，街道底图、点位、署名和门店列表可见。使用普通 next 通道命令生成并核验 format 7 源码 ZIP，再经 Workbench 原有 `createJobFromZip` → `buildArtifact` 本地流程通过，产物保留 `mapCapabilities:["street-map-v1"]`、真实 `requiredUiExports` 和 next.3 来源。设备与地图声明各产生一项预期人工审查提示，不会自动批准应用。
+
+这份验证使用桌面浏览器模拟设备尺寸与测试 session，不代表已通过手机硬件、真实钱包或实际领取业务验证；也没有部署环境或发布应用。
