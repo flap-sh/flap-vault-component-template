@@ -1,10 +1,10 @@
 # 共享街道地图
 
-`@/src/ui` 的 `FlapStreetMap` 将地图渲染统一交给共享 Runtime。本文面向 **`0.1.40-next.4` 测试发布候选版**，在既有地图和传感器上新增下面的点位展示接口。**公开发布核验尚未完成，安装或提交新源码包前须确认 [next.4 发布记录](releases/0.1.40-next.4.zh-CN.md)。** 已发布的 next.3 仅有基础地图；正式 `0.1.39` 没有地图导出。参见[开发者接入说明](device-map-integration.zh-CN.md)。
+`@/src/ui` 的 `FlapStreetMap` 将地图渲染统一交给共享 Runtime。已发布的 **`0.1.40-next.4` 测试版**在既有地图和传感器上新增下面的点位展示接口，公开注册表身份及归档字节已核验，见 [next.4 发布记录](releases/0.1.40-next.4.zh-CN.md)。接入时固定精确版本，提交新源码包前确认接收端已配套升级。 已发布的 next.3 仅有基础地图；正式 `0.1.39` 没有地图导出。参见[开发者接入说明](device-map-integration.zh-CN.md)。
 
 在原 manifest 合并 `"mapCapabilities": ["street-map-v1"]`。声明名称及既有源码包格式不变；它独立于 `deviceCapabilities` 和 3D `capabilities`，不开放原始 MapLibre、地图 URL／样式／Worker、网络、HTML 弹窗、存储或权限 API。既有 Vault UI、旧小程序和基础地图产物保持兼容；原 Vault 绑定、风险状态及业务操作仍须保留。
 
-[CATCH 完整示例](../examples/street-map/Component.tsx)、[英中韩翻译](../examples/street-map/i18n.json)和 [manifest 片段](../examples/street-map/manifest.fragment.json)展示全部新增能力，合并到已有合规源码目录即可。定位按钮另需 `deviceCapabilities:["location"]`。示例只含演示数据，不执行领取写入。
+[CATCH 完整示例](examples/street-map/Component.tsx)、[英中韩翻译](examples/street-map/i18n.json)和 [manifest 片段](examples/street-map/manifest.fragment.json)展示全部新增能力，合并到已有合规源码目录即可。定位按钮另需 `deviceCapabilities:["location"]`。示例只含演示数据，不执行领取写入。
 
 ## 点位字段与原数据适配
 

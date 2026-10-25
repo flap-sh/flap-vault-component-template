@@ -1,10 +1,10 @@
 # GPS、运动感应与街道地图接入说明
 
-设备权限、兼容检测、浏览器采集和地图引擎由共享 Runtime 处理；项目声明能力，调用 SDK，传入业务数据并实现降级。本文可交给 CATCH 开发者，完整可复制示例位于 [examples/street-map](../examples/street-map/Component.tsx)。
+设备权限、兼容检测、浏览器采集和地图引擎由共享 Runtime 处理；项目声明能力，调用 SDK，传入业务数据并实现降级。本文可交给 CATCH 开发者，完整可复制示例位于 [docs/examples/street-map](examples/street-map/Component.tsx)。
 
 ## 版本与接入范围
 
-本文面向 **`@flapsdk/vault-runtime@0.1.40-next.4` 测试发布候选版**，包含 GPS／运动／方向、Mini App 子路由和本次 CATCH 地图展示增强：稀有度、冷却、城市聚合、文字、详情槽、独立活动点、呼吸定位和米制范围圈。**公开发布核验尚未完成，开始接入前须确认 [next.4 发布记录](releases/0.1.40-next.4.zh-CN.md)中的精确版本及来源。** 只使用 npm `next` 测试通道，不发布正式版本。
+**`@flapsdk/vault-runtime@0.1.40-next.4` 已发布到 npm `next`，公开包核验通过**，包含 GPS／运动／方向、Mini App 子路由和本次 CATCH 地图展示增强：稀有度、冷却、城市聚合、文字、详情槽、独立活动点、呼吸定位和米制范围圈。精确源码 gitHead 为 `3e677efb7f81d50575c5ae9ddd773d4c87a79f54`，归档和完整发布身份见 [next.4 发布记录](releases/0.1.40-next.4.zh-CN.md)。本次只发测试包，正式 latest 仍为 `0.1.39`。
 
 已发布的 next.3 仅提供基础地图与传感器，源码为 `4bf5f3bb111993cdb9167ba18e9ec225b351c79f`，并修正 next.2 的地图源码包元数据遗漏，见 [next.3 历史记录](releases/0.1.40-next.3.zh-CN.md)。不可用 next.3 测试本次增强；需让官方 next 模板、精确 next.4 Runtime、主站与 Workbench 配套就绪，再重新完成 E2E／打包／接收验证。npm 发布和分支推送不等于环境已部署或应用已发布。
 
@@ -20,7 +20,7 @@
 
 ## 开发环境与声明
 
-使用 Node.js 24 和 Yarn 1.22.22（最低 Node.js 22）。公开发布核验通过后，从官方 `next` 获取匹配 `0.1.40-next.4` 的模板，不要只修改版本号冒充来源：
+使用 Node.js 24 和 Yarn 1.22.22（最低 Node.js 22）。从官方 `next` 获取匹配已发布 `0.1.40-next.4` 的模板，不要只修改版本号冒充来源：
 
 ```sh
 git clone --branch next https://github.com/flap-sh/flap-vault-component-template.git
@@ -32,7 +32,7 @@ yarn dev --port 3047
 
 预览地址为 `http://localhost:3047/store-map`。模板已有 SDK 和 `@/src/sdk`、`@/src/ui` 别名，不要安装另一份 SDK／MapLibre 到组件目录。已有项目保留业务源码、身份和注册信息，按模板新鲜度提示更新。手机传感器测试使用 HTTPS；手机访问电脑局域网 HTTP 地址不满足安全环境要求。
 
-维护主站／Workbench 的宿主工程在公开核验后安装精确测试版，并提交对应 Yarn lockfile：
+维护主站／Workbench 的宿主工程安装精确测试版，并提交对应 Yarn lockfile：
 
 ```sh
 yarn add --exact @flapsdk/vault-runtime@0.1.40-next.4 --registry https://registry.npmjs.org
@@ -40,7 +40,7 @@ yarn add --exact @flapsdk/vault-runtime@0.1.40-next.4 --registry https://registr
 
 这条安装命令仅用于消费 Runtime npm 包的宿主工程，组件作者在官方模板中继续使用已有别名；不要在组件目录再安装 SDK。宿主还须同步下面的能力校验、Worker 和 Workbench 来源验证输入，安装依赖不会自动部署环境。
 
-把 [manifest 片段](../examples/street-map/manifest.fragment.json)合并到原有效 manifest，不替换整个文件：
+把 [manifest 片段](examples/street-map/manifest.fragment.json)合并到原有效 manifest，不替换整个文件：
 
 ```json
 {
@@ -76,7 +76,9 @@ const points: FlapStreetMapPoint[] = catchPoints.map((point: CatchPoint) => ({
 
 `kind:"event"` 才是独立活动点；`rarity:"legendary"` 只表示传奇稀有度，仍可以是普通门店。把 CATCH 活动来源的数据明确标成 event，不要把所有传奇门店转成活动。amount 是纯展示文本，大数／高精度用字符串；不用于库存计算或领取资格。
 
-[完整 Component](../examples/street-map/Component.tsx)和[英中韩 i18n](../examples/street-map/i18n.json)展示全部字段、四级稀有度、冷却／过期、传奇门店与活动、定位精度与时间、可用列表、受控选中及详情卡。复制到原业务组件内并合并翻译；它是演示数据，不是领取业务实现。原 CATCH 的领取资格、库存、合约读写继续保留，可在 renderPointDetails 闭包内读取已有业务状态。
+[完整 Component](examples/street-map/Component.tsx)和[英中韩 i18n](examples/street-map/i18n.json)展示全部字段、四级稀有度、冷却／过期、传奇门店与活动、定位精度与时间、可用列表、受控选中及详情卡。复制到原业务组件内并合并翻译；它是演示数据，不是领取业务实现。原 CATCH 的领取资格、库存、合约读写继续保留，可在 renderPointDetails 闭包内读取已有业务状态。
+
+规范接入示例位于 `docs/examples/street-map`，其稀有度翻译使用检查器可逐项核验的四个字面量键，详见[示例说明](examples/street-map/README.md)。它与本轮 source-check 使用的 Component 和翻译逐字节一致；复制或修改业务代码后，仍需重新完成正常的源码检查、E2E、打包和接收核验。
 
 | 需求 | 新接口和行为 |
 | --- | --- |
@@ -162,4 +164,10 @@ next 源码 ZIP 当前**仅支持独立 Mini App v2**；已有 Vault UI／绑定
 | 地图 ZIP 被拒 | 已发布匹配官方来源、capability／requiredUiExports、重新生成 E2E／ZIP |
 | freshness／provenance 失败 | 按 code／fixHint 更新官方源码和精确版本，不编辑归档元数据 |
 
-2026-10-26 的 next.3 历史验证针对**此前的基础定位／地图示例**：六项模板 E2E（PC／iPad／H5 × guest／connected）和普通 next format-7 ZIP 经本地 Workbench 构建通过。它不覆盖本次新增展示能力，不证明手机硬件、钱包或领取业务已验证，也没有部署环境或发布应用。详细 API：[设备](device-sensors.zh-CN.md)、[地图](street-map.zh-CN.md)、[子路由](mini-app-routing.zh-CN.md)。
+2026-10-26，本次 `docs/examples/street-map` 规范示例已完成 next.4 普通源码检查（0 blocking、2 项预期设备／地图 review 提示）、PC／iPad／H5 × guest／connected 六项 E2E，并通过预览源码逐字节 attestation。普通 next format-7 ZIP（`selfContained=false`）经 verify 后，使用公开 next.4 Runtime 在 Workbench 原有本地 intake/compiler 构建为 built，0 blocking、2 项相同 review 提示；metadata 要求 Button／FlapStreetMap／STREET_MAP_PRESENTATION_V1。本地测试 ZIP 为 15,826 字节，SHA-256 `55977d6a91c12e6f87b628a27662d64203010c822987eaa30e5257341d18cce7`。示例 Component／翻译的精确指纹见[示例验收记录](examples/street-map/README.md)。
+
+普通六项 E2E 验证会话、布局及源码绑定，不等待地图进入 MapReady；独立使用公开 next.4 Runtime 的地图浏览器 smoke 已验证真实地图就绪、点选和详情，不从 E2E passed 标记推断。
+
+同一规范组件也已在未改动的 Next.js 模板中文 H5 预览中验证 map-ready、真实瓦片及列表点选后的完整中文详情，未申请 GPS、无未捕获页面异常。存在 glyph／本地字体和 sprite 降级警告；字体表现与真实手机、钱包兼容性仍按上述设备清单联测。
+
+这证明该示例的源码／E2E／ZIP／本地接收链路，未使用远程存储、发布应用或部署宿主；模拟会话与手机尺寸浏览器不证明真实手机硬件、钱包或领取业务已验证。修改业务源码或 manifest 后必须重新检查、E2E、打包和接收核验。此前 next.3 的基础示例验收仍作为历史记录保留，见 [next.3 发布记录](releases/0.1.40-next.3.zh-CN.md)。详细 API：[设备](device-sensors.zh-CN.md)、[地图](street-map.zh-CN.md)、[子路由](mini-app-routing.zh-CN.md)。

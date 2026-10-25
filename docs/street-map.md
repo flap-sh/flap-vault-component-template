@@ -1,10 +1,10 @@
 # Shared street map
 
-`FlapStreetMap` from `@/src/ui` keeps map rendering inside the shared Runtime. This guide targets the **`0.1.40-next.4` testing release candidate**, which adds the presentation API below to the existing map and sensors. **Publication verification is pending; confirm the [next.4 release record](releases/0.1.40-next.4.md) before installing or submitting new source packages.** Published next.3 provides only the basic map. Stable `0.1.39` provides neither map version. See the [developer integration guide](device-map-integration.zh-CN.md).
+`FlapStreetMap` from `@/src/ui` keeps map rendering inside the shared Runtime. The published **`0.1.40-next.4` testing release** adds the presentation API below to the existing map and sensors. Its public registry identity and archive bytes are verified; see the [next.4 release record](releases/0.1.40-next.4.md). Install the exact version and use matching receiving hosts before submitting new source packages. Published next.3 provides only the basic map. Stable `0.1.39` provides neither map version. See the [developer integration guide](device-map-integration.zh-CN.md).
 
 Merge `"mapCapabilities": ["street-map-v1"]` into the existing manifest. Its name and the existing source-package formats remain unchanged. This is separate from `deviceCapabilities` and 3D `capabilities`; it grants no raw MapLibre, URL/style/Worker, network, HTML popup, storage or permission APIs. Existing Vault UI, old Mini Apps and basic map artifacts remain compatible. Keep existing Vault bindings, risk status and business operations.
 
-The [complete CATCH-style example](../examples/street-map/Component.tsx), [English/Chinese/Korean translations](../examples/street-map/i18n.json) and [manifest fragment](../examples/street-map/manifest.fragment.json) demonstrate the enhancements. Merge them into an existing checked source folder; the GPS button also needs `deviceCapabilities:["location"]`. The example uses demonstration data and performs no claim write.
+The [complete CATCH-style example](examples/street-map/Component.tsx), [English/Chinese/Korean translations](examples/street-map/i18n.json) and [manifest fragment](examples/street-map/manifest.fragment.json) demonstrate the enhancements. Merge them into an existing checked source folder; the GPS button also needs `deviceCapabilities:["location"]`. The example uses demonstration data and performs no claim write.
 
 ## Point data and migration
 

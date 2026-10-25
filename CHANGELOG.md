@@ -11,15 +11,19 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
 
-## [0.1.40-next.4] - Unreleased
+## [0.1.40-next.4] - 2026-10-26
 
-Publication verification is pending. This candidate is authorized for npm `next` only; it does not publish or promote a stable release. See [the release checklist](docs/releases/0.1.40-next.4.md).
+Published on npm `next`; public registry identity and archive bytes are verified. Stable `latest` remains `0.1.39` with its pre-publication identity unchanged. See [the release record](docs/releases/0.1.40-next.4.md).
 
 ### Added
 
 - Extend the existing `street-map-v1` component with optional CATCH-style point fields, rarity colors, cooldown/expiry states, named-city bubbles, store labels, independent event countdowns, selection, React details, a pulsing user marker and a meter-based range circle. Navigation and metric scale remain opt-in.
 - Advertise `uiFeatures.streetMapPresentation=1` and immutable `STREET_MAP_PRESENTATION_V1=1` for receiving-host checks before importing enhanced artifacts. Existing point callbacks, Vault UI, basic maps and source-package formats remain compatible.
 - Keep fixed MapLibre 6.15.0/OpenFreeMap resources and the exact Worker unchanged. Client location, distance, radius and time remain display estimates; claim authorization and persistent records remain application responsibilities. These enhancements are not included in the published `0.1.40-next.3` package.
+
+### Documentation
+
+- Provide the canonical checked authoring example in `docs/examples/street-map`, with explicit literal rarity translation keys for all three locales. This documentation-only correction leaves the published Runtime and historical root example unchanged; ordinary source, E2E and package validation remain required.
 
 ## [0.1.40-next.3] - 2026-10-26
 

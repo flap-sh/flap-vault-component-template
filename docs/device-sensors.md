@@ -2,7 +2,7 @@
 
 Location, motion and orientation are shared Runtime features for Vault UI and Mini Apps. Components use the SDK; hosts own browser access and permission handling. This additive feature requires `runtime-contract.json` to advertise `sdkFeatures.deviceSensors=1`; it is not included in the previously published stable `0.1.39` package.
 
-The `0.1.40-next.4` testing release candidate retains these APIs, Mini App routing and corrected map source-package verification, and adds richer map point presentation; use it after public publication verification and matching receiving-host upgrades. Stable `latest` remains `0.1.39`. Testing consumers must use the same exact published version and matching schema/policy inputs. See the [publication evidence](releases/0.1.40-next.4.md) and the [developer integration guide](device-map-integration.zh-CN.md) for testing commands and deployment requirements.
+The published `0.1.40-next.4` testing release retains these APIs, Mini App routing and corrected map source-package verification, and adds richer map point presentation. Its public package identity and archive bytes are verified; receiving hosts must still upgrade and deploy matching versions. Stable `latest` remains `0.1.39`. Testing consumers must use the same exact published version and matching schema/policy inputs. See the [publication evidence](releases/0.1.40-next.4.md) and the [developer integration guide](device-map-integration.zh-CN.md) for testing commands and deployment requirements.
 
 ## Component integration
 
