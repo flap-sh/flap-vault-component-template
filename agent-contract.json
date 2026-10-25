@@ -1786,6 +1786,6 @@
     "presentationUiExport": "STREET_MAP_PRESENTATION_V1=1",
     "engine": "maplibre-gl@6.15.0",
     "workerPath": "/runtime-map/maplibre-6.15.0-worker.mjs",
-    "rule": "Use the fixed shared UI map only, with a list fallback; no raw map engine, URL/style/Worker or HTML API and no automatic location request. Direct fixed OpenFreeMap resources expose client IP/viewport and are not browser network isolation. Published next.3 provides the basic map; enhanced presentation awaits a later matching next Runtime and presentation feature/sentinel. Stable Runtime 0.1.39 provides neither. Keep the legacy id/lat/lng/title point shape and street-map-v1 declaration compatible. Deadlines use epoch milliseconds; amount, distance, radius and client time are display only, never claim authorization."
+    "rule": "Use the fixed shared UI map only, with a list fallback; no raw map engine, URL/style/Worker or HTML API and no automatic location request. Direct fixed OpenFreeMap resources expose client IP/viewport and are not browser network isolation. Published next.3 provides the basic map; enhanced presentation targets the 0.1.40-next.4 testing candidate. Verify its public release identity and matching presentation feature/sentinel before use. Stable Runtime 0.1.39 provides neither. Keep the legacy id/lat/lng/title point shape and street-map-v1 declaration compatible. Deadlines use epoch milliseconds; amount, distance, radius and client time are display only, never claim authorization."
   }
 }

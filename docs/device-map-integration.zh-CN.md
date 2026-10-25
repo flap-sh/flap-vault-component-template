@@ -4,9 +4,9 @@
 
 ## 版本与接入范围
 
-已发布的 `@flapsdk/vault-runtime@0.1.40-next.3` 提供 GPS／运动／方向和**基础街道地图**，源码提交为 `4bf5f3bb111993cdb9167ba18e9ec225b351c79f`。它修正 next.2 的地图源码包元数据遗漏；正式 latest 保持 `0.1.39`。见 [next.3 发布记录](releases/0.1.40-next.3.zh-CN.md)。
+本文面向 **`@flapsdk/vault-runtime@0.1.40-next.4` 测试发布候选版**，包含 GPS／运动／方向、Mini App 子路由和本次 CATCH 地图展示增强：稀有度、冷却、城市聚合、文字、详情槽、独立活动点、呼吸定位和米制范围圈。**公开发布核验尚未完成，开始接入前须确认 [next.4 发布记录](releases/0.1.40-next.4.zh-CN.md)中的精确版本及来源。** 只使用 npm `next` 测试通道，不发布正式版本。
 
-**本次新增的稀有度、冷却、城市聚合、文字、详情槽、活动点及范围圈尚未发布。** 下文的新示例面向后续匹配的 next 测试版，不可直接使用 next.3 上线。需等模板官方 next 源码、已发布精确 Runtime、主站和 Workbench 的对应实现全部就绪，再重新完成 E2E／打包／接收验证。当前没有因此部署环境或发布应用。
+已发布的 next.3 仅提供基础地图与传感器，源码为 `4bf5f3bb111993cdb9167ba18e9ec225b351c79f`，并修正 next.2 的地图源码包元数据遗漏，见 [next.3 历史记录](releases/0.1.40-next.3.zh-CN.md)。不可用 next.3 测试本次增强；需让官方 next 模板、精确 next.4 Runtime、主站与 Workbench 配套就绪，再重新完成 E2E／打包／接收验证。npm 发布和分支推送不等于环境已部署或应用已发布。
 
 | 功能 | 使用方式 | manifest 声明 |
 | --- | --- | --- |
@@ -20,7 +20,7 @@
 
 ## 开发环境与声明
 
-使用 Node.js 24 和 Yarn 1.22.22（最低 Node.js 22）。基础版使用官方 next；本次增强须待官方 next 与新包同步后再按相同方式更新，不要改版本号冒充来源：
+使用 Node.js 24 和 Yarn 1.22.22（最低 Node.js 22）。公开发布核验通过后，从官方 `next` 获取匹配 `0.1.40-next.4` 的模板，不要只修改版本号冒充来源：
 
 ```sh
 git clone --branch next https://github.com/flap-sh/flap-vault-component-template.git
@@ -30,7 +30,15 @@ yarn app:scaffold store-map
 yarn dev --port 3047
 ```
 
-预览地址为 `http://localhost:3047/store-map`。模板已有 SDK 和 `@/src/sdk`、`@/src/ui` 别名，不要安装另一份 SDK／MapLibre 到组件目录。已有项目保留业务源码、身份和注册信息，按模板新鲜度提示更新。手机传感器测试使用 HTTPS；手机访问电脑局域网 HTTP 地址不满足安全环境要求。宿主工程精确安装最终确认的测试版；npm 安装不会自动部署主站或 Workbench。
+预览地址为 `http://localhost:3047/store-map`。模板已有 SDK 和 `@/src/sdk`、`@/src/ui` 别名，不要安装另一份 SDK／MapLibre 到组件目录。已有项目保留业务源码、身份和注册信息，按模板新鲜度提示更新。手机传感器测试使用 HTTPS；手机访问电脑局域网 HTTP 地址不满足安全环境要求。
+
+维护主站／Workbench 的宿主工程在公开核验后安装精确测试版，并提交对应 Yarn lockfile：
+
+```sh
+yarn add --exact @flapsdk/vault-runtime@0.1.40-next.4 --registry https://registry.npmjs.org
+```
+
+这条安装命令仅用于消费 Runtime npm 包的宿主工程，组件作者在官方模板中继续使用已有别名；不要在组件目录再安装 SDK。宿主还须同步下面的能力校验、Worker 和 Workbench 来源验证输入，安装依赖不会自动部署环境。
 
 把 [manifest 片段](../examples/street-map/manifest.fragment.json)合并到原有效 manifest，不替换整个文件：
 
@@ -127,7 +135,7 @@ cp node_modules/@flapsdk/vault-runtime/runtime-map/LICENSE.maplibre.txt public/r
 
 ## 测试源码 ZIP 与交付
 
-下面是**官方 next、已发布匹配 Runtime 和测试 Workbench 全部就绪后**的独立 Mini App v2 测试路径。next.3 基础版已可按既有流程验证；本次增强尚未满足发布前提，不能用 next.3 来源封装新 SDK 代码。沿用现有 next 通道和全部官方来源／版本／gitHead／E2E／哈希检查；app:* 仍固定 main/latest：
+下面是**官方 next、公开核验的 `0.1.40-next.4` 和匹配测试 Workbench 全部就绪后**的独立 Mini App v2 测试路径。新增强必须使用 next.4 的精确公开来源，不能用 next.3 来源封装新 SDK 代码。沿用现有 next 通道和全部官方来源／版本／gitHead／E2E／哈希检查；`app:*` 仍固定 main/latest，因此本测试通道使用显式 `vault:*` 命令：
 
 ```sh
 FLAP_TEMPLATE_CHANNEL=next FLAP_TEMPLATE_FRESHNESS_REF=origin/next yarn vault:check store-map
