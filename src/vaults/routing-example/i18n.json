@@ -1,0 +1,38 @@
+{
+  "en": {
+    "title": "Mini App routing",
+    "home": "Choose an item to open its detail page.",
+    "item": "Item {id}",
+    "notFound": "This page does not exist in this app.",
+    "counter": "Local counter: {count}",
+    "open": "Open first item",
+    "replace": "Replace with second item",
+    "back": "Back",
+    "root": "App home",
+    "settings": "Settings"
+  },
+  "zh": {
+    "title": "Mini App 子路由",
+    "home": "选择一个项目，打开详情页。",
+    "item": "项目 {id}",
+    "notFound": "此应用中没有这个页面。",
+    "counter": "本地计数：{count}",
+    "open": "打开第一个项目",
+    "replace": "替换为第二个项目",
+    "back": "返回",
+    "root": "应用首页",
+    "settings": "设置"
+  },
+  "ko": {
+    "title": "Mini App 하위 경로",
+    "home": "항목을 선택하여 상세 페이지를 여세요.",
+    "item": "항목 {id}",
+    "notFound": "앱에 이 페이지가 없습니다.",
+    "counter": "로컬 카운터: {count}",
+    "open": "첫 번째 항목 열기",
+    "replace": "두 번째 항목으로 바꾸기",
+    "back": "뒤로",
+    "root": "앱 홈",
+    "settings": "설정"
+  }
+}

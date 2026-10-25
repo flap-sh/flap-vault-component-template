@@ -11,6 +11,14 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
 
+## [0.1.40-next.2] - 2026-10-25
+
+### Added
+
+- Next-channel test release combines existing device sensors with host-owned Mini App subroutes and the reviewed `FlapStreetMap` UI primitive.
+- Maps lazy-load fixed MapLibre 6.15.0, use the matching packaged static Worker and OpenFreeMap dark resources, accept bounded point data, and provide a list fallback without automatically requesting GPS.
+- Routing and map feature markers, declaration checks, exact Worker/package validation and legacy UI compatibility remain under Runtime contract version 1. Stable npm `latest` remains `0.1.39`; receiving-host deployment and pins are separate.
+
 ## [0.1.40-next.1] - 2026-10-24
 
 ### Added

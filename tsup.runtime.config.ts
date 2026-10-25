@@ -32,7 +32,7 @@ export default defineConfig({
   outDir: "dist/vault-runtime",
   external: runtimeExternals,
   // Ship the lazy browser player with the runtime; consumers need no npm/CDN loader.
-  noExternal: ["mpegts.js"],
+  noExternal: ["mpegts.js", "maplibre-gl"],
   treeshake: true,
   // Match the host JSX transform; packaged components must not require global React.
   esbuildOptions(options) {

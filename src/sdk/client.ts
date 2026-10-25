@@ -3,6 +3,8 @@
 export * from "./contract";
 export * from "./miniApp";
 export * from "./miniAppRuntime";
+export * from "./miniAppRoutingTypes";
+export { useMiniAppRouter } from "./miniAppRoutingRuntime";
 export * from "./erc20";
 export * from "./format";
 export * from "./ipfsImage";

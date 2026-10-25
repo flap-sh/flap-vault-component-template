@@ -1,0 +1,16 @@
+{
+  "en": {
+    "map.shop": "Shanghai demonstration shop",
+    "map.locate": "Show my location",
+    "map.locationActive": "Location is an estimate; check its accuracy before travelling.",
+    "map.locationOptional": "Location is optional. You can choose a shop from the list.",
+    "map.fallback": "The street map is loading or unavailable. Choose a shop from the list."
+  },
+  "zh-CN": {
+    "map.shop": "上海演示门店",
+    "map.locate": "显示我的位置",
+    "map.locationActive": "定位是系统估算，出行前请确认精度。",
+    "map.locationOptional": "定位为可选功能，也可以从列表选择门店。",
+    "map.fallback": "街道地图正在加载或暂不可用，请从列表选择门店。"
+  }
+}
