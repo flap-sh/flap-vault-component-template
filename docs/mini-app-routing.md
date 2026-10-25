@@ -76,10 +76,11 @@ including Chinese locale and connected-session preservation. Next can stream an
 HTTP 200 before a nested `notFound()`; legacy deep paths render the unavailable
 page and no Vault artifact, so check that rendered outcome as well as status.
 
-The source detector derives route requirements from live SDK imports, including
-aliases, and ignores erased type-only or unused imports. Workbench must record
-the requirement in built artifact metadata and gate the hook before evaluation
-on older hosts. Deploy both compatible receiving hosts before accepting new
-route-dependent packages. Metadata alone cannot update an already-deployed old
-host. Release and pin the matching published Runtime before normal source ZIP
+The source detector identifies routing use from live SDK imports, including
+aliases, and ignores erased type-only or unused imports. Workbench checks that
+its installed Runtime supports those imports. At runtime, invoking
+`useMiniAppRouter()` checks the SDK routing version/export through the
+compatibility shim, and the hook requires a host-provided adapter. Deploy both
+compatible receiving hosts before accepting new route-dependent packages.
+Release and pin the matching published Runtime before normal source ZIP
 packaging; a private canary is consumer-test input only.

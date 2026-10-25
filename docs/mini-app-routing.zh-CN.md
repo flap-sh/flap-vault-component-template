@@ -35,6 +35,7 @@ artifact 加载器、Provider 和应用组件必须放在变化子路由上方�
 
 运行 `yarn test:mini-app-routing` 验证路径、内存历史、源码能力识别、浏览器直达/刷新、
 push/replace、前进后退、状态保持、Next history 标记、语言参数及陈旧回调。
-Workbench 从有效 SDK import 生成产物能力要求，并在宿主执行前检查；先部署两端匹配的宿主，
-再接受依赖路由的应用。正式源码 ZIP 仍须等待匹配 Runtime 发布并固定版本，私有 canary
+Workbench 根据有效 SDK import 检查已安装 Runtime 是否支持路由；运行时在调用
+`useMiniAppRouter()` 时通过兼容层核对 SDK 路由版本和 export，hook 还要求宿主提供适配器。
+先部署两端匹配的宿主，再接受依赖路由的应用。正式源码 ZIP 仍须等待匹配 Runtime 发布并固定版本，私有 canary
 只用于消费者测试。完整 API 与接入细节见[英文文档](mini-app-routing.md)。
