@@ -1,6 +1,6 @@
 # 共享街道地图
 
-现有 Vault UI 和独立小程序可从 `@/src/ui` 导入薄组件 `FlapStreetMap`。本次 `0.1.40-next.2` 测试源码包含该能力，当前固定的正式 Runtime `0.1.39` 没有此导出；安装前请查看[发布状态](releases/0.1.40-next.2.zh-CN.md)。两个接收宿主都必须先具备 `uiFeatures.streetMap=1` 和 `FlapStreetMap` 导出，才能接收依赖地图的新包。旧包保持兼容。
+现有 Vault UI 和独立小程序可从 `@/src/ui` 导入薄组件 `FlapStreetMap`。已发布的 `0.1.40-next.2` 测试 Runtime 包含该能力，当前固定的正式 Runtime `0.1.39` 没有此导出；安装前请查看[发布状态](releases/0.1.40-next.2.zh-CN.md)。两个接收宿主都必须先具备 `uiFeatures.streetMap=1` 和 `FlapStreetMap` 导出，才能接收依赖地图的新包。旧包保持兼容。
 
 在原 manifest 中合并可选声明：
 
