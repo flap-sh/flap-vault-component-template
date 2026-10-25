@@ -1,10 +1,11 @@
 "use client";
 import { useContext, useMemo, useRef, type ReactNode } from "react";
 import type { Address, FlapI18n, FlapNotify, VaultManifest } from "./types";
-import { MiniAppContext } from "./runtimeStore";
+import { MiniAppContext, MiniAppRoutingContext } from "./runtimeStore";
 import { createFlapChainSdk, type FlapChainSdk, type FlapWalletRuntime } from "./flapChainRuntime";
 import { isStandaloneMiniApp } from "./miniApp";
 import { createIpfsTextReader } from "./ipfsText";
+import type { MiniAppRouterAdapter } from "./miniAppRoutingTypes";
 
 export interface MiniAppSession {
   address?: Address;
@@ -23,8 +24,8 @@ export interface MiniAppSdk {
   readIpfsText(cid: string, path?: string): Promise<string>;
   forChain(chainId: number): FlapChainSdk;
 }
-export function MiniAppRuntimeProvider({ manifest, session, i18n, notify, runtime, children }: {
-  manifest: VaultManifest; session: MiniAppSession; i18n: FlapI18n; notify: FlapNotify; children: ReactNode; runtime?: FlapWalletRuntime;
+export function MiniAppRuntimeProvider({ manifest, session, i18n, notify, runtime, router, children }: {
+  manifest: VaultManifest; session: MiniAppSession; i18n: FlapI18n; notify: FlapNotify; children: ReactNode; runtime?: FlapWalletRuntime; router?: MiniAppRouterAdapter;
 }) {
   const current = useRef({ manifest, runtime }); current.current = { manifest, runtime };
   const sdk = useMemo<MiniAppSdk>(() => {
@@ -39,7 +40,7 @@ export function MiniAppRuntimeProvider({ manifest, session, i18n, notify, runtim
     } };
   }, [manifest, runtime, session, i18n, notify]);
   if (!isStandaloneMiniApp(manifest)) throw new Error("A standalone Mini App v2 manifest is required.");
-  return <MiniAppContext.Provider value={sdk}>{children}</MiniAppContext.Provider>;
+  return <MiniAppContext.Provider value={sdk}><MiniAppRoutingContext.Provider value={router ?? null}>{children}</MiniAppRoutingContext.Provider></MiniAppContext.Provider>;
 }
 export function useMiniAppSdk(): MiniAppSdk {
   const sdk = useContext(MiniAppContext);

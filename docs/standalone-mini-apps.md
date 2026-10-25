@@ -20,6 +20,14 @@ Standalone Apps are user-uploaded React UI, published through the existing audit
 
 The folder/artifact ID convention is retained for source tooling compatibility. The slug is a separate immutable URL identifier; updates keep both identifiers. Slugs use 3–64 lowercase kebab-case characters and reject reserved routes.
 
+Standalone Apps can use host-owned generic subroutes such as
+`/apps/{slug}/bnb/{ca}`, `/apps/{slug}/orders/{id}` or `/apps/{slug}/settings`.
+This is an unpublished additive Runtime candidate: use private canaries for
+consumer testing until a coordinated Runtime release and host deployment.
+See [Mini App routing](mini-app-routing.md) ([中文](mini-app-routing.zh-CN.md))
+for the SDK, persistent preview and compatibility requirements. Routes remain
+separate from manifest bindings and grant no new contract permissions.
+
 Run `yarn app:scaffold flap-streets` in the template. Implement UI through `useMiniAppSdk()` from `@/src/sdk`: `context.appId/slug/manifest`, `session.address/isConnected/isAuthenticated/isLoading/connect()/signIn()`, `i18n`, and `notify`. A connected wallet is distinct from authenticated login. The host validates the existing Cookie-SIWE session against the connected wallet, and prompts for signing only after an explicit sign-in request when required. The SDK exposes no cookies or raw login credentials. Wallet operations use the shared `useFlapSdk({ chainId })` API with reviewed `walletChains` and `walletContracts`; see [shared wallet SDK](mini-app-wallet.md). Pure shared UI primitives remain available. Token-bound hooks and components require a legacy token-scoped app.
 
 The v2 workflow uses `app:check`, `app:e2e`, `app:package` and `app:verify-package`. Source maintenance moves to main after the merge; follow [integration status](main-migration.md) for the current release-reference policy and submission readiness. The `vault:*` main/latest workflow belongs to Vault UI and maintenance of existing Mini App v1 Apps. Source-package format 7 is exclusive to standalone manifests. E2E schema 3 proves guest and connected session rendering for PC/iPad/H5, source/manifest/schema hashes, preview-source identity and layout; it has no CA or wrong-network requirement. Preview sessions are fixtures, not real wallet authorization. Legacy formats and test-token proofs retain their existing validation. The existing Three/R3F profile can retain its controlled source/assets/runtime limits; App v2 separates identity from token bindings; wallet declarations add reviewed actions without changing session-proof requirements.

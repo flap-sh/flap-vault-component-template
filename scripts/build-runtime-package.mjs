@@ -125,7 +125,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -153,6 +153,20 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
+
+## Mini App subroutes
+
+Standalone Mini Apps use \`useMiniAppRouter()\` from \`./sdk\`. It returns
+App-relative \`pathname\`, decoded \`segments\`, \`search\`, and
+\`push(path)\`, \`replace(path)\`, \`back()\`. Paths start with \`/\`
+inside the current App; external URLs, traversal, encoded separators and hashes
+are rejected. Routing grants no wallet or contract access.
+\`MINI_APP_ROUTING_VERSION = 1\` and \`sdkFeatures.miniAppRouting = 1\`
+identify the feature. Hosts inject a \`router\` into \`MiniAppRuntimeProvider\`;
+\`./host\` exports \`parseMiniAppPath\`, \`createMiniAppMemoryRouter\` and
+\`createMiniAppBrowserRouter\`. Old Apps need no adapter. The new hook fails
+explicitly if the host has not enabled routing. Deploy supporting hosts before
+accepting new route-dependent artifacts; source-package provenance is unchanged.
 
 ## FSI queries
 
