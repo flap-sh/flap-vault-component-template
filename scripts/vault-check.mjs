@@ -3,6 +3,7 @@ import { checkResolvedContractDeclarations, checkResolvedContractSource, collect
 import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import { checkDeviceCapabilityManifest, collectDeviceCapabilityIssues } from "./device-capability-policy.mjs";
+import { checkMapCapabilityManifest, collectMapCapabilityIssues } from "./map-capability-policy.mjs";
 import { collectMiniAppRoutingIssues } from "./mini-app-routing-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -50,7 +51,7 @@ const REQUIRED_FILES = ["Component.tsx", "manifest.json", "VaultABI.ts", "i18n.j
 const OPTIONAL_SURFACE_FILES = ["LaunchConfig.tsx"];
 const ALLOWED_VAULT_FILES = new Set([...REQUIRED_FILES, ...OPTIONAL_SURFACE_FILES]);
 const ALLOWED_RELATIVE_IMPORTS = new Set(["./VaultABI", "./LaunchConfig"]);
-const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "deviceCapabilities", "surfaces", "schemaVersion", "appModel", "slug", "walletChains", "walletContracts"]);
+const ALLOWED_MANIFEST_KEYS = new Set(["artifactId", "name", "displayTitle", "match", "i18n", "mode", "layout", "endpoints", "externalFrames", "capabilities", "deviceCapabilities", "mapCapabilities", "surfaces", "schemaVersion", "appModel", "slug", "walletChains", "walletContracts"]);
 const ALLOWED_MATCH_KEYS = new Set(["bindings"]);
 const ALLOWED_BINDING_ENTRY_KEYS = new Set(["chainId", "factoryAddress", "vaultAddresses", "tokenAddresses", "externalContracts", "nftAccountWithdrawals", "resolvedContracts"]);
 const FULLSCREEN_LAYOUT = "fullscreen";
@@ -169,7 +170,7 @@ const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRo
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 const RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE = 2;
 const RISK_STATUS_PRECEDING_BUSINESS_ROW_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow|TxButton)\b/g;
-const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:VideoSessionPlayer|BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
+const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:VideoSessionPlayer|FlapStreetMap|BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
 const VISUAL_REFERENCE_EXAMPLE_FOLDERS = new Set([
   "example",
   "dex-listed-example",
@@ -3497,6 +3498,7 @@ function checkManifest(manifest, folderName) {
   const issues = [];
   issues.push(...checkStandaloneWalletManifest(manifest));
   issues.push(...checkDeviceCapabilityManifest(manifest));
+  issues.push(...checkMapCapabilityManifest(manifest));
   const isMiniAppMode = manifest?.mode === MINI_APP_MODE;
   const capabilities = manifestCapabilityIds(manifest);
   for (const key of Object.keys(manifest || {})) {
@@ -4306,6 +4308,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const staticImgSrcUrls = collectStaticImgSrcUrls(scanContent, rel);
     issues.push(...collectIpfsContentIssues(scanContent, rel).map((item) => issue(item.severity, item.ruleId, item.message, item)));
     issues.push(...collectDeviceCapabilityIssues(scanContent, rel, manifest).map((item) => issue(item.severity, item.ruleId, item.message, item)));
+    issues.push(...collectMapCapabilityIssues(scanContent, rel, manifest).map((item) => issue(item.severity, item.ruleId, item.message, item)));
     issues.push(...collectNftMetadataImageUsageIssues(scanContent, rel));
     issues.push(...binanceImageAnalysis.issues);
     const requireRegex = /\brequire\s*\(/g;

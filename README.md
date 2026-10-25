@@ -529,3 +529,7 @@ This template is released under the MIT License. See [LICENSE](./LICENSE).
 ### Ordinary Vault audio
 
 Ordinary 2D/3D Vault UI and Mini App packages share reviewed top-level audio support. See [the audio guide](docs/vault-audio.md) and the registered `/audio-example` for playback, cleanup, limits and release order.
+
+## Shared street map (unreleased)
+
+Use `FlapStreetMap` from `@/src/ui` with optional `mapCapabilities:["street-map-v1"]`. The shared Runtime lazy-loads fixed MapLibre 6.15.0 and OpenFreeMap dark resources; hosts serve its matching packaged static Worker at `/runtime-map/maplibre-6.15.0-worker.mjs`. No arbitrary map URL, HTML, Worker or automatic GPS request is exposed. Provide a localized list fallback and preserve attribution. This source feature requires `uiFeatures.streetMap=1`; pinned stable `0.1.39` does not include it. See [English integration](docs/street-map.md), [中文接入](docs/street-map.zh-CN.md) and [complete bilingual example](examples/street-map/Component.tsx).

@@ -237,6 +237,8 @@ export interface VaultManifest {
   capabilities?: VaultManifestCapability[];
   /** Reviewed device access intent. Omission preserves legacy no-device behavior. */
   deviceCapabilities?: ("location" | "motion" | "orientation")[];
+  /** Fixed shared street map only; grants no raw network or worker access. */
+  mapCapabilities?: ("street-map-v1")[];
   /** Omitted manifests keep the legacy vault-ui-only behavior. */
   surfaces?: VaultArtifactSurface[];
   layout?: VaultManifestLayout;

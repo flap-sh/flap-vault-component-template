@@ -483,6 +483,18 @@
         "type": "object"
       },
       "description": "Reviewed fixed contract signatures, value/approval caps and address resolvers. Validated by the shared app wallet policy parser."
+    },
+    "mapCapabilities": {
+      "type": "array",
+      "maxItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "street-map-v1"
+        ]
+      },
+      "description": "Optional fixed shared FlapStreetMap with OpenFreeMap dark streets. Omission/empty arrays preserve old UI behavior. This grants no custom style, raw map library, network, worker or additional source-file access. Requires uiFeatures.streetMap=1 and FlapStreetMap on the receiving Runtime."
     }
   },
   "$defs": {

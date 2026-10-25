@@ -1772,5 +1772,18 @@
     "profile": "null-bag-withdraw-v1",
     "documentation": "docs/nft-account-withdrawal.md",
     "rule": "Declaration is review intent only. Host must approve deployment-specific pins. Use sdk.withdrawNftAccount({policyId,tokenId,amount}); no recipient, arbitrary target, calldata, native value or delegatecall. The NULL four-argument execute selector is blocked on raw writes; genuine reviewed resolved handles use their exact manifest-declared execute signature. Other raw signatures require target enforcement. Provider is host-only."
+  },
+  "streetMap": {
+    "documentation": "docs/street-map.md",
+    "chineseDocumentation": "docs/street-map.zh-CN.md",
+    "manifestField": "mapCapabilities",
+    "values": [
+      "street-map-v1"
+    ],
+    "runtimeFeature": "uiFeatures.streetMap=1",
+    "uiExport": "FlapStreetMap",
+    "engine": "maplibre-gl@6.15.0",
+    "workerPath": "/runtime-map/maplibre-6.15.0-worker.mjs",
+    "rule": "Use the fixed shared UI map only, with a list fallback; no raw map engine, URL/style/Worker or HTML API and no automatic location request. Direct fixed OpenFreeMap resources expose client IP/viewport and are not browser network isolation. This unreleased feature is not provided by pinned stable Runtime 0.1.39."
   }
 }

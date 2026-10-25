@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flap.sh/schemas/manifest.map-capabilities.schema.json",
+  "title": "Flap reviewed map capability declaration",
+  "type": "array",
+  "maxItems": 1,
+  "uniqueItems": true,
+  "items": {
+    "type": "string",
+    "enum": [
+      "street-map-v1"
+    ]
+  },
+  "description": "Optional fixed shared FlapStreetMap with OpenFreeMap dark streets. Omission/empty arrays preserve old UI behavior. This grants no custom style, raw map library, network, worker or additional source-file access. Requires uiFeatures.streetMap=1 and FlapStreetMap on the receiving Runtime."
+}
