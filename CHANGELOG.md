@@ -11,6 +11,43 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
 
+## [0.1.40-next.4] - 2026-10-26
+
+Published on npm `next`; public registry identity and archive bytes are verified. Stable `latest` remains `0.1.39` with its pre-publication identity unchanged. See [the release record](docs/releases/0.1.40-next.4.md).
+
+### Added
+
+- Extend the existing `street-map-v1` component with optional CATCH-style point fields, rarity colors, cooldown/expiry states, named-city bubbles, store labels, independent event countdowns, selection, React details, a pulsing user marker and a meter-based range circle. Navigation and metric scale remain opt-in.
+- Advertise `uiFeatures.streetMapPresentation=1` and immutable `STREET_MAP_PRESENTATION_V1=1` for receiving-host checks before importing enhanced artifacts. Existing point callbacks, Vault UI, basic maps and source-package formats remain compatible.
+- Keep fixed MapLibre 6.15.0/OpenFreeMap resources and the exact Worker unchanged. Client location, distance, radius and time remain display estimates; claim authorization and persistent records remain application responsibilities. These enhancements are not included in the published `0.1.40-next.3` package.
+
+### Documentation
+
+- Provide the canonical checked authoring example in `docs/examples/street-map`, with explicit literal rarity translation keys for all three locales. This documentation-only correction leaves the published Runtime and historical root example unchanged; ordinary source, E2E and package validation remain required.
+
+## [0.1.40-next.3] - 2026-10-26
+
+### Fixed
+
+- Preserve optional `mapCapabilities` in both source-package marker and metadata, and verify their exact agreement with the manifest. This fixes Workbench rejection of otherwise valid street-map Apps while retaining legacy package compatibility.
+- Publish matching next-channel source provenance for the corrected packager/verifier and add developer sensor/map integration guidance. Runtime APIs, existing package formats and stable main/latest rules are unchanged.
+
+## [0.1.40-next.2] - 2026-10-25
+
+### Added
+
+- Next-channel test release combines existing device sensors with host-owned Mini App subroutes and the reviewed `FlapStreetMap` UI primitive.
+- Maps lazy-load fixed MapLibre 6.15.0, use the matching packaged static Worker and OpenFreeMap dark resources, accept bounded point data, and provide a list fallback without automatically requesting GPS.
+- Routing and map feature markers, declaration checks, exact Worker/package validation and legacy UI compatibility remain under Runtime contract version 1. Stable npm `latest` remains `0.1.39`; receiving-host deployment and pins are separate.
+
+## [0.1.40-next.1] - 2026-10-24
+
+### Added
+
+- Next-channel testing release of shared location, motion and orientation services, SDK hooks and host-owned real/mock adapters. Optional `deviceCapabilities` declarations preserve unchanged Vault UI and Mini App behavior; permission, actual availability, cancellation, timeouts and page visibility are handled by the Runtime.
+- Source checks and package metadata validate declared device access while keeping raw browser sensor/permission APIs host-only. Runtime contract version remains 1 and advertises `sdkFeatures.deviceSensors=1`.
+- Generated npm README documents the device API and fallback responsibilities. This prerelease targets npm `next`; stable `latest=0.1.39` and consumer deployments remain separate.
+
 ## [0.1.39] - 2026-10-23
 
 ### Added

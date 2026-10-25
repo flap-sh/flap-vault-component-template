@@ -2,9 +2,10 @@
 import { execFileSync } from "node:child_process";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { STREET_MAP_ASSET_CONTRACT, verifyStreetMapWorker } from "./street-map-assets.mjs";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { assertRuntimePackageIdentity } from "./runtime-package-mode.mjs";
@@ -13,8 +14,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_PACKAGE_DIR = path.join(ROOT, "dist", "vault-runtime");
 const EXPECTED_PACKAGE_NAME = "@flapsdk/vault-runtime";
-const EXPECTED_EXPORTS = ["./sdk", "./ui", "./host", "./server", "./runtime-contract", "./package.json"];
-const EXPECTED_FILES = ["sdk.js", "sdk.d.mts", "host.js", "host.d.mts", "server.js", "server.d.mts", "ui.js", "ui.d.mts", "package.json", "runtime-contract.json", "README.md"];
+const EXPECTED_EXPORTS = ["./sdk", "./ui", "./host", "./server", "./runtime-contract", "./package.json", "./runtime-map/maplibre-6.15.0-worker.mjs"];
+const EXPECTED_FILES = ["sdk.js", "sdk.d.mts", "host.js", "host.d.mts", "server.js", "server.d.mts", "ui.js", "ui.d.mts", "package.json", "runtime-contract.json", "README.md", "runtime-map/maplibre-6.15.0-worker.mjs", "runtime-map/LICENSE.maplibre.txt"];
 
 async function ensureFile(filePath) {
   await access(filePath);
@@ -172,6 +173,16 @@ async function main() {
 
   const sharedRuntimeContextChunk = await verifySharedRuntimeContext(packageDir, sdkSource, uiSource);
 
+  const mapChunks = [];
+  for (const file of await readdir(packageDir)) {
+    if (!file.endsWith(".js")) continue;
+    const source = await readText(path.join(packageDir, file));
+    if (/(?:\bfrom\s*|\bimport\s*\(?\s*)["']maplibre-gl(?:\/[^"']*)?["']/.test(source)) throw new Error(`Runtime must bundle its lazy MapLibre dependency: ${file}.`);
+    if (file.startsWith("maplibre-gl-")) mapChunks.push(file);
+  }
+  if (mapChunks.length !== 1) throw new Error("Runtime must contain its one lazy bundled MapLibre engine chunk.");
+
+
   // Importing the public UI in Node must not evaluate mpegts' browser-only UMD
   // module. Its browser decoder is a bundled lazy chunk, not a consumer peer.
   const uiModule = await import(`${pathToFileURL(path.join(packageDir, "ui.js")).href}?verify=${Date.now()}`);
@@ -182,10 +193,32 @@ async function main() {
   const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
   if ("VaultRuntimeProvider" in sdkModule || typeof hostModule.VaultRuntimeProvider !== "function") throw new Error("Provider must be host-only.");
 
+  await verifyStreetMapWorker(path.join(packageDir, STREET_MAP_ASSET_CONTRACT.workerPath));
+  if (typeof uiModule.FlapStreetMap !== "function" || runtimeContract.uiFeatures?.streetMap !== 1 || uiModule.STREET_MAP_PRESENTATION_V1 !== 1 || runtimeContract.uiFeatures?.streetMapPresentation !== 1 || JSON.stringify(runtimeContract.streetMap) !== JSON.stringify(STREET_MAP_ASSET_CONTRACT)) throw new Error("Street map export, presentation capability or fixed Worker integrity mismatch.");
+
   if (typeof uiModule.CopyButton !== "function" || runtimeContract.uiFeatures?.copyButton !== 1) {
     throw new Error("The shared runtime must export CopyButton and declare uiFeatures.copyButton version 1.");
   }
   if (typeof uiModule.IpfsText !== "function" || typeof uiModule.IpfsImage !== "function" || sdkModule.IPFS_CONTENT_VERSION !== 1 || runtimeContract.sdkFeatures?.ipfsContent !== 1) throw new Error("The coordinated runtime must expose controlled dynamic IPFS content.");
+  if (runtimeContract.sdkFeatures?.deviceSensors !== 1 || ["useGeolocation", "useDeviceMotion", "useDeviceOrientation"].some((name) => typeof sdkModule[name] !== "function") || ["createBrowserDeviceSensors", "createMockDeviceSensors"].some((name) => typeof hostModule[name] !== "function")) throw new Error("The shared runtime must expose declared device sensors, hooks and host adapters.");
+  if (runtimeContract.sdkFeatures?.miniAppRouting !== 1 || sdkModule.MINI_APP_ROUTING_VERSION !== 1 || typeof sdkModule.useMiniAppRouter !== "function" || ["parseMiniAppPath", "createMiniAppMemoryRouter", "createMiniAppBrowserRouter"].some((name) => typeof hostModule[name] !== "function")) throw new Error("The shared runtime must expose host-owned Mini App routing v1.");
+  if (["parseMiniAppPath", "createMiniAppMemoryRouter", "createMiniAppBrowserRouter"].some((name) => name in sdkModule)) throw new Error("Mini App route adapters must remain host-only.");
+  const routeProps = {
+    manifest: { schemaVersion: 2, mode: "mini-app", appModel: "standalone", slug: "route-package-test", artifactId: "route-package-test", match: { bindings: [] } },
+    session: { isConnected: false, isAuthenticated: false, isLoading: false, connect() {}, async signIn() {} },
+    i18n: { locale: "en", t: (key) => key }, notify: {},
+  };
+  function RouteProbe() { const route = sdkModule.useMiniAppRouter(); return createElement("output", null, `${route.pathname}${route.search}`); }
+  const routeMarkup = renderToStaticMarkup(createElement(sdkModule.MiniAppRuntimeProvider, { ...routeProps, router: hostModule.createMiniAppMemoryRouter("/orders/42?tab=history") }, createElement(RouteProbe)));
+  if (!routeMarkup.includes("/orders/42?tab=history")) throw new Error("The packed Mini App routing provider/hook must share one context.");
+  let unsupportedRoute = false;
+  try { renderToStaticMarkup(createElement(sdkModule.MiniAppRuntimeProvider, routeProps, createElement(RouteProbe))); }
+  catch (error) { unsupportedRoute = error instanceof Error && error.message.includes("mini-app-routing-unsupported"); }
+  if (!unsupportedRoute) throw new Error("Routing-dependent Apps must fail explicitly when the host supplies no route adapter.");
+  const readme = await readText(path.join(packageDir, "README.md"));
+  for (const term of ["useGeolocation()", "useDeviceMotion()", "useDeviceOrientation()", "deviceCapabilities", "createBrowserDeviceSensors", "createMockDeviceSensors", "useMiniAppRouter()", "createMiniAppMemoryRouter", "createMiniAppBrowserRouter", "sdkFeatures.miniAppRouting"]) {
+    if (!readme.includes(term)) throw new Error(`The published README must document ${term}.`);
+  }
   if ("writeCopyText" in uiModule) throw new Error("Clipboard writes must remain private to CopyButton.");
   // Render the packed component/provider, not just their source exports. This also
   // catches an incorrect JSX transform that would require global React at runtime.
@@ -347,6 +380,8 @@ async function main() {
   }
 
   const packPreview = await createPackPreview(packageDir);
+
+  for (const file of ["runtime-map/maplibre-6.15.0-worker.mjs", "runtime-map/LICENSE.maplibre.txt"]) if (!packPreview.some((entry) => entry.files?.some((item) => item.path === file))) throw new Error(`Runtime pack omits ${file}.`);
 
   for (const previewEntry of packPreview) {
     if (previewEntry?.name !== EXPECTED_PACKAGE_NAME) {

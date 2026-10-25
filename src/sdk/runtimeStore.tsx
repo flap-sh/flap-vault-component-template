@@ -3,8 +3,10 @@ import { createContext, useContext } from "react";
 import type { FlapVaultSdk } from "./types";
 import type { MiniAppSdk } from "./miniAppRuntime";
 import type { FlapChainSdk } from "./flapChainRuntime";
+import type { MiniAppRouterAdapter } from "./miniAppRoutingTypes";
 export const RuntimeContext = createContext<FlapVaultSdk | null>(null);
 export const MiniAppContext = createContext<MiniAppSdk | null>(null);
+export const MiniAppRoutingContext = createContext<MiniAppRouterAdapter | null>(null);
 /** Existing Vault calls keep their token context. Independent Apps select a chain. */
 export function useFlapSdk(): FlapVaultSdk;
 export function useFlapSdk(options: { chainId: number }): FlapChainSdk;

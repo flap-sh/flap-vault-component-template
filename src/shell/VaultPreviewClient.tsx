@@ -1,7 +1,7 @@
 "use client";
 
 import { ComponentType, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { VaultComponentProps, VaultLaunchConfigComponentProps, VaultManifest } from "@/src/sdk";
 import { useLang } from "@/src/i18n/useLang";
 import { Alert } from "@/src/ui/Alert";
@@ -24,6 +24,7 @@ interface LoadedVault {
 export function VaultPreviewClient({ folderName }: { folderName: string }) {
   const { lang } = useLang();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [loaded, setLoaded] = useState<LoadedVault | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +72,7 @@ export function VaultPreviewClient({ folderName }: { folderName: string }) {
   }
 
   const { Component, LaunchConfig, manifest, i18n } = loaded;
+  if (!isStandaloneMiniApp(manifest) && pathname.replace(/\/$/, "") !== `/${folderName}`) return null;
   const requestedSurface = readPreviewSurface(searchParams);
   const hasLaunchConfig = Boolean(LaunchConfig && manifest.surfaces?.includes("launch-config"));
   if (requestedSurface === "launch-config") {

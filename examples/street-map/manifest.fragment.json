@@ -1,0 +1,13 @@
+{
+  "mapCapabilities": [
+    "street-map-v1"
+  ],
+  "deviceCapabilities": [
+    "location"
+  ],
+  "i18n": [
+    "en",
+    "zh",
+    "ko"
+  ]
+}

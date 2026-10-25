@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { copyStreetMapAssets } from "./street-map-assets.mjs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
@@ -88,7 +89,7 @@ async function main() {
     main: "./sdk.js",
     module: "./sdk.js",
     types: "./sdk.d.mts",
-    files: ["*.js", "*.d.mts", "*.map", "package.json", "runtime-contract.json", "README.md"],
+    files: ["*.js", "*.d.mts", "*.map", "package.json", "runtime-contract.json", "README.md", "runtime-map"],
     exports: {
       "./sdk": {
         types: "./sdk.d.mts",
@@ -106,6 +107,7 @@ async function main() {
         types: "./server.d.mts",
         import: "./server.js",
       },
+      "./runtime-map/maplibre-6.15.0-worker.mjs": "./runtime-map/maplibre-6.15.0-worker.mjs",
       "./runtime-contract": "./runtime-contract.json",
       "./package.json": "./package.json",
     },
@@ -124,8 +126,8 @@ async function main() {
 
   const runtimeContract = {
     runtimeContractVersion: 1,
-    uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1 },
+    uiFeatures: { copyButton: 1, streetMap: 1, streetMapPresentation: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, deviceSensors: 1, miniAppRouting: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -134,6 +136,9 @@ async function main() {
     runtimeExternals: RUNTIME_EXTERNALS,
     notes: "Vault source keeps authoring aliases. Workbench/flap.sh should rewrite or externalize those aliases to these package subpaths.",
   };
+
+  if (rootPackage.dependencies["maplibre-gl"] !== "6.15.0") throw new Error("Runtime requires exact MapLibre 6.15.0.");
+  runtimeContract.streetMap = await copyStreetMapAssets(ROOT, OUT_DIR);
 
   const readme = `# ${PACKAGE_NAME}
 
@@ -153,6 +158,50 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
+
+## Mini App subroutes
+
+Standalone Mini Apps use \`useMiniAppRouter()\` from \`./sdk\`. It returns
+App-relative \`pathname\`, decoded \`segments\`, \`search\`, and
+\`push(path)\`, \`replace(path)\`, \`back()\`. Paths start with \`/\`
+inside the current App; external URLs, traversal, encoded separators and hashes
+are rejected. Routing grants no wallet or contract access.
+\`MINI_APP_ROUTING_VERSION = 1\` and \`sdkFeatures.miniAppRouting = 1\`
+identify the feature. Hosts inject a \`router\` into \`MiniAppRuntimeProvider\`;
+\`./host\` exports \`parseMiniAppPath\`, \`createMiniAppMemoryRouter\` and
+\`createMiniAppBrowserRouter\`. Old Apps need no adapter. The new hook fails
+explicitly if the host has not enabled routing. Deploy supporting hosts before
+accepting new route-dependent artifacts; source-package provenance is unchanged.
+
+## Street maps
+
+The \`./ui\` export \`FlapStreetMap\` requires \`mapCapabilities: ["street-map-v1"]\` and \`uiFeatures.streetMap = 1\`. Enhanced map artifacts also require the immutable \`STREET_MAP_PRESENTATION_V1 = 1\` UI export and \`uiFeatures.streetMapPresentation = 1\`; Workbench records this requirement so older hosts stop before importing an unsupported artifact. Existing basic map artifacts remain compatible. Hosts copy the packaged \`runtime-map/maplibre-6.15.0-worker.mjs\` to the exact same-origin path \`/runtime-map/maplibre-6.15.0-worker.mjs\`. The fixed MapLibre 6.15.0 engine is lazy bundled; there is no CDN loader, arbitrary style/URL/Worker/HTML API or automatic GPS request. The component supports four rarity colors (optional bounded hex palette), gray cooldown/expiry states, city bubbles through zoom 7.2, store labels above zoom 10.5, separate event points/countdowns, selection, a React details slot, a pulsing user marker and a range circle in meters. Navigation/metric scale are opt-in. Pass existing GPS coordinates, localized control labels and a list fallback. Timestamps are epoch milliseconds; client distance/range/time are display estimates, never claim authorization. Points are capped at 2000, zoom at 3..18, radius at 100000 meters. Fixed OpenFreeMap dark resources are requested without credentials; the provider sees the client IP and viewport. This direct-resource policy does not isolate redirects or guarantee upstream availability. WebGL2/Worker failure and a 15-second startup timeout show the fallback. Map-owned canvas/listeners/observers/clock are released on unmount; MapLibre retains its page-wide shared pool, capped at two Workers, for reuse. Preserve the package Worker license and fixed attribution links. Old UI remains compatible; deployed 0.1.39 hosts do not gain this testing feature. See template docs/street-map.md and docs/street-map.zh-CN.md.
+
+## Location and motion sensors
+
+This release adds \`useGeolocation()\`, \`useDeviceMotion()\` and
+\`useDeviceOrientation()\` to \`./sdk\`, with \`DEVICE_SENSORS_VERSION = 1\`
+and \`sdkFeatures.deviceSensors = 1\`. Declare only the channels used in
+\`manifest.deviceCapabilities\`: \`location\`, \`motion\`, \`orientation\`.
+Vault UI can also use \`useFlapSdk().device\`; standalone Mini Apps can use
+\`useMiniAppSdk().device\`. Each channel provides \`getSnapshot()\`,
+\`subscribe(listener)\`, \`request(options?)\` and \`stop()\`.
+
+Call \`request()\` directly from a user click. Mounting or subscribing never
+requests permission or starts collection. Permission and actual data are
+separate: use readings only after \`status === "active"\` and non-null data.
+Handle refusal, unsupported/insecure environments, policy restrictions,
+timeout, missing data and background pauses with usable click/touch/manual
+fallbacks. Location is a system estimate; inspect accuracy and timestamp.
+
+The \`./host\` entry exports \`createBrowserDeviceSensors\` and
+\`createMockDeviceSensors\`; providers accept a host-owned \`deviceSensors\`
+adapter and scope it to the declaration. Mock values are explicitly marked.
+Components cannot create adapters or call raw browser permission APIs.
+Old manifests without device declarations retain their behavior and do not
+request permissions. Phone and wallet support still requires real-device tests.
+
+${packageIdentity.version.includes("-next.") ? "This package is an explicit next-channel testing release. Install its exact version; stable latest and deployed hosts are not upgraded by this publication.\n" : ""}
 
 ## FSI queries
 

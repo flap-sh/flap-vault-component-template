@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "mode": "mini-app",
+  "appModel": "standalone",
+  "slug": "routing-example",
+  "artifactId": "vaultui_routing-example_01M5RNHSBJ27YHYGDPWBXN2XFG",
+  "name": "routing-example",
+  "displayTitle": {
+    "en": "Mini App routing",
+    "zh": "Mini App 子路由"
+  },
+  "match": {
+    "bindings": []
+  },
+  "i18n": [
+    "en",
+    "zh",
+    "ko"
+  ]
+}

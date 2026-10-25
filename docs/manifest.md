@@ -4,6 +4,8 @@
 
 `manifest.json` is intentionally small. It is only the developer-facing match and review boundary, not the place to configure Flap internal runtime behavior.
 
+Optional `deviceCapabilities` contains unique `location`, `motion` and/or `orientation` entries for the shared Runtime device service. Omit it or use `[]` for existing no-device components. It grants no browser permission, adds no source/asset files and requires a receiving Runtime with `sdkFeatures.deviceSensors=1`. See [device sensors](device-sensors.md) ([中文](device-sensors.zh-CN.md)).
+
 ## Choosing a Test CA
 
 Ordinary factory-scoped Vault UI can start with a same-chain public test CA when there is no project token yet. See [Test CA and Factory Setup](./vault-ui-test-ca.md) ([中文](./vault-ui-test-ca.zh-CN.md)) for BNB `97`/`56` addresses, scaffold commands, preview URLs and mainnet steps. The addresses are maintained in `src/shell/previewCoinDetail.ts`; they are deployed proof tokens, not fake placeholders.

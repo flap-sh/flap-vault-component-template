@@ -3,6 +3,8 @@
 export * from "./contract";
 export * from "./miniApp";
 export * from "./miniAppRuntime";
+export * from "./miniAppRoutingTypes";
+export { useMiniAppRouter } from "./miniAppRoutingRuntime";
 export * from "./erc20";
 export * from "./format";
 export * from "./ipfsImage";
@@ -82,3 +84,6 @@ export type { FlapChainSdk, FlapSendTransactionRequest, FlapTransactionReceipt }
 export type { AppWalletContract, AppResolvedContract } from "./appWalletPolicy.mjs";
 /** Controlled dynamic CID text reads and image rendering. */
 export const IPFS_CONTENT_VERSION = 1;
+export { DEVICE_SENSORS_VERSION } from "./deviceSensors";
+export { useGeolocation, useDeviceMotion, useDeviceOrientation } from "./deviceSensorHooks";
+export type { DeviceCapability, DeviceSensorMode, DeviceSensorPermission, DeviceSensorStatus, DeviceSensorState, DeviceSensorRequestOptions, DeviceLocationRequestOptions, DeviceLocationData, DeviceMotionData, DeviceOrientationData, DeviceSensor, DeviceSensors } from "./deviceSensors";

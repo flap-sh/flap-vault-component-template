@@ -41,6 +41,8 @@ import { createResolvedContractRuntime } from "./resolvedContracts";
 import { snapshotGenericContractWrite, withdrawNftAccount as runNftAccountWithdrawal } from "./nftAccountWithdrawal";
 import type { NftAccountWithdrawalPolicy, NftAccountWithdrawalRequest } from "./nftAccountTypes";
 import { createLocalMediaUploader } from "./mediaUpload";
+import { useRuntimeDeviceSensors } from "./deviceSensorHooks";
+import type { DeviceSensors } from "./deviceSensors";
 
 export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
 
@@ -62,6 +64,8 @@ export interface RuntimeProviderProps {
   oracleReader?: OracleReader;
   nftMetadataReader?: NftMetadataReader;
   mediaUploader?: MediaUploader;
+  /** Host-owned adapter; declarations still restrict access. Omit for real sensors. */
+  deviceSensors?: DeviceSensors;
   /** Host-reviewed deployment pins. Artifact declarations never grant approval. */
   nftAccountWithdrawalPolicies?: readonly NftAccountWithdrawalPolicy[];
   /** Warning mode is for local migration diagnostics only. */
@@ -101,7 +105,8 @@ function getPreviewOracleEndpoint(extraConfig: Record<string, unknown> | undefin
   return typeof endpoint === "string" ? endpoint : undefined;
 }
 
-export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, nftAccountWithdrawalPolicies = EMPTY_NFT_ACCOUNT_POLICIES, contractTargetPolicy = "strict" }: RuntimeProviderProps) {
+export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, deviceSensors, nftAccountWithdrawalPolicies = EMPTY_NFT_ACCOUNT_POLICIES, contractTargetPolicy = "strict" }: RuntimeProviderProps) {
+  const device = useRuntimeDeviceSensors(manifest, deviceSensors);
   const [version, setVersion] = useState(0);
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
@@ -550,6 +555,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
 
   const sdk = useMemo<FlapVaultSdk>(
     () => ({
+      device,
       forChain,
       context: componentContext,
       i18n: i18nApi,
@@ -574,7 +580,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [forChain, getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, readIpfsText, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
+    [device, forChain, getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, readIpfsText, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
   );
 
   return (

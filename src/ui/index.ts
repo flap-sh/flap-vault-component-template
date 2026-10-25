@@ -19,3 +19,5 @@ export * from "./StatusBadge";
 export * from "./TxButton";
 export * from "./VaultBanner";
 export * from "./VideoSessionPlayer";
+
+export * from "./FlapStreetMap";

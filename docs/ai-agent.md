@@ -38,6 +38,9 @@ Consult these for detail when the startup sequence doesn't answer a specific que
 
 - `docs/manifest.md` — manifest field rules, ABI policy, and locale validation
 - `docs/sdk.md` — full SDK hook surface, context fields, and taxinfo host context
+- `docs/street-map.md` / `docs/street-map.zh-CN.md` — fixed shared FlapStreetMap, optional mapCapabilities, Worker and list fallback; next.3 provides the basic map; published 0.1.40-next.4 adds enhanced point presentation with verified public package identity; receiving hosts still need the matching presentation feature/sentinel (no raw engine/network/Worker exception)
+- `docs/examples/street-map/README.md` — canonical checked map authoring example, using explicit literal rarity translation keys; preserve ordinary source/E2E/package validation after adapting it
+- `docs/device-sensors.md` — declared Runtime location/motion/orientation, user-triggered permissions, compatibility states and fallback
 - `docs/safety-boundaries.md` — blocking and allowed behavior reference
 - `docs/prd.md` — product scope, implemented acceptance criteria, and explicit non-goals
 - `docs/agent-entrypoints.md` — supported agents, entry points, and startup steps

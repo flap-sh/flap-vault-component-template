@@ -1,6 +1,7 @@
 import type { ManifestResolvedContract, ResolvedContractHandle } from "./resolvedContractTypes";
 import type { ManifestNftAccountWithdrawal, NftAccountWithdrawalRequest, NftAccountWithdrawalReceipt } from "./nftAccountTypes";
 import type { Abi, PublicClient } from "viem";
+import type { DeviceSensors } from "./deviceSensors";
 
 export type Address = `0x${string}`;
 
@@ -234,6 +235,10 @@ export interface VaultManifest {
   };
   mode?: VaultManifestMode;
   capabilities?: VaultManifestCapability[];
+  /** Reviewed device access intent. Omission preserves legacy no-device behavior. */
+  deviceCapabilities?: ("location" | "motion" | "orientation")[];
+  /** Fixed shared street map only; grants no raw network or worker access. */
+  mapCapabilities?: ("street-map-v1")[];
   /** Omitted manifests keep the legacy vault-ui-only behavior. */
   surfaces?: VaultArtifactSurface[];
   layout?: VaultManifestLayout;
@@ -461,6 +466,7 @@ export interface MediaUploadRequest extends MediaUploadOptions {
 export type MediaUploader = (request: MediaUploadRequest) => Promise<IpfsUploadResult>;
 
 export interface FlapVaultSdk {
+  device: DeviceSensors;
   forChain(chainId: number): import("./flapChainRuntime").FlapChainSdk;
   context: VaultRuntimeContext;
   i18n: FlapI18n;
