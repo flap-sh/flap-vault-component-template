@@ -1,6 +1,7 @@
 # Mini App 子路由
 
-这是 runtime-only 测试候选 `0.1.40-beta.routing.0` 的独立子路由能力，尚未发布。
+这是 runtime-only 测试版 `0.1.40-beta.routing.0` 的独立子路由能力，已发布到 npm
+`routing`，2026-10-29 完成核验；本次未部署消费者宿主。
 独立 npm `routing` 标签保留 `latest=0.1.39` 和传感器/地图
 `next=0.1.40-next.4` 通道；正式 `0.1.40` 仍待发布。保留 exact-ref 发布、私有
 canary 和 main/latest 源码 ZIP 来源校验。

@@ -14,13 +14,13 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | Stable version | **`0.1.39`**, published to npm latest |
 | Upcoming stable candidate | **`0.1.40`**, Mini App routing only; not published, official main unchanged during preparation |
 | Published npm `latest` | `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583` |
-| Routing testing candidate | `0.1.40-beta.routing.0`, runtime-only `routing` tag; not yet published |
+| Routing testing release | `0.1.40-beta.routing.0`, published on runtime-only `routing`; verified 2026-10-29 |
 | Current npm `next` | `0.1.40-next.4`, independent sensor/map testing release; unchanged by routing |
 | Historical npm `next` | Eight versions through `0.1.40-next.0` are deprecated; downloads remain |
 | App ZIP tooling | Use the published `0.1.39` identity and regenerate proofs; historical `0.1.38` check/package/verification remains recorded |
 | Historical next versions | All eight are deprecated; downloads remain available |
 
-A separate runtime-only `0.1.40-beta.routing.0` testing candidate is prepared on `feat/mini-app-routing`, without sensor/map APIs. It is not yet published; its independent `routing` tag does not move latest/next. Stable `0.1.40` and production changes remain deferred. The testing package cannot supply main/latest source-ZIP provenance. See [routing testing preparation](releases/0.1.40-beta.routing.0.md).
+The separate runtime-only `0.1.40-beta.routing.0` testing release is published from `feat/mini-app-routing` commit `33d22c9475c3935f8066d4ed213f25e082ece167`, without sensor/map APIs. Public-registry verification passed on 2026-10-29; its independent `routing` tag did not move latest/next. Consumer deployment has not been performed. Stable `0.1.40` and production changes remain deferred. The testing package cannot supply main/latest source-ZIP provenance. See [routing testing release record](releases/0.1.40-beta.routing.0.md).
 
 A source merge or version edit does not publish npm, move dist-tags, upgrade deployed hosts or approve an App. The stable `0.1.38` source includes the shared App wallet, dynamic IPFS/FSI, long-text CopyButton and the merged build/dependency updates. Its runtime inputs differ from previous publications, so an older stable/next package cannot supply its ZIP provenance.
 

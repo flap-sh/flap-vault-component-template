@@ -6,7 +6,7 @@
 
 **Release status (checked 2026-10-23):** **`@flapsdk/vault-runtime@0.1.39` is published on npm latest**, with source `78c355f080a60770cfd64d71d94c525204d61583`. Vault UI and Mini App v2 share main/latest; App check, E2E, package and verification are supported. All eight historical next versions are deprecated, with downloads retained. Hosts and Workbench must use the same exact stable runtime and matching validation inputs before accepting new submissions. See [main/latest migration](./docs/main-migration.md) and the [v2 quickstart](./docs/mini-app-v2-quickstart.md).
 
-**Routing testing candidate `0.1.40-beta.routing.0` — not yet published:** this runtime-only branch adds host-owned Mini App subroutes without sensor/map APIs. It uses the independent npm `routing` tag; `latest=0.1.39` and `next=0.1.40-next.4` stay unchanged. Stable `0.1.40` remains pending. App/Vault source-ZIP provenance continues to require main/latest. See [the testing release guide](docs/releases/0.1.40-beta.routing.0.md).
+**Routing testing release `0.1.40-beta.routing.0` — published on npm `routing` (2026-10-29):** this runtime-only branch adds host-owned Mini App subroutes without sensor/map APIs. It uses the independent npm `routing` tag; `latest=0.1.39` and `next=0.1.40-next.4` stay unchanged. Stable `0.1.40` remains pending. App/Vault source-ZIP provenance continues to require main/latest. See [the testing release guide](docs/releases/0.1.40-beta.routing.0.md).
 
 [简体中文](./README.zh-CN.md)
 

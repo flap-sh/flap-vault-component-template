@@ -13,7 +13,7 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
-Stable `0.1.40` remains **unpublished and deferred**. An independent runtime-only `0.1.40-beta.routing.0` testing candidate is prepared for the `routing` tag; it does not move `latest=0.1.39` or sensor/map `next=0.1.40-next.4`. It is not yet published. See [the testing guide](releases/0.1.40-beta.routing.0.md) ([中文](releases/0.1.40-beta.routing.0.zh-CN.md)).
+Stable `0.1.40` remains **unpublished and deferred**. The independent runtime-only `0.1.40-beta.routing.0` testing release is published on the `routing` tag (verified 2026-10-29); it does not move `latest=0.1.39` or sensor/map `next=0.1.40-next.4`. Consumer deployment has not been performed. See [the testing guide](releases/0.1.40-beta.routing.0.md) ([中文](releases/0.1.40-beta.routing.0.zh-CN.md)).
 
 `0.1.39` is published on npm `latest`, source `78c355f080a60770cfd64d71d94c525204d61583`, adding the second reviewed FSI endpoint. Follow [the 0.1.39 release guide](releases/0.1.39.md) ([简体中文](releases/0.1.39.zh-CN.md)) for verified archive identity and matching host/checker rollout. The historical `0.1.38` release record remains below.
 
@@ -91,9 +91,10 @@ bootstrap. `beta.routing` sorts below `next`; install exact test versions.
 This is a runtime publication exception only. Stable/latest, next, App/Vault ZIP
 version/provenance and protected private-canary rules remain unchanged. See the
 [English](releases/0.1.40-beta.routing.0.md) and
-[Chinese](releases/0.1.40-beta.routing.0.zh-CN.md) preparation guides for commands
-and post-publication verification. No test-package or production publication is
-established by this source change.
+[Chinese](releases/0.1.40-beta.routing.0.zh-CN.md) release records for commands
+and public-registry identity verification. The published package source is
+`33d22c9475c3935f8066d4ed213f25e082ece167`; later documentation commits do not
+change that `gitHead`. Consumer deployment and stable `0.1.40` remain deferred.
 
 ## Agent Contract Version
 

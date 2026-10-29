@@ -4,7 +4,7 @@ New development supports **Vault UI and Mini App v2 only**. **Mini App v1 is dep
 
 ## Main integration and Mini App v2 releases
 
-The runtime-only **`0.1.40-beta.routing.0`** Mini App routing testing candidate is prepared but **not yet published**. Its dedicated `routing` tag leaves `latest=0.1.39` and the sensor/map `next=0.1.40-next.4` identities unchanged. Use `runtime:package:routing` only from clean exact official `feat/mini-app-routing` source after review/push; no skip or source-ZIP channel is introduced. Stable `0.1.40` remains unpublished. See [testing release rules](docs/releases/0.1.40-beta.routing.0.md).
+The runtime-only **`0.1.40-beta.routing.0`** Mini App routing testing release is **published on npm `routing`**, verified 2026-10-29 from source `33d22c9475c3935f8066d4ed213f25e082ece167`. Consumer deployment has not been performed. Its dedicated `routing` tag leaves `latest=0.1.39` and the sensor/map `next=0.1.40-next.4` identities unchanged. Use `runtime:package:routing` only from clean exact official `feat/mini-app-routing` source after review/push; no skip or source-ZIP channel is introduced. Stable `0.1.40` remains unpublished. See [testing release rules](docs/releases/0.1.40-beta.routing.0.md).
 
 `0.1.39` adds `https://fsi.taxed.fun/fsi/v1` while preserving the legacy endpoint. The stable package is published; receiving hosts must still deploy matching runtime/checker policies. See [0.1.39 release and upgrade notes](docs/releases/0.1.39.md).
 
