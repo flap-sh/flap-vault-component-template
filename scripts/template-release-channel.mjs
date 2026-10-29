@@ -1,15 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { assertRuntimeReleaseChannel } from "./runtime-package-mode.mjs";
 import { isStandaloneApp } from "./standalone-app.mjs";
 
 export function templateReleasePolicy(env = process.env) {
   const channel = env.FLAP_TEMPLATE_CHANNEL?.trim() || "latest";
-  if (!["latest", "next"].includes(channel)) throw new Error("FLAP_TEMPLATE_CHANNEL must be latest or next.");
-  const officialRef = env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || (channel === "next" ? "origin/next" : "origin/main");
+  if (!["latest", "next", "routing"].includes(channel)) throw new Error("FLAP_TEMPLATE_CHANNEL must be latest, next or routing.");
+  const officialRef = env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || (channel === "routing" ? "origin/feat/mini-app-routing" : channel === "next" ? "origin/next" : "origin/main");
   const packageName = env.FLAP_TEMPLATE_NPM_PACKAGE?.trim() || "@flapsdk/vault-runtime";
   if (channel === "next" && (!/^[a-zA-Z0-9_-]+\/(?:feat\/mini-app-v2|next)$/.test(officialRef) || packageName !== "@flapsdk/vault-runtime")) {
     throw new Error("The next channel requires the official feat/mini-app-v2 or next ref and @flapsdk/vault-runtime.");
+  }
+  if (channel === "routing" && (!/^[a-zA-Z0-9_-]+\/feat\/mini-app-routing$/.test(officialRef) || packageName !== "@flapsdk/vault-runtime" || env.FLAP_TEMPLATE_WORKFLOW !== "runtime")) {
+    throw new Error("The routing channel is runtime-only and requires the official feat/mini-app-routing ref and @flapsdk/vault-runtime. Use runtime:package:routing.");
   }
   return { channel, npmTag: channel, officialRef, packageName };
 }
@@ -56,6 +60,14 @@ export function assertPreviewTemplate(root, folderName) {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, "src/vaults", folderName, "manifest.json"), "utf8"));
     if (!isStandaloneApp(manifest)) throw new Error("The next source-package channel is limited to standalone Mini App v2. Legacy packages retain main/latest.");
   }
+}
+
+export function assertRoutingTemplate(root, folderName, env = process.env) {
+  const policy = templateReleasePolicy(env);
+  if (policy.channel !== "routing" || folderName !== undefined) throw new Error("The routing channel accepts runtime packages only; App/Vault source ZIPs retain main/latest.");
+  const { version } = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  assertRuntimeReleaseChannel(version, "routing");
+  return policy;
 }
 
 // Template authoring tools come from the current official branch, independently

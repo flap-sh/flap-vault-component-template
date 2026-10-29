@@ -1,10 +1,11 @@
 # Mini App routing
 
-The upcoming routing-only stable `0.1.40` supports generic subroutes within an
-existing standalone Mini App v2. **Publication is pending**; npm `latest` remains
-`0.1.39`, and `next=0.1.40-next.1` retains its independent sensor testing scope.
-Test a commit-bound private canary first; preserve the official publication,
-freshness and source-ZIP provenance gates. See [the pending release guide](releases/0.1.40.md).
+The runtime-only `0.1.40-beta.routing.0` testing candidate supports generic
+subroutes within an existing standalone Mini App v2. **It is not yet published.**
+The independent npm `routing` tag preserves `latest=0.1.39` and the sensor/map
+`next=0.1.40-next.4` channel. Stable `0.1.40` remains pending. Keep exact-ref
+release, private-canary and main/latest source-ZIP provenance gates. See
+[the testing release guide](releases/0.1.40-beta.routing.0.md).
 
 ## Application API
 

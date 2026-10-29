@@ -1,9 +1,10 @@
 # Mini App 子路由
 
-这是待发布正式版 `0.1.40` 的独立子路由能力，尚未公开发布。npm `latest` 仍为
-`0.1.39`，`next=0.1.40-next.1` 保留独立传感器测试范围。先使用绑定提交的私有
-canary 完成消费者验证，保留现有正式发布、模板新鲜度和源码 ZIP 来源校验。
-见[待发布说明](releases/0.1.40.zh-CN.md)。
+这是 runtime-only 测试候选 `0.1.40-beta.routing.0` 的独立子路由能力，尚未发布。
+独立 npm `routing` 标签保留 `latest=0.1.39` 和传感器/地图
+`next=0.1.40-next.4` 通道；正式 `0.1.40` 仍待发布。保留 exact-ref 发布、私有
+canary 和 main/latest 源码 ZIP 来源校验。
+见[测试版说明](releases/0.1.40-beta.routing.0.zh-CN.md)。
 
 独立 Mini App v2 从 `@/src/sdk` 导入 `useMiniAppRouter()`，获得相对应用根目录的
 `pathname`、只解码一次的不可变 `segments`、保留重复参数的 `search`，以及

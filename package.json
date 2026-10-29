@@ -1,6 +1,6 @@
 {
   "name": "flap-vault-ui-template",
-  "version": "0.1.40",
+  "version": "0.1.40-beta.routing.0",
   "private": true,
   "license": "MIT",
   "packageManager": "yarn@1.22.22",
@@ -60,14 +60,15 @@
     "app:verify-package": "node scripts/app-command.mjs verify",
     "app:build": "node scripts/app-command.mjs build",
     "runtime:package:next": "node scripts/app-command.mjs runtime",
-    "test:release-channel": "node --test scripts/template-release-channel.test.mjs scripts/npm-registry.test.mjs scripts/preview-freshness.test.mjs scripts/app-command.test.mjs",
+    "test:release-channel": "node --test scripts/template-release-channel.test.mjs scripts/npm-registry.test.mjs scripts/preview-freshness.test.mjs scripts/app-command.test.mjs scripts/runtime-routing-release.test.mjs scripts/runtime-routing-command.test.mjs scripts/routing-freshness.test.mjs",
     "test:flap-wallet": "node --test src/sdk/flapChainRuntime.test.mjs",
     "test:copy-button-policy": "node --test scripts/copy-button-policy.test.mjs",
     "test:copy-button": "node --experimental-strip-types --test src/ui/copyText.test.ts && node scripts/test-copy-button-browser.mjs",
     "test:fsi": "node --test src/sdk/fsi.test.mjs scripts/fsi-endpoint-policy.test.mjs",
     "test:ipfs-content": "node --test src/sdk/ipfsText.test.mjs scripts/ipfs-content-policy.test.mjs scripts/ipfs-content-checker.test.mjs && node scripts/test-ipfs-content-browser.mjs",
     "test:preview-process": "node --test scripts/preview-process.test.mjs",
-    "test:launch-config:browser": "node --test scripts/launch-config-e2e.browser.test.mjs"
+    "test:launch-config:browser": "node --test scripts/launch-config-e2e.browser.test.mjs",
+    "runtime:package:routing": "node scripts/runtime-routing-command.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

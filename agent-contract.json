@@ -1747,5 +1747,18 @@
     "profile": "null-bag-withdraw-v1",
     "documentation": "docs/nft-account-withdrawal.md",
     "rule": "Declaration is review intent only. Host must approve deployment-specific pins. Use sdk.withdrawNftAccount({policyId,tokenId,amount}); no recipient, arbitrary target, calldata, native value or delegatecall. The NULL four-argument execute selector is blocked on raw writes; genuine reviewed resolved handles use their exact manifest-declared execute signature. Other raw signatures require target enforcement. Provider is host-only."
+  },
+  "runtimeRoutingTestingRelease": {
+    "package": "@flapsdk/vault-runtime",
+    "versionPattern": "X.Y.Z-beta.routing.N",
+    "npmTag": "routing",
+    "officialBranch": "feat/mini-app-routing",
+    "command": "yarn runtime:package:routing",
+    "documentation": "docs/releases/0.1.40-beta.routing.0.md",
+    "rules": [
+      "Runtime-only testing; no App/Vault source ZIP provenance or stable production changes. Keep latest, next and protected private-canary rules unchanged.",
+      "Require clean committed source at the exact fetched official routing branch head. No skip/sync flags or folder arguments.",
+      "Bootstrap only on genuine public-registry tag and exact-version HTTP 404 plus absent routing dist-tag and verified latest published ancestry; redirects, network/auth errors and malformed metadata block. Later releases check routing version/ancestry."
+    ]
   }
 }

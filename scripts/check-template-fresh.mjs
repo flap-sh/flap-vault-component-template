@@ -4,9 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { failAgent } from "./agent-error.mjs";
+import { assertRoutingRegistryFresh } from "./runtime-routing-release.mjs";
 import { readNpmPackageTagMetadata } from "./npm-registry.mjs";
 
-import { templateReleasePolicy, assertAppReleasePolicy, assertAppTemplate, assertOfficialTemplateRemote, assertPreviewTemplate, isStandaloneTarget } from "./template-release-channel.mjs";
+import { templateReleasePolicy, assertAppReleasePolicy, assertAppTemplate, assertOfficialTemplateRemote, assertPreviewTemplate, assertRoutingTemplate, isStandaloneTarget } from "./template-release-channel.mjs";
 
 const ROOT = process.cwd();
 let CHANNEL_POLICY;
@@ -99,7 +100,7 @@ function comparePrereleaseIdentifier(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function compareSemver(leftVersion, rightVersion) {
+export function compareSemver(leftVersion, rightVersion) {
   const left = parseSemver(leftVersion);
   const right = parseSemver(rightVersion);
   if (!left || !right) return null;
@@ -228,6 +229,19 @@ export async function assertNpmPackageFresh({
     try { assertPreviewTemplate(ROOT, folderName); }
     catch (error) { failFreshness({ code: "template-freshness/preview-target", message: error.message, fixHint: "Use App v2 next commands only with the committed preview template and standalone manifest.", folderName }); }
   }
+  if (NPM_TAG === "routing") {
+    try {
+      assertRoutingTemplate(ROOT, folderName);
+      return await assertRoutingRegistryFresh({
+        packageName: NPM_PACKAGE_NAME,
+        localVersion: readRootPackageJson(folderName).version,
+        readTagMetadata: readLatestMetadata,
+        containsGitHead: (head) => gitSucceeds(["merge-base", "--is-ancestor", head, "HEAD"]),
+      });
+    } catch (error) {
+      failFreshness({ code: "template-freshness/routing-registry", message: error.message, fixHint: "Use the complete runtime:package:routing gate from clean official routing source; fix registry access or source ancestry and retry. No registry/network failure can substitute for a verified missing tag/version.", folderName });
+    }
+  }
   // Each release channel validates its own published version and source commit.
   const latestMetadata = await npmLatestMetadata(folderName, readLatestMetadata);
   const latestVersion = latestMetadata.version;
@@ -328,6 +342,15 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
       assertOfficialTemplateRemote(git(["remote", "get-url", remote]));
     } catch (error) {
       failFreshness({ code: "template-freshness/preview-source", message: error.message, fixHint: "Use official next only for an explicitly authorized preview release. App development uses official main/latest.", folderName });
+    }
+  }
+  if (NPM_TAG === "routing") {
+    try {
+      assertRoutingTemplate(ROOT, folderName);
+      assertOfficialTemplateRemote(git(["remote", "get-url", remote]));
+      if (autoUpdate || git(["status", "--porcelain", "--untracked-files=normal"])) throw new Error("Routing release source must be clean and committed; automatic source updates are not allowed.");
+    } catch (error) {
+      failFreshness({ code: "template-freshness/routing-source", message: error.message, fixHint: "Commit and push reviewed routing source, then use a clean checkout at the exact official feat/mini-app-routing head.", folderName });
     }
   }
   try {
@@ -437,6 +460,9 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
 }
 
 export async function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true, autoUpdate = false } = {}) {
+  if (NPM_TAG === "routing" && (!includeGit || !includeNpm || autoUpdate)) {
+    failFreshness({ code: "template-freshness/routing-complete-gate", message: "Routing releases require the full Git and npm gates without skip or sync flags.", fixHint: "Use runtime:package:routing from the clean exact official routing source.", folderName });
+  }
   const checks = {};
   if (includeGit) checks.git = assertTemplateGitFresh({ folderName, autoUpdate });
   if (includeNpm) checks.npm = await assertNpmPackageFresh({ folderName, autoUpdate });

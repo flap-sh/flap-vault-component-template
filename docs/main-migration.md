@@ -4,7 +4,7 @@
 
 Vault UI and Mini App v2 are maintained together on official `main`. They share one template, one `@flapsdk/vault-runtime` package, public UI components and the host wallet. Use `vault:*` for Vault UI and `app:*` for standalone v2 Apps. Manifests, identities, permissions, contexts and package proofs remain distinct.
 
-## Current status — checked 2026-10-25
+## Current status — checked 2026-10-29
 
 | Item | Status |
 | --- | --- |
@@ -14,12 +14,13 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | Stable version | **`0.1.39`**, published to npm latest |
 | Upcoming stable candidate | **`0.1.40`**, Mini App routing only; not published, official main unchanged during preparation |
 | Published npm `latest` | `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583` |
-| Current npm `next` | `0.1.40-next.1`, independent device-sensor testing release; unchanged by routing |
+| Routing testing candidate | `0.1.40-beta.routing.0`, runtime-only `routing` tag; not yet published |
+| Current npm `next` | `0.1.40-next.4`, independent sensor/map testing release; unchanged by routing |
 | Historical npm `next` | Eight versions through `0.1.40-next.0` are deprecated; downloads remain |
 | App ZIP tooling | Use the published `0.1.39` identity and regenerate proofs; historical `0.1.38` check/package/verification remains recorded |
 | Historical next versions | All eight are deprecated; downloads remain available |
 
-The routing-only `0.1.40` release branch adds generic host-owned App subroutes and does not include the sensor changes. Publication remains pending usable maintainer npm authentication, official-main review/merge and the verified release build. Do not publish a private canary or use this local version bump as source-ZIP provenance. See [pending 0.1.40 preparation](releases/0.1.40.md).
+A separate runtime-only `0.1.40-beta.routing.0` testing candidate is prepared on `feat/mini-app-routing`, without sensor/map APIs. It is not yet published; its independent `routing` tag does not move latest/next. Stable `0.1.40` and production changes remain deferred. The testing package cannot supply main/latest source-ZIP provenance. See [routing testing preparation](releases/0.1.40-beta.routing.0.md).
 
 A source merge or version edit does not publish npm, move dist-tags, upgrade deployed hosts or approve an App. The stable `0.1.38` source includes the shared App wallet, dynamic IPFS/FSI, long-text CopyButton and the merged build/dependency updates. Its runtime inputs differ from previous publications, so an older stable/next package cannot supply its ZIP provenance.
 

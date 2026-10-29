@@ -13,7 +13,7 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
-Upcoming `0.1.40` contains Mini App routing only and is **not yet published**. Stable `latest` remains `0.1.39`; the sensor testing release `next=0.1.40-next.1` stays independent. Prepare and test the release branch with private canaries, then wait for usable maintainer npm authentication before the official-main merge and publishable build. See [the pending guide](releases/0.1.40.md) ([中文](releases/0.1.40.zh-CN.md)).
+Stable `0.1.40` remains **unpublished and deferred**. An independent runtime-only `0.1.40-beta.routing.0` testing candidate is prepared for the `routing` tag; it does not move `latest=0.1.39` or sensor/map `next=0.1.40-next.4`. It is not yet published. See [the testing guide](releases/0.1.40-beta.routing.0.md) ([中文](releases/0.1.40-beta.routing.0.zh-CN.md)).
 
 `0.1.39` is published on npm `latest`, source `78c355f080a60770cfd64d71d94c525204d61583`, adding the second reviewed FSI endpoint. Follow [the 0.1.39 release guide](releases/0.1.39.md) ([简体中文](releases/0.1.39.zh-CN.md)) for verified archive identity and matching host/checker rollout. The historical `0.1.38` release record remains below.
 
@@ -76,6 +76,24 @@ yarn runtime:verify-package
 `upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The npm `next` ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
 
 `@flapsdk/vault-runtime@0.1.39` is published on latest with source `78c355f080a60770cfd64d71d94c525204d61583` (checked 2026-10-23). Historical `0.1.40-next.0` and all earlier next releases are deprecated. Stable App ZIPs use the exact latest identity and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance independently. Future runtime input changes require their own matching publication. See [main/latest status](main-migration.md).
+
+## Independent runtime-only routing testing channel
+
+`runtime:package:routing` accepts only `X.Y.Z-beta.routing.N` on the exact clean
+fetched official `feat/mini-app-routing` head, for `@flapsdk/vault-runtime` and
+npm tag `routing`. It accepts no App folders or skip/sync flags. First publication
+requires genuine fixed-registry 404 responses for the routing tag and exact
+version, dist-tags without routing, and the published latest commit in source
+history. Later releases check routing's own version and published ancestry.
+Redirect, network, authentication and malformed-metadata failures never permit
+bootstrap. `beta.routing` sorts below `next`; install exact test versions.
+
+This is a runtime publication exception only. Stable/latest, next, App/Vault ZIP
+version/provenance and protected private-canary rules remain unchanged. See the
+[English](releases/0.1.40-beta.routing.0.md) and
+[Chinese](releases/0.1.40-beta.routing.0.zh-CN.md) preparation guides for commands
+and post-publication verification. No test-package or production publication is
+established by this source change.
 
 ## Agent Contract Version
 

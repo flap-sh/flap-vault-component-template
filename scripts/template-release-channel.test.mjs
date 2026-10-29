@@ -155,3 +155,16 @@ test("stable App ZIPs require the exact published latest identity before submiss
   repo.commit("runtime update");
   assert.throws(() => assertPublishedRuntimeIdentity({ ...identity, head: repo.git(["rev-parse", "HEAD"]) }), /matching npm latest runtime/);
 });
+
+test("routing is runtime-only, fixed to the official routing ref and cannot be App ZIP provenance", (t) => {
+  const env = { FLAP_TEMPLATE_CHANNEL: "routing", FLAP_TEMPLATE_WORKFLOW: "runtime" };
+  assert.deepEqual(templateReleasePolicy(env), { channel: "routing", npmTag: "routing", officialRef: "origin/feat/mini-app-routing", packageName: "@flapsdk/vault-runtime" });
+  assert.equal(templateReleasePolicy({ ...env, FLAP_TEMPLATE_FRESHNESS_REF: "upstream/feat/mini-app-routing" }).npmTag, "routing");
+  for (const change of [{ FLAP_TEMPLATE_WORKFLOW: undefined }, { FLAP_TEMPLATE_WORKFLOW: "app" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/main" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/next" }, { FLAP_TEMPLATE_FRESHNESS_REF: "HEAD" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/feat/mini-app-routing/extra" }, { FLAP_TEMPLATE_NPM_PACKAGE: "other" }]) assert.throws(() => templateReleasePolicy({ ...env, ...change }));
+  assert.throws(() => assertAppReleasePolicy(env), /official main/);
+  const repo = previewRepository(t);
+  assert.throws(() => assertPublishedRuntimeIdentity({ ...repo.identity(), channel: "routing", localVersion: "0.1.40-beta.routing.0", publishedVersion: "0.1.40-beta.routing.0" }), /cannot be App ZIP provenance/);
+  repo.write("package.json", JSON.stringify({ version: "0.1.40-beta.routing.0" }));
+  assert.throws(() => assertAppTemplate(repo.root), /stable template version/);
+  assert.throws(() => assertPreviewTemplate(repo.root), /next template/);
+});

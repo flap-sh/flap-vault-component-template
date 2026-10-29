@@ -1,4 +1,5 @@
 const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
+export const ROUTING_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-beta\.routing\.(0|[1-9]\d*)$/;
 const GIT_HEAD_PATTERN = /^[0-9a-f]{40,64}$/i;
 
 export function parseRuntimePackageMode(args) {
@@ -20,19 +21,20 @@ export function createCanaryVersion(baseVersion, gitHead) {
 export function assertRuntimeReleaseChannel(version, channel) {
   const stable = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version || "");
   const preview = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-next\.(0|[1-9]\d*)$/.test(version || "");
-  if ((channel === "latest" && stable) || (channel === "next" && preview)) return;
-  throw new Error(`Runtime release ${version} must match its ${channel} channel: stable versions use main/latest and next prereleases require explicit next release commands.`);
+  if ((channel === "latest" && stable) || (channel === "next" && preview) || (channel === "routing" && ROUTING_VERSION_PATTERN.test(version || ""))) return;
+  throw new Error(`Runtime release ${version} must match its ${channel} channel: stable versions use main/latest; next and beta.routing prereleases require their dedicated runtime release commands.`);
 }
 
 export function createRuntimePackageIdentity({ baseVersion, gitHead, mode }) {
   if (mode === "release") {
     const prereleaseChannel = SEMVER_PATTERN.exec(baseVersion)?.[4]?.split(".")[0];
-    assertRuntimeReleaseChannel(baseVersion, prereleaseChannel === "next" ? "next" : "latest");
+    const channel = ROUTING_VERSION_PATTERN.test(baseVersion) ? "routing" : prereleaseChannel === "next" ? "next" : "latest";
+    assertRuntimeReleaseChannel(baseVersion, channel);
     return {
       mode,
       version: baseVersion,
       private: false,
-      publishConfig: { access: "public", tag: prereleaseChannel === "next" ? "next" : "latest" },
+      publishConfig: { access: "public", tag: channel },
       canary: undefined,
     };
   }

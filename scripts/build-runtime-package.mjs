@@ -42,7 +42,7 @@ function assertCleanCommittedCanarySource(label = "Canary") {
   }).trim();
   if (status) {
     throw runtimePackageError(
-      `runtime-package/${label === "Canary" ? "canary" : label === "Next prerelease" ? "next" : "release"}-dirty`,
+      `runtime-package/${label === "Canary" ? "canary" : label === "Routing prerelease" ? "routing" : label === "Next prerelease" ? "next" : "release"}-dirty`,
       `${label} runtime packages require a clean committed worktree so their gitHead provenance is exact.`,
       "Commit the intended runtime changes and remove unrelated untracked files, then rerun the requested runtime packaging command.",
     );
@@ -54,7 +54,7 @@ async function main() {
   if (mode === "release") {
     const { version } = await readJson(path.join(ROOT, "package.json"));
     assertRuntimeReleaseChannel(version, process.env.FLAP_TEMPLATE_CHANNEL || "latest");
-    assertCleanCommittedCanarySource(process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "Next prerelease" : "Stable release");
+    assertCleanCommittedCanarySource(process.env.FLAP_TEMPLATE_CHANNEL === "routing" ? "Routing prerelease" : process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "Next prerelease" : "Stable release");
     await assertTemplateFresh();
   }
   else assertCleanCommittedCanarySource();
@@ -140,6 +140,8 @@ async function main() {
 Generated from \`flap-vault-ui-template\`.
 
 ${mode === "canary" ? "This is a private local canary package. It is commit-bound and must not be published to npm.\n" : ""}
+
+${packageIdentity.publishConfig?.tag === "routing" ? "This is a runtime-only routing testing prerelease on the npm routing tag. Install its exact version in isolated test consumers. It does not include sensor/map APIs or change latest/next, and cannot supply App/Vault source-ZIP provenance.\n" : ""}
 
 This package is the shared runtime surface that local preview, Artifact Workbench, and \`flap.sh\` should agree on.
 
