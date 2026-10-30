@@ -5,9 +5,9 @@ import path from "node:path";
 import process from "node:process";
 import { failAgent } from "./agent-error.mjs";
 import { assertRoutingRegistryFresh } from "./runtime-routing-release.mjs";
-import { readNpmPackageTagMetadata } from "./npm-registry.mjs";
+import { readNpmPackageTagMetadata, readNpmPackageVersionMetadata } from "./npm-registry.mjs";
 
-import { templateReleasePolicy, assertAppReleasePolicy, assertAppTemplate, assertOfficialTemplateRemote, assertPreviewTemplate, assertRoutingTemplate, isStandaloneTarget } from "./template-release-channel.mjs";
+import { templateReleasePolicy, assertAppReleasePolicy, assertAppTemplate, assertOfficialTemplateRemote, assertPreviewTemplate, assertRoutingTemplate, assertPublishedRuntimeIdentity, isStandaloneTarget } from "./template-release-channel.mjs";
 
 const ROOT = process.cwd();
 let CHANNEL_POLICY;
@@ -16,6 +16,7 @@ catch (error) { failAgent({ code: "template-freshness/invalid-channel", message:
 const OFFICIAL_REF = CHANNEL_POLICY.officialRef;
 const NPM_PACKAGE_NAME = CHANNEL_POLICY.packageName;
 const NPM_TAG = CHANNEL_POLICY.npmTag;
+const ROUTING_APP = NPM_TAG === "routing" && process.env.FLAP_TEMPLATE_WORKFLOW === "app";
 const DEFAULT_NPM_SYNC_ATTEMPTS = 3;
 const DEFAULT_NPM_SYNC_DELAY_MS = 1_000;
 
@@ -222,12 +223,34 @@ export async function assertNpmPackageFresh({
   folderName,
   autoUpdate = false,
   readLatestMetadata = readNpmPackageTagMetadata,
+  readVersionMetadata = readNpmPackageVersionMetadata,
   syncAttempts = DEFAULT_NPM_SYNC_ATTEMPTS,
   syncDelayMs = DEFAULT_NPM_SYNC_DELAY_MS,
 } = {}) {
   if (NPM_TAG === "next") {
     try { assertPreviewTemplate(ROOT, folderName); }
     catch (error) { failFreshness({ code: "template-freshness/preview-target", message: error.message, fixHint: "Use App v2 next commands only with the committed preview template and standalone manifest.", folderName }); }
+  }
+  if (ROUTING_APP) {
+    try {
+      assertAppTemplate(ROOT, folderName);
+      const localVersion = readRootPackageJson(folderName).version;
+      // Source ZIPs require an existing exact publication. Runtime bootstrap and
+      // ahead-of-npm release logic must never authorize an App archive.
+      const published = await readLatestMetadata(NPM_PACKAGE_NAME, "routing");
+      if (published?.version !== localVersion) throw new Error("Routing App template version must exactly match the published npm routing tag.");
+      const immutable = await readVersionMetadata(NPM_PACKAGE_NAME, localVersion);
+      if (immutable?.version !== published.version || immutable?.gitHead !== published.gitHead) throw new Error("npm routing tag and immutable version provenance do not agree.");
+      const head = git(["rev-parse", "HEAD"]);
+      const identity = assertPublishedRuntimeIdentity({ channel: "routing", root: ROOT, localVersion,
+        publishedVersion: published.version, head, publishedHead: published.gitHead });
+      return { ok: true, npmPackageName: NPM_PACKAGE_NAME, npmTag: "routing", localVersion,
+        latestVersion: published.version, latestGitHead: published.gitHead, status: "up-to-date",
+        gitHead: { checked: true, status: identity.status, latestGitHead: published.gitHead, head } };
+    } catch (error) {
+      failFreshness({ code: "template-freshness/routing-app-registry", message: error.message,
+        fixHint: "Use the exact already-published npm routing version from current official routing source. App ZIPs cannot bootstrap, use an unpublished version, or change protected runtime/build/protocol inputs.", folderName });
+    }
   }
   if (NPM_TAG === "routing") {
     try {
@@ -346,9 +369,10 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
   }
   if (NPM_TAG === "routing") {
     try {
-      assertRoutingTemplate(ROOT, folderName);
+      if (ROUTING_APP) assertAppTemplate(ROOT, folderName);
+      else assertRoutingTemplate(ROOT, folderName);
       assertOfficialTemplateRemote(git(["remote", "get-url", remote]));
-      if (autoUpdate || git(["status", "--porcelain", "--untracked-files=normal"])) throw new Error("Routing release source must be clean and committed; automatic source updates are not allowed.");
+      if (autoUpdate || (!ROUTING_APP && git(["status", "--porcelain", "--untracked-files=normal"]))) throw new Error("Routing release source must be clean and committed; automatic source updates are not allowed.");
     } catch (error) {
       failFreshness({ code: "template-freshness/routing-source", message: error.message, fixHint: "Commit and push reviewed routing source, then use a clean checkout at the exact official feat/mini-app-routing head.", folderName });
     }
@@ -461,11 +485,14 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
 
 export async function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true, autoUpdate = false } = {}) {
   if (NPM_TAG === "routing" && (!includeGit || !includeNpm || autoUpdate)) {
-    failFreshness({ code: "template-freshness/routing-complete-gate", message: "Routing releases require the full Git and npm gates without skip or sync flags.", fixHint: "Use runtime:package:routing from the clean exact official routing source.", folderName });
+    failFreshness({ code: "template-freshness/routing-complete-gate", message: "Routing workflows require the full Git and npm gates without skip or sync flags.", fixHint: "Use explicit routing App commands or runtime:package:routing from the exact official routing source.", folderName });
   }
   const checks = {};
   if (includeGit) checks.git = assertTemplateGitFresh({ folderName, autoUpdate });
   if (includeNpm) checks.npm = await assertNpmPackageFresh({ folderName, autoUpdate });
+  if (ROUTING_APP && checks.git.head !== checks.npm.gitHead.head) {
+    failFreshness({ code: "template-freshness/routing-app-head-changed", message: "Template HEAD changed between official source and published routing identity checks.", fixHint: "Retry the complete App routing gate from a stable official checkout.", folderName });
+  }
   if (checks.npm?.gitSync?.status === "updated") checks.git = checks.npm.gitSync;
   return { ok: true, checks };
 }

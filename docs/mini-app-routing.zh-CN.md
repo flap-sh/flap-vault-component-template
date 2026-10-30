@@ -1,6 +1,6 @@
 # Mini App 子路由
 
-这是 runtime-only 测试版 `0.1.40-beta.routing.0` 的独立子路由能力，已发布到 npm
+这是测试版 `0.1.40-beta.routing.0` 的独立子路由能力，已发布到 npm
 `routing`，2026-10-29 完成核验；本次未部署消费者宿主。
 独立 npm `routing` 标签保留 `latest=0.1.39` 和传感器/地图
 `next=0.1.40-next.4` 通道；正式 `0.1.40` 仍待发布。保留 exact-ref 发布、私有
@@ -41,3 +41,6 @@ Workbench 根据有效 SDK import 检查已安装 Runtime 是否支持路由；�
 `useMiniAppRouter()` 时通过兼容层核对 SDK 路由版本和 export，hook 还要求宿主提供适配器。
 先部署两端匹配的宿主，再接受依赖路由的应用。正式源码 ZIP 仍须等待匹配 Runtime 发布并固定版本，私有 canary
 只用于消费者测试。完整 API 与接入细节见[英文文档](mini-app-routing.md)。
+
+
+上传到匹配的路由测试 Workbench，请使用显式的[路由 App 源码打包流程](mini-app-routing-source-packages.zh-CN.md)。默认 main/latest 与生产验收规则不变。

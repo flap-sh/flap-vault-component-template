@@ -1,6 +1,6 @@
 # Mini App routing
 
-The runtime-only `0.1.40-beta.routing.0` testing release supports generic
+The `0.1.40-beta.routing.0` testing release supports generic
 subroutes within an existing standalone Mini App v2. **Published on npm `routing`
 and verified 2026-10-29.** Consumer hosts have not been deployed by this release.
 The independent npm `routing` tag preserves `latest=0.1.39` and the sensor/map
@@ -86,3 +86,6 @@ compatibility shim, and the hook requires a host-provided adapter. Deploy both
 compatible receiving hosts before accepting new route-dependent packages.
 Release and pin the matching published Runtime before normal source ZIP
 packaging; a private canary is consumer-test input only.
+
+
+For a source ZIP accepted by the matching routing test Workbench, use the explicit [routing App source-package workflow](mini-app-routing-source-packages.md). Default main/latest and production acceptance are unchanged.

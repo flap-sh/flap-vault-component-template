@@ -156,15 +156,54 @@ test("stable App ZIPs require the exact published latest identity before submiss
   assert.throws(() => assertPublishedRuntimeIdentity({ ...identity, head: repo.git(["rev-parse", "HEAD"]) }), /matching npm latest runtime/);
 });
 
-test("routing is runtime-only, fixed to the official routing ref and cannot be App ZIP provenance", (t) => {
+test("routing requires explicit separate App/runtime workflows and the official ref", (t) => {
   const env = { FLAP_TEMPLATE_CHANNEL: "routing", FLAP_TEMPLATE_WORKFLOW: "runtime" };
   assert.deepEqual(templateReleasePolicy(env), { channel: "routing", npmTag: "routing", officialRef: "origin/feat/mini-app-routing", packageName: "@flapsdk/vault-runtime" });
-  assert.equal(templateReleasePolicy({ ...env, FLAP_TEMPLATE_FRESHNESS_REF: "upstream/feat/mini-app-routing" }).npmTag, "routing");
-  for (const change of [{ FLAP_TEMPLATE_WORKFLOW: undefined }, { FLAP_TEMPLATE_WORKFLOW: "app" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/main" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/next" }, { FLAP_TEMPLATE_FRESHNESS_REF: "HEAD" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/feat/mini-app-routing/extra" }, { FLAP_TEMPLATE_NPM_PACKAGE: "other" }]) assert.throws(() => templateReleasePolicy({ ...env, ...change }));
+  assert.equal(assertAppReleasePolicy({ ...env, FLAP_TEMPLATE_WORKFLOW: "app", FLAP_TEMPLATE_FRESHNESS_REF: "upstream/feat/mini-app-routing" }).npmTag, "routing");
+  for (const change of [{ FLAP_TEMPLATE_WORKFLOW: undefined }, { FLAP_TEMPLATE_WORKFLOW: "other" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/main" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/next" }, { FLAP_TEMPLATE_FRESHNESS_REF: "HEAD" }, { FLAP_TEMPLATE_FRESHNESS_REF: "origin/feat/mini-app-routing/extra" }, { FLAP_TEMPLATE_NPM_PACKAGE: "other" }]) assert.throws(() => templateReleasePolicy({ ...env, ...change }));
   assert.throws(() => assertAppReleasePolicy(env), /official main/);
   const repo = previewRepository(t);
-  assert.throws(() => assertPublishedRuntimeIdentity({ ...repo.identity(), channel: "routing", localVersion: "0.1.40-beta.routing.0", publishedVersion: "0.1.40-beta.routing.0" }), /cannot be App ZIP provenance/);
   repo.write("package.json", JSON.stringify({ version: "0.1.40-beta.routing.0" }));
+  const app = { ...env, FLAP_TEMPLATE_WORKFLOW: "app" };
+  repo.write("src/vaults/example/manifest.json", JSON.stringify({ schemaVersion: 2, mode: "mini-app", appModel: "standalone", slug: "example", match: { bindings: [] } }));
+  assert.doesNotThrow(() => assertAppTemplate(repo.root, "example", app));
+  assert.throws(() => assertAppTemplate(repo.root, "../example", app), /standalone/);
+  repo.write("src/vaults/example/manifest.json", JSON.stringify({ mode: "mini-app", match: { bindings: [{ chainId: 56 }] } }));
+  assert.throws(() => assertAppTemplate(repo.root, "example", app), /standalone/);
   assert.throws(() => assertAppTemplate(repo.root), /stable template version/);
   assert.throws(() => assertPreviewTemplate(repo.root), /next template/);
+  for (const version of ["0.1.39", "0.1.40-next.4", "0.1.40-beta.routing.0.canary.abc", "0.1.40-beta.routing.00", "0.1.40-routing.0"]) {
+    repo.write("package.json", JSON.stringify({ version }));
+    assert.throws(() => assertAppTemplate(repo.root, undefined, app), /published beta.routing/);
+  }
 });
+
+function routingIdentityRepository(t) {
+  const repo = previewRepository(t);
+  repo.write("package.json", JSON.stringify({ version: "0.1.40-beta.routing.0" }));
+  repo.commit("published routing runtime");
+  const publishedHead = repo.git(["rev-parse", "HEAD"]);
+  return { ...repo, identity: () => ({ root: repo.root, channel: "routing", localVersion: "0.1.40-beta.routing.0", publishedVersion: "0.1.40-beta.routing.0", head: repo.git(["rev-parse", "HEAD"]), publishedHead }) };
+}
+
+test("routing App identity accepts exact publication plus committed authoring descendants only", (t) => {
+  const repo = routingIdentityRepository(t);
+  assert.equal(assertPublishedRuntimeIdentity(repo.identity()).status, "exact-published-commit");
+  for (const change of [{ publishedVersion: "0.1.40-beta.routing.1" }, { publishedHead: "f".repeat(40) }, { localVersion: "0.1.40-next.4" }, { localVersion: "0.1.40-beta.routing.0.canary.abc" }, { publishedHead: undefined }]) assert.throws(() => assertPublishedRuntimeIdentity({ ...repo.identity(), ...change }));
+  repo.write("scripts/app-command.mjs", "// official authoring-only workflow\n");
+  repo.write("scripts/template-release-channel.mjs", "// official policy\n");
+  repo.commit("official authoring workflow");
+  assert.equal(assertPublishedRuntimeIdentity(repo.identity()).status, "published-runtime-source");
+  repo.write("src/vaults/example/Component.tsx", "export default () => null;\n");
+  assert.doesNotThrow(() => assertPublishedRuntimeIdentity(repo.identity()));
+  repo.write("scripts/app-command.mjs", "// uncommitted policy change\n");
+  assert.throws(() => assertPublishedRuntimeIdentity(repo.identity()), /Restore local runtime\/tool edits/);
+});
+
+for (const file of ["src/sdk/client.ts", "src/ui/Button.tsx", "package.json", "yarn.lock", "tsup.runtime.config.ts", "schemas/manifest.schema.json", "scripts/build-runtime-package.mjs", "scripts/runtime-package-mode.mjs", "scripts/vault-package.mjs", "scripts/vault-verify-package.mjs", "scripts/e2e-report-utils.mjs", "scripts/mini-app-capabilities.mjs", "scripts/standalone-app.mjs"]) {
+  test(`routing App identity cannot hide a protected input change: ${file}`, (t) => {
+    const repo = routingIdentityRepository(t);
+    repo.write(file, "changed protected input\n"); repo.commit("not just authoring");
+    assert.throws(() => assertPublishedRuntimeIdentity(repo.identity()), /matching npm routing runtime/);
+  });
+}

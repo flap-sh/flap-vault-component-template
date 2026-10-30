@@ -579,3 +579,8 @@ escaped plain-text display. Dynamic CID sources and text reads require human
 review. Runtime owns gateways and validates every CID/path; raw URLs, caller
 gateways and HTML injection remain blocked. `IpfsBackground` stays static
 CID-only. See [dynamic IPFS content](ipfs-content.md).
+
+
+## Routing test source packages
+
+For a Workbench explicitly pinned to the published routing beta, standalone Apps may use `FLAP_TEMPLATE_CHANNEL=routing yarn app:*`; read [the dedicated workflow](mini-app-routing-source-packages.md). Default main/latest and Runtime release gates are unchanged. Preserve exact published provenance and protected inputs; never hand-edit ZIP metadata.

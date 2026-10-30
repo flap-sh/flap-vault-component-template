@@ -14,7 +14,7 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | Stable version | **`0.1.39`**, published to npm latest |
 | Upcoming stable candidate | **`0.1.40`**, Mini App routing only; not published, official main unchanged during preparation |
 | Published npm `latest` | `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583` |
-| Routing testing release | `0.1.40-beta.routing.0`, published on runtime-only `routing`; verified 2026-10-29 |
+| Routing testing release | `0.1.40-beta.routing.0`, npm `routing`; verified 2026-10-29; explicit standalone test source workflow added 2026-10-31 |
 | Current npm `next` | `0.1.40-next.4`, independent sensor/map testing release; unchanged by routing |
 | Historical npm `next` | Eight versions through `0.1.40-next.0` are deprecated; downloads remain |
 | App ZIP tooling | Use the published `0.1.39` identity and regenerate proofs; historical `0.1.38` check/package/verification remains recorded |
@@ -68,3 +68,6 @@ All eight historical next versions are now deprecated: `0.1.32-next.0`, `0.1.32-
 ## Supported models stay the same
 
 New development supports Vault UI and Mini App v2. Mini App v1 is deprecated for new projects; existing routes, bindings, runtime and maintenance compatibility remain. Main consolidation does not convert v1, bind v2 to a token, or merge a project's Vault/App identities. Vault UI and standalone App remain separate review/submission deliverables.
+
+
+Explicit routing test Workbenches now have a [matching standalone source-package workflow](mini-app-routing-source-packages.md). It uses the existing published routing identity without another Runtime release. Default main/latest and production gates remain unchanged.

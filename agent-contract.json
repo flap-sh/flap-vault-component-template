@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "flap-vault-ui-template-agent-contract",
-  "version": 58,
+  "version": 59,
   "entrypoint": "docs/ai-agent.md",
   "entrypoints": {
     "canonical": [
@@ -1756,9 +1756,31 @@
     "command": "yarn runtime:package:routing",
     "documentation": "docs/releases/0.1.40-beta.routing.0.md",
     "rules": [
-      "Runtime-only testing; no App/Vault source ZIP provenance or stable production changes. Keep latest, next and protected private-canary rules unchanged.",
+      "Runtime publication retains its isolated runtime-only release gates. A separate explicit standalone App source workflow may use the already published routing identity for matching routing test consumers; it does not satisfy stable production provenance. Keep latest, next and protected private-canary rules unchanged.",
       "Require clean committed source at the exact fetched official routing branch head. No skip/sync flags or folder arguments.",
       "Bootstrap only on genuine public-registry tag and exact-version HTTP 404 plus absent routing dist-tag and verified latest published ancestry; redirects, network/auth errors and malformed metadata block. Later releases check routing version/ancestry."
+    ]
+  },
+  "routingAppSourcePackages": {
+    "documentation": "docs/mini-app-routing-source-packages.md",
+    "branch": "feat/mini-app-routing",
+    "npmTag": "routing",
+    "environment": "FLAP_TEMPLATE_CHANNEL=routing",
+    "appModel": "standalone",
+    "sourcePackageFormatVersion": 7,
+    "e2eReportSchemaVersion": 3,
+    "commands": [
+      "FLAP_TEMPLATE_CHANNEL=routing yarn app:check {folder-name}",
+      "FLAP_TEMPLATE_CHANNEL=routing yarn app:e2e {folder-name}",
+      "FLAP_TEMPLATE_CHANNEL=routing yarn app:package {folder-name}",
+      "FLAP_TEMPLATE_CHANNEL=routing yarn app:verify-package dist/{folder-name}.zip"
+    ],
+    "rules": [
+      "Opt-in only for standalone Apps uploaded to Workbench pinned to the same published routing package; stable default main/latest and Vault/legacy workflows remain unchanged.",
+      "Require a fresh official remote and exact official branch HEAD, the genuine published routing tag plus immutable version record with identical version/gitHead, published source ancestry, and unchanged protected SDK/UI/dependency/build/ZIP/E2E inputs.",
+      "Only committed official authoring tools/docs and local App source/registration are allowed after the published runtime ancestor. No private canary, missing-tag bootstrap, cross-channel identity or uncommitted local tooling changes.",
+      "Use current source-bound PC/iPad/H5 guest/connected E2E, package once and verify the generated marker, metadata, schema and hashes. Never relabel another source ZIP.",
+      "This workflow does not publish npm, accept routing source ZIPs in stable production consumers, deploy hosts or approve App publication."
     ]
   }
 }
