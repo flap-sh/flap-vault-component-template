@@ -1,5 +1,7 @@
 # Mini App routing
 
+Current stable: `0.1.40` includes this routing API; use official main/latest. The testing-channel references below preserve the earlier isolated beta workflow.
+
 The `0.1.40-beta.routing.0` testing release supports generic
 subroutes within an existing standalone Mini App v2. **Published on npm `routing`
 and verified 2026-10-29.** Consumer hosts have not been deployed by this release.
