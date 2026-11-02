@@ -1,5 +1,7 @@
 # Versioning
 
+**Release preparation (2026-11-02): `0.1.40` is not published.** npm `latest` remains `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583`. Preserve `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` when publishing the stable release. Public SDK exports and API signatures are unchanged. The taxed.fun native-fetch change belongs to the template and Workbench source checkers; those checkers are not shipped in the npm runtime package. Workbench [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) is not merged or deployed. See the [0.1.40 release preparation](releases/0.1.40.md) and [main/latest status](main-migration.md).
+
 This template has four compatibility surfaces:
 
 1. `agent-contract.json` for AI agent workflow and machine-readable rules.
@@ -13,7 +15,7 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
-`0.1.39` is published on npm `latest`, source `78c355f080a60770cfd64d71d94c525204d61583`, adding the second reviewed FSI endpoint. Follow [the 0.1.39 release guide](releases/0.1.39.md) ([简体中文](releases/0.1.39.zh-CN.md)) for verified archive identity and matching host/checker rollout. The historical `0.1.38` release record remains below.
+Prepare `0.1.40` using [the current release guide](releases/0.1.40.md) ([简体中文](releases/0.1.40.zh-CN.md)). It is not yet published. The current npm latest identity remains `0.1.39` at source `78c355f080a60770cfd64d71d94c525204d61583`; its archive evidence is retained in [the 0.1.39 record](releases/0.1.39.md). Historical records below must not be read as current tag inventories.
 
 The historical `0.1.38` main/latest release and host rollout are documented in
 [the release guide](releases/0.1.38.md) ([简体中文](releases/0.1.38.zh-CN.md)).
@@ -23,11 +25,17 @@ Prepare the root version and documentation on a branch from the latest official
 publishable package. A feature/release branch may be tested with a private canary
 but must not replace the official-main release source.
 
-After merge, use a clean checkout at the fetched official main head. If the fork
-is named `origin`, explicitly choose the official `upstream/main` freshness ref:
+After merge, use a clean checkout at the fetched official main head. For this
+release, full template CI is skipped under the maintainer instruction; run and
+record the targeted release checks below without claiming full CI passed. If the
+fork is named `origin`, select the official `upstream/main` freshness ref:
 
 ```bash
-FLAP_TEMPLATE_FRESHNESS_REF=upstream/main yarn ci
+FLAP_TEMPLATE_FRESHNESS_REF=upstream/main yarn test:fsi
+yarn test:runtime-package-mode
+yarn test:release-channel
+yarn run check
+yarn vault:check:selftest
 FLAP_TEMPLATE_FRESHNESS_REF=upstream/main yarn runtime:package
 yarn runtime:verify-package
 yarn test:runtime-provider --package
@@ -42,13 +50,14 @@ the repository README is insufficient because source docs are not included in np
 
 With maintainer publication authorization, publish the verified tarball publicly
 under `latest`. Confirm the registry version, `gitHead`, integrity and downloaded
-archive match, and preserve the existing `next` tag. Finally update consumer exact
+archive match, and preserve the existing `next` and `routing` tags. Consumer upgrades are separate
+authorized work: update consumer exact
 pins and Yarn lockfiles, deploy matching host/checker changes, and verify the real
 upload/gateway workflow. A successful npm publish does not upgrade deployed hosts.
 
 ## Main source integration
 
-Vault UI and Mini App v2 share official main/latest while retaining distinct model/proof workflows. Current stable **`0.1.39` is published**, source `78c355f080a60770cfd64d71d94c525204d61583`. All eight historical next versions are deprecated with downloads retained. App commands, release metadata and CI use main/latest; hosts and Workbench must deploy the same exact stable runtime and matching validation inputs. See [release identity](main-migration.md) ([中文](main-migration.zh-CN.md)) and [deprecation record](main-migration.md#stable-upgrade-and-preview-deprecation).
+Vault UI and Mini App v2 share official main/latest while retaining distinct model/proof workflows. The current preparation is `0.1.40`; npm latest remains `0.1.39` until registry publication is verified. App commands, release metadata and CI use main/latest; hosts and Workbench require the exact published runtime and matching validation inputs. See [current release identity](main-migration.md) ([中文](main-migration.zh-CN.md)); historical deprecation records remain dated snapshots.
 
 ## Explicit next SDK releases
 
@@ -73,7 +82,7 @@ yarn runtime:verify-package
 
 `upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The npm `next` ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
 
-`@flapsdk/vault-runtime@0.1.39` is published on latest with source `78c355f080a60770cfd64d71d94c525204d61583` (checked 2026-10-23). Historical `0.1.40-next.0` and all earlier next releases are deprecated. Stable App ZIPs use the exact latest identity and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance independently. Future runtime input changes require their own matching publication. See [main/latest status](main-migration.md).
+**Historical snapshot, checked 2026-10-23:** `@flapsdk/vault-runtime@0.1.39` was published on latest with source `78c355f080a60770cfd64d71d94c525204d61583`; `0.1.40-next.0` and the earlier recorded next releases were deprecated. This is not a current dist-tag inventory; the 2026-11-02 tags are recorded at the top of this page. Stable App ZIPs use the exact latest identity and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance independently. Future runtime input changes require their own matching publication. See [main/latest status](main-migration.md).
 
 ## Agent Contract Version
 
@@ -159,4 +168,4 @@ Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for revi
 
 ## Main integration and Mini App v2 releases
 
-Vault UI and Mini App v2 now share official `main` and npm `latest`, with published stable runtime version **`0.1.39`**. `app:*` accepts stable versions and uses the official main reference; `vault:*` retains Vault UI and existing v1 maintenance. App ZIPs require the exact published latest version/gitHead and unchanged runtime/build/protocol inputs; docs/authoring-only descendants are allowed, local SDK/tool edits and private canaries are not. **npm `0.1.39` is published on latest**, with source `78c355f080a60770cfd64d71d94c525204d61583`; it adds the second reviewed FSI endpoint. All eight historical next versions are deprecated, with downloads retained. Hosts and Workbench still need the exact stable runtime and matching validation inputs before accepting new submissions. Explicit `runtime:package:next` remains isolated on the next channel. See [release status](main-migration.md).
+Follow [the current preparation record](releases/0.1.40.md) and [main/latest status](main-migration.md). `0.1.40` remains unpublished until registry verification succeeds; the published latest identity is still `0.1.39`. Keep model-specific provenance and host/checker rollout requirements.
