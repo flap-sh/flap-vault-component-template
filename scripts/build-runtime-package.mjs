@@ -166,6 +166,21 @@ the HTTPS origin, path, GET, credential and redirect restrictions.
 Hosts and Workbench must deploy matching runtime and checker policies before
 accepting source packages that declare the new endpoint.
 
+## taxed.fun source-checker compatibility
+
+The official template source for stable \`0.1.40\` adds reviewed native-fetch
+queries on every valid strict \`taxed.fun\` subdomain, including multi-level
+subdomains. Hosts and paths must stay literal, query values must use the global
+\`encodeURIComponent\`, and manifest endpoint declarations and safe GET options
+remain required. The apex domain, dynamic hosts/paths and unsafe options do not
+gain permission. Existing \`sdk.readFsi\` routing and the SDK exports are unchanged.
+
+The source checker is not shipped in this npm package. Deploy the matching
+template and Workbench checker policies separately; upgrading this package alone
+does not enable the new native-fetch policy or approve an endpoint.
+See the [0.1.40 release guide](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/releases/0.1.40.md)
+and [request policy](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/taxed-endpoints.md).
+
 ## Shared Vault UI and Mini App v2\n\nThis shared runtime supports standalone App wallet operations through\n\`useFlapSdk({ chainId })\` and the host-owned \`CopyButton\` from \`./ui\`.\nVault UI keeps \`useFlapSdk()\` and its token-bound context. Both use this one\npackage; existing token-bound Mini Apps remain compatible.\nStable development uses the official main template and npm latest.\nThe shared CopyButton copies up to 1,048,576 UTF-16 code units without truncation.\n\n## Dynamic IPFS content
 
 Stable runtime \`0.1.37\` introduces \`sdk.readIpfsText(cid, path?)\`, which returns
