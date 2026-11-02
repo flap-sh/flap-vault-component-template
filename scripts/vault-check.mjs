@@ -3,6 +3,7 @@ import { checkResolvedContractDeclarations, checkResolvedContractSource, collect
 import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
 import { dynamicTaxedQueryPrefix, taxedFetchSafetyIssue, isTaxedFetchTarget, queryFreeDeclarations, collectQueryEncoderMutationIssues } from "./taxed-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
+import { collectMiniAppRoutingIssues } from "./mini-app-routing-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -1207,7 +1208,7 @@ function collectLexicalBindings(sourceFile) {
   function nearestScope(node, variableFlags = null) {
     let current = node.parent;
     if (variableFlags !== null && !(variableFlags & ts.NodeFlags.BlockScoped)) {
-      while (current && !ts.isFunctionLike(current) && !ts.isSourceFile(current)) current = current.parent;
+      while (current && !ts.isFunctionLike(current) && !ts.isClassStaticBlockDeclaration(current) && !ts.isSourceFile(current)) current = current.parent;
       return current ?? sourceFile;
     }
     while (
@@ -1228,6 +1229,8 @@ function collectLexicalBindings(sourceFile) {
   }
 
   const visit = (node) => {
+    // Ambient declarations are erased and never create runtime bindings.
+    if (node.flags & ts.NodeFlags.Ambient) return;
     if (ts.isVariableDeclaration(node)) {
       const declarationList = ts.isVariableDeclarationList(node.parent) ? node.parent : null;
       const flags = declarationList?.flags ?? ts.NodeFlags.None;
@@ -4551,6 +4554,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       issues.push(issue(BLOCKING, "contract-abi/number-bigint", "Avoid Number(...) for token amounts used in transaction logic.", { file: rel }));
     }
     issues.push(...checkStandaloneWalletSource(content, rel, manifest));
+    issues.push(...collectMiniAppRoutingIssues(content, rel, manifest));
     issues.push(...collectContractInteractionIssues(content, rel, contractPolicy));
     const i18nCallRegex = /(?:^|[^\w.])(?:t|i18n\.t)\(\s*["'`]([^"'`]+)["'`]/g;
     for (const match of scanContent.matchAll(i18nCallRegex)) {

@@ -113,3 +113,18 @@ test("stable 0.1.38 release rejects preview channels and unsafe prerelease ident
     assert.throws(() => assertRuntimePackageIdentity({ ...input, manifest: { ...input.manifest, publishConfig } }), /publishConfig/);
   }
 });
+
+test("routing releases use only beta.routing versions and the independent routing tag", () => {
+  const version = "0.1.40-beta.routing.0";
+  const identity = createRuntimePackageIdentity({ baseVersion: version, gitHead: GIT_HEAD, mode: "release" });
+  assert.deepEqual(identity.publishConfig, { access: "public", tag: "routing" });
+  const input = { manifest: { version, gitHead: GIT_HEAD, publishConfig: identity.publishConfig }, runtimeContract: { packageVersion: version }, rootVersion: version, gitHead: GIT_HEAD, mode: "release" };
+  assert.doesNotThrow(() => assertRuntimePackageIdentity(input));
+  for (const tag of ["latest", "next", undefined]) assert.throws(() => assertRuntimePackageIdentity({ ...input, manifest: { ...input.manifest, publishConfig: { access: "public", tag } } }), /publishConfig/);
+  for (const channel of ["latest", "next", "beta"]) assert.throws(() => assertRuntimeReleaseChannel(version, channel), /must match/);
+  for (const version of ["0.1.40", "0.1.40-next.4", "0.1.40-routing.0", "0.1.40-beta.0", "0.1.40-beta.routing.01", "0.1.40-beta.routing.0.canary.abc", "0.1.40-beta.routing.0+build"]) assert.throws(() => assertRuntimeReleaseChannel(version, "routing"), /must match/);
+  const canary = createRuntimePackageIdentity({ baseVersion: version, gitHead: GIT_HEAD, mode: "canary" });
+  assert.equal(canary.private, true);
+  assert.equal(canary.publishConfig, undefined);
+  assert.equal(canary.canary.publishable, false);
+});

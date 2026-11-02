@@ -84,6 +84,25 @@ yarn runtime:verify-package
 
 **Historical snapshot, checked 2026-10-23:** `@flapsdk/vault-runtime@0.1.39` was published on latest with source `78c355f080a60770cfd64d71d94c525204d61583`; `0.1.40-next.0` and the earlier recorded next releases were deprecated. This is not a current dist-tag inventory; the 2026-11-02 tags are recorded at the top of this page. Stable App ZIPs use the exact latest identity and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance independently. Future runtime input changes require their own matching publication. See [main/latest status](main-migration.md).
 
+## Independent runtime-only routing testing channel
+
+`runtime:package:routing` accepts only `X.Y.Z-beta.routing.N` on the exact clean
+fetched official `feat/mini-app-routing` head, for `@flapsdk/vault-runtime` and
+npm tag `routing`. It accepts no App folders or skip/sync flags. First publication
+requires genuine fixed-registry 404 responses for the routing tag and exact
+version, dist-tags without routing, and the published latest commit in source
+history. Later releases check routing's own version and published ancestry.
+Redirect, network, authentication and malformed-metadata failures never permit
+bootstrap. `beta.routing` sorts below `next`; install exact test versions.
+
+This is a runtime publication exception only. Stable/latest, next, App/Vault ZIP
+version/provenance and protected private-canary rules remain unchanged. See the
+[English](releases/0.1.40-beta.routing.0.md) and
+[Chinese](releases/0.1.40-beta.routing.0.zh-CN.md) release records for commands
+and public-registry identity verification. The published package source is
+`33d22c9475c3935f8066d4ed213f25e082ece167`; later documentation commits do not
+change that `gitHead`. Consumer deployment and stable `0.1.40` remain deferred.
+
 ## Agent Contract Version
 
 Increment `agent-contract.json.version` when an Agent must change behavior to keep generating valid packages.

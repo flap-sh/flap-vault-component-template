@@ -107,6 +107,22 @@ test("query encoders cannot be replaced globally, including from another source 
   assert.deepEqual(network(check(local + dynamicFetch())), [], "local assignments in an unrelated scope cannot replace the global encoder");
 });
 
+test("TypeScript wrappers and erased declarations cannot hide global encoder mutations", (t) => {
+  const check = fixture(t);
+  for (const mutation of [
+    '(<typeof encodeURIComponent>encodeURIComponent) = (value: string) => value;',
+    '(encodeURIComponent satisfies typeof encodeURIComponent) = (value: string) => value;',
+    '(encodeURIComponent as typeof encodeURIComponent)! = (value: string) => value;',
+    'class Helper { static { var encodeURIComponent; } } encodeURIComponent = (value: string) => value;',
+    'declare let encodeURIComponent: (value: unknown) => string; encodeURIComponent = (value) => String(value);',
+    'declare function encodeURIComponent(value: unknown): string; encodeURIComponent = (value: unknown) => String(value);',
+    'declare global { var encodeURIComponent: (value: unknown) => string; } encodeURIComponent = (value) => String(value);',
+  ]) {
+    assert(network(check(dynamicFetch(), ENDPOINT, mutation + "export const vaultAbi = [] as const;")).some((item) => item.ruleId === "forbidden-api/browser-global-escape"), mutation);
+  }
+  assert.deepEqual(network(check(dynamicFetch(), ENDPOINT, 'class Helper { static { var encodeURIComponent = (value: string) => value; encodeURIComponent = (value: string) => value; } } export const vaultAbi = [] as const;')), [], "static-block encoders stay local");
+});
+
 test("named function expressions cannot impersonate the global query encoder", (t) => {
   const check = fixture(t);
   for (const endpoint of [ENDPOINT, "https://fsi.taxed.fun/fsi/v1", "https://bsc-debug.butterfly.army/fsi/v1"]) {

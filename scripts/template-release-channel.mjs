@@ -1,15 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { ROUTING_VERSION_PATTERN, assertRuntimeReleaseChannel } from "./runtime-package-mode.mjs";
 import { isStandaloneApp } from "./standalone-app.mjs";
 
 export function templateReleasePolicy(env = process.env) {
   const channel = env.FLAP_TEMPLATE_CHANNEL?.trim() || "latest";
-  if (!["latest", "next"].includes(channel)) throw new Error("FLAP_TEMPLATE_CHANNEL must be latest or next.");
-  const officialRef = env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || (channel === "next" ? "origin/next" : "origin/main");
+  if (!["latest", "next", "routing"].includes(channel)) throw new Error("FLAP_TEMPLATE_CHANNEL must be latest, next or routing.");
+  const officialRef = env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || (channel === "routing" ? "origin/feat/mini-app-routing" : channel === "next" ? "origin/next" : "origin/main");
   const packageName = env.FLAP_TEMPLATE_NPM_PACKAGE?.trim() || "@flapsdk/vault-runtime";
   if (channel === "next" && (!/^[a-zA-Z0-9_-]+\/(?:feat\/mini-app-v2|next)$/.test(officialRef) || packageName !== "@flapsdk/vault-runtime")) {
     throw new Error("The next channel requires the official feat/mini-app-v2 or next ref and @flapsdk/vault-runtime.");
+  }
+  if (channel === "routing" && (!/^[a-zA-Z0-9_-]+\/feat\/mini-app-routing$/.test(officialRef) || packageName !== "@flapsdk/vault-runtime" || !["runtime", "app"].includes(env.FLAP_TEMPLATE_WORKFLOW))) {
+    throw new Error("The routing channel requires an explicit App or runtime workflow, the official feat/mini-app-routing ref and @flapsdk/vault-runtime.");
   }
   return { channel, npmTag: channel, officialRef, packageName };
 }
@@ -26,6 +30,7 @@ export const assertOfficialPreviewRemote = assertOfficialTemplateRemote;
 
 export function assertAppReleasePolicy(env = process.env) {
   const policy = templateReleasePolicy(env);
+  if (policy.channel === "routing" && env.FLAP_TEMPLATE_WORKFLOW === "app") return policy;
   if (policy.channel !== "latest" || !/^[a-zA-Z0-9_-]+\/main$/.test(policy.officialRef) || policy.packageName !== "@flapsdk/vault-runtime") {
     throw new Error("App commands require the official main ref and @flapsdk/vault-runtime on latest.");
   }
@@ -38,7 +43,14 @@ export function isStandaloneTarget(root, folderName) {
   catch { return false; }
 }
 
-export function assertAppTemplate(root, folderName) {
+export function assertAppTemplate(root, folderName, env = process.env) {
+  if (env.FLAP_TEMPLATE_CHANNEL?.trim() === "routing") {
+    assertAppReleasePolicy(env);
+    const { version } = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+    if (!ROUTING_VERSION_PATTERN.test(version || "")) throw new Error("Routing App commands require a published beta.routing template version; next and private canaries are not App source provenance.");
+    if (folderName !== undefined && !isStandaloneTarget(root, folderName)) throw new Error("Routing App source packages accept standalone Mini App v2 only (format 7), never Vault UI or token-bound Apps.");
+    return;
+  }
   const { version } = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version || "")) {
     throw new Error("App commands require a committed stable template version such as 0.1.38 from main/latest.");
@@ -56,6 +68,14 @@ export function assertPreviewTemplate(root, folderName) {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, "src/vaults", folderName, "manifest.json"), "utf8"));
     if (!isStandaloneApp(manifest)) throw new Error("The next source-package channel is limited to standalone Mini App v2. Legacy packages retain main/latest.");
   }
+}
+
+export function assertRoutingTemplate(root, folderName, env = process.env) {
+  const policy = templateReleasePolicy(env);
+  if (policy.channel !== "routing" || env.FLAP_TEMPLATE_WORKFLOW !== "runtime" || folderName !== undefined) throw new Error("Routing Runtime packaging requires workflow=runtime and no App folder; use the explicit routing App workflow for standalone source ZIPs.");
+  const { version } = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  assertRuntimeReleaseChannel(version, "routing");
+  return policy;
 }
 
 // Template authoring tools come from the current official branch, independently
@@ -82,8 +102,8 @@ function isAuthoringOnly(file) {
 }
 
 export function assertPublishedRuntimeIdentity({ localVersion, publishedVersion, head, publishedHead, root = process.cwd(), channel = "latest" }) {
-  const versionPattern = channel === "next" ? /^\d+\.\d+\.\d+-next\.\d+$/ : /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-  if (!["latest", "next"].includes(channel) || !versionPattern.test(localVersion || "") || localVersion !== publishedVersion
+  const versionPattern = channel === "routing" ? ROUTING_VERSION_PATTERN : channel === "next" ? /^\d+\.\d+\.\d+-next\.\d+$/ : /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+  if (!["latest", "next", "routing"].includes(channel) || !versionPattern.test(localVersion || "") || localVersion !== publishedVersion
       || !/^[a-f0-9]{40}$/i.test(publishedHead || "") || !/^[a-f0-9]{40}$/i.test(head || "")) {
     throw new Error(`Use the exact published npm ${channel} version and a verified source commit; an unpublished version, another channel or a private canary cannot be App ZIP provenance.`);
   }

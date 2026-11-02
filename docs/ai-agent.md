@@ -4,7 +4,7 @@ New development supports **Vault UI** or **Mini App v2** (standalone) only. **Mi
 
 ## Main integration and Mini App v2 releases
 
-**Release preparation (2026-11-02): `0.1.40` is not published.** npm `latest` remains `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583`. Preserve `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` when publishing the stable release. Public SDK exports and API signatures are unchanged. The taxed.fun native-fetch change belongs to the template and Workbench source checkers; those checkers are not shipped in the npm runtime package. Workbench [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) is not merged or deployed. See the [0.1.40 release preparation](releases/0.1.40.md) and [main/latest status](main-migration.md).
+**Release preparation (2026-11-02): `0.1.40` is not published.** npm `latest` remains `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583`. Preserve `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` when publishing the stable release. This candidate combines host-owned Mini App subroutes (`useMiniAppRouter`, routing version 1 and host adapters) with the controlled taxed.fun query policy. Existing SDK signatures remain compatible; sensor/map APIs stay on their separate testing channel. The taxed.fun native-fetch change belongs to the template and Workbench source checkers; those checkers are not shipped in the npm runtime package. Workbench [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) is not merged or deployed. See the [0.1.40 release preparation](releases/0.1.40.md) and [main/latest status](main-migration.md).
 
 Vault UI and Mini App v2 share official main/latest while retaining separate identity and proof workflows. App ZIPs require the exact published latest version/gitHead and matching runtime/build/protocol inputs; unpublished `0.1.40` source is not release provenance. Documentation and authoring-only descendants are allowed only under the existing source checks. Receiving hosts still require exact runtime pins and matching checker deployment. Preserve historical release and deprecation records as dated snapshots rather than a current npm tag inventory.
 
@@ -583,3 +583,8 @@ escaped plain-text display. Dynamic CID sources and text reads require human
 review. Runtime owns gateways and validates every CID/path; raw URLs, caller
 gateways and HTML injection remain blocked. `IpfsBackground` stays static
 CID-only. See [dynamic IPFS content](ipfs-content.md).
+
+
+## Routing test source packages
+
+For a Workbench explicitly pinned to the published routing beta, standalone Apps may use `FLAP_TEMPLATE_CHANNEL=routing yarn app:*`; read [the dedicated workflow](mini-app-routing-source-packages.md). Default main/latest and Runtime release gates are unchanged. Preserve exact published provenance and protected inputs; never hand-edit ZIP metadata.

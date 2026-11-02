@@ -30,6 +30,7 @@ jobs:
       - run: yarn test:launch-config:browser
       - run: yarn test:release-channel
       - run: yarn test:mini-app
+      - run: yarn test:mini-app-routing
       - run: yarn test:standalone-app
       - run: yarn test:runtime-package-mode
       - run: yarn run check

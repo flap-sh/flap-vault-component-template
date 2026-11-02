@@ -90,3 +90,33 @@ test("explicit next runtime packaging remains isolated and cannot use stable 0.1
   assert.deepEqual(JSON.parse(result.stdout), { file: "build-runtime-package.mjs", args: [], channel: "next", ref: "origin/next", workflow: "runtime" });
   assert.notEqual(fixture(t).run(["runtime"]).status, 0);
 });
+
+for (const [command, target, script] of [["check", "example", "vault-check.mjs"], ["e2e", "example", "vault-e2e.mjs"], ["package", "example", "vault-package.mjs"], ["verify", "dist/example.zip", "vault-verify-package.mjs"], ["build", undefined, undefined]]) {
+  test(`explicit routing app ${command} runs complete preflight without sync before dispatch`, { skip: command === "build" && process.platform === "win32" }, (t) => {
+    const repo = fixture(t, "0.1.40-beta.routing.0");
+    if (command === "verify") fs.writeFileSync(path.join(repo.root, "scripts/vault-verify-package.mjs"), 'console.log(JSON.stringify({ok:true,packageFormatVersion:7,file:"vault-verify-package.mjs",args:process.argv.slice(2),channel:process.env.FLAP_TEMPLATE_CHANNEL,ref:process.env.FLAP_TEMPLATE_FRESHNESS_REF,workflow:process.env.FLAP_TEMPLATE_WORKFLOW}));');
+    const result = repo.run([command, ...(target ? [target] : [])], { FLAP_TEMPLATE_CHANNEL: "routing" });
+    assert.equal(result.status, 0, result.stderr);
+    const calls = result.stdout.trim().split("\n").map(line => JSON.parse(line));
+    assert.equal(calls[0].file, "check-template-fresh.mjs");
+    assert.deepEqual(calls[0].args, ["check", "e2e", "package"].includes(command) ? [target, "--quiet"] : ["--quiet"]);
+    assert.ok(calls.every(call => call.channel === "routing" && call.ref === "origin/feat/mini-app-routing" && call.workflow === "app"));
+    if (script) assert.equal(calls.at(-1).file, script);
+    else assert.deepEqual(calls.at(-1).args, ["next", "build"]);
+    fs.writeFileSync(path.join(repo.root, "scripts/check-template-fresh.mjs"), "process.exit(19);");
+    const blocked = repo.run([command, ...(target ? [target] : [])], { FLAP_TEMPLATE_CHANNEL: "routing" });
+    assert.equal(blocked.status, 19); assert.equal(blocked.stdout, "");
+  });
+}
+
+test("routing wrapper refuses v1, wrong channels/refs, canaries and format-6 verification", (t) => {
+  const repo = fixture(t, "0.1.40-beta.routing.0");
+  for (const ref of ["HEAD", "origin/main", "origin/next", "origin/feat/mini-app-routing/extra"]) assert.notEqual(repo.run(["check", "example"], { FLAP_TEMPLATE_CHANNEL: "routing", FLAP_TEMPLATE_FRESHNESS_REF: ref }).status, 0);
+  assert.notEqual(repo.run(["runtime"], { FLAP_TEMPLATE_CHANNEL: "routing" }).status, 0);
+  for (const version of ["0.1.39", "0.1.40-next.4", "0.1.40-beta.routing.0.canary.abc"]) assert.notEqual(fixture(t, version).run(["check", "example"], { FLAP_TEMPLATE_CHANNEL: "routing" }).status, 0);
+  fs.writeFileSync(path.join(repo.root, "src/vaults/example/manifest.json"), JSON.stringify({ mode: "mini-app", match: { bindings: [{ chainId: 56 }] } }));
+  assert.notEqual(repo.run(["check", "example"], { FLAP_TEMPLATE_CHANNEL: "routing" }).status, 0);
+  fs.writeFileSync(path.join(repo.root, "scripts/vault-verify-package.mjs"), 'console.log(JSON.stringify({ok:true,packageFormatVersion:6}));');
+  const blocked = repo.run(["verify", "dist/legacy.zip"], { FLAP_TEMPLATE_CHANNEL: "routing" });
+  assert.notEqual(blocked.status, 0); assert.equal(JSON.parse(blocked.stderr).code, "app-release/routing-format");
+});
