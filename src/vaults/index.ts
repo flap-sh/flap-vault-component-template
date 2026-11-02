@@ -78,6 +78,12 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./standalone-example/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./standalone-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
+  "routing-example": {
+    folderName: "routing-example",
+    loadComponent: () => import("./routing-example/Component"),
+    loadManifest: () => import("./routing-example/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./routing-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
 };
 
 export function getVaultFolderNames() {

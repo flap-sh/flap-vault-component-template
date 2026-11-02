@@ -6,6 +6,8 @@
 
 **Release preparation (2026-11-02): `0.1.40` is not published.** npm `latest` remains `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583`. Preserve `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` when publishing the stable release. Public SDK exports and API signatures are unchanged. The taxed.fun native-fetch change belongs to the template and Workbench source checkers; those checkers are not shipped in the npm runtime package. Workbench [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) is not merged or deployed. See the [0.1.40 release preparation](./docs/releases/0.1.40.md) and [main/latest status](./docs/main-migration.md).
 
+**Routing testing release `0.1.40-beta.routing.0` — published on npm `routing` (2026-10-29):** this runtime-only branch adds host-owned Mini App subroutes without sensor/map APIs. It uses the independent npm `routing` tag; `latest=0.1.39` and `next=0.1.40-next.4` stay unchanged. Stable `0.1.40` remains pending. App/Vault source-ZIP provenance continues to require main/latest. See [the testing release guide](docs/releases/0.1.40-beta.routing.0.md).
+
 [简体中文](./README.zh-CN.md)
 
 ## Table of Contents

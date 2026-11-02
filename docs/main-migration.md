@@ -10,11 +10,11 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | --- | --- |
 | Source branch | Official `main` for Vault UI and Mini App v2 |
 | Template policy | [PR #36](https://github.com/flap-sh/flap-vault-component-template/pull/36) merged, allowing controlled taxed.fun subdomain queries |
-| Release candidate | **`0.1.40` in preparation; not published** |
+| Release candidate | **`0.1.40`: Mini App routing plus taxed.fun query policy; not published** |
 | Published npm `latest` | `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583` |
 | npm `next` | `0.1.40-next.4`; preserve during this stable publication |
 | npm `routing` | `0.1.40-beta.routing.0`; preserve during this stable publication |
-| SDK API / exports | Unchanged; npm does not include template or Workbench source checkers |
+| SDK API / exports | Compatible `useMiniAppRouter` and host adapters added; npm does not include source checkers |
 | Workbench policy | [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) is not merged or deployed |
 | App ZIP provenance | Must match the exact published latest identity; unpublished `0.1.40` is not release provenance |
 
@@ -66,3 +66,6 @@ The eight historical next versions recorded on 2026-10-23 were deprecated: `0.1.
 ## Supported models stay the same
 
 New development supports Vault UI and Mini App v2. Mini App v1 is deprecated for new projects; existing routes, bindings, runtime and maintenance compatibility remain. Main consolidation does not convert v1, bind v2 to a token, or merge a project's Vault/App identities. Vault UI and standalone App remain separate review/submission deliverables.
+
+
+Explicit routing test Workbenches now have a [matching standalone source-package workflow](mini-app-routing-source-packages.md). It uses the existing published routing identity without another Runtime release. Default main/latest and production gates remain unchanged.

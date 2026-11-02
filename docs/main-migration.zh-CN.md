@@ -10,11 +10,11 @@ Vault UI 与 Mini App v2 已统一在官方 `main` 维护，共用一套模板�
 | --- | --- |
 | 源码分支 | Vault UI 与 Mini App v2 共用官方 `main` |
 | 模板策略 | [PR #36](https://github.com/flap-sh/flap-vault-component-template/pull/36) 已合并，支持受控 taxed.fun 子域名 query |
-| 发布候选 | **`0.1.40` 发布准备中，尚未发布** |
+| 发布候选 | **`0.1.40`，合并 Mini App 子路由和 taxed.fun 白名单，尚未发布** |
 | 已发布 npm `latest` | `0.1.39`，来源 `78c355f080a60770cfd64d71d94c525204d61583` |
 | npm `next` | `0.1.40-next.4`，本次正式发布必须保持 |
 | npm `routing` | `0.1.40-beta.routing.0`，本次正式发布必须保持 |
-| SDK API / exports | 保持不变；npm 包不包含模板或 Workbench 源码校验器 |
+| SDK API / exports | 新增兼容的 `useMiniAppRouter` 与宿主路由适配器；npm 不包含源码校验器 |
 | Workbench 配套策略 | [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) 尚未合并或部署 |
 | App ZIP 来源 | 仍要求精确匹配已发布 latest 身份；未发布的 `0.1.40` 不可作为发布证明 |
 

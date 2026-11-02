@@ -28,7 +28,8 @@ function isTaxedQueryUrl(value) {
 }
 
 function unwrap(node, ts) {
-  while (node && (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node))) node = node.expression;
+  while (node && (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) ||
+      ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node))) node = node.expression;
   return node;
 }
 

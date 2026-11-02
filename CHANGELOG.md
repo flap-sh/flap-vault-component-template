@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.40 — Mini App routing and taxed.fun queries
+
+- Combine host-owned standalone Mini App subroutes with the controlled taxed.fun subdomain query policy.
+- Keep existing Apps compatible and retain separate next/routing test tags.
+- Receiving hosts and Workbench must upgrade both runtime pins and source-validation policy.
+
 This file records breaking and notable changes to the four versioned compatibility surfaces:
 
 - `agent-contract.json` (`version` field) — AI agent workflow contract
@@ -10,6 +16,13 @@ This file records breaking and notable changes to the four versioned compatibili
 See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
+
+## [0.1.40] - Unreleased (routing only)
+
+- Add `useMiniAppRouter()` and versioned host-owned browser/memory adapters for generic standalone Mini App subroutes. Preserve App state, native history, locale/session preview controls and existing wallet/contract permissions.
+- Add persistent deep-link preview, a localized routing example, source-derived feature checks and routing regression coverage in both CI paths.
+- No new dependencies, sensor APIs, manifest fields, source-package formats or E2E identity changes. Runtime contract version 1 remains additive through `sdkFeatures.miniAppRouting=1`.
+- Publication is pending. npm `latest` remains `0.1.39`; preserve the independent `next=0.1.40-next.1` sensor testing release. See [pending release notes](docs/releases/0.1.40.md).
 
 ## [0.1.39] - 2026-10-23
 

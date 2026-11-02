@@ -42,7 +42,7 @@ function assertCleanCommittedCanarySource(label = "Canary") {
   }).trim();
   if (status) {
     throw runtimePackageError(
-      `runtime-package/${label === "Canary" ? "canary" : label === "Next prerelease" ? "next" : "release"}-dirty`,
+      `runtime-package/${label === "Canary" ? "canary" : label === "Routing prerelease" ? "routing" : label === "Next prerelease" ? "next" : "release"}-dirty`,
       `${label} runtime packages require a clean committed worktree so their gitHead provenance is exact.`,
       "Commit the intended runtime changes and remove unrelated untracked files, then rerun the requested runtime packaging command.",
     );
@@ -54,7 +54,7 @@ async function main() {
   if (mode === "release") {
     const { version } = await readJson(path.join(ROOT, "package.json"));
     assertRuntimeReleaseChannel(version, process.env.FLAP_TEMPLATE_CHANNEL || "latest");
-    assertCleanCommittedCanarySource(process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "Next prerelease" : "Stable release");
+    assertCleanCommittedCanarySource(process.env.FLAP_TEMPLATE_CHANNEL === "routing" ? "Routing prerelease" : process.env.FLAP_TEMPLATE_CHANNEL === "next" ? "Next prerelease" : "Stable release");
     await assertTemplateFresh();
   }
   else assertCleanCommittedCanarySource();
@@ -125,7 +125,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -141,6 +141,8 @@ Generated from \`flap-vault-ui-template\`.
 
 ${mode === "canary" ? "This is a private local canary package. It is commit-bound and must not be published to npm.\n" : ""}
 
+${packageIdentity.publishConfig?.tag === "routing" ? "This is a runtime-only routing testing prerelease on the npm routing tag. Install its exact version in isolated test consumers. It does not include sensor/map APIs or change latest/next, and cannot supply App/Vault source-ZIP provenance.\n" : ""}
+
 This package is the shared runtime surface that local preview, Artifact Workbench, and \`flap.sh\` should agree on.
 
 Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
@@ -153,6 +155,20 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
+
+## Mini App subroutes
+
+Standalone Mini Apps use \`useMiniAppRouter()\` from \`./sdk\`. It returns
+App-relative \`pathname\`, decoded \`segments\`, \`search\`, and
+\`push(path)\`, \`replace(path)\`, \`back()\`. Paths start with \`/\`
+inside the current App; external URLs, traversal, encoded separators and hashes
+are rejected. Routing grants no wallet or contract access.
+\`MINI_APP_ROUTING_VERSION = 1\` and \`sdkFeatures.miniAppRouting = 1\`
+identify the feature. Hosts inject a \`router\` into \`MiniAppRuntimeProvider\`;
+\`./host\` exports \`parseMiniAppPath\`, \`createMiniAppMemoryRouter\` and
+\`createMiniAppBrowserRouter\`. Old Apps need no adapter. The new hook fails
+explicitly if the host has not enabled routing. Deploy supporting hosts before
+accepting new route-dependent artifacts; source-package provenance is unchanged.
 
 ## FSI queries
 

@@ -1,0 +1,48 @@
+import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { createRequire } from "node:module";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { chromium } from "@playwright/test";
+const { build } = createRequire(import.meta.resolve("tsup"))("esbuild");
+const root = process.cwd(); const tmp = await mkdtemp(path.join(os.tmpdir(), "flap-app-routing-")); let server, browser;
+try {
+  const entry = `import * as React from "react";
+import {createRoot} from "react-dom/client";
+import {MiniAppRuntimeProvider} from "./src/sdk/miniAppRuntime";
+import {useMiniAppRouter} from "./src/sdk/miniAppRoutingRuntime";
+import {createMiniAppBrowserRouter} from "./src/sdk/miniAppRouting";
+history.replaceState({__NA:true,tree:{framework:"preserved"},user:"kept"},"",location.href);
+const seed=createMiniAppBrowserRouter({basePath:"/apps/demo",window});if(history.state.__NA!==true)throw new Error("Initial framework markers were removed");seed.dispose();
+const originalPush=history.pushState.bind(history),originalReplace=history.replaceState.bind(history);globalThis.frameworkSyncs=0;
+for(const [method,native] of [["pushState",originalPush],["replaceState",originalReplace]])history[method]=(state,title,url)=>{if(state?.__NA||state?._N){native(state,title,url);return;}frameworkSyncs++;const next=new URL(url,location.href);next.searchParams.set("lang","zh");native({...state,__NA:true},title,next);};
+const router=createMiniAppBrowserRouter({basePath:"/apps/demo",window});globalThis.router=router;
+const manifest={schemaVersion:2,mode:"mini-app",appModel:"standalone",slug:"demo",artifactId:"demo",match:{bindings:[]}};
+const session={isConnected:false,isAuthenticated:false,isLoading:false,connect(){},async signIn(){}};
+function App(){const route=useMiniAppRouter();const [count,setCount]=React.useState(0);globalThis.appRoute=route;return <><output id="route">{route.pathname+route.search}</output><button id="counter" onClick={()=>setCount(n=>n+1)}>{count}</button><button id="push" onClick={()=>route.push("/orders/1?tab=a&tab=b")}>push</button><button id="replace" onClick={()=>route.replace("/orders/2")}>replace</button><button id="back" onClick={()=>route.back()}>back</button></>;}
+createRoot(document.getElementById("root")).render(<MiniAppRuntimeProvider manifest={manifest} session={session} i18n={{locale:"en",t:k=>k}} notify={{}} router={router}><App/></MiniAppRuntimeProvider>);`;
+  await build({ absWorkingDir: root, stdin: { contents: entry, resolveDir: root, sourcefile: "routing-harness.tsx", loader: "tsx" }, outfile: path.join(tmp, "app.js"), bundle: true, format: "esm", platform: "browser", jsx: "automatic" });
+  server = createServer(async (req, res) => { res.setHeader("Content-Type", req.url === "/app.js" ? "text/javascript" : "text/html"); res.end(req.url === "/app.js" ? await readFile(path.join(tmp, "app.js")) : '<div id="root"></div><script type="module" src="/app.js"></script>'); });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  browser = await chromium.launch({ headless: true }); const page = await browser.newPage(); const errors = []; page.on("pageerror", error => errors.push(error.message));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  await page.goto(`${base}/apps/demo/bnb/0x123?tab=initial`); await page.locator("#route").waitFor();
+  assert.equal(await page.locator("#route").textContent(), "/bnb/0x123?tab=initial");
+  await page.locator("#counter").click(); await page.locator("#push").click();
+  await page.waitForFunction(() => appRoute.pathname === "/orders/1");
+  assert.equal(await page.locator("#counter").textContent(), "1"); assert.match(await page.locator("#route").textContent(), /tab=a&tab=b&lang=zh/);
+  assert.deepEqual(await page.evaluate(() => ({__NA:history.state.__NA,tree:history.state.tree,user:history.state.user})), {__NA:true,tree:{framework:"preserved"},user:"kept"});
+  assert.equal(await page.evaluate(() => frameworkSyncs), 1, "navigation writes must reach Next's pathname synchronization");
+  await page.locator("#replace").click(); await page.waitForFunction(() => appRoute.pathname === "/orders/2");
+  await page.goBack(); await page.waitForFunction(() => appRoute.pathname === "/bnb/0x123");
+  await page.goForward(); await page.waitForFunction(() => appRoute.pathname === "/orders/2"); assert.equal(await page.locator("#counter").textContent(), "1");
+  await page.reload(); await page.waitForFunction(() => appRoute.pathname === "/orders/2");
+  await page.locator("#back").click(); await page.waitForFunction(() => appRoute.pathname === "/"); assert.equal(new URL(page.url()).pathname, "/apps/demo");
+  await page.evaluate(() => {history.pushState({...history.state,user:"changed"},"","/apps/demo/other?q=1");router.sync();});
+  await page.waitForFunction(() => appRoute.pathname === "/other");
+  assert.equal(await page.evaluate(() => {try{router.push("//evil.test");return false;}catch{return true;}}), true);
+  assert.equal(await page.evaluate(() => {history.pushState(history.state,"","/other-app");try{router.push("/resurrect");return false;}catch{return true;}}), true);
+  assert.deepEqual(errors, []);
+  console.log(JSON.stringify({ok:true,checks:["direct entry","query duplicates","host query rewrite","framework state","push/replace","native back/forward","state preserved","reload","scoped back fallback","host sync","unsafe navigation"]}));
+} finally { await browser?.close(); await new Promise(resolve => server ? server.close(resolve) : resolve()); await rm(tmp, {recursive:true,force:true}); }
