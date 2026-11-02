@@ -1,6 +1,6 @@
 # Versioning
 
-**Release preparation (2026-11-02): `0.1.40` is not published.** npm `latest` remains `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583`. Preserve `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` when publishing the stable release. Public SDK exports and API signatures are unchanged. The taxed.fun native-fetch change belongs to the template and Workbench source checkers; those checkers are not shipped in the npm runtime package. Workbench [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) is not merged or deployed. See the [0.1.40 release preparation](releases/0.1.40.md) and [main/latest status](main-migration.md).
+**Published (2026-11-02 UTC): `@flapsdk/vault-runtime@0.1.40` is npm `latest`, source `79dab6d8e908310fbc5a56492569623e4ee79e2e`.** This stable release combines host-owned Mini App subroutes with controlled taxed.fun query validation. Existing SDK signatures remain compatible; sensor/map APIs stay separate. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` are unchanged. Query policies live in template and Workbench source checkers, which are not shipped in npm; matching consumer pins and checker deployment remain required. See the [verified release record](releases/0.1.40.md) and main/latest status.
 
 This template has four compatibility surfaces:
 
@@ -15,7 +15,7 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
-Prepare `0.1.40` using [the current release guide](releases/0.1.40.md) ([简体中文](releases/0.1.40.zh-CN.md)). It is not yet published. The current npm latest identity remains `0.1.39` at source `78c355f080a60770cfd64d71d94c525204d61583`; its archive evidence is retained in [the 0.1.39 record](releases/0.1.39.md). Historical records below must not be read as current tag inventories.
+Stable `0.1.40` is published from `79dab6d8e908310fbc5a56492569623e4ee79e2e`; see [its verified release record](releases/0.1.40.md). Historical records below are dated snapshots, not current tag inventories.
 
 The historical `0.1.38` main/latest release and host rollout are documented in
 [the release guide](releases/0.1.38.md) ([简体中文](releases/0.1.38.zh-CN.md)).
@@ -187,4 +187,4 @@ Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for revi
 
 ## Main integration and Mini App v2 releases
 
-Follow [the current preparation record](releases/0.1.40.md) and [main/latest status](main-migration.md). `0.1.40` remains unpublished until registry verification succeeds; the published latest identity is still `0.1.39`. Keep model-specific provenance and host/checker rollout requirements.
+Follow [the current preparation record](releases/0.1.40.md) and [main/latest status](main-migration.md). `0.1.40` is published and verified; use its exact latest identity. Keep model-specific provenance and host/checker rollout requirements.

@@ -10,15 +10,15 @@ Vault UI 与 Mini App v2 已统一在官方 `main` 维护，共用一套模板�
 | --- | --- |
 | 源码分支 | Vault UI 与 Mini App v2 共用官方 `main` |
 | 模板策略 | [PR #36](https://github.com/flap-sh/flap-vault-component-template/pull/36) 已合并，支持受控 taxed.fun 子域名 query |
-| 发布候选 | **`0.1.40`，合并 Mini App 子路由和 taxed.fun 白名单，尚未发布** |
-| 已发布 npm `latest` | `0.1.39`，来源 `78c355f080a60770cfd64d71d94c525204d61583` |
+| 发布候选 | **`0.1.40`，合并 Mini App 子路由和 taxed.fun 白名单，已发布** |
+| 已发布 npm `latest` | `0.1.40`，来源 `79dab6d8e908310fbc5a56492569623e4ee79e2e` |
 | npm `next` | `0.1.40-next.4`，本次正式发布必须保持 |
 | npm `routing` | `0.1.40-beta.routing.0`，本次正式发布必须保持 |
 | SDK API / exports | 新增兼容的 `useMiniAppRouter` 与宿主路由适配器；npm 不包含源码校验器 |
 | Workbench 配套策略 | [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) 尚未合并或部署 |
-| App ZIP 来源 | 仍要求精确匹配已发布 latest 身份；未发布的 `0.1.40` 不可作为发布证明 |
+| App ZIP 来源 | 仍要求精确匹配已发布 latest 身份；`0.1.40` 必须使用其精确已发布源码 |
 
-详见 [0.1.40 发布准备](releases/0.1.40.zh-CN.md)。源码合并、修改版本号或发布 npm 都不会自动升级已部署宿主或批准 artifact。taxed.fun 白名单必须由模板与 Workbench 的配套源码校验器分别生效；只升级 npm SDK 不会部署这些策略。真实接口响应与浏览器 CORS 尚未验证。
+详见 [0.1.40 发布记录](releases/0.1.40.zh-CN.md)。源码合并、修改版本号或发布 npm 都不会自动升级已部署宿主或批准 artifact。taxed.fun 白名单必须由模板与 Workbench 的配套源码校验器分别生效；只升级 npm SDK 不会部署这些策略。真实接口响应与浏览器 CORS 尚未验证。
 
 ## 获取源码与本地开发
 
@@ -39,11 +39,11 @@ yarn dev
 | 流程 | 源码 / npm 通道 |
 | --- | --- |
 | `vault:*` | 官方 `origin/main` / latest |
-| `app:*` | 官方 `origin/main` / latest，接受正式 `0.1.39` |
+| `app:*` | 官方 `origin/main` / latest，接受正式 `0.1.40` |
 | `runtime:package` | 干净且已提交的官方 main / latest，生成的 publishConfig 显式使用 latest |
 | `runtime:package:next` | 仅在明确授权预览发布时使用官方 `origin/next` / next |
 
-使用 fork 的维护者设置 `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`，upstream 必须指向官方 Flap 仓库。App 命令拒绝预览或本地引用及 fork 远端。主 CI 与 App 验证工作流使用 latest；App 工作流运行在官方 main。通道各自检查自己的 npm tag，`next=0.1.40-next.4` 不影响正式 `0.1.39`。
+使用 fork 的维护者设置 `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`，upstream 必须指向官方 Flap 仓库。App 命令拒绝预览或本地引用及 fork 远端。主 CI 与 App 验证工作流使用 latest；App 工作流运行在官方 main。通道各自检查自己的 npm tag，`next=0.1.40-next.4` 不影响正式 `0.1.40`。
 
 在官方 main 上，npm 发布前可以运行 App 检查、本地游客/已连接 E2E 和构建。App 源码 ZIP 与普通本地验证要求**精确匹配已发布 latest 版本、真实 gitHead 祖先关系及 runtime、依赖、构建、协议输入**。官方纯文档或开发工具提交可以更新并保留原身份；本地 SDK/工具改动、私有 canary 和伪造证明均不能替代发布。
 
@@ -51,7 +51,7 @@ yarn dev
 
 ## 正式版升级与预览版弃用
 
-**历史快照，核对于 2026-10-23。** 当前 dist-tag 与 0.1.40 发布准备状态以上方记录为准。
+**历史快照，核对于 2026-10-23。** 当前 dist-tag 与 0.1.40 发布记录状态以上方记录为准。
 
 `0.1.39` 已发布，维护者仍需在 Workbench、主站精确固定并部署同一 runtime 与配套校验输入：
 

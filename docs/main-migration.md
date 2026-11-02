@@ -10,15 +10,15 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | --- | --- |
 | Source branch | Official `main` for Vault UI and Mini App v2 |
 | Template policy | [PR #36](https://github.com/flap-sh/flap-vault-component-template/pull/36) merged, allowing controlled taxed.fun subdomain queries |
-| Release candidate | **`0.1.40`: Mini App routing plus taxed.fun query policy; not published** |
-| Published npm `latest` | `0.1.39`, source `78c355f080a60770cfd64d71d94c525204d61583` |
+| Release candidate | **`0.1.40`: Mini App routing plus taxed.fun query policy; published** |
+| Published npm `latest` | `0.1.40`, source `79dab6d8e908310fbc5a56492569623e4ee79e2e` |
 | npm `next` | `0.1.40-next.4`; preserve during this stable publication |
 | npm `routing` | `0.1.40-beta.routing.0`; preserve during this stable publication |
 | SDK API / exports | Compatible `useMiniAppRouter` and host adapters added; npm does not include source checkers |
 | Workbench policy | [PR #43](https://github.com/flap-sh/flap-artifact-workbench/pull/43) is not merged or deployed |
-| App ZIP provenance | Must match the exact published latest identity; unpublished `0.1.40` is not release provenance |
+| App ZIP provenance | Must match the exact published latest identity; `0.1.40` must use its exact published source |
 
-See [0.1.40 release preparation](releases/0.1.40.md). A source merge, version edit or npm publication does not upgrade deployed hosts or approve an artifact. The taxed.fun allowlist requires the matching template and Workbench source checkers; an npm SDK upgrade does not deploy those policies. Real API responses and browser CORS remain unverified.
+See [0.1.40 verified release](releases/0.1.40.md). A source merge, version edit or npm publication does not upgrade deployed hosts or approve an artifact. The taxed.fun allowlist requires the matching template and Workbench source checkers; an npm SDK upgrade does not deploy those policies. Real API responses and browser CORS remain unverified.
 
 ## Source checkout and local development
 
@@ -39,15 +39,15 @@ App authors import `@/src/sdk` and `@/src/ui` from the template. Do not install 
 | Workflow | Source / npm channel |
 | --- | --- |
 | `vault:*` | Official `origin/main` / latest |
-| `app:*` | Official `origin/main` / latest; stable `0.1.39` is accepted |
+| `app:*` | Official `origin/main` / latest; stable `0.1.40` is accepted |
 | `runtime:package` | Clean committed official main / latest; generated publishConfig explicitly uses latest |
 | `runtime:package:next` | Explicitly authorized preview release from official `origin/next` / next |
 
-Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.4` does not invalidate stable `0.1.39`.
+Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.4` does not invalidate stable `0.1.40`.
 
 App check, local guest/connected E2E and build can run before npm publication from the official main checkout. App source ZIPs and normal local verification require the **exact published latest version, real gitHead ancestry and matching runtime/dependency/build/protocol inputs**. Official documentation/authoring-only descendants can retain that identity. Local SDK/tool edits, private canaries and fabricated proof cannot.
 
-`0.1.39` is public on npm latest, source `78c355f080a60770cfd64d71d94c525204d61583`. See [the historical 0.1.39 release record](releases/0.1.39.md) for archive verification and FSI rollout. The real App package/verification and unpublished-runtime gate results from `0.1.38` remain in [its historical release record](releases/0.1.38.md); they are not relabeled as `0.1.39` proof. New source ZIPs require the current published identity and current source-bound E2E proof.
+Historical `0.1.39` was published on npm latest, source `78c355f080a60770cfd64d71d94c525204d61583`. See [the historical 0.1.39 release record](releases/0.1.39.md) for archive verification and FSI rollout. The real App package/verification and unpublished-runtime gate results from `0.1.38` remain in [its historical release record](releases/0.1.38.md); they are not relabeled as `0.1.39` proof. New source ZIPs require the current published identity and current source-bound E2E proof.
 
 ## Stable upgrade and preview deprecation
 
