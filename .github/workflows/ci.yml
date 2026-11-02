@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FLAP_TEMPLATE_CHANNEL: latest
       FLAP_TEMPLATE_FRESHNESS_REF: ${{ github.event_name == 'pull_request' && format('origin/pr-{0}-head', github.event.number) || 'origin/main' }}

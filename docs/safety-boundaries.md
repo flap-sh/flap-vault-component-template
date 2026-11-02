@@ -16,7 +16,7 @@ Custom Vault UI is controlled business UI, not an arbitrary app surface.
 - Runtime remote import.
 - Dynamic import expression.
 - Direct browser network/media APIs such as `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, or `new Image()`, including aliasing, destructuring, string-indexed, or variable-indexed computed browser-global access to those APIs.
-- Dynamic, relative, HTTP, credentialed, or undeclared `fetch(...)` target.
+- Dynamic hosts/paths, relative, HTTP, credentialed, or undeclared `fetch(...)` target. Encoded dynamic query values require the reviewed FSI/taxed.fun query exceptions.
 - Canvas implementations that depend on browser-global DOM queries, workerized rendering, direct browser network/media APIs, or external assets not already allowed by the template.
 - Browser storage or host-state escape APIs such as `localStorage`, `sessionStorage`, `indexedDB`, Cache Storage, or `document.cookie`.
 - Browser-global member access except safe timer APIs and reviewed explorer-only `window.open`.
@@ -110,3 +110,7 @@ Hardcoded addresses, unsafe schemes, and undeclared URLs are also detected insid
 See [reviewed NFT account withdrawal](./nft-account-withdrawal.md) for the restricted NULL profile and host approval rules.
 
 Reviewed Vault-derived write modules use factory-scoped [resolvedContracts](resolved-contracts.md) and genuine `sdk.resolveContract` handles. NULL bag execution remains on `withdrawNftAccount`. Production raw targets are strict; migrate preview warnings before rollout. `VaultRuntimeProvider` is host-only.
+
+## taxed.fun subdomain queries
+
+For the native-fetch query exception on all HTTPS `taxed.fun` subdomains, see [taxed.fun queries](taxed-endpoints.md). Concrete manifest endpoint declarations, encoded query values, literal safe GET options and endpoint review remain required. This does not change `sdk.readFsi` routing or grant media/navigation permissions.

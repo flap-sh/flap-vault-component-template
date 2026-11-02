@@ -63,7 +63,7 @@
     "test:flap-wallet": "node --test src/sdk/flapChainRuntime.test.mjs",
     "test:copy-button-policy": "node --test scripts/copy-button-policy.test.mjs",
     "test:copy-button": "node --experimental-strip-types --test src/ui/copyText.test.ts && node scripts/test-copy-button-browser.mjs",
-    "test:fsi": "node --test src/sdk/fsi.test.mjs scripts/fsi-endpoint-policy.test.mjs",
+    "test:fsi": "node --test src/sdk/fsi.test.mjs scripts/fsi-endpoint-policy.test.mjs scripts/taxed-endpoint-policy.test.mjs",
     "test:ipfs-content": "node --test src/sdk/ipfsText.test.mjs scripts/ipfs-content-policy.test.mjs scripts/ipfs-content-checker.test.mjs && node scripts/test-ipfs-content-browser.mjs",
     "test:preview-process": "node --test scripts/preview-process.test.mjs",
     "test:launch-config:browser": "node --test scripts/launch-config-e2e.browser.test.mjs"
