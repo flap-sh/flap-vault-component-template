@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
 import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
+import { dynamicTaxedQueryPrefix, taxedFetchSafetyIssue, isTaxedFetchTarget, queryFreeDeclarations, collectQueryEncoderMutationIssues } from "./taxed-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -276,7 +277,7 @@ const FIX_HINTS = {
   "endpoint-policy/no-credentials": "Remove username/password credentials from endpoint URLs. Workbench endpoint declarations must be bearerless HTTPS URLs.",
   "endpoint-policy/undeclared-url": "Remove the URL. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets; use approved runtime media, ExternalLink, or a reviewed externalFrame for other URL uses.",
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
-  "endpoint-policy/direct-fetch": "Use sdk.readFsi for FSI requests, or use a fixed FSI fetch URL with encoded query values and literal GET/omit/error/no-referrer options. Other fetch targets must be static absolute HTTPS URLs declared in manifest.endpoints without credentials.",
+  "endpoint-policy/direct-fetch": "Use sdk.readFsi for FSI requests, or a fixed FSI/taxed.fun subdomain fetch URL with encoded query values and literal GET/omit/error/no-referrer options. Other fetch targets must be static absolute HTTPS URLs declared in manifest.endpoints without credentials.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
   "manual-review/external-contract": "Fixed extra contract targets are review candidates only. Confirm the address, role, write/approval/value exposure, and deployment provenance before publish.",
   "manual-review/external-link": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it.",
@@ -1240,6 +1241,8 @@ function collectLexicalBindings(sourceFile) {
       for (const name of bindingNames(node.name)) addBinding(name, node, scope);
     } else if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
       addBinding(node.name.text, node, nearestScope(node));
+    } else if (ts.isFunctionExpression(node) && node.name) {
+      addBinding(node.name.text, node, node);
     } else if (ts.isImportClause(node)) {
       if (node.name) addBinding(node.name.text, node, sourceFile);
     } else if (ts.isImportSpecifier(node) || ts.isNamespaceImport(node) || ts.isImportEqualsDeclaration(node)) {
@@ -1251,6 +1254,12 @@ function collectLexicalBindings(sourceFile) {
   };
   visit(sourceFile);
   return bindings;
+}
+
+function hasVisibleLexicalBinding(identifier, sourceFile, bindings) {
+  const referenceStart = tsNodeStart(identifier, sourceFile);
+  return (bindings.get(identifier.text) ?? []).some(({ scope }) =>
+    scope.getStart(sourceFile) <= referenceStart && referenceStart < scope.end);
 }
 
 function resolveVisibleLexicalBinding(identifier, sourceFile, bindings) {
@@ -1507,17 +1516,20 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
     if (ts.isCallExpression(node)) {
       const callee = unwrapTsExpression(node.expression);
       if (ts.isIdentifier(callee) && callee.text === "fetch") {
-        const isGlobalFetch = !resolveVisibleLexicalBinding(callee, sourceFile, bindings);
+        const isGlobalFetch = !hasVisibleLexicalBinding(callee, sourceFile, bindings);
         const target = node.arguments[0] ?? null;
-        const dynamicQueryPrefix = dynamicFsiQueryPrefix(target, ts, declaredFetchUrls, isDeclaredUrl);
+        const dynamicQueryPrefix = dynamicFsiQueryPrefix(target, ts, queryFreeDeclarations(declaredFetchUrls), isDeclaredUrl)
+          ?? dynamicTaxedQueryPrefix(target, ts, declaredFetchUrls, isDeclaredUrl);
         const staticTarget = (target ? tsStaticStringValue(target) : null) ?? dynamicQueryPrefix;
         const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
-        const fsiSafetyIssue = isFsiFetchTarget(parsedTarget)
-          ? fsiFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, (callee) => !resolveVisibleLexicalBinding(callee, sourceFile, bindings))
-          : null;
+        const fetchSafetyIssue = isFsiFetchTarget(parsedTarget)
+          ? fsiFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, (callee) => !hasVisibleLexicalBinding(callee, sourceFile, bindings))
+          : isTaxedFetchTarget(parsedTarget)
+            ? taxedFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, (callee) => !hasVisibleLexicalBinding(callee, sourceFile, bindings))
+            : null;
         const allowed = Boolean(
           isGlobalFetch &&
-            !fsiSafetyIssue &&
+            !fetchSafetyIssue &&
             staticTarget &&
             parsedTarget &&
             parsedTarget.protocol === "https:" &&
@@ -1530,7 +1542,7 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
           isGlobalFetch,
           staticTarget,
           dynamicQuery: Boolean(dynamicQueryPrefix),
-          fsiSafetyIssue,
+          fetchSafetyIssue,
           targetExpression: target?.getText(sourceFile),
           parsedTarget,
           file,
@@ -4127,7 +4139,11 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const content = fs.readFileSync(item.path, "utf8");
     issues.push(...collectSourceSyntaxIssues(rel, content));
     const scanContent = stripCommentsForScanning(content);
-    issues.push(...collectFsiReadIssues(createTsSourceFile(rel, content), ts, manifest.endpoints, rel));
+    const querySourceFile = createTsSourceFile(rel, content);
+    const queryBindings = collectLexicalBindings(querySourceFile);
+    issues.push(...collectFsiReadIssues(querySourceFile, ts, manifest.endpoints, rel));
+    issues.push(...collectQueryEncoderMutationIssues(querySourceFile, ts,
+      (encoder) => !hasVisibleLexicalBinding(encoder, querySourceFile, queryBindings), rel));
     const directFetchUsages = collectDirectFetchUsages(content, rel, declaredFetchUrls);
     const allowedDirectFetchTargetRanges = directFetchUsages.filter((usage) => usage.allowed && usage.targetRange).map((usage) => usage.targetRange);
     const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
@@ -4376,7 +4392,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "endpoint-policy/direct-fetch",
-            usage.fsiSafetyIssue ?? "fetch() requires a declared static HTTPS URL, or encoded query-value interpolation on the platform FSI allowlist with explicit safe request options. Use sdk.readFsi for dynamic FSI paths.",
+            usage.fetchSafetyIssue ?? "fetch() requires a declared static HTTPS URL, or encoded query-value interpolation on the platform FSI or taxed.fun subdomain allowlist with explicit safe request options. Use sdk.readFsi for dynamic FSI paths.",
             { file: rel, line: usage.line },
           ),
         );
