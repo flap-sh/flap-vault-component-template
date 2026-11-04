@@ -4,6 +4,7 @@ import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsi
 import { dynamicTaxedQueryPrefix, taxedFetchSafetyIssue, isTaxedFetchTarget, queryFreeDeclarations, collectQueryEncoderMutationIssues } from "./taxed-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import { collectMiniAppRoutingIssues } from "./mini-app-routing-policy.mjs";
+import { collectCopyTextSourceRanges, collectDataPropertySchemeOffsets, collectReviewedAgentInstructionRanges, isCopyTextDataProperty, isReviewedAgentRpcUrl } from "./copy-text-source-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -1161,9 +1162,18 @@ function hardcodedCopyExcerpt(value) {
   return `${compact.slice(0, 77)}...`;
 }
 
-function collectHardcodedVisibleCopyIssues(content, file) {
+function collectHardcodedVisibleCopyIssues(scanContent, file, copyTextRanges) {
   const issues = [];
-  const scanContent = stripCommentsForScanning(content);
+  if (copyTextRanges.length) {
+    let cursor = 0;
+    const segments = [];
+    for (const [start, end] of copyTextRanges) {
+      segments.push(scanContent.slice(cursor, start), blankPreservingNewlines(scanContent.slice(start, end)));
+      cursor = end;
+    }
+    segments.push(scanContent.slice(cursor));
+    scanContent = segments.join("");
+  }
   const stringLiteralRegex = /(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
   for (const match of scanContent.matchAll(stringLiteralRegex)) {
     const value = match[2] ?? "";
@@ -2906,9 +2916,9 @@ function isClipboardMemberPath(memberPath) {
 // Inspect a fully resolved string value for a hardcoded address, unsafe scheme,
 // or undeclared external URL. Shared by the AST composite-string scan and the
 // i18n.json value scan so obfuscated payloads are caught wherever they resolve.
-function scanResolvedStringForResources(value, ctx) {
+function scanResolvedStringForResources(value, ctx, copyText = false) {
   if (typeof value !== "string" || !value) return null;
-  const addressMatch = /0x[a-fA-F0-9]{40}\b/.exec(value);
+  const addressMatch = copyText ? null : /0x[a-fA-F0-9]{40}\b/.exec(value);
   if (addressMatch) {
     const normalized = normalizeAddress(addressMatch[0]);
     if (!normalized || !ctx.contractPolicy.all.has(normalized)) {
@@ -2918,14 +2928,14 @@ function scanResolvedStringForResources(value, ctx) {
       };
     }
   }
-  const schemeMatch = /(?:javascript|vbscript|data):/i.exec(value);
-  if (schemeMatch) {
+  for (const schemeMatch of value.matchAll(/(?:javascript|vbscript|data):/gi)) {
+    if (copyText && schemeMatch[0].toLowerCase() === "data:" && isCopyTextDataProperty(value, schemeMatch.index)) continue;
     return {
       ruleId: "endpoint-policy/undeclared-url",
       message: `Unsafe ${schemeMatch[0]} resource assembled from string fragments is not allowed inside Vault source.`,
     };
   }
-  const urlMatch = /(?:https?:\/\/|wss?:\/\/|ipfs:\/\/|ar:\/\/)[^\s"'`<>)]+/i.exec(value);
+  const urlMatch = copyText ? null : /(?:https?:\/\/|wss?:\/\/|ipfs:\/\/|ar:\/\/)[^\s"'`<>)]+/i.exec(value);
   if (urlMatch) {
     const url = sanitizeUrlLiteral(urlMatch[0]);
     if (!isAllowlistedExternalUrl(url, ctx.declaredFrames)) {
@@ -3053,9 +3063,21 @@ function collectAstSecurityIssues(content, file, ctx) {
     if (isCompositeString) {
       const parent = node.parent;
       const parentIsPlus = parent && ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken;
-      if (!parentIsPlus && !isIndexWithinRanges(tsNodeStart(node, sourceFile), ctx.externalLinkUrlSourceRanges)) {
+      const start = tsNodeStart(node, sourceFile);
+      if (ts.isTemplateExpression(node) && ctx.copyTextTemplateStarts.has(start)) {
+        // The complete string is copied as text. Its interpolated values still
+        // follow the normal resource checks, including after static folding.
         const folded = foldTsStaticString(node, varMap);
-        const finding = folded !== null ? scanResolvedStringForResources(folded, ctx) : null;
+        const unsafeScheme = scanResolvedStringForResources(folded, ctx, true);
+        if (unsafeScheme) add(unsafeScheme.ruleId, unsafeScheme.message, node);
+        else if (scanResolvedStringForResources(folded, ctx)) ctx.recordCopyText(start);
+        for (const { expression } of node.templateSpans) {
+          const finding = scanResolvedStringForResources(foldTsStaticString(expression, varMap), ctx);
+          if (finding) add(finding.ruleId, finding.message, expression);
+        }
+      } else if (!parentIsPlus && !isIndexWithinRanges(start, ctx.externalLinkUrlSourceRanges)) {
+        const folded = foldTsStaticString(node, varMap);
+        const finding = scanResolvedStringForResources(folded, ctx);
         if (finding) add(finding.ruleId, finding.message, node);
       }
     }
@@ -4143,6 +4165,23 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...collectSourceSyntaxIssues(rel, content));
     const scanContent = stripCommentsForScanning(content);
     const querySourceFile = createTsSourceFile(rel, content);
+    const supportsCopyText = item.name === "Component.tsx" && isStandaloneApp(manifest) && !manifestCapabilityIds(manifest).length;
+    const { ranges: copyTextRanges, templateStarts: copyTextTemplateStarts } = supportsCopyText
+      ? collectCopyTextSourceRanges(querySourceFile, ts)
+      : { ranges: [], templateStarts: new Set() };
+    const reviewedAgentRanges = supportsCopyText ? collectReviewedAgentInstructionRanges(vaultDir, querySourceFile, ts) : [];
+    let copyTextReviewIndex = Infinity;
+    const recordCopyText = (index) => { copyTextReviewIndex = Math.min(copyTextReviewIndex, index); };
+    const isCopyTextMatch = (index, length) => {
+      if (!copyTextRanges.some(([start, end]) => index >= start && index + length <= end)) return false;
+      recordCopyText(index);
+      return true;
+    };
+    const isReviewedAgentMatch = (index, length) => {
+      if (!reviewedAgentRanges.some(([start, end]) => index >= start && index + length <= end)) return false;
+      recordCopyText(index);
+      return true;
+    };
     const queryBindings = collectLexicalBindings(querySourceFile);
     issues.push(...collectFsiReadIssues(querySourceFile, ts, manifest.endpoints, rel));
     issues.push(...collectQueryEncoderMutationIssues(querySourceFile, ts,
@@ -4280,9 +4319,12 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     if (!isStandaloneApp(manifest)) issues.push(...checkResolvedContractSource(content, rel, manifest?.match?.bindings ?? []));
     issues.push(...collectBrowserGlobalMemberIssues(scanContent, rel, manifest));
     issues.push(...collectWindowOpenIssues(scanContent, rel));
-    issues.push(...collectAstSecurityIssues(content, rel, { declaredFrames, contractPolicy, externalLinkUrlSourceRanges: approvedResourceRanges }));
+    issues.push(...collectAstSecurityIssues(content, rel, {
+      declaredFrames, contractPolicy, externalLinkUrlSourceRanges: approvedResourceRanges,
+      copyTextTemplateStarts, recordCopyText,
+    }));
     if (item.name === "Component.tsx" || item.name === "LaunchConfig.tsx") {
-      issues.push(...collectHardcodedVisibleCopyIssues(content, rel));
+      issues.push(...collectHardcodedVisibleCopyIssues(scanContent, rel, copyTextRanges));
       issues.push(...collectInlineSvgIssues(content, rel));
     }
     const importRegex = /from\s+["'`]([^"'`]+)["'`]|import\s+["'`]([^"'`]+)["'`]/g;
@@ -4325,6 +4367,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...binanceImageAnalysis.issues);
     const requireRegex = /\brequire\s*\(/g;
     for (const match of scanContent.matchAll(requireRegex)) {
+      if (isCopyTextMatch(match.index, match[0].length) || isReviewedAgentMatch(match.index, match[0].length)) continue;
       issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
     }
     for (const oracleUsage of collectReadOracleUsages(scanContent, rel)) {
@@ -4433,7 +4476,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     for (const match of scanContent.matchAll(externalUrlRegex)) {
       if (isIndexWithinRanges(match.index, approvedResourceRanges) || isIndexWithinRanges(match.index, allowedDirectFetchTargetRanges)) continue;
       const url = sanitizeUrlLiteral(match[0]);
-      if (!isAllowlistedExternalUrl(url, declaredFrames)) {
+      if (!isAllowlistedExternalUrl(url, declaredFrames) && !isCopyTextMatch(match.index, match[0].length)
+        && !(isReviewedAgentRpcUrl(url) && isReviewedAgentMatch(match.index, match[0].length))) {
         issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not an approved non-fetch resource. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets. For user-facing navigation, use ExternalLink; for images, use host media, BinanceImage for exact-host bin.bnbstatic.com, or IpfsImage/IpfsBackground.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
@@ -4448,7 +4492,18 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
       );
     }
     for (const scheme of UNSAFE_RESOURCE_SCHEMES) {
-      const schemeIndex = scanContent.toLowerCase().indexOf(scheme);
+      let schemeIndex = scanContent.toLowerCase().indexOf(scheme);
+      if (scheme === "data:" && schemeIndex >= 0) {
+        schemeIndex = -1;
+        const propertyOffsets = collectDataPropertySchemeOffsets(querySourceFile, ts);
+        for (const { index } of scanContent.matchAll(/data:/gi)) {
+          if (propertyOffsets.has(index)) continue;
+          const range = [...copyTextRanges, ...reviewedAgentRanges].find(([start, end]) => index >= start && index + scheme.length <= end);
+          if (range && isCopyTextDataProperty(scanContent.slice(...range), index - range[0])) continue;
+          schemeIndex = index;
+          break;
+        }
+      }
       if (schemeIndex >= 0) {
         issues.push(
           issue(
@@ -4471,9 +4526,12 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const hardcodedAddressRegex = /["'`]0x[a-fA-F0-9]{40}["'`]/g;
     for (const match of scanContent.matchAll(hardcodedAddressRegex)) {
       const normalizedAddress = normalizeAddress(match[0].slice(1, -1));
-      if (!normalizedAddress || !contractPolicy.all.has(normalizedAddress)) {
+      if ((!normalizedAddress || !contractPolicy.all.has(normalizedAddress)) && !isCopyTextMatch(match.index + 1, match[0].length - 2)) {
         issues.push(issue(BLOCKING, "security/hardcoded-address", `Hardcoded address ${match[0]} found in Vault source. Use runtime context addresses or declare intentional external contract addresses in manifest.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
+    }
+    if (Number.isFinite(copyTextReviewIndex)) {
+      issues.push(issue(WARNING, "manual-review/copy-text", "Review the instructions users can copy before publishing this App.", { file: rel, line: lineForIndex(scanContent, copyTextReviewIndex) }));
     }
     if (/refetchInterval\s*:\s*([0-4]?\d{1,3})(?!\d)/.test(scanContent)) {
       issues.push(issue(BLOCKING, "performance/refetch-too-fast", "refetchInterval below 5000ms is not allowed in Vault source.", { file: rel }));
