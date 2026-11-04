@@ -120,3 +120,20 @@ test("routing wrapper refuses v1, wrong channels/refs, canaries and format-6 ver
   const blocked = repo.run(["verify", "dist/legacy.zip"], { FLAP_TEMPLATE_CHANNEL: "routing" });
   assert.notEqual(blocked.status, 0); assert.equal(JSON.parse(blocked.stderr).code, "app-release/routing-format");
 });
+
+test("preview is explicit, App-only and selects its official branch without sync", (t) => {
+  const repo = fixture(t);
+  const env = { FLAP_TEMPLATE_CHANNEL: "preview" };
+  for (const [command, target, script] of [["check", "example", "vault-check.mjs"], ["e2e", "example", "vault-e2e.mjs"], ["package", "example", "vault-package.mjs"], ["verify", "dist/example-preview.zip", "vault-verify-package.mjs"]]) {
+    const result = repo.run([command, target], env);
+    assert.equal(result.status, 0, result.stderr);
+    const calls = result.stdout.trim().split("\n").map(JSON.parse);
+    assert.equal(calls.at(-1).file, script);
+    assert.ok(calls.every(call => call.channel === "preview" && call.workflow === "app" && call.ref === "origin/chore/refine-package-text-validation"));
+    if (command === "e2e") assert.deepEqual(calls[0].args, [target, "--quiet"]);
+  }
+  for (const command of ["build", "runtime"]) assert.notEqual(repo.run([command], env).status, 0);
+  for (const ref of ["origin/main", "HEAD", "origin/chore/refine-package-text-validation/other"]) {
+    assert.notEqual(repo.run(["package", "example"], { ...env, FLAP_TEMPLATE_FRESHNESS_REF: ref }).status, 0);
+  }
+});

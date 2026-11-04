@@ -4,18 +4,29 @@ import { execFileSync } from "node:child_process";
 import { ROUTING_VERSION_PATTERN, assertRuntimeReleaseChannel } from "./runtime-package-mode.mjs";
 import { isStandaloneApp } from "./standalone-app.mjs";
 
+export const APP_PREVIEW_BRANCH = "chore/refine-package-text-validation";
+export const APP_PREVIEW_REF = `refs/heads/${APP_PREVIEW_BRANCH}`;
+export const APP_PREVIEW_GENERATOR = "flap-vault-ui-template-preview";
+
 export function templateReleasePolicy(env = process.env) {
   const channel = env.FLAP_TEMPLATE_CHANNEL?.trim() || "latest";
-  if (!["latest", "next", "routing"].includes(channel)) throw new Error("FLAP_TEMPLATE_CHANNEL must be latest, next or routing.");
-  const officialRef = env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || (channel === "routing" ? "origin/feat/mini-app-routing" : channel === "next" ? "origin/next" : "origin/main");
+  if (!["latest", "next", "routing", "preview"].includes(channel)) throw new Error("FLAP_TEMPLATE_CHANNEL must be latest, next, routing or preview.");
+  const defaultRefs = { latest: "origin/main", next: "origin/next", routing: "origin/feat/mini-app-routing", preview: `origin/${APP_PREVIEW_BRANCH}` };
+  const officialRef = env.FLAP_TEMPLATE_FRESHNESS_REF?.trim() || defaultRefs[channel];
   const packageName = env.FLAP_TEMPLATE_NPM_PACKAGE?.trim() || "@flapsdk/vault-runtime";
+  if (channel === "preview") {
+    const [remote] = officialRef.split("/");
+    if (!/^[a-zA-Z0-9_-]+$/.test(remote) || officialRef !== `${remote}/${APP_PREVIEW_BRANCH}` || packageName !== "@flapsdk/vault-runtime" || env.FLAP_TEMPLATE_WORKFLOW !== "app") {
+      throw new Error("The preview channel requires the standalone App workflow, the official package validation preview branch and @flapsdk/vault-runtime.");
+    }
+  }
   if (channel === "next" && (!/^[a-zA-Z0-9_-]+\/(?:feat\/mini-app-v2|next)$/.test(officialRef) || packageName !== "@flapsdk/vault-runtime")) {
     throw new Error("The next channel requires the official feat/mini-app-v2 or next ref and @flapsdk/vault-runtime.");
   }
   if (channel === "routing" && (!/^[a-zA-Z0-9_-]+\/feat\/mini-app-routing$/.test(officialRef) || packageName !== "@flapsdk/vault-runtime" || !["runtime", "app"].includes(env.FLAP_TEMPLATE_WORKFLOW))) {
     throw new Error("The routing channel requires an explicit App or runtime workflow, the official feat/mini-app-routing ref and @flapsdk/vault-runtime.");
   }
-  return { channel, npmTag: channel, officialRef, packageName };
+  return { channel, npmTag: channel === "preview" ? "latest" : channel, officialRef, packageName };
 }
 
 export function assertOfficialTemplateRemote(remoteUrl) {
@@ -30,7 +41,7 @@ export const assertOfficialPreviewRemote = assertOfficialTemplateRemote;
 
 export function assertAppReleasePolicy(env = process.env) {
   const policy = templateReleasePolicy(env);
-  if (policy.channel === "routing" && env.FLAP_TEMPLATE_WORKFLOW === "app") return policy;
+  if (["routing", "preview"].includes(policy.channel) && env.FLAP_TEMPLATE_WORKFLOW === "app") return policy;
   if (policy.channel !== "latest" || !/^[a-zA-Z0-9_-]+\/main$/.test(policy.officialRef) || policy.packageName !== "@flapsdk/vault-runtime") {
     throw new Error("App commands require the official main ref and @flapsdk/vault-runtime on latest.");
   }
@@ -101,7 +112,7 @@ function isAuthoringOnly(file) {
     || (file.startsWith("scripts/") && !PUBLISHED_PROTOCOL_SCRIPTS.has(file));
 }
 
-export function assertPublishedRuntimeIdentity({ localVersion, publishedVersion, head, publishedHead, root = process.cwd(), channel = "latest" }) {
+export function assertPublishedRuntimeIdentity({ localVersion, publishedVersion, head, publishedHead, root = process.cwd(), channel = "latest", templatePreview }) {
   const versionPattern = channel === "routing" ? ROUTING_VERSION_PATTERN : channel === "next" ? /^\d+\.\d+\.\d+-next\.\d+$/ : /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
   if (!["latest", "next", "routing"].includes(channel) || !versionPattern.test(localVersion || "") || localVersion !== publishedVersion
       || !/^[a-f0-9]{40}$/i.test(publishedHead || "") || !/^[a-f0-9]{40}$/i.test(head || "")) {
@@ -117,7 +128,13 @@ export function assertPublishedRuntimeIdentity({ localVersion, publishedVersion,
   }
 
   const committed = files(["diff", "--name-only", "--no-renames", "-z", publishedHead, head, "--"]);
-  const runtimeChanges = committed.filter((file) => !isAuthoringOnly(file));
+  if (templatePreview && (channel !== "latest" || templatePreview.ref !== APP_PREVIEW_REF || templatePreview.gitHead !== head)) {
+    throw new Error("App preview tooling requires the verified official preview commit.");
+  }
+  // This channel adds a test-only identity to these two ZIP tools. Stable and
+  // routing continue to compare both tools against the published source.
+  const previewTools = templatePreview ? ["scripts/vault-package.mjs", "scripts/vault-verify-package.mjs"] : [];
+  const runtimeChanges = committed.filter((file) => !isAuthoringOnly(file) && !previewTools.includes(file));
   if (runtimeChanges.length) {
     throw new Error(`Publish a matching npm ${channel} runtime before packaging: runtime source, dependencies, build configuration or package protocol changed (${runtimeChanges.join(", ")}).`);
   }

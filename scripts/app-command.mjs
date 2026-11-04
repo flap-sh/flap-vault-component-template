@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { assertAppReleasePolicy, assertAppTemplate, assertPreviewTemplate } from "./template-release-channel.mjs";
+import { APP_PREVIEW_BRANCH, assertAppReleasePolicy, assertAppTemplate, assertPreviewTemplate } from "./template-release-channel.mjs";
 import { failAgent } from "./agent-error.mjs";
 
 const [command, ...args] = process.argv.slice(2);
@@ -10,14 +10,22 @@ if ((["build", "runtime"].includes(command) && args.length) || (!["build", "runt
   failAgent({ code: "app-preview/arguments", message: "Supply one App folder (or ZIP for verify); build/runtime accept no arguments.", fixHint: "Follow docs/mini-app-v2-quickstart.md." });
 }
 const previewRuntime = command === "runtime";
-const routingApp = !previewRuntime && process.env.FLAP_TEMPLATE_CHANNEL?.trim() === "routing";
-const env = { ...process.env, FLAP_TEMPLATE_CHANNEL: previewRuntime ? "next" : routingApp ? "routing" : "latest", FLAP_TEMPLATE_WORKFLOW: previewRuntime ? "runtime" : "app",
-  ...(!process.env.FLAP_TEMPLATE_FRESHNESS_REF ? { FLAP_TEMPLATE_FRESHNESS_REF: previewRuntime ? "origin/next" : routingApp ? "origin/feat/mini-app-routing" : "origin/main" } : {}) };
+const requestedChannel = process.env.FLAP_TEMPLATE_CHANNEL?.trim();
+const routingApp = !previewRuntime && requestedChannel === "routing";
+const previewApp = !previewRuntime && requestedChannel === "preview";
+const appFolder = ["check", "e2e", "package"].includes(command) ? args[0] : undefined;
+const channel = previewRuntime ? "next" : routingApp || previewApp ? requestedChannel : "latest";
+const defaultRefs = { latest: "origin/main", next: "origin/next", routing: "origin/feat/mini-app-routing", preview: `origin/${APP_PREVIEW_BRANCH}` };
+const env = { ...process.env, FLAP_TEMPLATE_CHANNEL: channel, FLAP_TEMPLATE_WORKFLOW: previewRuntime ? "runtime" : "app",
+  FLAP_TEMPLATE_FRESHNESS_REF: process.env.FLAP_TEMPLATE_FRESHNESS_REF || defaultRefs[channel] };
 try {
+  if (requestedChannel === "preview" && (previewRuntime || command === "build")) {
+    throw new Error("The preview channel supports only app:check, app:e2e, app:package and app:verify-package.");
+  }
   if (previewRuntime) assertPreviewTemplate(process.cwd());
   else {
     assertAppReleasePolicy(env);
-    assertAppTemplate(process.cwd(), ["check", "e2e", "package"].includes(command) ? args[0] : undefined, env);
+    assertAppTemplate(process.cwd(), appFolder, env);
   }
 } catch (error) {
   failAgent({ code: "app-release/target", message: error.message, fixHint: "Use official main/latest for stable Apps, or explicitly select routing with its published beta.routing template. Use runtime:package:next only for an authorized next Runtime release." });
@@ -38,6 +46,10 @@ function run(executable, argv, routingVerify = false) {
   const result = spawnSync(executable, argv, { stdio: "inherit", env });
   if (result.error || result.status !== 0) process.exit(result.status || 1);
 }
-if (routingApp || command === "package" || command === "build") run(process.execPath, ["scripts/check-template-fresh.mjs", ...(routingApp ? (["check", "e2e", "package"].includes(command) ? [args[0]] : []) : command === "package" ? [args[0], "--sync"] : []), "--quiet"]);
+if (routingApp || (previewApp && command === "e2e")) {
+  run(process.execPath, ["scripts/check-template-fresh.mjs", ...(appFolder ? [appFolder] : []), "--quiet"]);
+} else if (!previewApp && (command === "package" || command === "build")) {
+  run(process.execPath, ["scripts/check-template-fresh.mjs", ...(appFolder ? [appFolder, "--sync"] : []), "--quiet"]);
+}
 if (command === "build") run(process.platform === "win32" ? "yarn.cmd" : "yarn", ["next", "build"]);
 else run(process.execPath, [`scripts/${scripts[command]}`, ...args], routingApp && command === "verify");
