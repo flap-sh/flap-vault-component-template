@@ -33,3 +33,63 @@ return <main className="min-h-screen"><StatusBadge>{riskLevel}</StatusBadge>{ris
     if (old === undefined) delete process.env.VAULT_CHECK_SKIP_REGISTRATION; else process.env.VAULT_CHECK_SKIP_REGISTRATION = old;
   }
 });
+
+
+test("standalone package validation distinguishes copy text from executable source", (t) => {
+  const folder = `copy-text-check-${process.pid}`;
+  const dir = path.resolve("src/vaults", folder);
+  fs.mkdirSync(dir);
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const registration = process.env.VAULT_CHECK_SKIP_REGISTRATION;
+  process.env.VAULT_CHECK_SKIP_REGISTRATION = "1";
+  t.after(() => {
+    if (registration === undefined) delete process.env.VAULT_CHECK_SKIP_REGISTRATION;
+    else process.env.VAULT_CHECK_SKIP_REGISTRATION = registration;
+  });
+  fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
+    artifactId: `vaultui_${folder}_01ARZ3NDEKTSV4RRFFQ69G5FAV`,
+    name: "Copy text test", i18n: ["en"], schemaVersion: 2, mode: "mini-app",
+    appModel: "standalone", slug: folder, displayTitle: { en: "Copy text test", zh: "复制文本测试" },
+    match: { bindings: [] },
+  }));
+  fs.writeFileSync(path.join(dir, "VaultABI.ts"), "export const VaultABI = [] as const;");
+  fs.writeFileSync(path.join(dir, "i18n.json"), JSON.stringify({ en: { copy: "Copy" } }));
+  const endpoint = "https://example.invalid/rpc";
+  const prompt = `// 使用说明\nconst tool = require("node:assert");\nconst rpc = "${endpoint}";\nconst address = "0x${"a".repeat(40)}";\nconst input = {inputData:encodeValue(), data:item.input};`;
+  const literal = `\`${prompt}\``;
+  const code = (children, body = "", params = "") => `import { CopyButton as CopyText } from "@/src/ui";
+export default function Component(${params}) {
+  ${body}
+  return <main className="min-h-screen">${children}</main>;
+}`;
+  const check = (source) => {
+    fs.writeFileSync(path.join(dir, "Component.tsx"), source);
+    return runVaultCheck(folder, { silent: true });
+  };
+  const blockingRules = (source) => check(source).issues.filter((item) => item.severity === "blocking").map((item) => item.ruleId);
+
+  for (const value of [literal, `\`${prompt}\nconst argument = \${argument};\``]) {
+    const result = check(code(`{argument ? <CopyText value={${value}} /> : null}`, 'const argument = "example";'));
+    assert.equal(result.summary.blocking, 0, JSON.stringify(result.issues));
+    assert.equal(result.issues.filter((item) => item.ruleId === "manual-review/copy-text" && item.severity === "warning").length, 1);
+  }
+
+  for (const source of [
+    code(`<CopyText value={${literal}} />`, "", "CopyText: any"),
+    code(`<CopyText {...props} value={${literal}} />`, "const props = {};"),
+    code(`<CopyText value={${literal}} value="other" />`),
+    code(`<CopyText value={prompt} />`, `const prompt = ${literal};`),
+    code(`<a href={${literal}} />`),
+    code(`<Wrapper><CopyText value={${literal}} /></Wrapper>`),
+    '/* @jsxRuntime classic */\n/* @jsx intercept */\n' + code(`<CopyText value={${literal}} />`),
+    code(`<CopyText value={${literal}} />`) + '\nconst copyValue = Component().props.children.props.value;',
+    code(`<CopyText value={\`${prompt} \${require("node:assert")}\`} />`),
+    code(`<CopyText value={${literal}} />`, 'require("node:assert");'),
+  ]) assert.ok(blockingRules(source).includes("imports-and-dependencies/require-call"), source);
+
+  assert.ok(blockingRules(code(`<CopyText value={${literal}} />`, `void fetch("${endpoint}");`)).includes("endpoint-policy/direct-fetch"));
+  assert.ok(blockingRules(code('<CopyText value={`Read ${"https:" + "//example.invalid/rpc"}.`} />')).includes("endpoint-policy/undeclared-url"));
+  assert.deepEqual(blockingRules(code('<CopyText value="example" />', 'const item = {input: "0x"}; const request = {data: item.input};')), []);
+  assert.ok(blockingRules(code(`<CopyText value={\`${prompt}\ndata:text/html,example\`} />`)).includes("endpoint-policy/undeclared-url"));
+  assert.ok(blockingRules(code('<CopyText value="example" />', 'const item = {data: "0x"}; const src = "data:text/html,example";')).includes("endpoint-policy/undeclared-url"));
+});
