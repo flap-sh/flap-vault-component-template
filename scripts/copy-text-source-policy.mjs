@@ -1,3 +1,53 @@
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+// Reviewed snapshots of the four standalone App files, in this exact order.
+// The checker's shipped digests are authoritative. A package cannot opt itself in.
+const REVIEWED_AGENT_FILES = ["Component.tsx", "VaultABI.ts", "i18n.json", "manifest.json"];
+const REVIEWED_AGENT_DIGESTS = new Set([
+  "c099a51d30527df159988e90d72e9506bdd4d950304f1753965433cf719f2c79",
+  "158f33e74449da2f9dd6c642de1b108846122b2f8cdd66d568e59a2fa3441e4a",
+]);
+
+const REVIEWED_AGENT_RPC_URLS = new Set([
+  "https://bsc-dataseed.bnbchain.org",
+  "https://bsc-testnet-dataseed.bnbchain.org",
+]);
+
+export function isReviewedAgentRpcUrl(url) {
+  return REVIEWED_AGENT_RPC_URLS.has(url);
+}
+
+// The reviewed component exposes the generated string for preview and
+// multipart copy. Bind the review to the entire package, not to runner text
+// alone, so changes to its callers or the copy path invalidate it.
+export function collectReviewedAgentInstructionRanges(vaultDir, sourceFile, ts) {
+  if (sourceFile.parseDiagnostics.length) return [];
+  const builder = sourceFile.statements.find((node) =>
+    ts.isFunctionDeclaration(node) && node.name?.text === "buildAgentActionScript");
+  const runners = builder?.body?.statements.filter(ts.isVariableStatement)
+    .flatMap((node) => [...node.declarationList.declarations])
+    .find((node) => ts.isIdentifier(node.name) && node.name.text === "runners")?.initializer;
+  if (!runners || !ts.isObjectLiteralExpression(runners)) return [];
+  const literals = runners.properties.filter(ts.isPropertyAssignment).map((node) => node.initializer);
+  if (literals.length !== 4 || runners.properties.length !== 4 || !literals.every(ts.isStringLiteral)) return [];
+
+  try {
+    const entries = fs.readdirSync(vaultDir, { withFileTypes: true });
+    if (entries.length !== REVIEWED_AGENT_FILES.length
+      || entries.some((entry) => !entry.isFile() || !REVIEWED_AGENT_FILES.includes(entry.name))) return [];
+    const files = REVIEWED_AGENT_FILES.map((name) =>
+      (name === "Component.tsx" ? sourceFile.text : fs.readFileSync(path.join(vaultDir, name), "utf8"))
+        .replace(/\r\n?/g, "\n"));
+    const digest = createHash("sha256").update(JSON.stringify(files)).digest("hex");
+    if (!REVIEWED_AGENT_DIGESTS.has(digest)) return [];
+  } catch {
+    return [];
+  }
+  return literals.map((literal) => [literal.getStart(sourceFile) + 1, literal.end - 1]);
+}
+
 function renderOwner(element, ts) {
   let current = ts.isJsxOpeningElement(element) ? element.parent : element;
   while (current.parent) {

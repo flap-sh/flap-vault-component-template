@@ -4,7 +4,7 @@ import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsi
 import { dynamicTaxedQueryPrefix, taxedFetchSafetyIssue, isTaxedFetchTarget, queryFreeDeclarations, collectQueryEncoderMutationIssues } from "./taxed-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import { collectMiniAppRoutingIssues } from "./mini-app-routing-policy.mjs";
-import { collectCopyTextSourceRanges, collectDataPropertySchemeOffsets, isCopyTextDataProperty } from "./copy-text-source-policy.mjs";
+import { collectCopyTextSourceRanges, collectDataPropertySchemeOffsets, collectReviewedAgentInstructionRanges, isCopyTextDataProperty, isReviewedAgentRpcUrl } from "./copy-text-source-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -4165,13 +4165,20 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...collectSourceSyntaxIssues(rel, content));
     const scanContent = stripCommentsForScanning(content);
     const querySourceFile = createTsSourceFile(rel, content);
-    const { ranges: copyTextRanges, templateStarts: copyTextTemplateStarts } = item.name === "Component.tsx" && isStandaloneApp(manifest) && !manifestCapabilityIds(manifest).length
+    const supportsCopyText = item.name === "Component.tsx" && isStandaloneApp(manifest) && !manifestCapabilityIds(manifest).length;
+    const { ranges: copyTextRanges, templateStarts: copyTextTemplateStarts } = supportsCopyText
       ? collectCopyTextSourceRanges(querySourceFile, ts)
       : { ranges: [], templateStarts: new Set() };
+    const reviewedAgentRanges = supportsCopyText ? collectReviewedAgentInstructionRanges(vaultDir, querySourceFile, ts) : [];
     let copyTextReviewIndex = Infinity;
     const recordCopyText = (index) => { copyTextReviewIndex = Math.min(copyTextReviewIndex, index); };
     const isCopyTextMatch = (index, length) => {
       if (!copyTextRanges.some(([start, end]) => index >= start && index + length <= end)) return false;
+      recordCopyText(index);
+      return true;
+    };
+    const isReviewedAgentMatch = (index, length) => {
+      if (!reviewedAgentRanges.some(([start, end]) => index >= start && index + length <= end)) return false;
       recordCopyText(index);
       return true;
     };
@@ -4360,7 +4367,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...binanceImageAnalysis.issues);
     const requireRegex = /\brequire\s*\(/g;
     for (const match of scanContent.matchAll(requireRegex)) {
-      if (isCopyTextMatch(match.index, match[0].length)) continue;
+      if (isCopyTextMatch(match.index, match[0].length) || isReviewedAgentMatch(match.index, match[0].length)) continue;
       issues.push(issue(BLOCKING, "imports-and-dependencies/require-call", "CommonJS require() is not allowed inside a Vault package.", { file: rel, line: lineForIndex(scanContent, match.index ?? -1) }));
     }
     for (const oracleUsage of collectReadOracleUsages(scanContent, rel)) {
@@ -4469,7 +4476,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     for (const match of scanContent.matchAll(externalUrlRegex)) {
       if (isIndexWithinRanges(match.index, approvedResourceRanges) || isIndexWithinRanges(match.index, allowedDirectFetchTargetRanges)) continue;
       const url = sanitizeUrlLiteral(match[0]);
-      if (!isAllowlistedExternalUrl(url, declaredFrames) && !isCopyTextMatch(match.index, match[0].length)) {
+      if (!isAllowlistedExternalUrl(url, declaredFrames) && !isCopyTextMatch(match.index, match[0].length)
+        && !(isReviewedAgentRpcUrl(url) && isReviewedAgentMatch(match.index, match[0].length))) {
         issues.push(issue(BLOCKING, "endpoint-policy/undeclared-url", `URL ${url} is not an approved non-fetch resource. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets. For user-facing navigation, use ExternalLink; for images, use host media, BinanceImage for exact-host bin.bnbstatic.com, or IpfsImage/IpfsBackground.`, { file: rel, line: lineForIndex(scanContent, match.index) }));
       }
     }
@@ -4490,7 +4498,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
         const propertyOffsets = collectDataPropertySchemeOffsets(querySourceFile, ts);
         for (const { index } of scanContent.matchAll(/data:/gi)) {
           if (propertyOffsets.has(index)) continue;
-          const range = copyTextRanges.find(([start, end]) => index >= start && index + scheme.length <= end);
+          const range = [...copyTextRanges, ...reviewedAgentRanges].find(([start, end]) => index >= start && index + scheme.length <= end);
           if (range && isCopyTextDataProperty(scanContent.slice(...range), index - range[0])) continue;
           schemeIndex = index;
           break;

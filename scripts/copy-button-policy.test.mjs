@@ -76,6 +76,20 @@ export default function Component(${params}) {
 
   const copy = '<CopyText value={prompt} />';
   const promptDeclaration = `const prompt = ${literal};`;
+  const unreviewedBuilder = `
+export function buildAgentActionScript() {
+  const runners = {
+    native: "const check = require('node:assert'); const rpc = 'https://bsc-dataseed.bnbchain.org';",
+    erc20: "instructions",
+    claim: "instructions",
+    refund: "instructions",
+  };
+  return runners.native;
+}`;
+  const unreviewedRules = blockingRules(code(`<pre>{prompt}</pre>${copy}`, "const prompt = buildAgentActionScript();") + unreviewedBuilder);
+  assert.ok(unreviewedRules.includes("imports-and-dependencies/require-call"));
+  assert.ok(unreviewedRules.includes("endpoint-policy/undeclared-url"));
+
   for (const body of [
     promptDeclaration,
     `const argument = JSON.stringify({ item: "example" }); const prompt = \`${prompt}\nconst argument = \${argument};\`;`,
