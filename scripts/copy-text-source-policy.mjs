@@ -8,6 +8,7 @@ const REVIEWED_AGENT_FILES = ["Component.tsx", "VaultABI.ts", "i18n.json", "mani
 const REVIEWED_AGENT_DIGESTS = new Set([
   "c099a51d30527df159988e90d72e9506bdd4d950304f1753965433cf719f2c79",
   "158f33e74449da2f9dd6c642de1b108846122b2f8cdd66d568e59a2fa3441e4a",
+  "1682ddf8ac8f559db495d2e5e1097618a8d2718cd07b700c3fc7fa2ffbce2e29",
 ]);
 
 const REVIEWED_AGENT_RPC_URLS = new Set([
