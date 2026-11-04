@@ -42,6 +42,22 @@ function createLocalTypeChecker(sourceFile, ts) {
   return program.getTypeChecker();
 }
 
+function unwrapParentheses(node, ts) {
+  while (node && ts.isParenthesizedExpression(node)) node = node.expression;
+  return node;
+}
+
+function copyTextLiterals(node, ts) {
+  const value = unwrapParentheses(node, ts);
+  if (!value) return null;
+  if (ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value)
+    || (ts.isTemplateExpression(value) && value.templateSpans.every(({ expression }) => ts.isIdentifier(expression)))) return [value];
+  if (!ts.isConditionalExpression(value)) return null;
+  const whenTrue = copyTextLiterals(value.whenTrue, ts);
+  const whenFalse = copyTextLiterals(value.whenFalse, ts);
+  return whenTrue && whenFalse ? [...whenTrue, ...whenFalse] : null;
+}
+
 export function collectCopyTextSourceRanges(sourceFile, ts) {
   const ranges = [];
   const templateStarts = new Set();
@@ -73,11 +89,15 @@ export function collectCopyTextSourceRanges(sourceFile, ts) {
   if (sourceFile.bindDiagnostics.length) return { ranges, templateStarts };
   const [root] = roots;
   const copyElements = [];
+  const identifiers = [];
   let rootIsReferenced = false;
   function visit(node) {
     // Reject any other use of the default export's local name. This also
     // covers shorthand object properties, whose symbols are property symbols.
-    if (root.name && ts.isIdentifier(node) && node !== root.name && node.text === root.name.text) rootIsReferenced = true;
+    if (ts.isIdentifier(node)) {
+      if (root.name && node !== root.name && node.text === root.name.text) rootIsReferenced = true;
+      identifiers.push(node);
+    }
     if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && ts.isIdentifier(node.tagName)
       && renderOwner(node, ts) === root) {
       const declarations = checker.getSymbolAtLocation(node.tagName)?.declarations;
@@ -89,6 +109,22 @@ export function collectCopyTextSourceRanges(sourceFile, ts) {
   // Even an ordinary call to the root can expose the returned element's props.
   if (rootIsReferenced) return { ranges, templateStarts };
 
+  function addLiteral(value) {
+    function addRange(node, suffixLength) {
+      const start = node.getStart(sourceFile) + 1;
+      const end = node.end - suffixLength;
+      if (start < end) ranges.push([start, end]);
+    }
+    if (!ts.isTemplateExpression(value)) {
+      addRange(value, 1);
+      return;
+    }
+    templateStarts.add(value.getStart(sourceFile));
+    addRange(value.head, 2);
+    for (const { literal } of value.templateSpans) addRange(literal, ts.isTemplateTail(literal) ? 1 : 2);
+  }
+
+  const localCopyBindings = new Map();
   for (const element of copyElements) {
     const properties = element.attributes.properties;
     if (properties.some(ts.isJsxSpreadAttribute)) continue;
@@ -96,22 +132,41 @@ export function collectCopyTextSourceRanges(sourceFile, ts) {
     if (values.length !== 1) continue;
     const initializer = values[0].initializer;
     if (!initializer) continue;
-    const value = ts.isJsxExpression(initializer) ? initializer.expression : initializer;
+    const value = unwrapParentheses(ts.isJsxExpression(initializer) ? initializer.expression : initializer, ts);
     if (!value) continue;
-
-    function addRange(node, suffixLength) {
-      const start = node.getStart(sourceFile) + 1;
-      const end = node.end - suffixLength;
-      if (start < end) ranges.push([start, end]);
+    if (!ts.isIdentifier(value)) {
+      for (const literal of copyTextLiterals(value, ts) ?? []) addLiteral(literal);
+      continue;
     }
-    if (ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value)) {
-      addRange(value, 1);
-    } else if (ts.isTemplateExpression(value) && value.templateSpans.every(({ expression }) => ts.isIdentifier(expression))) {
-      templateStarts.add(value.getStart(sourceFile));
-      addRange(value.head, 2);
-      for (const { literal } of value.templateSpans) addRange(literal, ts.isTemplateTail(literal) ? 1 : 2);
+    const symbol = checker.getSymbolAtLocation(value);
+    if (localCopyBindings.has(symbol)) {
+      localCopyBindings.get(symbol).allowed.add(value);
+      continue;
     }
+    const declarations = symbol?.declarations;
+    if (declarations?.length !== 1) continue;
+    const [declaration] = declarations;
+    if (!ts.isVariableDeclaration(declaration) || !ts.isIdentifier(declaration.name)
+      || !ts.isVariableDeclarationList(declaration.parent) || !(declaration.parent.flags & ts.NodeFlags.Const)
+      || !ts.isVariableStatement(declaration.parent.parent) || declaration.parent.parent.parent !== root.body) continue;
+    const literals = copyTextLiterals(declaration.initializer, ts);
+    if (literals) localCopyBindings.set(symbol, { literals, allowed: new Set([declaration.name, value]) });
   }
+
+  // The shared button keeps its input out of the DOM. Rendering that same text
+  // elsewhere would allow app code to recover it without reading this binding.
+  const bindingNames = new Set([...localCopyBindings.keys()].map((symbol) => symbol.name));
+  for (const identifier of identifiers) {
+    if (!bindingNames.has(identifier.text)) continue;
+    // A shorthand property has its own property symbol and still reads the
+    // local variable, which would let the text escape the render sinks.
+    const symbol = ts.isShorthandPropertyAssignment(identifier.parent) && identifier.parent.name === identifier
+      ? checker.getShorthandAssignmentValueSymbol(identifier.parent)
+      : checker.getSymbolAtLocation(identifier);
+    const binding = localCopyBindings.get(symbol);
+    if (binding && !binding.allowed.has(identifier)) localCopyBindings.delete(symbol);
+  }
+  for (const { literals } of localCopyBindings.values()) for (const literal of literals) addLiteral(literal);
   return { ranges: ranges.sort(([left], [right]) => left - right), templateStarts };
 }
 

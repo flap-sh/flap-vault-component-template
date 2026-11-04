@@ -74,17 +74,39 @@ export default function Component(${params}) {
     assert.equal(result.issues.filter((item) => item.ruleId === "manual-review/copy-text" && item.severity === "warning").length, 1);
   }
 
+  const copy = '<CopyText value={prompt} />';
+  const promptDeclaration = `const prompt = ${literal};`;
+  for (const body of [
+    promptDeclaration,
+    `const argument = JSON.stringify({ item: "example" }); const prompt = \`${prompt}\nconst argument = \${argument};\`;`,
+    `const enabled = true; const prompt = enabled ? ${literal} : "No instructions";`,
+  ]) {
+    const result = check(code(copy, body));
+    assert.equal(result.summary.blocking, 0, JSON.stringify(result.issues));
+    assert.equal(result.issues.filter((item) => item.ruleId === "manual-review/copy-text" && item.severity === "warning").length, 1);
+  }
+
   for (const source of [
     code(`<CopyText value={${literal}} />`, "", "CopyText: any"),
     code(`<CopyText {...props} value={${literal}} />`, "const props = {};"),
     code(`<CopyText value={${literal}} value="other" />`),
-    code(`<CopyText value={prompt} />`, `const prompt = ${literal};`),
     code(`<a href={${literal}} />`),
     code(`<Wrapper><CopyText value={${literal}} /></Wrapper>`),
     '/* @jsxRuntime classic */\n/* @jsx intercept */\n' + code(`<CopyText value={${literal}} />`),
     code(`<CopyText value={${literal}} />`) + '\nconst copyValue = Component().props.children.props.value;',
     code(`<CopyText value={\`${prompt} \${require("node:assert")}\`} />`),
     code(`<CopyText value={${literal}} />`, 'require("node:assert");'),
+    code(copy, `${promptDeclaration} const alias = prompt;`),
+    code(copy, `${promptDeclaration} void { prompt };`),
+    code(copy, `${promptDeclaration} new Function(prompt);`),
+    code(copy, `${promptDeclaration} void import(prompt);`),
+    code(`<pre>{prompt}</pre>${copy}`, promptDeclaration),
+    code(copy, `${promptDeclaration} void fetch(prompt);`),
+    code(`${copy}<a href={prompt} />`, promptDeclaration),
+    code(`<Wrapper>${copy}</Wrapper>`, `${promptDeclaration} const Wrapper = ({ children }) => children;`),
+    code(copy, promptDeclaration, "CopyText: any"),
+    code(copy, `${promptDeclaration} prompt = "Different text";`),
+    code(copy, `let prompt = ${literal};`),
   ]) assert.ok(blockingRules(source).includes("imports-and-dependencies/require-call"), source);
 
   assert.ok(blockingRules(code(`<CopyText value={${literal}} />`, `void fetch("${endpoint}");`)).includes("endpoint-policy/direct-fetch"));
