@@ -7,7 +7,7 @@ import process from "node:process";
 import zlib from "node:zlib";
 import { failAgent } from "./agent-error.mjs";
 import { execFileSync } from "node:child_process";
-import { assertPublishedRuntimeIdentity } from "./template-release-channel.mjs";
+import { APP_PREVIEW_GENERATOR, APP_PREVIEW_REF, assertPublishedRuntimeIdentity } from "./template-release-channel.mjs";
 import { assertTemplateFresh } from "./check-template-fresh.mjs";
 import {
   E2E_REPORT_PACKAGE_PATH,
@@ -251,6 +251,9 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
 
   const marker = readJsonEntry(entries, PACKAGE_MARKER_FILE);
   const folderName = marker.folderName;
+  const preview = process.env.FLAP_TEMPLATE_CHANNEL?.trim() === "preview";
+  const expectedGenerator = preview ? APP_PREVIEW_GENERATOR : PACKAGE_GENERATOR;
+  const templatePreview = marker.templatePreview;
   PACKAGE_FORMAT_VERSION = marker.formatVersion === 7 ? 7 : 6;
   if (marker.kind !== PACKAGE_KIND) {
     issues.push(jsonIssue("package-verify/invalid-kind", `Package kind must be ${PACKAGE_KIND}.`, "Regenerate the package with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
@@ -268,8 +271,11 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
   if (marker.generatedBy !== PACKAGE_TOOL) {
     issues.push(jsonIssue("package-verify/invalid-generator-tool", `Package marker generatedBy must be ${PACKAGE_TOOL}.`, "Regenerate the package with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
   }
-  if (marker.generator !== PACKAGE_GENERATOR) {
-    issues.push(jsonIssue("package-verify/invalid-generator", `Package marker generator must be ${PACKAGE_GENERATOR}.`, "Regenerate the package with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
+  if (marker.generator !== expectedGenerator) {
+    issues.push(jsonIssue("package-verify/invalid-generator", `Package marker generator must be ${expectedGenerator}.`, "Verify the package with the same App channel used to generate it.", { file: PACKAGE_MARKER_FILE }));
+  }
+  if (preview ? (selfContained || marker.formatVersion !== 7 || templatePreview?.ref !== APP_PREVIEW_REF || !/^[a-f0-9]{40}$/.test(templatePreview?.gitHead ?? "")) : templatePreview !== undefined) {
+    issues.push(jsonIssue("package-verify/app-preview-identity", "App preview verification requires format 7 and a verified official preview commit.", "Use the full app:verify-package command on the same official preview branch.", { file: PACKAGE_MARKER_FILE }));
   }
   if (marker.templateName !== PACKAGE_GENERATOR) {
     issues.push(jsonIssue("package-verify/invalid-template-name", `Package marker templateName must be ${PACKAGE_GENERATOR}.`, "Regenerate the package with the current yarn vault:package script.", { file: PACKAGE_MARKER_FILE }));
@@ -303,7 +309,10 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
       const currentVersion = readCurrentPackageVersion();
       const freshness = await assertTemplateFresh({ folderName });
       const currentRuntimeGitHead = freshness.checks?.npm?.latestGitHead;
-      if (isStandaloneApp(manifest)) {
+      if (preview && templatePreview.gitHead !== freshness.templatePreview?.gitHead) {
+        issues.push(jsonIssue("package-verify/app-preview-head", "The package preview commit differs from the current official preview branch.", "Regenerate the ZIP at the current official preview branch head.", { file: PACKAGE_MARKER_FILE }));
+      }
+      if (!preview && isStandaloneApp(manifest)) {
         try {
           assertPublishedRuntimeIdentity({ channel: freshness.checks.npm.npmTag, localVersion: currentVersion, publishedVersion: freshness.checks.npm.latestVersion,
             head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), publishedHead: currentRuntimeGitHead });
@@ -463,6 +472,8 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
         metadata.artifactId !== marker.artifactId ||
         metadata.templateName !== marker.templateName ||
         metadata.templateVersion !== marker.templateVersion ||
+        (preview && metadata.generator !== marker.generator) ||
+        JSON.stringify(metadata.templatePreview) !== JSON.stringify(templatePreview) ||
         metadata.runtimePackageName !== marker.runtimePackageName ||
         metadata.runtimePackageVersion !== marker.runtimePackageVersion ||
         metadata.runtimePackageGitHead !== marker.runtimePackageGitHead ||
@@ -503,6 +514,7 @@ async function verifyPackage(zipPath, { selfContained = false } = {}) {
     packageMarkerFile: PACKAGE_MARKER_FILE,
     templateName: marker.templateName,
     templateVersion: marker.templateVersion,
+    ...(templatePreview ? { templatePreview } : {}),
     runtimePackageName: marker.runtimePackageName,
     runtimePackageVersion: marker.runtimePackageVersion,
     runtimePackageGitHead: marker.runtimePackageGitHead,
