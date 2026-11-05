@@ -386,7 +386,15 @@ function layoutCheckScript(skipRiskStatus = false) {
     const style = window.getComputedStyle(element);
     const clipsX = element.scrollWidth > element.clientWidth + tolerance && style.overflowX !== "visible";
     const clipsY = element.scrollHeight > element.clientHeight + tolerance && style.overflowY !== "visible";
-    if (clipsX || clipsY) {
+    const hasEllipsis = style.textOverflow === "ellipsis" && style.whiteSpace === "nowrap"
+      && ["hidden", "clip"].includes(style.overflowX);
+    const lineHeight = Number.parseFloat(style.lineHeight);
+    const contentHeight = element.clientHeight - Number.parseFloat(style.paddingTop) - Number.parseFloat(style.paddingBottom);
+    const hasTwoLineClamp = style.webkitLineClamp === "2" && style.webkitBoxOrient === "vertical"
+      && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(style.display)
+      && ["hidden", "clip"].includes(style.overflowY)
+      && Number.isFinite(lineHeight) && Math.abs(contentHeight - 2 * lineHeight) <= tolerance;
+    if ((clipsX && !hasEllipsis) || (clipsY && !hasTwoLineClamp)) {
       addIssue("layout/text-overflow", "Visible text appears clipped or overflowing its container.", {
         selector: selectorFor(element),
         text: (element.textContent || "").trim().slice(0, 120),
