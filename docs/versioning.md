@@ -1,8 +1,8 @@
 # Versioning
 
-**0.1.41 preparation:** bounded public-client receipt polling, with unchanged SDK signatures and runtime contract. npm latest remains the verified identity below until publication succeeds. See [the release procedure](releases/0.1.41.md).
+**Published and verified (2026-11-08, Asia/Shanghai).** npm `latest` is `@flapsdk/vault-runtime@0.1.41`, source `0cbe42b98441937692a3194db23d7c1059c43c71`. This release adds bounded public-client polling of the original transaction hash while preserving SDK signatures and runtime contract version 1. The public archive matches the verified release archive byte for byte. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` retain their existing identities. Receiving hosts and Workbench need exact runtime pins and coordinated deployment. See the [verified release record](releases/0.1.41.md).
 
-**Published (2026-11-02 UTC): `@flapsdk/vault-runtime@0.1.40` is npm `latest`, source `79dab6d8e908310fbc5a56492569623e4ee79e2e`.** This stable release combines host-owned Mini App subroutes with controlled taxed.fun query validation. Existing SDK signatures remain compatible; sensor/map APIs stay separate. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` are unchanged. Query policies live in template and Workbench source checkers, which are not shipped in npm; matching consumer pins and checker deployment remain required. See the [verified release record](releases/0.1.40.md) and main/latest status.
+**Historical publication snapshot (2026-11-02 UTC).** npm `latest` was `@flapsdk/vault-runtime@0.1.40`, source `79dab6d8e908310fbc5a56492569623e4ee79e2e`. This stable release combines host-owned Mini App subroutes with controlled taxed.fun query validation. Existing SDK signatures remain compatible; sensor/map APIs stay separate. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` are unchanged. Query policies live in template and Workbench source checkers, which are not shipped in npm; matching consumer pins and checker deployment remain required. See the [verified release record](releases/0.1.40.md) and main/latest status.
 
 This template has four compatibility surfaces:
 
@@ -17,7 +17,7 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
-Stable `0.1.40` is published from `79dab6d8e908310fbc5a56492569623e4ee79e2e`; see [its verified release record](releases/0.1.40.md). Historical records below are dated snapshots, not current tag inventories.
+Stable `0.1.41` is published from `0cbe42b98441937692a3194db23d7c1059c43c71`; see [its verified release record](releases/0.1.41.md). Historical records below retain their original release identities.
 
 The historical `0.1.38` main/latest release and host rollout are documented in
 [the release guide](releases/0.1.38.md) ([简体中文](releases/0.1.38.zh-CN.md)).
@@ -59,7 +59,7 @@ upload/gateway workflow. A successful npm publish does not upgrade deployed host
 
 ## Main source integration
 
-Vault UI and Mini App v2 share official main/latest while retaining distinct model/proof workflows. The current preparation is `0.1.40`; npm latest remains `0.1.39` until registry publication is verified. App commands, release metadata and CI use main/latest; hosts and Workbench require the exact published runtime and matching validation inputs. See [current release identity](main-migration.md) ([中文](main-migration.zh-CN.md)); historical deprecation records remain dated snapshots.
+Vault UI and Mini App v2 share official main/latest while retaining distinct model/proof workflows. The current published npm latest is `0.1.41` with the verified source and archive recorded above. App commands, release metadata and CI use main/latest; hosts and Workbench require the exact published runtime and matching validation inputs. See [current release identity](main-migration.md) ([中文](main-migration.zh-CN.md)); historical deprecation records remain dated snapshots.
 
 ## Explicit next SDK releases
 
@@ -84,7 +84,7 @@ yarn runtime:verify-package
 
 `upstream` must point to the official `flap-sh/flap-vault-component-template` repository. The npm `next` ancestry/version checks still apply. Generated `*-next.*` packages carry `publishConfig: { access: "public", tag: "next" }`; always publish the verified `dist/vault-runtime` package with the `next` tag and confirm npm `latest` remains unchanged. Verify the public package version, integrity and `gitHead` against the checked package afterward. These testing SDK releases do not change the default official-main/latest rules for Vault source ZIP generation or stable releases.
 
-**Historical snapshot, checked 2026-10-23:** `@flapsdk/vault-runtime@0.1.39` was published on latest with source `78c355f080a60770cfd64d71d94c525204d61583`; `0.1.40-next.0` and the earlier recorded next releases were deprecated. This is not a current dist-tag inventory; the 2026-11-02 tags are recorded at the top of this page. Stable App ZIPs use the exact latest identity and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance independently. Future runtime input changes require their own matching publication. See [main/latest status](main-migration.md).
+**Historical snapshot, checked 2026-10-23:** `@flapsdk/vault-runtime@0.1.39` was published on latest with source `78c355f080a60770cfd64d71d94c525204d61583`; `0.1.40-next.0` and the earlier recorded next releases were deprecated. This is not a current dist-tag inventory; the current tags are recorded at the top of this page. Stable App ZIPs use the exact latest identity and matching runtime/build/protocol inputs; official docs/authoring-only descendants can advance independently. Future runtime input changes require their own matching publication. See [main/latest status](main-migration.md).
 
 ## Independent runtime-only routing testing channel
 
