@@ -1,6 +1,6 @@
 {
   "name": "flap-vault-ui-template",
-  "version": "0.1.40",
+  "version": "0.1.41",
   "private": true,
   "license": "MIT",
   "packageManager": "yarn@1.22.22",
@@ -61,7 +61,7 @@
     "app:build": "node scripts/app-command.mjs build",
     "runtime:package:next": "node scripts/app-command.mjs runtime",
     "test:release-channel": "node --test scripts/template-release-channel.test.mjs scripts/npm-registry.test.mjs scripts/preview-freshness.test.mjs scripts/app-command.test.mjs scripts/runtime-routing-release.test.mjs scripts/runtime-routing-command.test.mjs scripts/routing-freshness.test.mjs",
-    "test:flap-wallet": "node --test src/sdk/flapChainRuntime.test.mjs",
+    "test:flap-wallet": "node --experimental-strip-types --test src/sdk/flapChainRuntime.test.mjs src/sdk/transactionReceipt.test.mjs",
     "test:copy-button-policy": "node --test scripts/copy-button-policy.test.mjs",
     "test:copy-button": "node --experimental-strip-types --test src/ui/copyText.test.ts && node scripts/test-copy-button-browser.mjs",
     "test:fsi": "node --test src/sdk/fsi.test.mjs scripts/fsi-endpoint-policy.test.mjs scripts/taxed-endpoint-policy.test.mjs",

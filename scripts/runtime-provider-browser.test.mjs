@@ -10,6 +10,7 @@ import { chromium } from "@playwright/test";
 const ROOT=process.cwd();
 const packaged=process.argv.includes('--package');
 const providerEntrypoint=packaged?'./dist/vault-runtime/host-client.js':'./src/sdk/runtime';
+const walletRuntimeEntrypoint=packaged?'./dist/vault-runtime/host-client.js':'./src/sdk/useFlapWalletRuntime';
 const sdkEntrypoint=packaged?'./dist/vault-runtime/sdk.js':'./src/sdk/runtimeStore';
 const imageEntrypoint=packaged?'./dist/vault-runtime/ui.js':'./src/ui/IpfsImage';
 const textEntrypoint=packaged?'./dist/vault-runtime/ui.js':'./src/ui/IpfsText';
@@ -27,23 +28,25 @@ try {
  const entry=`import * as React from "react";
 import {createRoot} from "react-dom/client";
 import {VaultRuntimeProvider} from "${providerEntrypoint}";
+import {useFlapWalletRuntime} from "${walletRuntimeEntrypoint}";
 import {useFlapSdk} from "${sdkEntrypoint}";
 import {IpfsImage} from "${imageEntrypoint}";
 import {IpfsText} from "${textEntrypoint}";
 import {encodeFunctionResult,parseAbi} from "viem";
 const a=(i)=>'0x'+i.toString(16).padStart(40,'0');
-const state={user:a(9),chain:56,sends:0,changeOnSimulation:false,simulations:0,target:a(5)};
-const client={getChainId:async()=>56,getBlockNumber:async()=>100n,getCode:async()=>"0x6000",getGasPrice:async()=>1n,
+const state={user:a(9),chain:56,sends:0,changeOnSimulation:false,simulations:0,target:a(5),receiptStatus:'success',receiptCalls:[],legacyWaits:0};
+const receiptClient=(chainId)=>({getTransactionReceipt:async({hash})=>{state.receiptCalls.push({chainId,hash});return{transactionHash:hash,status:state.receiptStatus,blockNumber:100n,logs:[{data:'0x01',topics:[]}]};},waitForTransactionReceipt:async()=>{state.legacyWaits++;throw new Error('The legacy receipt waiter must not be called.');}});
+const client={...receiptClient(56),getChainId:async()=>56,getBlockNumber:async()=>100n,getCode:async()=>"0x6000",getGasPrice:async()=>1n,
  readContract:async({functionName})=>functionName==='poolOf'?state.target:state.user,
  simulateContract:async()=>{if(state.changeOnSimulation && ++state.simulations % 2 === 0)state.user=a(8);return{result:1n};}};
 const walletClient={getAddresses:async()=>[state.user],getChainId:async()=>state.chain,writeContract:async()=>{state.sends++;return a(20);}};
-globalThis.env={state,client,walletClient};
+globalThis.env={state,client,walletClient,clients:{56:client,97:receiptClient(97)}};
 const manifest={artifactId:'test',i18n:['en'],match:{bindings:[{chainId:56,factoryAddress:a(1),resolvedContracts:[{id:'position',label:'nft',resolver:'function poolOf(uint256 id) view returns(address)',allow:['function claim(uint256 amount)','function execute(address,uint256,bytes,uint8) payable returns(bytes)'],checks:[{kind:'owner',target:'resolved'}]}]}]}};
 globalThis.hostManifest=manifest;
 let context={chainId:56,factoryAddress:a(1),vaultAddress:a(2),tokenAddress:a(3),host:{taxInfo:{quoteToken:a(4)}}};
 globalThis.hostContext=context;
 const i18n={en:{}};
-function Probe(){globalThis.sdk=useFlapSdk();React.useEffect(()=>{globalThis.providerRenders=(globalThis.providerRenders||0)+1;});return globalThis.ipfsProps?React.createElement('div',{id:'ipfs-content'},React.createElement(IpfsText,{cid:ipfsProps.textCid,...ipfsProps.textOverrides}),React.createElement(IpfsImage,{cid:ipfsProps.imageCid,alt:'post',...ipfsProps.imageOverrides})):null;}
+function Probe(){globalThis.sdk=useFlapSdk();globalThis.walletRuntime=useFlapWalletRuntime({connect:()=>{}});React.useEffect(()=>{globalThis.providerRenders=(globalThis.providerRenders||0)+1;});return globalThis.ipfsProps?React.createElement('div',{id:'ipfs-content'},React.createElement(IpfsText,{cid:ipfsProps.textCid,...ipfsProps.textOverrides}),React.createElement(IpfsImage,{cid:ipfsProps.imageCid,alt:'post',...ipfsProps.imageOverrides})):null;}
 const root=createRoot(document.getElementById('root'));
 globalThis.renderProvider=(nextContext=context)=>{context=nextContext;globalThis.hostContext=context;root.render(React.createElement(VaultRuntimeProvider,{manifest,i18n,runtimeContext:context},React.createElement(Probe)));};
 globalThis.rerenderProvider=async(nextContext=context)=>{const before=globalThis.providerRenders;renderProvider(nextContext);while(globalThis.providerRenders===before)await new Promise(requestAnimationFrame);};
@@ -59,12 +62,30 @@ export const useConnect=()=>({connect,connectors});export const useDisconnect=()
 export const useSwitchChain=()=>({switchChainAsync,isPending:false});
 export const usePublicClient=()=>globalThis.env.client;export const useWalletClient=()=>({data:globalThis.env.walletClient});
 export const useBalance=()=>({data:undefined});`;
- await build({absWorkingDir:ROOT,stdin:{contents:entry,resolveDir:ROOT,sourcefile:'provider-harness.tsx',loader:'tsx'},outfile:path.join(tmp,'app.js'),bundle:true,format:'esm',platform:'browser',jsx:'automatic',plugins:[{name:'provider-fixtures',setup(b){b.onResolve({filter:/^wagmi$/},()=>({path:'wagmi',namespace:'fixture'}));b.onResolve({filter:/^@\/src\/ui$/},()=>({path:'ui',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},({path})=>({contents:path==='wagmi'?wagmi:'export const Alert=()=>null;',loader:'js'}));}}]});
+ const wagmiActions=`export const getAccount=()=>({address:globalThis.env.state.user,chainId:globalThis.env.state.chain,isConnected:true});
+export const getPublicClient=(_config,{chainId})=>globalThis.env.clients[chainId];
+export const getWalletClient=async()=>globalThis.env.walletClient;export const switchChain=async()=>{};export const disconnect=()=>{};`;
+ await build({absWorkingDir:ROOT,stdin:{contents:entry,resolveDir:ROOT,sourcefile:'provider-harness.tsx',loader:'tsx'},outfile:path.join(tmp,'app.js'),bundle:true,format:'esm',platform:'browser',jsx:'automatic',plugins:[{name:'provider-fixtures',setup(b){b.onResolve({filter:/^wagmi(?:\/actions)?$/},({path})=>({path,namespace:'fixture'}));b.onResolve({filter:/^@\/src\/ui$/},()=>({path:'ui',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},({path})=>({contents:path==='wagmi'?wagmi:path==='wagmi/actions'?wagmiActions:'export const Alert=()=>null;',loader:'js'}));}}]});
  server=createServer(async(req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':'text/html');res.end(req.url==='/app.js'?await readFile(path.join(tmp,'app.js')):'<div id="root"></div><script type="module" src="/app.js"></script>');});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>globalThis.sdk);
  const identity=await page.evaluate(async()=>{const first=sdk;sdk.notify.info('test');await new Promise(r=>setTimeout(r,30));return sdk===first;});assert(identity,'Provider notification must not rebuild SDK when default policies are absent');
+ const receipts=await page.evaluate(async()=>{
+  const hash='0x'+'ab'.repeat(32);
+  const vaultSuccess=await sdk.waitForTx(hash);
+  const bridgeSuccess=await walletRuntime.waitForTx(97,hash);
+  env.state.receiptStatus='reverted';
+  const vaultReverted=await sdk.waitForTx(hash);
+  const bridgeReverted=await walletRuntime.waitForTx(97,hash);
+  env.state.receiptStatus='success';
+  return{hash,vaultSuccess,bridgeSuccess,vaultReverted,bridgeReverted,calls:env.state.receiptCalls,legacyWaits:env.state.legacyWaits};
+ });
+ assert.deepEqual(receipts.vaultSuccess,{hash:receipts.hash,status:'success'});
+ assert.deepEqual(receipts.vaultReverted,{hash:receipts.hash,status:'reverted'});
+ for(const status of ['success','reverted'])assert.deepEqual(receipts[status==='success'?'bridgeSuccess':'bridgeReverted'],{hash:receipts.hash,status,blockNumber:100n,logs:[{data:'0x01',topics:[]}]});
+ assert.deepEqual(receipts.calls,[56,97,56,97].map(chainId=>({chainId,hash:receipts.hash})),'Receipt polling must use each operation public client rather than the connected wallet chain');
+ assert.equal(receipts.legacyWaits,0,'Both receipt bridges must avoid the legacy waiter');
  // Generate our own content-addressed fixtures through the actual SDK upload flow.
  const assets=new Map();let ipfsRequests=0;let unrelatedRequests=0;
  await page.route('**/api/runtime/upload',async route=>{
@@ -222,5 +243,5 @@ export const useBalance=()=>({data:undefined});`;
  assert.match(await page.evaluate(()=>testWrite()),/^0x/);assert.equal(await page.evaluate(()=>env.state.sends),3);
  const denied=await page.evaluate(async()=>{env.state.changeOnSimulation=true;try{await testWrite();return 'sent';}catch(e){return e.message;}});assert.match(denied,/wallet-or-chain-changed|ownership-check-failed/);assert.equal(await page.evaluate(()=>env.state.sends),3);
  const isolated=await page.evaluate(()=>{sdk.context.host.taxInfo.quoteToken='0x'+(88).toString(16).padStart(40,'0');return hostContext.host.taxInfo.quoteToken!==sdk.context.host.taxInfo.quoteToken;});assert(isolated,'Component context must not mutate host authorization inputs');
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'): stable SDK/read identity, latest authorization/client, reviewed execute simulation/write, raw/forged/undeclared-overload/value rejection, pending guard, wallet switch before send, isolated host authorization context.');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'): public receipt polling on both bridges, success/reverted receipt preservation, stable SDK/read identity, latest authorization/client, reviewed execute simulation/write, raw/forged/undeclared-overload/value rejection, pending guard, wallet switch before send, isolated host authorization context.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}

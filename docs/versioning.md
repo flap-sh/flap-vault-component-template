@@ -1,5 +1,7 @@
 # Versioning
 
+**0.1.41 preparation:** bounded public-client receipt polling, with unchanged SDK signatures and runtime contract. npm latest remains the verified identity below until publication succeeds. See [the release procedure](releases/0.1.41.md).
+
 **Published (2026-11-02 UTC): `@flapsdk/vault-runtime@0.1.40` is npm `latest`, source `79dab6d8e908310fbc5a56492569623e4ee79e2e`.** This stable release combines host-owned Mini App subroutes with controlled taxed.fun query validation. Existing SDK signatures remain compatible; sensor/map APIs stay separate. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` are unchanged. Query policies live in template and Workbench source checkers, which are not shipped in npm; matching consumer pins and checker deployment remain required. See the [verified release record](releases/0.1.40.md) and main/latest status.
 
 This template has four compatibility surfaces:
