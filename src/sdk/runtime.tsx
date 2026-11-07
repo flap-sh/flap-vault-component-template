@@ -41,6 +41,7 @@ import { createResolvedContractRuntime } from "./resolvedContracts";
 import { snapshotGenericContractWrite, withdrawNftAccount as runNftAccountWithdrawal } from "./nftAccountWithdrawal";
 import type { NftAccountWithdrawalPolicy, NftAccountWithdrawalRequest } from "./nftAccountTypes";
 import { createLocalMediaUploader } from "./mediaUpload";
+import { pollTransactionReceipt } from "./transactionReceipt";
 
 export { useFlapI18n, useFlapNotify, useFlapSdk, useVaultContext } from "./runtimeStore";
 
@@ -387,8 +388,8 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
   const waitForTx = useCallback(
     async (hash: Address): Promise<TxReceipt> => {
       if (!publicClient) throw new Error("Transaction receipt requires a public client.");
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      return { hash, status: receipt.status === "success" ? "success" : "reverted" };
+      const receipt = await pollTransactionReceipt(publicClient, hash);
+      return { hash, status: receipt.status };
     },
     [publicClient],
   );

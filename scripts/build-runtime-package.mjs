@@ -182,6 +182,10 @@ the HTTPS origin, path, GET, credential and redirect restrictions.
 Hosts and Workbench must deploy matching runtime and checker policies before
 accepting source packages that declare the new endpoint.
 
+## Transaction confirmation
+
+\`waitForTx(hash)\` polls the original transaction hash through the public client selected for that operation. It queries immediately, then every 2 seconds after a pending or transient-error response, with an 8-second deadline per query and a 180-second total deadline. It returns the original success/reverted status; applications must check \`status === "success"\` before showing success or refreshing as successful. A timeout means the result is unknown: retain the hash and reconcile it before offering another transaction. Polling does not follow sped-up or cancelled replacement transactions; the original hash can time out. The public API and receipt fields remain compatible.
+
 ## taxed.fun source-checker compatibility
 
 The official template source for stable \`0.1.40\` adds reviewed native-fetch

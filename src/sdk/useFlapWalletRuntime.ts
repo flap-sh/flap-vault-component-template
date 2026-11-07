@@ -6,6 +6,7 @@ import { decodeFunctionResult, encodeFunctionData } from "viem";
 import type { Address, ContractReadRequest, MediaUploader } from "./types";
 import type { FlapWalletRuntime } from "./flapChainRuntime";
 import { createLocalMediaUploader } from "./mediaUpload";
+import { pollTransactionReceipt } from "./transactionReceipt";
 
 const defaultUploader = createLocalMediaUploader();
 /** Host-only bridge. Always uses the enclosing WagmiProvider's connector/config. */
@@ -41,7 +42,7 @@ export function useFlapWalletRuntime({ connect, readOnly = false, mediaUploader 
       simulateContract: async (chainId, request) => (await publicClient(chainId).simulateContract(request as never)).result,
       writeContract: async (chainId, request) => (await walletClient(chainId, request.account)).writeContract(request as never),
       sendTransaction: async (chainId, request) => (await walletClient(chainId, request.account)).sendTransaction(request as never),
-      waitForTx: async (chainId, hash) => { const receipt = await publicClient(chainId).waitForTransactionReceipt({ hash }); return { hash: receipt.transactionHash, status: receipt.status, blockNumber: receipt.blockNumber, logs: receipt.logs }; },
+      waitForTx: async (chainId, hash) => { const receipt = await pollTransactionReceipt(publicClient(chainId), hash); return { hash: receipt.transactionHash, status: receipt.status, blockNumber: receipt.blockNumber, logs: receipt.logs }; },
       getCode: (chainId, address) => publicClient(chainId).getCode({ address }),
       getGasPrice: (chainId) => publicClient(chainId).getGasPrice(), getBlockNumber: (chainId) => publicClient(chainId).getBlockNumber(),
       getBalance: (chainId, address) => publicClient(chainId).getBalance({ address }),

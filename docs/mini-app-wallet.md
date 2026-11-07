@@ -36,6 +36,8 @@ A resolver is a reviewed view/pure function on its fixed root with a single addr
 
 ## Shared transaction flow
 
+`waitForTx(hash)` polls the original transaction hash through the public client selected for that operation. It queries immediately, then every 2 seconds after a pending or transient-error response, with an 8-second deadline per query and a 180-second total deadline. It returns the original success/reverted status; applications must check `status === "success"` before showing success or refreshing as successful. A timeout means the result is unknown: retain the hash and reconcile it before offering another transaction. Polling does not follow sped-up or cancelled replacement transactions; the original hash can time out. The public API and receipt fields remain compatible.
+
 ```tsx
 import { parseAbi } from "viem";
 import { useFlapSdk } from "@/src/sdk";
