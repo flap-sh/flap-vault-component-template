@@ -9,19 +9,21 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | Item | Status |
 | --- | --- |
 | Source branch | Official `main` for Vault UI and Mini App v2 |
-| Receipt polling fix | [PR #47](https://github.com/flap-sh/flap-vault-component-template/pull/47) merged |
-| Release candidate | `0.1.42` BSC Testnet FSI support, prepared in [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49); not published |
-| Published npm `latest` | `0.1.41`, source `0cbe42b98441937692a3194db23d7c1059c43c71` |
-| Archive verification | Public archive matches the verified release archive byte for byte |
-| npm `next` | `0.1.40-next.4` |
-| npm `routing` | `0.1.40-beta.routing.0` |
+| BSC Testnet FSI | [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) merged; exact testnet prefix published in `0.1.42` |
+| Published npm `latest` | `0.1.42`, source `686934578ec40aec418484e7c1dac1f6782d598e` |
+| Publication time | 2026-11-10 15:18:28.268, Asia/Shanghai |
+| Archive verification | 544,455 bytes; public archive matches the verified release archive byte for byte |
+| npm `next` | `0.1.40-next.4`, unchanged |
+| npm `routing` | `0.1.40-beta.routing.0`, unchanged |
 | SDK API / contract | Compatible signatures and runtime contract version 1 |
-| Consumer rollout | Receiving hosts and Workbench require coordinated exact runtime pins and deployment |
+| Main CI | [Run 42772645556](https://github.com/flap-sh/flap-vault-component-template/actions/runs/42772645556) passed |
+| Mini App v2 workflow | [Run 42772645609](https://github.com/flap-sh/flap-vault-component-template/actions/runs/42772645609) failed during Playwright installation on Ubuntu 26.04; App tests were skipped |
+| Consumer rollout | Pending exact runtime pins, Workbench checker/provenance synchronization and deployment |
 | App ZIP provenance | Exact published latest identity and fresh source-bound E2E proof |
 
-See the [0.1.41 publication record](releases/0.1.41.md) for the registry identity, archive hash, integrity and validation scope.
+See the [0.1.42 publication record](releases/0.1.42.md) for archive identity and the separate CI outcomes. npm publication does not upgrade deployed consumers or verify real service responses/browser CORS. Testnet artifacts require the matching host runtime and receiving checker.
 
-The [0.1.42 release plan](releases/0.1.42.md) remains pending. Merge to official `main` before stable publication, then update consumer runtime pins and the Workbench checker/provenance contract. The candidate does not authorize stable source ZIPs or change the published npm tags.
+The previous `0.1.41` receipt-polling release was published from `0cbe42b98441937692a3194db23d7c1059c43c71` on 2026-11-08; its [publication record](releases/0.1.41.md) remains historical evidence.
 
 ## Historical status — checked 2026-11-02
 
@@ -58,11 +60,11 @@ App authors import `@/src/sdk` and `@/src/ui` from the template. Do not install 
 | Workflow | Source / npm channel |
 | --- | --- |
 | `vault:*` | Official `origin/main` / latest |
-| `app:*` | Official `origin/main` / latest; stable `0.1.41` is accepted |
+| `app:*` | Official `origin/main` / latest; stable `0.1.42` is accepted |
 | `runtime:package` | Clean committed official main / latest; generated publishConfig explicitly uses latest |
 | `runtime:package:next` | Explicitly authorized preview release from official `origin/next` / next |
 
-Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.4` does not invalidate stable `0.1.41`.
+Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.4` does not invalidate stable `0.1.42`.
 
 App check, local guest/connected E2E and build can run before npm publication from the official main checkout. App source ZIPs and normal local verification require the **exact published latest version, real gitHead ancestry and matching runtime/dependency/build/protocol inputs**. Official documentation/authoring-only descendants can retain that identity. Local SDK/tool edits, private canaries and fabricated proof cannot.
 
