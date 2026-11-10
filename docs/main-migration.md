@@ -4,12 +4,13 @@
 
 Vault UI and Mini App v2 are maintained together on official `main`. They share one template, one `@flapsdk/vault-runtime` package, public UI components and the host wallet. Use `vault:*` for Vault UI and `app:*` for standalone v2 Apps. Manifests, identities, permissions, contexts and package proofs remain distinct.
 
-## Current status — checked 2026-11-08 (Asia/Shanghai)
+## Current status — checked 2026-11-10 (Asia/Shanghai)
 
 | Item | Status |
 | --- | --- |
 | Source branch | Official `main` for Vault UI and Mini App v2 |
 | Receipt polling fix | [PR #47](https://github.com/flap-sh/flap-vault-component-template/pull/47) merged |
+| Release candidate | `0.1.42` BSC Testnet FSI support, prepared in [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49); not published |
 | Published npm `latest` | `0.1.41`, source `0cbe42b98441937692a3194db23d7c1059c43c71` |
 | Archive verification | Public archive matches the verified release archive byte for byte |
 | npm `next` | `0.1.40-next.4` |
@@ -19,6 +20,8 @@ Vault UI and Mini App v2 are maintained together on official `main`. They share 
 | App ZIP provenance | Exact published latest identity and fresh source-bound E2E proof |
 
 See the [0.1.41 publication record](releases/0.1.41.md) for the registry identity, archive hash, integrity and validation scope.
+
+The [0.1.42 release plan](releases/0.1.42.md) remains pending. Merge to official `main` before stable publication, then update consumer runtime pins and the Workbench checker/provenance contract. The candidate does not authorize stable source ZIPs or change the published npm tags.
 
 ## Historical status — checked 2026-11-02
 

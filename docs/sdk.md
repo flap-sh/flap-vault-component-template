@@ -463,7 +463,7 @@ For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain
 
 `sdk.readFsi` is available from `@flapsdk/vault-runtime@0.1.36`; `0.1.35` hosts do not implement it. Support for `https://fsi.taxed.fun/fsi/v1` is available in published `0.1.39`; historical `0.1.38` supports only the legacy prefix. See [the release guide](releases/0.1.39.md). Upgrade Workbench's checker and both Workbench and Flap host runtimes to a release containing this endpoint policy before accepting components that declare the new prefix. Feature-branch verification uses a private canary package and does not alter consumer dependency pins.
 
-BSC Testnet FSI support is an unreleased source change; published `0.1.41` does not include it. Before accepting testnet packages, publish a new runtime release, upgrade the Workbench and Flap host runtime pins, and synchronize/deploy the Workbench FSI checker and its validation-contract hashes. Source authors then regenerate check/E2E/package proofs with the published identity. Feature-branch canary verification does not replace these rollout steps.
+BSC Testnet FSI support is prepared for `0.1.42`, pending publication; published `0.1.41` does not include it. See the [pending release plan](releases/0.1.42.md). Before accepting testnet packages, publish the verified `0.1.42` runtime from official `main`, upgrade the Workbench and Flap host runtime pins, and synchronize/deploy the Workbench FSI checker and its validation-contract hashes. Source authors then regenerate check/E2E/package proofs with the published identity. Feature-branch canary verification does not replace these rollout steps.
 
 ## Controlled dynamic IPFS content
 

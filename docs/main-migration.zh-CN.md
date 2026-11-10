@@ -4,7 +4,21 @@
 
 Vault UI 与 Mini App v2 已统一在官方 `main` 维护，共用一套模板、一个 `@flapsdk/vault-runtime`、公共 UI 和宿主钱包。Vault UI 使用 `vault:*`，独立 v2 App 使用 `app:*`；manifest、身份、权限、上下文和打包证明仍各自独立。
 
-## 当前状态（2026-11-02 核对）
+## 当前状态（2026-11-10，北京时间）
+
+| 项目 | 状态 |
+| --- | --- |
+| 源码分支 | Vault UI 与 Mini App v2 共用官方 `main` |
+| 发布候选 | `0.1.42` BSC 测试网 FSI 支持，由 [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) 准备，尚未发布 |
+| 已发布 npm `latest` | `0.1.41`，来源 `0cbe42b98441937692a3194db23d7c1059c43c71` |
+| npm `next` | `0.1.40-next.4` |
+| npm `routing` | `0.1.40-beta.routing.0` |
+| 消费端升级 | 新版发布后再更新精确 runtime 依赖、Workbench 校验器及来源契约，并分别部署 |
+| App ZIP 来源 | 必须匹配已发布 latest 身份与当前源码绑定的 E2E 证明，候选版与私有 canary 不能替代 |
+
+见 [0.1.42 待发布计划](releases/0.1.42.zh-CN.md)和 [0.1.41 已核验发布记录](releases/0.1.41.md)。候选版先合入官方 `main`，再构建、验证和发布正式包；当前候选说明不会改变 npm tags。
+
+## 历史状态（2026-11-02 核对）
 
 | 项目 | 状态 |
 | --- | --- |
