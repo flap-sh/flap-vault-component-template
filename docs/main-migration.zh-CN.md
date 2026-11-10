@@ -4,19 +4,26 @@
 
 Vault UI 与 Mini App v2 已统一在官方 `main` 维护，共用一套模板、一个 `@flapsdk/vault-runtime`、公共 UI 和宿主钱包。Vault UI 使用 `vault:*`，独立 v2 App 使用 `app:*`；manifest、身份、权限、上下文和打包证明仍各自独立。
 
-## 当前状态（2026-11-10，北京时间）
+## 当前状态（2026-11-10，北京时间核对）
 
 | 项目 | 状态 |
 | --- | --- |
 | 源码分支 | Vault UI 与 Mini App v2 共用官方 `main` |
-| 发布候选 | `0.1.42` BSC 测试网 FSI 支持，由 [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) 准备，尚未发布 |
-| 已发布 npm `latest` | `0.1.41`，来源 `0cbe42b98441937692a3194db23d7c1059c43c71` |
-| npm `next` | `0.1.40-next.4` |
-| npm `routing` | `0.1.40-beta.routing.0` |
-| 消费端升级 | 新版发布后再更新精确 runtime 依赖、Workbench 校验器及来源契约，并分别部署 |
-| App ZIP 来源 | 必须匹配已发布 latest 身份与当前源码绑定的 E2E 证明，候选版与私有 canary 不能替代 |
+| BSC 测试网 FSI | [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) 已合并，精确测试网前缀已随 `0.1.42` 发布 |
+| 已发布 npm `latest` | `0.1.42`，来源 `686934578ec40aec418484e7c1dac1f6782d598e` |
+| 发布时间 | 2026-11-10 15:18:28.268，北京时间 |
+| 归档核验 | 共 544,455 字节，公开下载包与已核验发布包逐字一致 |
+| npm `next` | `0.1.40-next.4`，未变 |
+| npm `routing` | `0.1.40-beta.routing.0`，未变 |
+| SDK API / contract | 保持签名和 runtime contract version 1 兼容 |
+| 主 CI | [运行 42772645556](https://github.com/flap-sh/flap-vault-component-template/actions/runs/42772645556) 通过 |
+| Mini App v2 工作流 | [运行 42772645609](https://github.com/flap-sh/flap-vault-component-template/actions/runs/42772645609) 在 Ubuntu 26.04 安装 Playwright 时失败，App 测试未运行 |
+| 消费者上线 | 精确 runtime 依赖、Workbench 校验器/来源输入同步及部署仍待完成 |
+| App ZIP 来源 | 必须匹配已发布 latest 身份及当前源码绑定的 E2E 证明 |
 
-见 [0.1.42 待发布计划](releases/0.1.42.zh-CN.md)和 [0.1.41 已核验发布记录](releases/0.1.41.md)。候选版先合入官方 `main`，再构建、验证和发布正式包；当前候选说明不会改变 npm tags。
+见 [0.1.42 已核验发布记录](releases/0.1.42.zh-CN.md)，其中分别记录归档身份与各工作流结果。npm 发布不会升级已部署消费者，也不能证明真实服务响应或浏览器 CORS。接收测试网 artifact 仍须先部署配套宿主 runtime 和接收端校验器。
+
+此前 `0.1.41` 交易回执轮询版本于 2026-11-08 从 `0cbe42b98441937692a3194db23d7c1059c43c71` 发布，其[发布记录](releases/0.1.41.md)继续保留为历史证据。
 
 ## 历史状态（2026-11-02 核对）
 
@@ -53,11 +60,11 @@ yarn dev
 | 流程 | 源码 / npm 通道 |
 | --- | --- |
 | `vault:*` | 官方 `origin/main` / latest |
-| `app:*` | 官方 `origin/main` / latest，接受正式 `0.1.40` |
+| `app:*` | 官方 `origin/main` / latest，接受正式 `0.1.42` |
 | `runtime:package` | 干净且已提交的官方 main / latest，生成的 publishConfig 显式使用 latest |
 | `runtime:package:next` | 仅在明确授权预览发布时使用官方 `origin/next` / next |
 
-使用 fork 的维护者设置 `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`，upstream 必须指向官方 Flap 仓库。App 命令拒绝预览或本地引用及 fork 远端。主 CI 与 App 验证工作流使用 latest；App 工作流运行在官方 main。通道各自检查自己的 npm tag，`next=0.1.40-next.4` 不影响正式 `0.1.40`。
+使用 fork 的维护者设置 `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`，upstream 必须指向官方 Flap 仓库。App 命令拒绝预览或本地引用及 fork 远端。主 CI 与 App 验证工作流使用 latest；App 工作流运行在官方 main。通道各自检查自己的 npm tag，`next=0.1.40-next.4` 不影响正式 `0.1.42`。
 
 在官方 main 上，npm 发布前可以运行 App 检查、本地游客/已连接 E2E 和构建。App 源码 ZIP 与普通本地验证要求**精确匹配已发布 latest 版本、真实 gitHead 祖先关系及 runtime、依赖、构建、协议输入**。官方纯文档或开发工具提交可以更新并保留原身份；本地 SDK/工具改动、私有 canary 和伪造证明均不能替代发布。
 

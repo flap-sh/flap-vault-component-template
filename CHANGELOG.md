@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.1.42 — BSC Testnet FSI queries (pending publication)
+## 0.1.42 — BSC Testnet FSI queries (published 2026-11-10)
 
 - Add the exact `https://bsc-testnet-debug.butterfly.army/fsi/v1` query prefix to the SDK and template checker. Retain the existing mainnet selection order, safe GET options, path checks, manifest review and no-fallback behavior.
 - FSI routing follows declared roots, not `chainId`; testnet packages should declare only the testnet root. No SDK signature, manifest schema or runtime-contract version changes.
-- Prepared in [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49), not published. npm `latest` remains `0.1.41`; the candidate version is not stable source-package provenance. After merge, publish the verified `0.1.42` archive and coordinate the Workbench checker/provenance and host runtime upgrades. See the [pending release plan](docs/releases/0.1.42.md) and [SDK FSI queries](docs/sdk.md#fsi-queries).
+- Published and verified on npm `latest` after [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) merged, from official source `686934578ec40aec418484e7c1dac1f6782d598e`. The public 544,455-byte archive matches the verified release package. Consumer runtime upgrades, Workbench checker/provenance synchronization and deployment remain pending. See the [verified release record](docs/releases/0.1.42.md) and [SDK FSI queries](docs/sdk.md#fsi-queries).
 
 ## 0.1.40 — Mini App routing and taxed.fun queries
 

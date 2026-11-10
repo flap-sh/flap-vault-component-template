@@ -1,8 +1,8 @@
 # Versioning
 
-**Pending `0.1.42`:** [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) prepares BSC Testnet FSI support and the candidate root version. npm `latest` remains `0.1.41`. Merge the reviewed version/source first, build and verify the stable package from the clean fetched official `main`, then publish with maintainer authorization. Record the actual published `gitHead` and archive identity only afterward; candidate or private-canary identities cannot replace them. See the [pending release plan](releases/0.1.42.md).
+**Published and verified (2026-11-10 15:18:28, Asia/Shanghai).** npm `latest` is `@flapsdk/vault-runtime@0.1.42`, from clean official `main` source `686934578ec40aec418484e7c1dac1f6782d598e` after [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) merged. This release adds the exact BSC Testnet FSI query prefix while preserving SDK signatures, runtime contract version 1 and existing mainnet routing. The 544,455-byte public archive matches the verified release archive byte for byte. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` are unchanged. Consumer runtime/checker upgrades and deployment remain pending. See the [verified release record](releases/0.1.42.md).
 
-**Published and verified (2026-11-08, Asia/Shanghai).** npm `latest` is `@flapsdk/vault-runtime@0.1.41`, source `0cbe42b98441937692a3194db23d7c1059c43c71`. This release adds bounded public-client polling of the original transaction hash while preserving SDK signatures and runtime contract version 1. The public archive matches the verified release archive byte for byte. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` retain their existing identities. Receiving hosts and Workbench need exact runtime pins and coordinated deployment. See the [verified release record](releases/0.1.41.md).
+**Historical publication (2026-11-08, Asia/Shanghai).** npm `latest` was `@flapsdk/vault-runtime@0.1.41`, source `0cbe42b98441937692a3194db23d7c1059c43c71`. This release adds bounded public-client polling of the original transaction hash while preserving SDK signatures and runtime contract version 1. The public archive matches the verified release archive byte for byte. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` retain their existing identities. Receiving hosts and Workbench need exact runtime pins and coordinated deployment. See the [verified release record](releases/0.1.41.md).
 
 **Historical publication snapshot (2026-11-02 UTC).** npm `latest` was `@flapsdk/vault-runtime@0.1.40`, source `79dab6d8e908310fbc5a56492569623e4ee79e2e`. This stable release combines host-owned Mini App subroutes with controlled taxed.fun query validation. Existing SDK signatures remain compatible; sensor/map APIs stay separate. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` are unchanged. Query policies live in template and Workbench source checkers, which are not shipped in npm; matching consumer pins and checker deployment remain required. See the [verified release record](releases/0.1.40.md) and main/latest status.
 
@@ -19,7 +19,7 @@ Feature branches do not weaken that release rule. `yarn runtime:pack:canary` exi
 
 ## Stable release workflow
 
-Stable `0.1.41` is published from `0cbe42b98441937692a3194db23d7c1059c43c71`; see [its verified release record](releases/0.1.41.md). Historical records below retain their original release identities.
+Stable `0.1.42` is published from `686934578ec40aec418484e7c1dac1f6782d598e`; see [its verified release record](releases/0.1.42.md). The previous [0.1.41 publication](releases/0.1.41.md) retains its original source and archive identity.
 
 The historical `0.1.38` main/latest release and host rollout are documented in
 [the release guide](releases/0.1.38.md) ([简体中文](releases/0.1.38.zh-CN.md)).
@@ -29,10 +29,7 @@ Prepare the root version and documentation on a branch from the latest official
 publishable package. A feature/release branch may be tested with a private canary
 but must not replace the official-main release source.
 
-After merge, use a clean checkout at the fetched official main head. For this
-release, full template CI is skipped under the maintainer instruction; run and
-record the targeted release checks below without claiming full CI passed. If the
-fork is named `origin`, select the official `upstream/main` freshness ref:
+After merge, use a clean checkout at the fetched official main head. Record the required release validation and the actual CI results; historical release-specific skips do not establish a skip for a new release. For `0.1.42`, the main CI workflow passed while the separate Mini App v2 workflow failed during browser installation; see the [validation record](releases/0.1.42.md#validation-and-ci). If the fork is named `origin`, select the official `upstream/main` freshness ref:
 
 ```bash
 FLAP_TEMPLATE_FRESHNESS_REF=upstream/main yarn test:fsi
@@ -61,7 +58,7 @@ upload/gateway workflow. A successful npm publish does not upgrade deployed host
 
 ## Main source integration
 
-Vault UI and Mini App v2 share official main/latest while retaining distinct model/proof workflows. The current published npm latest is `0.1.41` with the verified source and archive recorded above. App commands, release metadata and CI use main/latest; hosts and Workbench require the exact published runtime and matching validation inputs. See [current release identity](main-migration.md) ([中文](main-migration.zh-CN.md)); historical deprecation records remain dated snapshots.
+Vault UI and Mini App v2 share official main/latest while retaining distinct model/proof workflows. The current published npm latest is `0.1.42` with the verified source and archive recorded above. App commands, release metadata and CI use main/latest; hosts and Workbench require the exact published runtime and matching validation inputs. See [current release identity](main-migration.md) ([中文](main-migration.zh-CN.md)); historical deprecation records remain dated snapshots.
 
 ## Explicit next SDK releases
 
@@ -191,4 +188,4 @@ Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for revi
 
 ## Main integration and Mini App v2 releases
 
-Follow [the current preparation record](releases/0.1.40.md) and [main/latest status](main-migration.md). `0.1.40` is published and verified; use its exact latest identity. Keep model-specific provenance and host/checker rollout requirements.
+Follow [the current publication record](releases/0.1.42.md) and [main/latest status](main-migration.md). `0.1.42` is published and verified; use its exact latest identity. Keep model-specific provenance and host/checker rollout requirements.

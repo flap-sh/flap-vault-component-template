@@ -2,7 +2,7 @@
 
 New development supports **Vault UI and Mini App v2**. Mini App v1 is deprecated for new development; its existing SDK/context APIs remain compatible for maintenance. See [v1 compatibility](mini-app-v1.md).
 
-Start with [Vault UI / Mini App v2 and code reuse](development.md) ([中文](development.zh-CN.md)). Vault UI and token-bound v1 use `useFlapSdk()` with host Token/Vault context; independent v2 uses `useFlapSdk({ chainId })` in published `0.1.39-next.0` on npm `next`. Both consume the same SDK. See [the v2 wallet API](mini-app-wallet.md) for exact permissions and methods; bound-only APIs in this reference are not implicit v2 context. Stable `latest` remains `0.1.37` and does not include the standalone v2 shared-wallet API. See [release identity](mini-app-v2-quickstart.md) for the published runtime commit and template update rules.
+Start with [Vault UI / Mini App v2 and code reuse](development.md) ([中文](development.zh-CN.md)). Vault UI and token-bound v1 use `useFlapSdk()` with host Token/Vault context; independent v2 uses `useFlapSdk({ chainId })` in published stable `@flapsdk/vault-runtime@0.1.42`. Both models share the official main/latest SDK. See [the v2 wallet API](mini-app-wallet.md) for exact permissions and methods; bound-only APIs in this reference are not implicit v2 context. See [release identity](main-migration.md) for the published runtime commit and template update rules.
 
 The component should depend on the SDK contract, not on private `flap.sh` internals.
 
@@ -463,7 +463,7 @@ For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain
 
 `sdk.readFsi` is available from `@flapsdk/vault-runtime@0.1.36`; `0.1.35` hosts do not implement it. Support for `https://fsi.taxed.fun/fsi/v1` is available in published `0.1.39`; historical `0.1.38` supports only the legacy prefix. See [the release guide](releases/0.1.39.md). Upgrade Workbench's checker and both Workbench and Flap host runtimes to a release containing this endpoint policy before accepting components that declare the new prefix. Feature-branch verification uses a private canary package and does not alter consumer dependency pins.
 
-BSC Testnet FSI support is prepared for `0.1.42`, pending publication; published `0.1.41` does not include it. See the [pending release plan](releases/0.1.42.md). Before accepting testnet packages, publish the verified `0.1.42` runtime from official `main`, upgrade the Workbench and Flap host runtime pins, and synchronize/deploy the Workbench FSI checker and its validation-contract hashes. Source authors then regenerate check/E2E/package proofs with the published identity. Feature-branch canary verification does not replace these rollout steps.
+BSC Testnet FSI support is published in `0.1.42`, source `686934578ec40aec418484e7c1dac1f6782d598e`; historical `0.1.41` does not include it. See the [verified release record](releases/0.1.42.md). Consumer rollout remains pending: before accepting testnet packages, upgrade the Workbench and Flap host runtime pins, and synchronize/deploy the Workbench FSI checker and its validation-contract hashes. Source authors then regenerate check/E2E/package proofs with the published identity. Feature-branch canary verification does not replace these rollout steps. Real service responses and browser CORS remain unverified.
 
 ## Controlled dynamic IPFS content
 
