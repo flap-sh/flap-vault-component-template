@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — BSC Testnet FSI queries
+
+- Add the exact `https://bsc-testnet-debug.butterfly.army/fsi/v1` query prefix to the SDK and template checker. Retain the existing mainnet selection order, safe GET options, path checks, manifest review and no-fallback behavior.
+- FSI routing follows declared roots, not `chainId`; testnet packages should declare only the testnet root. No SDK signature, manifest schema or runtime-contract version changes.
+- This feature is not in published `0.1.41`. A new runtime publication, matching Workbench checker/provenance rollout, and host dependency upgrades are required before stable testnet source packages can use it. See [SDK FSI queries](docs/sdk.md#fsi-queries).
+
 ## 0.1.40 — Mini App routing and taxed.fun queries
 
 - Combine host-owned standalone Mini App subroutes with the controlled taxed.fun subdomain query policy.

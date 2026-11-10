@@ -6,6 +6,7 @@ import { runVaultCheck } from "./vault-check.mjs";
 
 const PREFIX = "https://bsc-debug.butterfly.army/fsi/v1";
 const NEW_PREFIX = "https://fsi.taxed.fun/fsi/v1";
+const TESTNET_PREFIX = "https://bsc-testnet-debug.butterfly.army/fsi/v1";
 const SAFE_OPTIONS = '{ method: "GET", credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" }';
 const network = (result) => result.issues.filter((x) => x.severity === "blocking" && (x.ruleId.startsWith("endpoint-policy/") || x.ruleId.startsWith("forbidden-api/")));
 function fixture(t) {
@@ -66,12 +67,15 @@ test("FSI query exception passes both gates and preserves endpoint review eviden
   assert(network(check('const fetch = () => null; ' + direct)).length > 0, "shadowed fetch remains blocked");
 });
 
-test("FSI review records the runtime-selected declaration and keeps both deployments scoped", (t) => {
+test("FSI review records the runtime-selected declaration and keeps all three deployments scoped", (t) => {
   const check = fixture(t);
   const sdkCall = 'void sdk.readFsi(`${context.vaultAddress}/G/claim`, { actor: sdk.wallet.address ?? "", cursor: "a/b+c==" });';
   for (const [endpoints, expectedPrefix] of [
-    [PREFIX, PREFIX], [NEW_PREFIX, NEW_PREFIX],
+    [PREFIX, PREFIX], [NEW_PREFIX, NEW_PREFIX], [TESTNET_PREFIX, TESTNET_PREFIX],
     [[PREFIX, NEW_PREFIX], NEW_PREFIX], [[NEW_PREFIX, PREFIX], NEW_PREFIX],
+    [[TESTNET_PREFIX, PREFIX], PREFIX], [[PREFIX, TESTNET_PREFIX], PREFIX],
+    [[TESTNET_PREFIX, NEW_PREFIX], NEW_PREFIX], [[NEW_PREFIX, TESTNET_PREFIX], NEW_PREFIX],
+    [[TESTNET_PREFIX, PREFIX, NEW_PREFIX], NEW_PREFIX],
   ]) {
     const result = check(sdkCall, endpoints);
     assert.deepEqual(network(result), []);
@@ -83,39 +87,52 @@ test("FSI review records the runtime-selected declaration and keeps both deploym
     assert.match(review.paramsExpression, /cursor/);
     assert(result.issues.some((item) => item.ruleId === "manual-review/external-endpoint" && item.severity === "warning"));
   }
-  for (const declaration of ["https://fsi.taxed.fun", NEW_PREFIX + "/by-key/account", NEW_PREFIX + "?limit=1", "https://fsi.taxed.fun.evil.test/fsi/v1"]) {
-    assert(network(check(sdkCall, declaration)).some((item) => item.ruleId === "endpoint-policy/fsi-declaration-required"));
+  for (const prefix of [PREFIX, NEW_PREFIX, TESTNET_PREFIX]) {
+    const origin = new URL(prefix).origin;
+    for (const declaration of [origin, prefix + "/by-key/account", prefix + "?limit=1", origin + ".evil.test/fsi/v1"]) {
+      assert(network(check(sdkCall, declaration)).some((item) => item.ruleId === "endpoint-policy/fsi-declaration-required"));
+    }
+    const direct = 'void fetch(`' + prefix + '/by-key/account?cursor=${encodeURIComponent(sdk.wallet.address ?? "")}`, ' + SAFE_OPTIONS + ');';
+    const directResult = check(direct, prefix);
+    assert.deepEqual(network(directResult), []);
+    const directReview = directResult.review.externalEndpoints.find((item) => item.source === "fetch");
+    assert.equal(new URL(directReview.url).origin, origin);
+    assert.equal(directReview.dynamicQuery, true);
+    assert.match(directReview.targetExpression, /sdk.wallet.address/);
+    for (const other of [PREFIX, NEW_PREFIX, TESTNET_PREFIX].filter((item) => item !== prefix)) {
+      assert(network(check(direct, other)).length > 0, "declaring a different deployment does not authorize this origin");
+    }
+    assert(network(check('const url = "' + prefix + '/by-key/account"; return <img src={url} />;', prefix)).length > 0);
   }
-  const direct = 'void fetch(`' + NEW_PREFIX + '/by-key/account?cursor=${encodeURIComponent(sdk.wallet.address ?? "")}`, ' + SAFE_OPTIONS + ');';
-  const directResult = check(direct, NEW_PREFIX);
-  assert.deepEqual(network(directResult), []);
-  const directReview = directResult.review.externalEndpoints.find((item) => item.source === "fetch");
-  assert.equal(new URL(directReview.url).origin, "https://fsi.taxed.fun");
-  assert.equal(directReview.dynamicQuery, true);
-  assert(network(check(direct, PREFIX)).length > 0, "declaring the legacy deployment does not authorize the new deployment");
-  assert(network(check(direct.replace(NEW_PREFIX, PREFIX), NEW_PREFIX)).length > 0, "declaring the new deployment does not authorize the legacy deployment");
-  assert(network(check('const url = "' + NEW_PREFIX + '/by-key/account"; return <img src={url} />;', NEW_PREFIX)).length > 0);
 });
 
-test("new FSI deployment preserves strict fetch options and query encoding", (t) => {
+test("current and testnet FSI deployments preserve strict fetch options and query encoding", (t) => {
   const check = fixture(t);
-  const targets = ['"' + NEW_PREFIX + '/by-key/account?limit=100"', '`' + NEW_PREFIX + '/by-key/account?cursor=${encodeURIComponent(sdk.wallet.address ?? "")}`'];
-  for (const target of targets) {
-    assert.deepEqual(network(check(`void fetch(${target}, ${SAFE_OPTIONS});`, NEW_PREFIX)), []);
-    for (const options of [undefined, "{ ...options }", SAFE_OPTIONS.replace('"GET"', '"POST"'), SAFE_OPTIONS.replace('"omit"', '"include"'), SAFE_OPTIONS.replace('"error"', '"follow"'), SAFE_OPTIONS.replace('"no-referrer"', '"unsafe-url"'), SAFE_OPTIONS.slice(0, -2) + ', headers: { Authorization: "token" } }']) {
-      const source = `const options = ${SAFE_OPTIONS}; void fetch(${target}${options === undefined ? "" : `, ${options}`});`;
-      assert(network(check(source, NEW_PREFIX)).some((item) => item.ruleId === "endpoint-policy/direct-fetch"), source);
+  for (const prefix of [NEW_PREFIX, TESTNET_PREFIX]) {
+    const targets = ['"' + prefix + '/by-key/account?limit=100"', '`' + prefix + '/by-key/account?cursor=${encodeURIComponent(sdk.wallet.address ?? "")}`'];
+    for (const target of targets) {
+      assert.deepEqual(network(check(`void fetch(${target}, ${SAFE_OPTIONS});`, prefix)), []);
+      for (const options of [undefined, "{ ...options }", SAFE_OPTIONS.replace('"GET"', '"POST"'), SAFE_OPTIONS.replace('"omit"', '"include"'), SAFE_OPTIONS.replace('"error"', '"follow"'), SAFE_OPTIONS.replace('"no-referrer"', '"unsafe-url"'), SAFE_OPTIONS.slice(0, -2) + ', headers: { Authorization: "token" } }']) {
+        const source = `const options = ${SAFE_OPTIONS}; void fetch(${target}${options === undefined ? "" : `, ${options}`});`;
+        assert(network(check(source, prefix)).some((item) => item.ruleId === "endpoint-policy/direct-fetch"), source);
+      }
     }
+    const good = `void fetch(${targets[1]}, ${SAFE_OPTIONS});`;
+    for (const source of [
+      good.replace('encodeURIComponent(sdk.wallet.address ?? "")', 'sdk.wallet.address'),
+      good.replace('encodeURIComponent', 'encodeURI'),
+      'const encodeURIComponent = (value: string) => value; ' + good,
+      good.replace('?cursor=', '?'),
+      good.replace('/by-key/account?', '/${encodeURIComponent(context.vaultAddress)}/G?'),
+      good.replace('/by-key/account?', '/vault/%2e%2e/other/G?'),
+      good.replace('/fsi/v1/', '/fsi/v10/'),
+      good.replace('/fsi/v1/', '/fsi/versions/'),
+      good.replace('https:', 'http:'),
+      good.replace(new URL(prefix).host, new URL(prefix).host + '.evil.test'),
+      good.replace('https://', 'https://user:pass@'),
+      good.replace(new URL(prefix).host + '/', new URL(prefix).host + ':444/'),
+    ]) assert(network(check(source, prefix)).some((item) => item.ruleId === "endpoint-policy/direct-fetch"), source);
   }
-  const good = `void fetch(${targets[1]}, ${SAFE_OPTIONS});`;
-  for (const source of [
-    good.replace('encodeURIComponent(sdk.wallet.address ?? "")', 'sdk.wallet.address'),
-    good.replace('encodeURIComponent', 'encodeURI'),
-    'const encodeURIComponent = (value: string) => value; ' + good,
-    good.replace('?cursor=', '?'),
-    good.replace('/by-key/account?', '/${encodeURIComponent(context.vaultAddress)}/G?'),
-    good.replace('/by-key/account?', '/vault/%2e%2e/other/G?'),
-  ]) assert(network(check(source, NEW_PREFIX)).some((item) => item.ruleId === "endpoint-policy/direct-fetch"), source);
 });
 
 test("FSI fetch requires explicit immutable safe options for both static and dynamic targets", (t) => {

@@ -172,15 +172,16 @@ accepting new route-dependent artifacts; source-package provenance is unchanged.
 
 ## FSI queries
 
-Declare \`https://fsi.taxed.fun/fsi/v1\` in \`manifest.endpoints\` to use
-\`sdk.readFsi(relativePath, params)\` with the current FSI host. The legacy
-\`https://bsc-debug.butterfly.army/fsi/v1\` prefix remains supported. Only
-declaring the legacy prefix preserves legacy routing; declaring both selects
-the current host regardless of array order. Failed requests never fall back
-to the other host. Both require an exact reviewed root declaration and retain
-the HTTPS origin, path, GET, credential and redirect restrictions.
-Hosts and Workbench must deploy matching runtime and checker policies before
-accepting source packages that declare the new endpoint.
+Declare the intended FSI root in \`manifest.endpoints\` to use
+\`sdk.readFsi(relativePath, params)\`. Supported roots, in selection order, are
+\`https://fsi.taxed.fun/fsi/v1\`, \`https://bsc-debug.butterfly.army/fsi/v1\`
+and BSC Testnet \`https://bsc-testnet-debug.butterfly.army/fsi/v1\`.
+When multiple roots are declared, this order applies regardless of array order
+or \`chainId\`. Testnet packages should declare only the testnet FSI root.
+Failed requests never fall back to another host. Exact reviewed root declarations,
+HTTPS origin/path boundaries, GET, credential and redirect restrictions remain.
+Hosts and Workbench must deploy a release containing the selected endpoint policy
+and synchronize the Workbench source checker before accepting those packages.
 
 ## Transaction confirmation
 

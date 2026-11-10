@@ -117,10 +117,11 @@ test("chain SDK shares bounded IPFS reads and snapshots the reviewed FSI declara
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test("chain SDK uses the new FSI deployment only when its host manifest declares it", async () => {
+test("chain SDK selects only declared FSI deployments independently of chain ID", async () => {
   const legacy = "https://bsc-debug.butterfly.army/fsi/v1";
   const current = "https://fsi.taxed.fun/fsi/v1";
-  const f = fixture();
+  const testnet = "https://bsc-testnet-debug.butterfly.army/fsi/v1";
+  const f = fixture({ chains: [{ id: 56, name: "BNB" }, { id: 97, name: "BNB Testnet" }] });
   const calls = [];
   const originalFetch = globalThis.fetch;
   try {
@@ -128,18 +129,24 @@ test("chain SDK uses the new FSI deployment only when its host manifest declares
       calls.push([url, options]);
       return Response.json({ items: [] });
     };
-    for (const [endpoints, expectedPrefix] of [
-      [legacy, legacy], [current, current], [[legacy, current], current], [[current, legacy], current],
-    ]) {
-      const sdk = createFlapChainSdk(f.runtime, { chainId: 56, writableChains: [], i18n: {}, notify: {}, manifest: { ...f.manifest, endpoints } });
-      assert.deepEqual(await sdk.readFsi("by-key/account", { cursor: "a/b+c==" }), { items: [] });
-      const [url, options] = calls.at(-1);
-      assert.equal(new URL(url).origin + new URL(url).pathname, expectedPrefix + "/by-key/account");
-      assert.equal(new URL(url).searchParams.get("cursor"), "a/b+c==");
-      assert.equal(options.credentials, "omit");
-      assert.equal(options.redirect, "error");
-      await assert.rejects(sdk.readFsi("../versions"), /traversal/);
+    const cases = [
+      [legacy, legacy], [current, current], [testnet, testnet],
+      [[legacy, current], current], [[current, legacy], current],
+      [[testnet, legacy], legacy], [[legacy, testnet], legacy],
+      [[testnet, current], current], [[current, testnet], current],
+      [[testnet, legacy, current], current],
+    ];
+    for (const chainId of [56, 97]) {
+      for (const [endpoints, expectedPrefix] of cases) {
+        const sdk = createFlapChainSdk(f.runtime, { chainId, writableChains: [], i18n: {}, notify: {}, manifest: { ...f.manifest, endpoints } });
+        assert.deepEqual(await sdk.readFsi("by-key/account", { cursor: "a/b+c==" }), { items: [] });
+        const [url, options] = calls.at(-1);
+        assert.equal(new URL(url).origin + new URL(url).pathname, expectedPrefix + "/by-key/account");
+        assert.equal(new URL(url).searchParams.get("cursor"), "a/b+c==");
+        assert.deepEqual(options, { method: "GET", credentials: "omit", redirect: "error", referrerPolicy: "no-referrer", cache: "no-store" });
+        await assert.rejects(sdk.readFsi("../versions"), /traversal/);
+      }
     }
-    assert.equal(calls.length, 4, "invalid paths must not issue requests to either deployment");
+    assert.equal(calls.length, cases.length * 2, "chain selection and invalid paths must not issue extra FSI requests");
   } finally { globalThis.fetch = originalFetch; }
 });
