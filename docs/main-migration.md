@@ -4,7 +4,23 @@
 
 Vault UI and Mini App v2 are maintained together on official `main`. They share one template, one `@flapsdk/vault-runtime` package, public UI components and the host wallet. Use `vault:*` for Vault UI and `app:*` for standalone v2 Apps. Manifests, identities, permissions, contexts and package proofs remain distinct.
 
-## Current status — checked 2026-11-02
+## Current status — checked 2026-11-08 (Asia/Shanghai)
+
+| Item | Status |
+| --- | --- |
+| Source branch | Official `main` for Vault UI and Mini App v2 |
+| Receipt polling fix | [PR #47](https://github.com/flap-sh/flap-vault-component-template/pull/47) merged |
+| Published npm `latest` | `0.1.41`, source `0cbe42b98441937692a3194db23d7c1059c43c71` |
+| Archive verification | Public archive matches the verified release archive byte for byte |
+| npm `next` | `0.1.40-next.4` |
+| npm `routing` | `0.1.40-beta.routing.0` |
+| SDK API / contract | Compatible signatures and runtime contract version 1 |
+| Consumer rollout | Receiving hosts and Workbench require coordinated exact runtime pins and deployment |
+| App ZIP provenance | Exact published latest identity and fresh source-bound E2E proof |
+
+See the [0.1.41 publication record](releases/0.1.41.md) for the registry identity, archive hash, integrity and validation scope.
+
+## Historical status — checked 2026-11-02
 
 | Item | Status |
 | --- | --- |
@@ -39,11 +55,11 @@ App authors import `@/src/sdk` and `@/src/ui` from the template. Do not install 
 | Workflow | Source / npm channel |
 | --- | --- |
 | `vault:*` | Official `origin/main` / latest |
-| `app:*` | Official `origin/main` / latest; stable `0.1.40` is accepted |
+| `app:*` | Official `origin/main` / latest; stable `0.1.41` is accepted |
 | `runtime:package` | Clean committed official main / latest; generated publishConfig explicitly uses latest |
 | `runtime:package:next` | Explicitly authorized preview release from official `origin/next` / next |
 
-Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.4` does not invalidate stable `0.1.40`.
+Fork maintainers select `FLAP_TEMPLATE_FRESHNESS_REF=upstream/main`, with upstream pointing to the official Flap repository. App commands reject preview/local refs and fork remotes. Main CI and the App validation workflow use latest; the App workflow runs on official main. Each release channel checks only its own npm tag, so `next=0.1.40-next.4` does not invalidate stable `0.1.41`.
 
 App check, local guest/connected E2E and build can run before npm publication from the official main checkout. App source ZIPs and normal local verification require the **exact published latest version, real gitHead ancestry and matching runtime/dependency/build/protocol inputs**. Official documentation/authoring-only descendants can retain that identity. Local SDK/tool edits, private canaries and fabricated proof cannot.
 
@@ -51,7 +67,7 @@ Historical `0.1.39` was published on npm latest, source `78c355f080a60770cfd64d7
 
 ## Stable upgrade and preview deprecation
 
-**Historical snapshot, checked 2026-10-23.** The current dist-tags and 0.1.40 preparation status are recorded at the top of this page.
+**Historical snapshot, checked 2026-10-23.** The current release and dist-tags are recorded at the top of this page.
 
 With `0.1.39` published, maintainers must pin and deploy the same runtime and validation inputs in Workbench and the main host:
 

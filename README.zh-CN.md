@@ -4,7 +4,7 @@
 
 **新开发仅支持 Vault UI 和 Mini App v2**，共用一套模板和 SDK。两者现已统一在 `main` 维护：Vault UI 使用 `vault:*`，独立 App 使用 `app:*`，入口为 `/apps/{slug}`，不绑定 CA/工厂。**Mini App v1 停止新开发，旧应用继续兼容。** 见 [main 整合与发布状态](./docs/main-migration.zh-CN.md) 和 [v1 兼容说明](./docs/mini-app-v1.zh-CN.md)。下文绑定 Token 的规则用于 Vault UI 和旧 v1 维护，不适用于 v2。
 
-**已发布（2026-11-02 UTC）：npm latest 为 `@flapsdk/vault-runtime@0.1.40`，源码 `79dab6d8e908310fbc5a56492569623e4ee79e2e`。** 本版合并 Mini App 子路由与受控 taxed.fun 查询白名单；现有 App 保持兼容，sensor/map API 仍在独立 next 通道。`next=0.1.40-next.4`、`routing=0.1.40-beta.routing.0` 未变化。白名单校验器位于模板与 Workbench 源码，npm 不含校验脚本；宿主精确依赖与 Workbench 配套部署仍需独立完成。见[发布记录](docs/releases/0.1.40.zh-CN.md)。
+**已发布并核验（2026-11-08，北京时间）。** npm latest 为 `@flapsdk/vault-runtime@0.1.41`，源码 `0cbe42b98441937692a3194db23d7c1059c43c71`。本版增加 public client 对原交易哈希的有限轮询，保持 SDK 签名和 runtime contract version 1 兼容；公开下载包与核验过的发布包逐字一致。`next=0.1.40-next.4`、`routing=0.1.40-beta.routing.0` 保持原有身份。接收宿主与 Workbench 需要精确依赖并协调部署。见[发布记录](docs/releases/0.1.41.md)。
 
 **子路由测试版 `0.1.40-beta.routing.0` 已发布到 npm `routing`（2026-10-29）：** 本 runtime-only 分支仅增加宿主管理的 Mini App 子路由，不含传感器/地图 API。使用独立 npm `routing` 标签，`latest=0.1.39`、`next=0.1.40-next.4` 保持不变；子路由现已进入正式 `0.1.40`；此段保留历史测试版记录。App/Vault 源码 ZIP 来源仍要求 main/latest。见[测试版说明](docs/releases/0.1.40-beta.routing.0.zh-CN.md)。
 
