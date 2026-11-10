@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+**`0.1.42` 待发布：**[PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) 准备加入 BSC 测试网 FSI 支持。候选版尚未发布，npm `latest` 仍为 `0.1.41`。合入官方 `main` 后再构建并发布正式包，随后升级消费端 runtime 与 Workbench 校验器。见[待发布计划](./docs/releases/0.1.42.zh-CN.md)。
+
 **开发先读：**[Vault UI / Mini App v2 与代码复用](./docs/development.zh-CN.md) · [v2 从零开发](./docs/from-zero-mini-app.zh-CN.md)。
 
 **新开发仅支持 Vault UI 和 Mini App v2**，共用一套模板和 SDK。两者现已统一在 `main` 维护：Vault UI 使用 `vault:*`，独立 App 使用 `app:*`，入口为 `/apps/{slug}`，不绑定 CA/工厂。**Mini App v1 停止新开发，旧应用继续兼容。** 见 [main 整合与发布状态](./docs/main-migration.zh-CN.md) 和 [v1 兼容说明](./docs/mini-app-v1.zh-CN.md)。下文绑定 Token 的规则用于 Vault UI 和旧 v1 维护，不适用于 v2。

@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+**Pending `0.1.42` release:** [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) prepares BSC Testnet FSI support. The candidate is not published; npm `latest` remains `0.1.41`. Stable publication follows merge to official `main`, with consumer runtime and Workbench checker upgrades afterward. See the [pending release plan](./docs/releases/0.1.42.md).
+
 **Start here:** [Vault UI / Mini App v2 and code reuse](./docs/development.md) · [Build a v2 App from zero](./docs/from-zero-mini-app.md).
 
 **New development supports Vault UI and Mini App v2 only**, sharing one template and SDK. Both are maintained on `main`: use `vault:*` for Vault UI and `app:*` for independent Apps at `/apps/{slug}`, without CA/factory bindings. **Mini App v1 is deprecated for new development; existing Apps remain compatible.** See [main integration and release status](./docs/main-migration.md) and [v1 compatibility](./docs/mini-app-v1.md). The bound-Token rules below cover Vault UI and existing v1 maintenance, not v2.

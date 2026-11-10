@@ -1,10 +1,11 @@
 /** Platform-owned query exception. Never derive this allowlist from a manifest. */
 export const FSI_QUERY_PREFIX = "https://bsc-debug.butterfly.army/fsi/v1";
-// Prefer the current endpoint when both are declared; keep the legacy default
-// for callers of buildFsiQueryUrl that do not select a manifest endpoint.
+// Preserve current > legacy > testnet priority when multiple roots are declared.
+// Keep the legacy default for callers that do not select a manifest endpoint.
 export const FSI_QUERY_PREFIXES = Object.freeze([
   "https://fsi.taxed.fun/fsi/v1",
   FSI_QUERY_PREFIX,
+  "https://bsc-testnet-debug.butterfly.army/fsi/v1",
 ]);
 const FSI_ORIGINS = new Set(FSI_QUERY_PREFIXES.map((prefix) => new URL(prefix).origin));
 const FSI_PATH = "/fsi/v1";
