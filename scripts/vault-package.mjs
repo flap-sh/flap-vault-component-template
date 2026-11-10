@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { assertPublishedRuntimeIdentity, isStandaloneTarget } from "./template-release-channel.mjs";
+import { APP_PREVIEW_GENERATOR, assertPublishedRuntimeIdentity, isStandaloneTarget } from "./template-release-channel.mjs";
 import { execFileSync } from "node:child_process";
 import { isStandaloneApp } from "./standalone-app.mjs";
 import path from "node:path";
@@ -34,9 +34,10 @@ const rootPackage = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), 
 const templateVersion = rootPackage.version;
 const runtimePackageVersion = rootPackage.version;
 const freshness = await assertTemplateFresh({ folderName });
+const { templatePreview } = freshness;
 const runtimePackageGitHead = freshness.checks?.npm?.latestGitHead;
 const npmTag = freshness.checks?.npm?.npmTag;
-if (npmTag === "next" || isStandaloneTarget(ROOT, folderName)) {
+if (!templatePreview && (npmTag === "next" || isStandaloneTarget(ROOT, folderName))) {
   try {
     assertPublishedRuntimeIdentity({ channel: npmTag, localVersion: templateVersion, publishedVersion: freshness.checks.npm.latestVersion, head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), publishedHead: runtimePackageGitHead });
   } catch (error) {
@@ -79,6 +80,9 @@ if (hasBlocking) {
 const vaultDir = path.join(ROOT, "src", "vaults", folderName);
 const manifest = JSON.parse(fs.readFileSync(path.join(vaultDir, "manifest.json"), "utf8"));
 if (isStandaloneApp(manifest)) PACKAGE_FORMAT_VERSION = 7;
+if (templatePreview && PACKAGE_FORMAT_VERSION !== 7) {
+  failAgent({ code: "package/app-preview-format", message: "The preview channel accepts standalone format-7 Apps only." });
+}
 const e2eReportPath = findE2EReportPath(ROOT, folderName);
 if (!fs.existsSync(e2eReportPath)) {
   failAgent({
@@ -114,7 +118,7 @@ if (e2eIssues.length) {
 }
 const outDir = path.join(ROOT, "dist");
 fs.mkdirSync(outDir, { recursive: true });
-const outFile = path.join(outDir, `${folderName}.zip`);
+const outFile = path.join(outDir, `${folderName}${templatePreview ? "-preview" : ""}.zip`);
 
 if (fs.existsSync(outFile)) {
   fs.unlinkSync(outFile);
@@ -143,6 +147,8 @@ const schemaPath = "schemas/manifest.schema.json";
 const e2eReportSha256 = crypto.createHash("sha256").update(e2eReportRaw).digest("hex");
 const checkSummary = summarizeCheck(result.issues);
 const e2eSummary = summarizeE2EReportForMarker(e2eReport);
+const generator = templatePreview ? APP_PREVIEW_GENERATOR : TEMPLATE_NAME;
+const previewFields = templatePreview ? { templatePreview } : {};
 
 for (const sourceFile of sourceFiles) {
   archive.append(readPackageFileBuffer(path.join(ROOT, sourceFile)), { name: sourceFile });
@@ -173,7 +179,8 @@ const packageMarker = {
   kind: PACKAGE_KIND,
   formatVersion: PACKAGE_FORMAT_VERSION,
   generatedBy: PACKAGE_TOOL,
-  generator: TEMPLATE_NAME,
+  generator,
+  ...previewFields,
   templateName: TEMPLATE_NAME,
   templateVersion,
   runtimePackageName: RUNTIME_PACKAGE_NAME,
@@ -205,7 +212,8 @@ const metadata = {
   packageFormatVersion: PACKAGE_FORMAT_VERSION,
   packageMarkerFile: PACKAGE_MARKER_FILE,
   generatedBy: PACKAGE_TOOL,
-  generator: TEMPLATE_NAME,
+  generator,
+  ...previewFields,
   templateName: TEMPLATE_NAME,
   templateVersion,
   runtimePackageName: RUNTIME_PACKAGE_NAME,
@@ -250,6 +258,7 @@ console.log(
       packageKind: PACKAGE_KIND,
       packageFormatVersion: PACKAGE_FORMAT_VERSION,
       packageMarkerFile: PACKAGE_MARKER_FILE,
+      ...previewFields,
       templateName: TEMPLATE_NAME,
       templateVersion,
       runtimePackageName: RUNTIME_PACKAGE_NAME,
@@ -260,7 +269,9 @@ console.log(
       folderName,
       sha256: zipHash,
       bytes: fs.statSync(outFile).size,
-      message: `Source package written to ${sourcePackagePath}. Submit this zip only; manually assembled zips without ${PACKAGE_MARKER_FILE} should be rejected by the Flap Artifact Workbench.`,
+      message: templatePreview
+        ? `Preview source package written to ${sourcePackagePath}. Submit it to the test Workbench configured for this preview commit.`
+        : `Source package written to ${sourcePackagePath}. Submit this zip only; manually assembled zips without ${PACKAGE_MARKER_FILE} should be rejected by the Flap Artifact Workbench.`,
     },
     null,
     2,

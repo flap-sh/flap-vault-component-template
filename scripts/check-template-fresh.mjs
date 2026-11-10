@@ -7,7 +7,7 @@ import { failAgent } from "./agent-error.mjs";
 import { assertRoutingRegistryFresh } from "./runtime-routing-release.mjs";
 import { readNpmPackageTagMetadata, readNpmPackageVersionMetadata } from "./npm-registry.mjs";
 
-import { templateReleasePolicy, assertAppReleasePolicy, assertAppTemplate, assertOfficialTemplateRemote, assertPreviewTemplate, assertRoutingTemplate, assertPublishedRuntimeIdentity, isStandaloneTarget } from "./template-release-channel.mjs";
+import { APP_PREVIEW_REF, templateReleasePolicy, assertAppReleasePolicy, assertAppTemplate, assertOfficialTemplateRemote, assertPreviewTemplate, assertRoutingTemplate, assertPublishedRuntimeIdentity, isStandaloneTarget } from "./template-release-channel.mjs";
 
 const ROOT = process.cwd();
 let CHANNEL_POLICY;
@@ -17,6 +17,7 @@ const OFFICIAL_REF = CHANNEL_POLICY.officialRef;
 const NPM_PACKAGE_NAME = CHANNEL_POLICY.packageName;
 const NPM_TAG = CHANNEL_POLICY.npmTag;
 const ROUTING_APP = NPM_TAG === "routing" && process.env.FLAP_TEMPLATE_WORKFLOW === "app";
+const PREVIEW_APP = CHANNEL_POLICY.channel === "preview";
 const DEFAULT_NPM_SYNC_ATTEMPTS = 3;
 const DEFAULT_NPM_SYNC_DELAY_MS = 1_000;
 
@@ -349,6 +350,21 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
   }
 
   const remote = remoteFromRef(OFFICIAL_REF);
+  if (PREVIEW_APP) {
+    try {
+      assertAppTemplate(ROOT, folderName);
+      const url = git(["remote", "get-url", remote]);
+      assertOfficialTemplateRemote(url);
+      const head = git(["rev-parse", "HEAD"]);
+      const remoteHead = git(["ls-remote", "--exit-code", url, APP_PREVIEW_REF]);
+      if (remoteHead !== `${head}\t${APP_PREVIEW_REF}`) {
+        throw new Error("Template HEAD does not match the current official preview branch.");
+      }
+      return { ok: true, officialRef: OFFICIAL_REF, status: "up-to-date", head, official: head };
+    } catch (error) {
+      failFreshness({ code: "template-freshness/app-preview-source", message: error.message, fixHint: "Use the exact current head of the official package validation preview branch.", folderName });
+    }
+  }
   const appWorkflow = process.env.FLAP_TEMPLATE_WORKFLOW === "app" || isStandaloneTarget(ROOT, folderName);
   if (NPM_TAG === "latest" && appWorkflow) {
     try {
@@ -484,6 +500,9 @@ export function assertTemplateGitFresh({ folderName, autoUpdate = false } = {}) 
 }
 
 export async function assertTemplateFresh({ folderName, includeGit = true, includeNpm = true, autoUpdate = false } = {}) {
+  if (PREVIEW_APP && (!includeGit || !includeNpm || autoUpdate)) {
+    failFreshness({ code: "template-freshness/app-preview-complete-gate", message: "App preview requires both official Git and npm checks without skip or sync flags.", fixHint: "Use the explicit App preview commands on the current official preview branch.", folderName });
+  }
   if (NPM_TAG === "routing" && (!includeGit || !includeNpm || autoUpdate)) {
     failFreshness({ code: "template-freshness/routing-complete-gate", message: "Routing workflows require the full Git and npm gates without skip or sync flags.", fixHint: "Use explicit routing App commands or runtime:package:routing from the exact official routing source.", folderName });
   }
@@ -494,6 +513,19 @@ export async function assertTemplateFresh({ folderName, includeGit = true, inclu
     failFreshness({ code: "template-freshness/routing-app-head-changed", message: "Template HEAD changed between official source and published routing identity checks.", fixHint: "Retry the complete App routing gate from a stable official checkout.", folderName });
   }
   if (checks.npm?.gitSync?.status === "updated") checks.git = checks.npm.gitSync;
+  if (PREVIEW_APP) {
+    const templatePreview = { ref: APP_PREVIEW_REF, gitHead: checks.git.head };
+    try {
+      assertPublishedRuntimeIdentity({
+        head: checks.git.head, localVersion: checks.npm.localVersion,
+        publishedVersion: checks.npm.latestVersion, publishedHead: checks.npm.latestGitHead,
+        templatePreview,
+      });
+    } catch (error) {
+      failFreshness({ code: "template-freshness/app-preview-runtime", message: error.message, fixHint: "Keep the published latest runtime and its build inputs intact on the official preview branch.", folderName });
+    }
+    return { ok: true, checks, templatePreview };
+  }
   return { ok: true, checks };
 }
 
