@@ -21,8 +21,8 @@ The two factories are separate contracts. The host approves their pairing. The i
 Use Node.js 24 and Yarn 1.22.22. The test branch already registers the Vault preview route.
 
 ~~~sh
-git clone --branch test/crowd-launcher-v4 --single-branch \
-  https://github.com/fsensen/flap-vault-component-template.git
+git clone --branch test/pool-launch-developer-preview --single-branch \
+  https://github.com/flap-sh/flap-vault-component-template.git
 cd flap-vault-component-template
 yarn install --frozen-lockfile
 yarn launcher:check-source examples/launcher-runtime/crowd
@@ -91,7 +91,7 @@ Treat `context` as read-only. `previewOnly` describes capability restrictions. A
 
 ## Hand off and test the factory pair
 
-Give the operator the Launcher source, verified Vault source package, chain and factory addresses, and Vault acceptance token. The operator uses the factory-pair tools to prepare one `flap-factory-pair-source-v2` ZIP and submit it to Workbench. Workbench validates and builds both children. Each published runtime has its own immutable version. The built Launcher artifact uses `flap-launcher-runtime-v1`.
+Send Flap both source directories, the chain and factory addresses, and the Vault acceptance token. Include any verified Vault source package you already have. Flap validates the sources, prepares one `flap-factory-pair-source-v2` ZIP, and submits it to Workbench. Workbench builds both components. Each published runtime has its own immutable version. The built Launcher artifact uses `flap-launcher-runtime-v1`.
 
 For normal Pool Launch routing, a caller with `AUDITOR_ROLE` maps the Launcher Factory to its Launcher artifact at scope 5 and the Vault Factory to its Vault artifact at scope 3. On the enabled testnet host, the mapped factory opens creation at `/create/launcher?chain=bnb-testnet&factory=<launcher-factory>` and detail at `/launcher/<launcher-address>?chain=bnb-testnet`.
 

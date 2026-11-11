@@ -52,6 +52,6 @@ The check accepts any project with the required source structure and reports its
 
 ## Preview and publish
 
-Give the operator the Launcher source, the verified Vault source package for a companion Vault, and the reviewed chain and factory addresses. The operator builds the pair in Workbench. Use its versioned preview to test the published Launcher and Vault artifacts on an enabled host. Normal routing uses the authorized factory mappings.
+Send Flap the Launcher source, the companion Vault source if applicable, and the testnet factory addresses. Include any verified Vault source package you already have. Flap prepares the package, builds it in Workbench, and shares versioned testnet preview links. Normal routing uses the authorized factory mappings. [Testnet onboarding (中文)](developer-testnet-onboarding.zh-CN.md)
 
 Follow the testnet example for the source files, fixture bindings, commands, host props and end-to-end acceptance steps. [BSC Testnet example](testnet-example.md)

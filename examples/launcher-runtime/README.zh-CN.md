@@ -1,6 +1,6 @@
 # Pool Launch UI 开发指南
 
-[English](README.md)
+[测试网接入与交付](developer-testnet-onboarding.zh-CN.md) · [English](README.md)
 
 ## UI
 
@@ -40,6 +40,6 @@ yarn launcher:check-source "$launcher_source_dir"
 
 ## 预览与发布
 
-对于已接入的工厂，向操作员提供 Launcher 源码、配套 Vault 的已验收源包和工厂地址。通过 Workbench 构建后，用指定产物版本的链接预览。常规入口通过授权的链上绑定加载 UI。
+对于已接入的工厂，向 Flap 提供 Launcher 源码、配套 Vault 源码和测试网工厂地址。已有已验收的 Vault 源包时，可以一并提供。Flap 完成打包和 Workbench 构建后，回传指定产物版本的预览链接。常规入口通过授权的链上绑定加载 UI。
 
 测试网示例提供一套众筹发行的具体实现，包含示例合约、配置字段、本地 Vault 预览和 Workbench 交付流程。[BSC 测试网示例](testnet-example.zh-CN.md)

@@ -1,6 +1,6 @@
 # Pool Launch BSC 测试网示例
 
-[开发指南](README.zh-CN.md) · [English](testnet-example.md)
+[测试网接入与交付](developer-testnet-onboarding.zh-CN.md) · [开发指南](README.zh-CN.md) · [English](testnet-example.md)
 
 示例在 BSC Testnet（chain ID `97`）演示众筹发行。以下地址、源码目录和配置协议均对应这套示例合约。Vault 组件按示例合约的 ABI 读取收益和发起领取，Launcher 宿主按示例的发行机制处理创建、出资和退款。
 
@@ -25,8 +25,8 @@
 克隆测试分支并启动开发服务器。示例 Vault 已注册本地预览路由。
 
 ```sh
-git clone --branch test/crowd-launcher-v4 --single-branch \
-  https://github.com/fsensen/flap-vault-component-template.git
+git clone --branch test/pool-launch-developer-preview --single-branch \
+  https://github.com/flap-sh/flap-vault-component-template.git
 cd flap-vault-component-template
 yarn install --frozen-lockfile
 yarn typecheck
@@ -104,7 +104,7 @@ yarn vault:verify-package dist/crowd-vault.zip
 
 首次运行 E2E 时，如果提示缺少 Chromium，运行 `yarn playwright install chromium`。E2E 默认启动本地预览。复用其他预览时，使用提供 Template E2E 验收接口且渲染同一份源码的宿主。正式 Vault 包携带与源码哈希匹配的验收报告。
 
-这组公开命令覆盖 Vault 子包。交付整套界面时，把 Launcher 源码、已验收的 Vault 源包、工厂地址和验收代币交给有权限的操作员。操作员使用配对打包工具生成一个 `flap-factory-pair-source-v2` 源码 ZIP，按 Workbench 流程上传、构建并发布。两个组件各有独立的产物版本。
+这组公开命令覆盖 Vault 子包。开发者可以直接交付两个源码目录、工厂地址和验收代币。已有已验收的 Vault 源包时，可以一并提供。Flap 完成验收并生成一个 `flap-factory-pair-source-v2` 源码 ZIP，按 Workbench 流程上传、构建并发布。两个组件各有独立的产物版本。
 
 - **预览。** 使用 Workbench 生成的链接选择已发布的 Launcher 和 Vault 版本。`artifactPath` 对应 Launcher，`vaultArtifactPath` 对应 Vault。进入税费信息页时，宿主将 Vault 的产物路径作为该页的 `artifactPath`。在已启用的测试网宿主中可先预览这组产物，再做链上绑定。
 - **常规入口。** 由具备 `AUDITOR_ROLE` 的链上账户完成 LauncherFactory（scope `5`）和 VaultFactory（scope `3`）各自的 UI 绑定。用户从 Pool Launch 输入 Launcher 工厂进入创建页。发行后，代币的税费信息页按 Vault 工厂解析对应的 UI。
