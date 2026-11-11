@@ -1,6 +1,6 @@
 # Pool Launch UI developer guide
 
-[简体中文](README.zh-CN.md)
+[Developer handoff (简体中文)](developer-testnet-onboarding.zh-CN.md) · [简体中文](README.zh-CN.md)
 
 ## UI
 
@@ -37,6 +37,34 @@ Confirm the Launcher Factory, any companion Vault Factory, and the receiving hos
 The detail component reads the host snapshot and calls `host.requestAction` to open review for an available action. The host prepares transactions and verifies receipts. Users confirm transactions in their wallets. A different Launcher mechanism may need different draft fields, state and actions.
 
 Self-service custom UI for arbitrary factories is still under development. The example's configuration contract and host adapter support its reviewed factory pair. For another pair, confirm the matching host configuration and action support with the operator.
+
+### Redirect from Launcher details
+
+On a compatible host, the `Launcher` detail component can call the optional `host.redirect(path: string): boolean` after resolving a destination from the current Launcher. The host accepts paths on its own origin and replaces the Launcher history entry. A `true` return means it accepted the navigation. Keep the normal detail UI available when the function is absent or returns `false`. The call does not depend on wallet connection or `host.available`, which controls transaction actions.
+
+The Corla Mini App serves `/apps/corla/mint/<CA>` on BSC mainnet (`56`). It uses the verified Launcher, factory and preallocated token address to open the project before the token is issued. Import `useEffect` from React and add the following inside your `Launcher` component.
+
+```tsx
+const redirect = host?.redirect;
+const ca = context?.snapshot?.expectedToken?.toLowerCase();
+const mint = context?.launcherAddress?.toLowerCase();
+const factory = context?.identity?.factoryAddress?.toLowerCase();
+const address = /^0x(?!0{40}$)[0-9a-f]{40}$/;
+const path = context?.identity?.chainId === 56 && factory === "0xfba753f8b890eb35caa000c427f99ed5903ea517"
+  && ca && mint && address.test(ca) && address.test(mint)
+  ? `/apps/corla/mint/${ca}?mint=${mint}&factory=${factory}`
+  : null;
+
+useEffect(() => {
+  if (path) redirect?.(path);
+}, [path, redirect]);
+```
+
+The host carries the Launcher URL's `ref` and `lang` to the destination and preserves other destination parameters, such as `chain`. It omits `ref` when the Launcher URL has none and uses the current site language when there is no supported `lang`. Supported Launchers use the same detail behavior for links from Launch Pages, creation results, shares and bots.
+
+Browser Back returns to the page before Launcher. Each visit can redirect once. If the destination is another Launcher, it opens its detail directly. To open details explicitly from a destination page, add `view=launcher` to the Launcher URL. Workbench requires no route registration.
+
+The full Corla example combines the creation form and redirect detail in one `launcher-local` artifact. Flap verified the example on its local host using real BSC mainnet data. [Corla source](../launcher-local/corla-launcher-config/) · [Verified addresses and handoff](developer-testnet-onboarding.zh-CN.md#corla-已验证示例)
 
 ### Check your Launcher source
 

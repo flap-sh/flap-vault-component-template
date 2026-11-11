@@ -30,6 +30,36 @@ Launcher 组件提交配置或操作请求。宿主负责校验、构造交易�
 
 Launcher 的配置字段、状态读取和交易操作取决于发行机制。开发自定义 UI 时，需要与宿主确认支持的配置协议和操作。当前可交互的测试网宿主已接入示例的工厂配对。接入其他发行机制时，需要为它实现相应的宿主处理并启用对应工厂。
 
+### 从 Launcher 详情跳转到站内页面
+
+支持此能力的宿主会向详情组件 `Launcher` 提供可选的 `host.redirect(path: string): boolean`。组件按当前 Launcher 实例解析目标后调用，宿主校验目标与当前站点同源，并替换 Launcher 的历史记录。返回 `true` 表示宿主接受了导航。接口缺失或返回 `false` 时，保留普通详情供用户使用。跳转与钱包连接无关，`host.available` 用于交易操作。
+
+Corla 的 Mini App 在 BSC 主网（`56`）使用 `/apps/corla/mint/<CA>`。详情组件把经过宿主验证的 Launcher、工厂和预占 CA 传给 Corla，发射前也能定位项目。从 React 导入 `useEffect`，把这段代码加入 `Launcher` 组件。
+
+```tsx
+const redirect = host?.redirect;
+const ca = context?.snapshot?.expectedToken?.toLowerCase();
+const mint = context?.launcherAddress?.toLowerCase();
+const factory = context?.identity?.factoryAddress?.toLowerCase();
+const address = /^0x(?!0{40}$)[0-9a-f]{40}$/;
+const path = context?.identity?.chainId === 56 && factory === "0xfba753f8b890eb35caa000c427f99ed5903ea517"
+  && ca && mint && address.test(ca) && address.test(mint)
+  ? `/apps/corla/mint/${ca}?mint=${mint}&factory=${factory}`
+  : null;
+
+useEffect(() => {
+  if (path) redirect?.(path);
+}, [path, redirect]);
+```
+
+宿主把 Launcher 链接里的 `ref` 和 `lang` 传到目标，并保留 `chain` 等目标自身的参数。入口没有 `ref` 时省略该参数，没有有效的 `lang` 时使用当前站点语言。宿主已接入的 Launcher 从 Launch Pages、创建结果、分享或机器人进入时，执行同一套详情逻辑。
+
+浏览器返回会回到进入 Launcher 之前的页面。一次访问只自动跳转一次，跳到另一个 Launcher 时会直接展示它的详情。从目标页提供「查看 Launcher」入口时，在 Launcher 链接上带 `view=launcher` 即可直接显示详情。目标路由无需在 Workbench 登记。
+
+完整 Corla 示例在同一个 `launcher-local` 产物中包含创建表单和跳转详情。Flap 已在本地宿主使用真实 BSC 主网数据验收。 [Corla 示例源码](../launcher-local/corla-launcher-config/) · [链上样例与交付说明](developer-testnet-onboarding.zh-CN.md#corla-已验证示例)
+
+### 检查 Launcher 源码
+
 将 `launcher_source_dir` 设为项目的 Launcher 源码目录，在 Template 根目录运行以下命令。
 
 ```sh

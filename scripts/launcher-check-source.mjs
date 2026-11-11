@@ -4,7 +4,7 @@ import path from "node:path";
 import ts from "typescript";
 import { failAgent } from "./agent-error.mjs";
 
-const usage = "yarn launcher:check-source <source-directory>";
+const usage = "yarn launcher:check-source [--local] <source-directory>";
 const requiredFiles = ["Component.tsx", "i18n.json", "manifest.json"];
 const surfaces = ["launcher-config", "launcher-ui"];
 const locales = ["en", "ko", "zh"];
@@ -32,11 +32,13 @@ function main(args) {
     console.log(usage);
     return;
   }
-  if (args.length !== 1 || !args[0].trim() || args[0].startsWith("-")) {
+  const localOnly = args[0] === "--local";
+  const directoryArgs = localOnly ? args.slice(1) : args;
+  if (directoryArgs.length !== 1 || !directoryArgs[0].trim() || directoryArgs[0].startsWith("-")) {
     fail("missing-directory", "Supply one Launcher source directory.", `Run ${usage} with your project directory.`);
   }
 
-  const directory = path.resolve(args[0]);
+  const directory = path.resolve(directoryArgs[0]);
   let entries;
   try {
     entries = fs.readdirSync(directory, { withFileTypes: true });
@@ -49,17 +51,23 @@ function main(args) {
   }
 
   const manifest = readJson(directory, "manifest.json");
-  if (!hasKeys(manifest, ["schemaVersion", "kind", "artifactId", "name", "chainId", "factoryAddress", "configContract", "surfaces", "entry"]) ||
-    manifest.schemaVersion !== 2 || manifest.kind !== "launcher-ui" || manifest.entry !== "Component.tsx" ||
+  const manifestKeys = ["schemaVersion", "kind", "artifactId", "name", "chainId", "factoryAddress", "surfaces", "entry"];
+  if (!localOnly) manifestKeys.push("configContract");
+  const schemaVersion = localOnly ? 1 : 2;
+  const kind = localOnly ? "launcher-local" : "launcher-ui";
+  if (!hasKeys(manifest, manifestKeys) ||
+    manifest.schemaVersion !== schemaVersion || manifest.kind !== kind || manifest.entry !== "Component.tsx" ||
     !Array.isArray(manifest.surfaces) || manifest.surfaces.length !== surfaces.length ||
     !surfaces.every((surface) => manifest.surfaces.includes(surface)) ||
     typeof manifest.artifactId !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(manifest.artifactId) ||
     typeof manifest.name !== "string" || manifest.name.trim().length < 2 || manifest.name.length > 100 ||
     !Number.isSafeInteger(manifest.chainId) || manifest.chainId <= 0 ||
     typeof manifest.factoryAddress !== "string" || !/^0x(?!0{40}$)[0-9a-f]{40}$/i.test(manifest.factoryAddress) ||
-    typeof manifest.configContract !== "string" || !manifest.configContract.trim()) {
-    fail("manifest", "The Launcher manifest does not match the schema 2 source format.",
-      "Use kind launcher-ui, the launcher-config and launcher-ui surfaces, entry Component.tsx, and the project's artifact ID, name, chain ID, factory address, and configuration contract.");
+    (!localOnly && (typeof manifest.configContract !== "string" || !manifest.configContract.trim()))) {
+    fail("manifest", `The Launcher manifest does not match the schema ${schemaVersion} source format.`,
+      localOnly
+        ? "Use kind launcher-local, the launcher-config and launcher-ui surfaces, entry Component.tsx, and the project's artifact ID, name, chain ID, and factory address."
+        : "Use kind launcher-ui, the launcher-config and launcher-ui surfaces, entry Component.tsx, and the project's artifact ID, name, chain ID, factory address, and configuration contract.");
   }
 
   const translations = readJson(directory, "i18n.json");
@@ -92,7 +100,7 @@ function main(args) {
   }
 
   const { artifactId, chainId, factoryAddress, configContract } = manifest;
-  console.log(JSON.stringify({ ok: true, directory, artifactId, chainId, factoryAddress, configContract }, null, 2));
+  console.log(JSON.stringify({ ok: true, directory, artifactId, chainId, factoryAddress, ...(localOnly ? { localOnly } : { configContract }) }, null, 2));
 }
 
 main(process.argv.slice(2));

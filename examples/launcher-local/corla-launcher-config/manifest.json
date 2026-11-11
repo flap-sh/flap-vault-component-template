@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "launcher-local",
+  "artifactId": "corla-launcher-config-v1",
+  "name": "Corla developer Launcher configuration",
+  "chainId": 56,
+  "factoryAddress": "0xfba753f8b890eb35caa000c427f99ed5903ea517",
+  "surfaces": ["launcher-config", "launcher-ui"],
+  "entry": "Component.tsx"
+}
