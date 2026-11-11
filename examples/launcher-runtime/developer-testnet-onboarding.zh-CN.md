@@ -2,10 +2,10 @@
 
 开发者用 Flap 模板编写 Launcher 和配套 Vault UI，把源码与验收资料交给 Flap。Flap 负责校验、打包、上传 Workbench，并回传指定版本的预览链接。
 
-| 场景 | 网络 | 当前可用范围 |
+| 场景 | 验收环境 | 当前可用范围 |
 | --- | --- | --- |
-| Crowd 工厂配对接入 | BSC 测试网 `97` | 已有 Workbench 配对源码包和测试网宿主流程。用测试网钱包和 tBNB 验证创建、出资、发行及领取。 |
-| Corla Launcher 跳转示例 | BSC 主网 `56` | 已在 Flap 本地宿主使用真实 Launcher 验证。示例产物适用于本地 Workbench。正式 Workbench 与主站仍需接入对应的 Corla 主网工厂。 |
+| 工厂配对 Demo | BSC 测试网 `97` | 使用测试网钱包和 tBNB 验证创建、出资、发行及领取。 |
+| Launcher 跳转 Demo | Flap 本地宿主 | 演示从 Launcher 打开同站 Mini App。线上测试网预览需要宿主接入对应的工厂和目标页面。 |
 
 ## 1. 下载模板
 
@@ -24,10 +24,10 @@ yarn install --frozen-lockfile
 
 ## 2. 本地开发
 
-| 界面 | 需要实现的内容 | 示例源码 |
-| --- | --- | --- |
-| Launcher 发行配置与详情 | 在 `Component.tsx` 中具名导出 `LauncherConfig` 和 `Launcher`。配置页收集发行参数，详情页展示募资进度和发行状态，通过宿主发起出资、领取和退款。随附 `manifest.json` 和 `i18n.json`。 | `examples/launcher-runtime/crowd/` |
-| 配套 Vault UI | 在 `Component.tsx` 中通过 Vault SDK 读取绑定的 Vault，展示风险、收益和领取状态。随附 `manifest.json`、`VaultABI.ts` 和 `i18n.json`。 | `src/vaults/crowd-vault/` |
+| 界面 | 需要实现的内容 |
+| --- | --- |
+| Launcher 发行配置与详情 | 在 `Component.tsx` 中具名导出 `LauncherConfig` 和 `Launcher`。配置页收集发行参数，详情页展示募资进度和发行状态，通过宿主发起出资、领取和退款。随附 `manifest.json` 和 `i18n.json`。 |
+| 配套 Vault UI | 在 `Component.tsx` 中通过 Vault SDK 读取绑定的 Vault，展示风险、收益和领取状态。随附 `manifest.json`、`VaultABI.ts` 和 `i18n.json`。 |
 
 按项目命名自己的源码目录。配套 Vault 可以用脚手架创建，在模板根目录填写项目已部署的测试网地址后运行。
 
@@ -36,15 +36,17 @@ yarn vault:scaffold my-project-vault --chain 97 \
   --factory '<VaultFactory 地址>' --token '<验收代币地址>'
 ```
 
-Launcher 源码中，`manifest.json` 声明链、工厂和宿主支持的配置协议。Crowd 的测试网源码使用 `schemaVersion: 2`、`kind: launcher-ui` 和 `configContract: crowd-native-create/v1`。`i18n.json` 提供键一致的 `en`、`zh`、`ko` 文案。Flap 宿主处理代币元数据上传、交易核对及回执。测试网示例说明了组件 props、金额基础单位、交易请求和 Vault 接入方式。 [Pool Launch UI 开发指南](README.zh-CN.md)
+Launcher 源码中，`manifest.json` 声明链、工厂和宿主支持的配置协议。`i18n.json` 提供键一致的 `en`、`zh`、`ko` 文案。Flap 宿主处理代币元数据上传、交易核对及回执。测试网 Demo 提供完整源码位置、配置协议、组件 props、金额基础单位和交易请求示例。 [BSC 测试网 Demo](testnet-example.zh-CN.md#在本地打开示例) · [Pool Launch UI 开发指南](README.zh-CN.md)
+
+将 `launcher_source_dir` 设为 Launcher 源码目录，在模板根目录运行。
 
 ```sh
-yarn launcher:check-source examples/launcher-runtime/crowd
+yarn launcher:check-source "$launcher_source_dir"
 yarn typecheck
 yarn dev
 ```
 
-开发自己的 Launcher 时，把第一条命令的目录换成项目源码目录。该命令检查源码结构和声明。本地服务可以检查 Vault 布局、语言和账户状态，Launcher 创建、出资、发行等真实交易在 Flap 回传的测试网预览里验证。
+`launcher:check-source` 检查源码结构和声明。本地服务可以检查 Vault 布局、语言和账户状态，Launcher 创建、出资、发行等真实交易在 Flap 回传的测试网预览里验证。
 
 ## 3. 在 Launcher 详情中接入站内跳转
 
@@ -52,24 +54,17 @@ yarn dev
 
 宿主将 Launcher 入口里的 `ref` 和 `lang` 带到目标，并保留目标自身的业务参数。入口没有 `ref` 时省略该参数，没有有效的 `lang` 时使用当前站点语言。宿主替换当前 Launcher 的浏览器历史记录，所以返回键会直接回到打开 Launcher 之前的页面。一次访问最多自动跳转一次。若用户要查看 Launcher 详情，可在 Launcher 链接上加 `view=launcher`。
 
-### Corla 已验证示例
+### Launcher 跳转 Demo
 
-Corla 本地示例把创建表单和跳转详情放在同一个开发者产物中。宿主从主网工厂确认 Launcher 归属并读取预占 CA，详情使用 `/apps/corla/mint/<CA>?mint=<Launcher>&factory=<Factory>` 定位 Mini App 项目，预占 CA 在发射前也可用。实际验证时，浏览器从 Launcher 打开「马币」项目页，保留 `ref` 和 `lang`，返回后回到 Apps 页。验收只读取主网数据。
+本地 Demo 在同一个 `launcher-local` 产物中提供创建表单和跳转详情。详情从宿主读取已验证的链、工厂、Launcher 地址和预占 CA，跳转到 Mini App 的项目页。示例路径可以是 `/apps/<app-slug>/mint/<CA>`，实际路径和业务参数由 Mini App 定义。预占 CA 在发射前也可用于定位项目。 [跳转 Demo 源码](../launcher-local/)
 
-| 链上对象 | 值 |
-| --- | --- |
-| 网络 | BSC 主网 `56` |
-| Corla LauncherFactory | `0xfba753f8b890eb35caa000c427f99ed5903ea517` |
-| Launcher | `0xd2dc9ec3e71e87c17e64f63e72e59bedc095fe81` |
-| 预占 CA | `0xc7ac99a697b060e474cf3c3eefc6478bc8147777` |
-
-在模板根目录检查 Corla 的本地源码结构。
+将 `launcher_source_dir` 设为本地 Demo 的源码目录，在模板根目录检查。
 
 ```sh
-yarn launcher:check-source --local examples/launcher-local/corla-launcher-config
+yarn launcher:check-source --local "$launcher_source_dir"
 ```
 
-Flap 使用本地 Workbench 构建 `launcher-local` 产物，并在主站本地宿主跑完整跳转。直接打开下方项目页可查看目标项目。Crowd 测试网验收使用下方的正式 Workbench 交付流程。 [Corla 示例源码](../launcher-local/corla-launcher-config/) · [实际 Corla 项目页](https://flap.sh/apps/corla/mint/0xc7ac99a697b060e474cf3c3eefc6478bc8147777?mint=0xd2dc9ec3e71e87c17e64f63e72e59bedc095fe81&factory=0xfba753f8b890eb35caa000c427f99ed5903ea517&lang=zh)
+Flap 已在本地宿主使用链上数据验证跳转、参数传递和浏览器返回。要在测试网验收自定义跳转，请随源码提供站内目标路径及触发条件。
 
 ## 4. 把测试网材料交给 Flap
 
@@ -98,4 +93,4 @@ Flap 在 Workbench 构建并发布测试用产物后，会回传指定版本的 
 5. 若启用了跳转，使用带 `ref`、`lang` 的 Launcher 入口，核对目标项目、参数和返回键。再给 Launcher 链接加 `view=launcher`，确认可停在详情页。
 6. 如发现问题，把预览链接、操作步骤、预期结果和实际结果反馈给 Flap。有链上交易时附上测试网交易哈希。
 
-Launcher 列表显示**募资目标**和**代币入池比例**，分别来自 `display.targetRaise` 与 `display.poolTokenRatioBps`。测试网原生报价币单位为 tBNB，`5000` 基点代表代币总量的 50%。Crowd 示例在募满后把筹到的 tBNB 全部作为初始报价币入池，其他工厂可有不同规则。当前列表接入未取得实际入池金额，详情可按对应工厂的链上状态提供进度。
+Launcher 列表显示**募资目标**和**代币入池比例**，分别来自 `display.targetRaise` 与 `display.poolTokenRatioBps`。测试网原生报价币单位为 tBNB，`5000` 基点代表代币总量的 50%。工厂配对 Demo 在募满后把筹到的 tBNB 全部作为初始报价币入池，其他工厂可有不同规则。当前列表接入未取得实际入池金额，详情可按对应工厂的链上状态提供进度。

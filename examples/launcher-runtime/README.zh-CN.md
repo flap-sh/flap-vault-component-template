@@ -34,17 +34,21 @@ Launcher 的配置字段、状态读取和交易操作取决于发行机制。�
 
 支持此能力的宿主会向详情组件 `Launcher` 提供可选的 `host.redirect(path: string): boolean`。组件按当前 Launcher 实例解析目标后调用，宿主校验目标与当前站点同源，并替换 Launcher 的历史记录。返回 `true` 表示宿主接受了导航。接口缺失或返回 `false` 时，保留普通详情供用户使用。跳转与钱包连接无关，`host.available` 用于交易操作。
 
-Corla 的 Mini App 在 BSC 主网（`56`）使用 `/apps/corla/mint/<CA>`。详情组件把经过宿主验证的 Launcher、工厂和预占 CA 传给 Corla，发射前也能定位项目。从 React 导入 `useEffect`，把这段代码加入 `Launcher` 组件。
+跳转 Demo 用 `/apps/<app-slug>/mint/<CA>` 演示如何通过预占 CA 在发射前定位项目。接入时填写自己的 Mini App slug、链 ID 和工厂地址，并使用目标 Mini App 支持的路径和查询参数。从 React 导入 `useEffect`，把这段代码加入 `Launcher` 组件。
 
 ```tsx
+const appSlug = "<app-slug>";
+const demoChainId = 97;
+const demoFactory = "<factory-address>".toLowerCase();
 const redirect = host?.redirect;
 const ca = context?.snapshot?.expectedToken?.toLowerCase();
-const mint = context?.launcherAddress?.toLowerCase();
+const launcher = context?.launcherAddress?.toLowerCase();
 const factory = context?.identity?.factoryAddress?.toLowerCase();
 const address = /^0x(?!0{40}$)[0-9a-f]{40}$/;
-const path = context?.identity?.chainId === 56 && factory === "0xfba753f8b890eb35caa000c427f99ed5903ea517"
-  && ca && mint && address.test(ca) && address.test(mint)
-  ? `/apps/corla/mint/${ca}?mint=${mint}&factory=${factory}`
+const path = context?.identity?.chainId === demoChainId
+  && factory === demoFactory && address.test(factory)
+  && ca && launcher && address.test(ca) && address.test(launcher)
+  ? `/apps/${appSlug}/mint/${ca}?mint=${launcher}&factory=${factory}`
   : null;
 
 useEffect(() => {
@@ -56,7 +60,7 @@ useEffect(() => {
 
 浏览器返回会回到进入 Launcher 之前的页面。一次访问只自动跳转一次，跳到另一个 Launcher 时会直接展示它的详情。从目标页提供「查看 Launcher」入口时，在 Launcher 链接上带 `view=launcher` 即可直接显示详情。目标路由无需在 Workbench 登记。
 
-完整 Corla 示例在同一个 `launcher-local` 产物中包含创建表单和跳转详情。Flap 已在本地宿主使用真实 BSC 主网数据验收。 [Corla 示例源码](../launcher-local/corla-launcher-config/) · [链上样例与交付说明](developer-testnet-onboarding.zh-CN.md#corla-已验证示例)
+本地 Demo 在同一个 `launcher-local` 产物中包含创建表单和跳转详情。 [跳转 Demo 源码](../launcher-local/) · [本地检查与交付说明](developer-testnet-onboarding.zh-CN.md#launcher-跳转-demo)
 
 ### 检查 Launcher 源码
 
