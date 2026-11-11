@@ -1,0 +1,29 @@
+{
+  "en": {
+    "title": "Launcher Redirect Demo",
+    "configuration": "Open a Launcher detail page to try the redirect. Use the testnet demo to create a Launcher.",
+    "unavailable": "Waiting for a matching Launcher and its reserved token address.",
+    "staying": "This Launcher remains open. You can find the Mini App in Apps.",
+    "opening": "Opening Apps…",
+    "launcher": "Launcher address",
+    "token": "Reserved token address"
+  },
+  "zh": {
+    "title": "Launcher 跳转 Demo",
+    "configuration": "打开 Launcher 详情体验跳转。创建 Launcher 可使用测试网 Demo。",
+    "unavailable": "等待匹配的 Launcher 和预占代币地址。",
+    "staying": "已停留在 Launcher 详情，可前往小程序列表查找 Mini App。",
+    "opening": "正在打开小程序列表…",
+    "launcher": "Launcher 地址",
+    "token": "预占代币地址"
+  },
+  "ko": {
+    "title": "Launcher 이동 데모",
+    "configuration": "Launcher 상세 페이지에서 이동을 확인할 수 있습니다. Launcher 생성은 테스트넷 데모를 이용하세요.",
+    "unavailable": "일치하는 Launcher와 예약된 토큰 주소를 기다리는 중입니다.",
+    "staying": "Launcher 상세 페이지에 머무릅니다. 앱 목록에서 Mini App을 찾을 수 있습니다.",
+    "opening": "앱 목록을 여는 중입니다…",
+    "launcher": "Launcher 주소",
+    "token": "예약된 토큰 주소"
+  }
+}

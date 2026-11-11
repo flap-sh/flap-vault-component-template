@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="342" viewBox="0 0 960 342" role="img" aria-labelledby="title description">
+  <title id="title">Launcher 站内跳转 Demo</title>
+  <desc id="description">从 Launch Pages、分享链接等入口打开 Launcher。详情读取预占代币地址并调用 host.redirect，打开同站 Mini App 项目页，保留 ref 和 lang。宿主替换 Launcher 历史记录，浏览器返回时直接回到入口。</desc>
+  <defs>
+    <marker id="arrow-forward" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="m2 1 5 4-5 4" fill="none" stroke="#d1ff00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-back" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="m2 1 5 4-5 4" fill="none" stroke="#8f9894" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <style>
+    text {
+      font-family: Inter, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .heading { fill: #f6f8f7; font-size: 26px; font-weight: 680; }
+    .label { fill: #f6f8f7; font-size: 20px; font-weight: 650; }
+    .body { fill: #bac3bf; font-size: 16px; }
+    .code {
+      fill: #d1ff00;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 15px;
+    }
+    .card { fill: #141817; stroke: #343e39; }
+    .signal { opacity: 0; fill: #e8ff89; }
+    .first { animation: forward 0.65s 0.3s ease-in-out; }
+    .second { animation: forward 0.65s 1.4s ease-in-out; }
+    .back { animation: return 1.45s 2.7s ease-in-out; }
+    @keyframes forward {
+      0% { opacity: 0; transform: translateX(0); }
+      18%, 82% { opacity: 1; }
+      100% { opacity: 0; transform: translateX(48px); }
+    }
+    @keyframes return {
+      0% { opacity: 0; transform: translateX(0); }
+      10%, 90% { opacity: 1; }
+      100% { opacity: 0; transform: translateX(-608px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .signal { animation: none; }
+    }
+  </style>
+
+  <rect x="1" y="1" width="958" height="340" rx="18" fill="#0b0e0d" stroke="#2e3732"/>
+  <rect x="36" y="35" width="4" height="20" rx="2" fill="#d1ff00"/>
+  <text x="52" y="55" class="heading">Launcher 站内跳转 Demo</text>
+  <text x="36" y="86" class="body">根据当前 Launcher 的预占 CA 打开同站 Mini App 项目页</text>
+
+  <rect x="36" y="111" width="252" height="119" rx="12" class="card"/>
+  <rect x="354" y="111" width="252" height="119" rx="12" class="card"/>
+  <rect x="672" y="111" width="252" height="119" rx="12" fill="#1a2114" stroke="#6f853d"/>
+
+  <text x="54" y="144" class="label">入口页面</text>
+  <text x="54" y="174" class="body">Launch Pages 或分享链接</text>
+  <text x="54" y="204" class="code">ref · lang</text>
+
+  <text x="372" y="144" class="label">Launcher 详情</text>
+  <text x="372" y="174" class="body">读取预占代币地址</text>
+  <text x="372" y="204" class="code">host.redirect(path)</text>
+
+  <text x="690" y="144" class="label">Mini App 项目页</text>
+  <text x="690" y="174" class="body">在同一站点打开目标页面</text>
+  <text x="690" y="204" class="code"><tspan class="body">保留 </tspan>ref · lang</text>
+
+  <g fill="none" stroke="#d1ff00" stroke-width="2" marker-end="url(#arrow-forward)">
+    <path d="M294 170h54"/>
+    <path d="M612 170h54"/>
+  </g>
+  <circle cx="294" cy="170" r="4" class="signal first"/>
+  <circle cx="612" cy="170" r="4" class="signal second"/>
+
+  <path d="M798 237v19a14 14 0 0 1-14 14H176a14 14 0 0 1-14-14v-19" fill="none" stroke="#8f9894" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#arrow-back)"/>
+  <circle cx="784" cy="270" r="4" class="signal back"/>
+  <text x="480" y="306" class="body" text-anchor="middle">
+    <tspan fill="#f6f8f7" font-weight="650">浏览器返回</tspan>
+    <tspan> · 宿主替换 Launcher 历史记录，直接回到入口</tspan>
+  </text>
+</svg>

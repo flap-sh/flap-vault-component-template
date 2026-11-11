@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "kind": "launcher-ui",
-  "artifactId": "crowd-launcher-testnet-v1",
-  "name": "Crowd Launcher UI",
+  "artifactId": "launcher-demo-testnet-v1",
+  "name": "Launcher Demo",
   "chainId": 97,
   "factoryAddress": "0xc574f30e2ee26fe638eece6d9876217015cd0a38",
   "configContract": "crowd-native-create/v1",

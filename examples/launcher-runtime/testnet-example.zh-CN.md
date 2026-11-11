@@ -1,4 +1,4 @@
-# Pool Launch BSC 测试网示例
+# Pool Launch BSC 测试网 Demo
 
 [测试网接入与交付](developer-testnet-onboarding.zh-CN.md) · [开发指南](README.zh-CN.md) · [English](testnet-example.md)
 
@@ -19,8 +19,8 @@
 
 | 源码位置 | 文件 |
 | --- | --- |
-| `examples/launcher-runtime/crowd/` | `Component.tsx`、`manifest.json`、`i18n.json` |
-| `src/vaults/crowd-vault/` | `Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json` |
+| `examples/launcher-runtime/launcher-demo/` | `Component.tsx`、`manifest.json`、`i18n.json` |
+| `src/vaults/vault-demo/` | `Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json` |
 
 克隆测试分支并启动开发服务器。示例 Vault 已注册本地预览路由。
 
@@ -36,14 +36,14 @@ yarn dev
 在 Template 根目录运行示例的 Launcher 源码检查。
 
 ```sh
-yarn launcher:check-source examples/launcher-runtime/crowd
+yarn launcher:check-source examples/launcher-runtime/launcher-demo
 ```
 
-在本地 Vault 预览检查布局、语言、钱包连接状态和读取失败提示。通用 Template 宿主在验收时对示例的风险与交易阶段读取返回 `chain-read-unavailable`。界面保留风险提示，并按钱包、阶段和账户数据判断操作可用性。完整交易流程需要支持这对工厂的测试网宿主。[打开本地 Vault 预览](http://localhost:3000/crowd-vault?chainId=97&factoryAddress=0xb89113e16c78989b7bccf5d0e13e99bf2c58dc32&tokenAddress=0x6d36b2959b88f5d9c3f83badd20405a4bcf37777&vaultAddress=0xcfa21bea1f9a3fef5907230ca30a3d37f404d321)
+在本地 Vault 预览检查布局、语言、钱包连接状态和读取失败提示。通用 Template 宿主在验收时对示例的风险与交易阶段读取返回 `chain-read-unavailable`。界面保留风险提示，并按钱包、阶段和账户数据判断操作可用性。完整交易流程需要支持这对工厂的测试网宿主。[打开本地 Vault 预览](http://localhost:3000/vault-demo?chainId=97&factoryAddress=0xb89113e16c78989b7bccf5d0e13e99bf2c58dc32&tokenAddress=0x6d36b2959b88f5d9c3f83badd20405a4bcf37777&vaultAddress=0xcfa21bea1f9a3fef5907230ca30a3d37f404d321)
 
 ## 编写 Launcher 配置与详情
 
-Launcher manifest 使用 `schemaVersion: 2`、`kind: "launcher-ui"` 和 `configContract: "crowd-native-create/v1"`，在 `surfaces` 声明 `launcher-config` 和 `launcher-ui`。`Component.tsx` 具名导出 `LauncherConfig` 与 `Launcher`，仅导入 React。将可见文字放在 `i18n.json`，让 `en`、`zh`、`ko` 保持同一组键。
+Launcher manifest 使用 `schemaVersion: 2`、`kind: "launcher-ui"` 和 `configContract: "crowd-native-create/v1"`。宿主用配置协议标识选择该工厂的适配器。在 `surfaces` 声明 `launcher-config` 和 `launcher-ui`。`Component.tsx` 具名导出 `LauncherConfig` 与 `Launcher`，仅导入 React。将可见文字放在 `i18n.json`，让 `en`、`zh`、`ko` 保持同一组键。
 
 `LauncherConfig({ context, messages, resources, onChange })` 接收当前语言、工厂身份、初始草稿和宿主读到的约束。调用 `onChange(draft)` 提交七个字符串字段。以下是上传图片和代币元数据前的草稿。
 
@@ -89,17 +89,17 @@ Launcher manifest 使用 `schemaVersion: 2`、`kind: "launcher-ui"` 和 `configC
 
 Vault 四件套遵循普通 Vault UI 的 manifest 与 SDK 接口。示例用 `useFlapSdk()` 读取宿主绑定的 Vault 与代币。`VaultABI.ts` 声明读取累计收入、已支付收入和账户分配、已领、可领金额所需的接口，以及 `claim()`。合约风险取自宿主的链上上下文。领取按钮只在正确网络、已连接、满足交易阶段且有可领取收益时启用。提交后等待成功回执，再刷新账户数据。
 
-在满足版本和 SDK 来源校验的官方 Template `main` checkout 中放入同一份 Vault 源码，再按下面的示例参数验收。`crowd-vault` 是示例源码目录名。[Vault 源包交付说明](../../docs/artifact-intake.md)
+在满足版本和 SDK 来源校验的官方 Template `main` checkout 中放入同一份 Vault 源码，再按下面的示例参数验收。`vault-demo` 是示例源码目录名。[Vault 源包交付说明](../../docs/artifact-intake.md)
 
 ```sh
-yarn vault:register crowd-vault
-yarn vault:check crowd-vault
-yarn vault:e2e crowd-vault --chain 97 \
+yarn vault:register vault-demo
+yarn vault:check vault-demo
+yarn vault:e2e vault-demo --chain 97 \
   --factory 0xb89113e16c78989b7bccf5d0e13e99bf2c58dc32 \
   --token 0x6d36b2959b88f5d9c3f83badd20405a4bcf37777 \
   --vault 0xcfa21bea1f9a3fef5907230ca30a3d37f404d321
-yarn vault:package crowd-vault
-yarn vault:verify-package dist/crowd-vault.zip
+yarn vault:package vault-demo
+yarn vault:verify-package dist/vault-demo.zip
 ```
 
 首次运行 E2E 时，如果提示缺少 Chromium，运行 `yarn playwright install chromium`。E2E 默认启动本地预览。复用其他预览时，使用提供 Template E2E 验收接口且渲染同一份源码的宿主。正式 Vault 包携带与源码哈希匹配的验收报告。

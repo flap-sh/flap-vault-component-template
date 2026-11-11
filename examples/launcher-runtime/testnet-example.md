@@ -1,11 +1,11 @@
-# Pool Launch UI example on BSC Testnet
+# Pool Launch UI Demo on BSC Testnet
 
 [Developer guide](README.md) · [简体中文](testnet-example.zh-CN.md)
 
 The example covers creation, fundraising, token issuance, and post-launch claims for one reviewed factory pair.
 
-- [Launcher source](crowd/Component.tsx), [manifest](crowd/manifest.json), and [translations](crowd/i18n.json).
-- [Companion Vault source](../../src/vaults/crowd-vault/Component.tsx), [manifest](../../src/vaults/crowd-vault/manifest.json), [ABI](../../src/vaults/crowd-vault/VaultABI.ts), and [translations](../../src/vaults/crowd-vault/i18n.json).
+- [Launcher source](launcher-demo/Component.tsx), [manifest](launcher-demo/manifest.json), and [translations](launcher-demo/i18n.json).
+- [Companion Vault source](../../src/vaults/vault-demo/Component.tsx), [manifest](../../src/vaults/vault-demo/manifest.json), [ABI](../../src/vaults/vault-demo/VaultABI.ts), and [translations](../../src/vaults/vault-demo/i18n.json).
 
 | BSC Testnet, chain ID 97 | Address |
 | --- | --- |
@@ -25,33 +25,33 @@ git clone --branch test/pool-launch-developer-preview --single-branch \
   https://github.com/flap-sh/flap-vault-component-template.git
 cd flap-vault-component-template
 yarn install --frozen-lockfile
-yarn launcher:check-source examples/launcher-runtime/crowd
+yarn launcher:check-source examples/launcher-runtime/launcher-demo
 yarn typecheck
 yarn dev
 ~~~
 
 The Launcher source check reports the example's declared chain, Launcher Factory and configuration contract for handoff.
 
-Use the local Vault preview to check layout, translations, wallet connection and read failures. During acceptance, the generic Template host reported `chain-read-unavailable` for the example's market phase and risk context. The Vault renders the corresponding warning and checks the wallet, market phase and account data before enabling actions. A compatible testnet host provides the full Launcher and Vault flow. [Open the local Vault preview](http://localhost:3000/crowd-vault?chainId=97&factoryAddress=0xb89113e16c78989b7bccf5d0e13e99bf2c58dc32&tokenAddress=0x6d36b2959b88f5d9c3f83badd20405a4bcf37777&vaultAddress=0xcfa21bea1f9a3fef5907230ca30a3d37f404d321)
+Use the local Vault preview to check layout, translations, wallet connection and read failures. During acceptance, the generic Template host reported `chain-read-unavailable` for the example's market phase and risk context. The Vault renders the corresponding warning and checks the wallet, market phase and account data before enabling actions. A compatible testnet host provides the full Launcher and Vault flow. [Open the local Vault preview](http://localhost:3000/vault-demo?chainId=97&factoryAddress=0xb89113e16c78989b7bccf5d0e13e99bf2c58dc32&tokenAddress=0x6d36b2959b88f5d9c3f83badd20405a4bcf37777&vaultAddress=0xcfa21bea1f9a3fef5907230ca30a3d37f404d321)
 
-The companion Vault source was validated with `@flapsdk/vault-runtime@0.1.42`. Use the test branch for `dev` and `typecheck`. For formal Vault acceptance, place the same four source files in an official stable Template checkout that satisfies the SDK provenance and freshness checks. The commands below use `crowd-vault` because it is this example's source folder. [Vault source package guide](../../docs/artifact-intake.md)
+The companion Vault source was validated with `@flapsdk/vault-runtime@0.1.42`. Use the test branch for `dev` and `typecheck`. For formal Vault acceptance, place the same four source files in an official stable Template checkout that satisfies the SDK provenance and freshness checks. The commands below use `vault-demo` because it is this example's source folder. [Vault source package guide](../../docs/artifact-intake.md)
 
 ~~~sh
-yarn vault:register crowd-vault
-yarn vault:check crowd-vault
-yarn vault:e2e crowd-vault --chain 97 \
+yarn vault:register vault-demo
+yarn vault:check vault-demo
+yarn vault:e2e vault-demo --chain 97 \
   --factory 0xb89113e16c78989b7bccf5d0e13e99bf2c58dc32 \
   --token 0x6d36b2959b88f5d9c3f83badd20405a4bcf37777 \
   --vault 0xcfa21bea1f9a3fef5907230ca30a3d37f404d321
-yarn vault:package crowd-vault
-yarn vault:verify-package dist/crowd-vault.zip
+yarn vault:package vault-demo
+yarn vault:verify-package dist/vault-demo.zip
 ~~~
 
 If E2E reports a missing Chromium installation, run `yarn playwright install chromium`. If the generic preview cannot resolve the chain context, pass `--base-url` with a Template E2E-compatible preview that serves the current source and provides the runner's source attestation.
 
 ## Launcher host contract
 
-The Launcher manifest uses schema 2, `kind: "launcher-ui"`, and `configContract: "crowd-native-create/v1"`. Keep the `LauncherConfig` and `Launcher` named exports and the same message keys in `en`, `zh` and `ko`. The host passes the selected language's messages as `Record<string, string>`.
+The Launcher manifest uses schema 2, `kind: "launcher-ui"`, and `configContract: "crowd-native-create/v1"`. The configuration contract identifier selects the factory adapter in the Flap host. Keep the `LauncherConfig` and `Launcher` named exports and the same message keys in `en`, `zh` and `ko`. The host passes the selected language's messages as `Record<string, string>`.
 
 ### LauncherConfig
 

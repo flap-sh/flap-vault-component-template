@@ -68,7 +68,7 @@ The host carries the Launcher URL's `ref` and `lang` to the destination and pres
 
 Browser Back returns to the page before Launcher. Each visit can redirect once. If the destination is another Launcher, it opens its detail directly. To open details explicitly from a destination page, add `view=launcher` to the Launcher URL. Workbench requires no route registration.
 
-The local Demo combines the creation form and redirect detail in one `launcher-local` artifact. [Demo source](../launcher-local/) · [Local checks and handoff](developer-testnet-onboarding.zh-CN.md#launcher-跳转-demo)
+The read-only `launcher-local` Demo opens the host's `/apps` directory. Set the destination to your deployed Mini App subroute when integrating it. The paired testnet Demo covers creation and fundraising. [Redirect Demo source](../launcher-local/launcher-redirect-demo/) · [Animated flow](launcher-redirect-demo.svg) · [Local checks and handoff](developer-testnet-onboarding.zh-CN.md#launcher-跳转-demo)
 
 ### Check your Launcher source
 

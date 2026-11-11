@@ -5,7 +5,7 @@
 | 场景 | 验收环境 | 当前可用范围 |
 | --- | --- | --- |
 | 工厂配对 Demo | BSC 测试网 `97` | 使用测试网钱包和 tBNB 验证创建、出资、发行及领取。 |
-| Launcher 跳转 Demo | Flap 本地宿主 | 演示从 Launcher 打开同站 Mini App。线上测试网预览需要宿主接入对应的工厂和目标页面。 |
+| Launcher 跳转 Demo | 支持跳转的本地宿主 | 用已验证的测试网 Launcher 数据演示站内跳转。 |
 
 ## 1. 下载模板
 
@@ -56,15 +56,17 @@ yarn dev
 
 ### Launcher 跳转 Demo
 
-本地 Demo 在同一个 `launcher-local` 产物中提供创建表单和跳转详情。详情从宿主读取已验证的链、工厂、Launcher 地址和预占 CA，跳转到 Mini App 的项目页。示例路径可以是 `/apps/<app-slug>/mint/<CA>`，实际路径和业务参数由 Mini App 定义。预占 CA 在发射前也可用于定位项目。 [跳转 Demo 源码](../launcher-local/)
+![Launcher 站内跳转 Demo。详情页读取预占 CA 后打开同站 Mini App，保留 ref 和 lang，返回键回到入口。](launcher-redirect-demo.svg)
 
-将 `launcher_source_dir` 设为本地 Demo 的源码目录，在模板根目录检查。
+本地 `launcher-local` Demo 的 `Launcher` 组件从宿主取得已验证的测试网工厂、Launcher 地址和预占 CA。源码默认跳到已有的 `/apps` 列表，便于验证导航。接入自己的 Mini App 时，将目标替换为应用支持的子路由，例如 `/apps/<app-slug>/mint/<CA>`。预占 CA 在发射前就可用于定位项目。 [跳转 Demo 源码](../launcher-local/launcher-redirect-demo/)
+
+在模板根目录检查 Demo 源码。
 
 ```sh
-yarn launcher:check-source --local "$launcher_source_dir"
+yarn launcher:check-source --local examples/launcher-local/launcher-redirect-demo
 ```
 
-Flap 已在本地宿主使用链上数据验证跳转、参数传递和浏览器返回。要在测试网验收自定义跳转，请随源码提供站内目标路径及触发条件。
+要在测试网验收自定义跳转，请随源码提供站内目标路径及触发条件。需要验证创建、募资、发行或领取时，使用工厂配对 Demo。 [工厂配对 Demo](testnet-example.zh-CN.md)
 
 ## 4. 把测试网材料交给 Flap
 

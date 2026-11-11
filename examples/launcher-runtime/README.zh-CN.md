@@ -60,7 +60,7 @@ useEffect(() => {
 
 浏览器返回会回到进入 Launcher 之前的页面。一次访问只自动跳转一次，跳到另一个 Launcher 时会直接展示它的详情。从目标页提供「查看 Launcher」入口时，在 Launcher 链接上带 `view=launcher` 即可直接显示详情。目标路由无需在 Workbench 登记。
 
-本地 Demo 在同一个 `launcher-local` 产物中包含创建表单和跳转详情。 [跳转 Demo 源码](../launcher-local/) · [本地检查与交付说明](developer-testnet-onboarding.zh-CN.md#launcher-跳转-demo)
+只读 `launcher-local` Demo 默认打开宿主的 `/apps` 列表，接入时改成自己已部署的 Mini App 子路由。创建和募资可使用工厂配对 Demo。 [跳转 Demo 源码](../launcher-local/launcher-redirect-demo/) · [跳转动画](launcher-redirect-demo.svg) · [本地检查与交付说明](developer-testnet-onboarding.zh-CN.md#launcher-跳转-demo)
 
 ### 检查 Launcher 源码
 

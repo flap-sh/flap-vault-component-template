@@ -1,6 +1,6 @@
 import { parseAbi } from "viem";
 
-// ABI fragments for the Crowd Revenue Vault contract on BSC Testnet.
+// ABI fragments for the demo revenue Vault contract on BSC Testnet.
 export const vaultAbi = parseAbi([
   "function taxToken() view returns (address)",
   "function creator() view returns (address)",

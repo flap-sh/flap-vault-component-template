@@ -1,7 +1,7 @@
 {
   "en": {
-    "configTitle": "Crowd launch configuration",
-    "configDescription": "Create a crowd-funded Launcher on BSC Testnet. The host validates the configuration and prepares the creation transaction.",
+    "configTitle": "Launcher Demo configuration",
+    "configDescription": "Set up a fundraising Launcher on BSC Testnet. The host validates the configuration and prepares the creation transaction.",
     "name": "Token name",
     "symbol": "Token symbol",
     "description": "Description",
@@ -19,7 +19,7 @@
     "share": "Contributors’ revenue share (%)",
     "shareHint": "Contributors share Vault revenue according to their contributions; the creator receives the remaining share. Allowed range: 10–90%.",
     "reviewHint": "Uploading metadata does not create a Launcher. Continue to the host review and confirm creation with your wallet.",
-    "launcherTitle": "Crowd Launcher",
+    "launcherTitle": "Launcher Demo",
     "noLauncher": "Not available",
     "noSnapshot": "Launch data is unavailable. Refresh to try again.",
     "status": "Status",
@@ -80,7 +80,7 @@
     "noTokensAvailable": "No tokens are currently available to claim. Refresh to check your allocation."
   },
   "zh": {
-    "configTitle": "Crowd 发行配置",
+    "configTitle": "Launcher Demo 发行配置",
     "configDescription": "在 BSC 测试网创建众筹 Launcher。主站校验配置并准备创建交易。",
     "name": "代币名称",
     "symbol": "代币符号",
@@ -99,7 +99,7 @@
     "share": "出资人收益占比（%）",
     "shareHint": "出资人按出资比例分享 Vault 收益，其余分配给创建者；允许范围为 10–90%。",
     "reviewHint": "上传元数据不会创建 Launcher；请继续到主站交易确认，并自行在钱包中确认创建。",
-    "launcherTitle": "Crowd Launcher",
+    "launcherTitle": "Launcher Demo",
     "noLauncher": "暂无",
     "noSnapshot": "暂时无法加载发行数据，请刷新重试。",
     "status": "状态",
@@ -160,7 +160,7 @@
     "noTokensAvailable": "当前没有可领取的代币，请刷新查看分配状态。"
   },
   "ko": {
-    "configTitle": "Crowd 출시 설정",
+    "configTitle": "Launcher Demo 출시 설정",
     "configDescription": "BSC 테스트넷에서 크라우드 펀딩 Launcher를 생성합니다. 호스트가 설정을 검증하고 생성 거래를 준비합니다.",
     "name": "토큰 이름",
     "symbol": "토큰 심볼",
@@ -179,7 +179,7 @@
     "share": "기여자 수익 비율 (%)",
     "shareHint": "기여자는 기여액에 비례하여 Vault 수익을 공유하고 나머지는 생성자에게 배분됩니다. 허용 범위: 10–90%.",
     "reviewHint": "메타데이터 업로드로 Launcher가 생성되지는 않습니다. 호스트 검토 화면에서 확인한 뒤 지갑에서 생성을 승인하세요.",
-    "launcherTitle": "Crowd Launcher",
+    "launcherTitle": "Launcher Demo",
     "noLauncher": "정보 없음",
     "noSnapshot": "출시 데이터를 불러올 수 없습니다. 새로고침해 주세요.",
     "status": "상태",

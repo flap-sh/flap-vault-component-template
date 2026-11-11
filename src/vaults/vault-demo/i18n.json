@@ -1,6 +1,6 @@
 {
   "en": {
-    "title": "Crowd revenue vault",
+    "title": "Revenue Vault Demo",
     "description": "Native revenue is shared between contributors and the launch creator. Your entitlement is calculated by the Vault contract.",
     "risk.low": "Low risk",
     "risk.lowMedium": "Low–medium risk",
@@ -42,7 +42,7 @@
     "messages.claimed": "Revenue claim confirmed."
   },
   "zh": {
-    "title": "Crowd 收益金库",
+    "title": "收益 Vault Demo",
     "description": "原生币收益分配给出资人与发行创建者，可领取额度由 Vault 合约计算。",
     "risk.low": "低风险",
     "risk.lowMedium": "中低风险",
@@ -84,7 +84,7 @@
     "messages.claimed": "收益领取已确认。"
   },
   "ko": {
-    "title": "Crowd 수익 Vault",
+    "title": "수익 Vault Demo",
     "description": "네이티브 수익을 기여자와 출시 생성자가 공유합니다. 수령 가능액은 Vault 계약이 계산합니다.",
     "risk.low": "낮은 위험",
     "risk.lowMedium": "낮음–중간 위험",

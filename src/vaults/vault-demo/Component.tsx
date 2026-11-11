@@ -9,7 +9,7 @@ import { vaultAbi } from "./VaultABI";
 type Revenue = { totalRevenue: bigint; totalPaid: bigint; contributorBps: number; creator: `0x${string}`; targetRaise: bigint };
 type Account = { entitled: bigint; claimed: bigint; claimable: bigint };
 
-export default function CrowdVault(_props: VaultComponentProps) {
+export default function VaultDemo(_props: VaultComponentProps) {
   const sdk = useFlapSdk();
   const { context, i18n, wallet } = sdk;
   const t = i18n.t;
