@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+This test branch includes the Crowd BSC Testnet Launcher and Vault example. Follow the [developer guide](examples/launcher-runtime/README.md) for the three UI surfaces and operator handoff.
+
 **Published and verified (2026-11-10 15:18:28, Asia/Shanghai).** npm `latest` is `@flapsdk/vault-runtime@0.1.42`, from clean official `main` source `686934578ec40aec418484e7c1dac1f6782d598e` after [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) merged. This release adds the exact BSC Testnet FSI query prefix while preserving SDK signatures, runtime contract version 1 and existing mainnet routing. The 544,455-byte public archive matches the verified release archive byte for byte. `next=0.1.40-next.4` and `routing=0.1.40-beta.routing.0` are unchanged. Consumer runtime/checker upgrades and deployment remain pending. See the [verified release record](./docs/releases/0.1.42.md).
 
 **Start here:** [Vault UI / Mini App v2 and code reuse](./docs/development.md) · [Build a v2 App from zero](./docs/from-zero-mini-app.md).

@@ -1,0 +1,20 @@
+{
+  "artifactId": "vaultui_crowd-vault_01M735BM2447D52PD49VAAT0JN",
+  "name": "Crowd Revenue Vault",
+  "match": {
+    "bindings": [
+      {
+        "chainId": 97,
+        "factoryAddress": "0xb89113e16c78989b7bccf5d0e13e99bf2c58dc32",
+        "tokenAddresses": [
+          "0x6d36b2959b88f5d9c3f83badd20405a4bcf37777"
+        ]
+      }
+    ]
+  },
+  "i18n": [
+    "en",
+    "zh",
+    "ko"
+  ]
+}

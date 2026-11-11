@@ -84,6 +84,12 @@ export const vaultModules: Record<string, VaultModule> = {
     loadManifest: () => import("./routing-example/manifest.json") as Promise<{ default: VaultManifest }>,
     loadI18n: () => import("./routing-example/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
   },
+  "crowd-vault": {
+    folderName: "crowd-vault",
+    loadComponent: () => import("./crowd-vault/Component"),
+    loadManifest: () => import("./crowd-vault/manifest.json") as Promise<{ default: VaultManifest }>,
+    loadI18n: () => import("./crowd-vault/i18n.json") as Promise<{ default: Record<string, Record<string, string>> }>,
+  },
 };
 
 export function getVaultFolderNames() {
