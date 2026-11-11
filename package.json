@@ -36,6 +36,7 @@
     "vault:scaffold": "node scripts/vault-scaffold.mjs",
     "vault:register": "node scripts/vault-register.mjs",
     "vault:ai-context": "node scripts/vault-ai-context.mjs",
+    "launcher:check-source": "node scripts/launcher-check-source.mjs",
     "vault:check": "node scripts/vault-check.mjs",
     "vault:check:selftest": "node scripts/vault-check-selftest.mjs",
     "vault:e2e": "node scripts/vault-e2e.mjs",

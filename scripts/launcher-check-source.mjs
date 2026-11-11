@@ -1,0 +1,98 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import ts from "typescript";
+import { failAgent } from "./agent-error.mjs";
+
+const usage = "yarn launcher:check-source <source-directory>";
+const requiredFiles = ["Component.tsx", "i18n.json", "manifest.json"];
+const surfaces = ["launcher-config", "launcher-ui"];
+const locales = ["en", "ko", "zh"];
+const componentNames = ["Launcher", "LauncherConfig"];
+
+function fail(rule, message, fixHint) {
+  failAgent({ code: `launcher-source/${rule}`, message, fixHint });
+}
+
+function hasKeys(value, keys) {
+  return value && typeof value === "object" && !Array.isArray(value) &&
+    Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function readJson(directory, filename) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(directory, filename), "utf8"));
+  } catch (error) {
+    fail("invalid-json", `${filename}: ${error.message}`, `Provide a readable JSON object in ${filename}.`);
+  }
+}
+
+function main(args) {
+  if (args.length === 1 && args[0] === "--help") {
+    console.log(usage);
+    return;
+  }
+  if (args.length !== 1 || !args[0].trim() || args[0].startsWith("-")) {
+    fail("missing-directory", "Supply one Launcher source directory.", `Run ${usage} with your project directory.`);
+  }
+
+  const directory = path.resolve(args[0]);
+  let entries;
+  try {
+    entries = fs.readdirSync(directory, { withFileTypes: true });
+  } catch (error) {
+    fail("unreadable-directory", error.message, "Pass the path to a readable Launcher source directory.");
+  }
+  if (entries.length !== requiredFiles.length ||
+    !requiredFiles.every((filename) => entries.some((entry) => entry.name === filename && entry.isFile()))) {
+    fail("source-files", "A Launcher source directory requires three regular files.", `Keep exactly ${requiredFiles.join(", ")} in the source directory.`);
+  }
+
+  const manifest = readJson(directory, "manifest.json");
+  if (!hasKeys(manifest, ["schemaVersion", "kind", "artifactId", "name", "chainId", "factoryAddress", "configContract", "surfaces", "entry"]) ||
+    manifest.schemaVersion !== 2 || manifest.kind !== "launcher-ui" || manifest.entry !== "Component.tsx" ||
+    !Array.isArray(manifest.surfaces) || manifest.surfaces.length !== surfaces.length ||
+    !surfaces.every((surface) => manifest.surfaces.includes(surface)) ||
+    typeof manifest.artifactId !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(manifest.artifactId) ||
+    typeof manifest.name !== "string" || manifest.name.trim().length < 2 || manifest.name.length > 100 ||
+    !Number.isSafeInteger(manifest.chainId) || manifest.chainId <= 0 ||
+    typeof manifest.factoryAddress !== "string" || !/^0x(?!0{40}$)[0-9a-f]{40}$/i.test(manifest.factoryAddress) ||
+    typeof manifest.configContract !== "string" || !manifest.configContract.trim()) {
+    fail("manifest", "The Launcher manifest does not match the schema 2 source format.",
+      "Use kind launcher-ui, the launcher-config and launcher-ui surfaces, entry Component.tsx, and the project's artifact ID, name, chain ID, factory address, and configuration contract.");
+  }
+
+  const translations = readJson(directory, "i18n.json");
+  const keys = Object.keys(translations?.en ?? {});
+  if (!hasKeys(translations, locales) || !keys.length || !locales.every((locale) =>
+    hasKeys(translations[locale], keys) && Object.values(translations[locale]).every((message) =>
+      typeof message === "string" && message.trim().length > 0))) {
+    fail("translations", "Launcher translations must have the same message keys in en, ko, and zh.", "Supply a non-empty string for each key in all three locales.");
+  }
+
+  let component;
+  try {
+    component = fs.readFileSync(path.join(directory, "Component.tsx"), "utf8");
+  } catch (error) {
+    fail("unreadable-component", error.message, "Make Component.tsx readable and rerun the command.");
+  }
+  const source = ts.createSourceFile("Component.tsx", component, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  if (source.parseDiagnostics.length) {
+    const message = ts.flattenDiagnosticMessageText(source.parseDiagnostics[0].messageText, "\n");
+    fail("syntax", message, "Fix the TSX syntax in Component.tsx.");
+  }
+  const exported = source.statements.filter((statement) =>
+    ts.isExportDeclaration(statement) || ts.isExportAssignment(statement) ||
+    (ts.canHaveModifiers(statement) && ts.getModifiers(statement)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)));
+  if (exported.length !== componentNames.length || !componentNames.every((name) => exported.some((statement) =>
+    ts.isFunctionDeclaration(statement) && statement.name?.text === name && statement.body &&
+    !ts.getModifiers(statement)?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)))) {
+    fail("exports", "Component.tsx must export LauncherConfig and Launcher as named functions.",
+      "Declare both components with export function and keep other declarations private to the file.");
+  }
+
+  const { artifactId, chainId, factoryAddress, configContract } = manifest;
+  console.log(JSON.stringify({ ok: true, directory, artifactId, chainId, factoryAddress, configContract }, null, 2));
+}
+
+main(process.argv.slice(2));
