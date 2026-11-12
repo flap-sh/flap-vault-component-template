@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
 import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
+import { collectDeclaredFetchUrls, isDeclaredUrl, normalizeManifestEndpoints, parseUrl } from "./endpoint-declarations.mjs";
 import { dynamicTaxedQueryPrefix, taxedFetchSafetyIssue, isTaxedFetchTarget, queryFreeDeclarations, collectQueryEncoderMutationIssues } from "./taxed-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import { collectMiniAppRoutingIssues } from "./mini-app-routing-policy.mjs";
@@ -484,27 +485,10 @@ function lineForIndex(content, index) {
   return content.slice(0, index).split("\n").length;
 }
 
-function normalizeManifestEndpoints(endpoints) {
-  if (endpoints === undefined) return [];
-  if (typeof endpoints === "string") return [endpoints];
-  if (Array.isArray(endpoints)) return endpoints;
-  return null;
-}
-
 function normalizeManifestExternalFrames(externalFrames) {
   if (externalFrames === undefined) return [];
   if (Array.isArray(externalFrames)) return externalFrames;
   return null;
-}
-
-function collectDeclaredFetchUrls(manifest) {
-  const urls = new Set();
-  const normalized = normalizeManifestEndpoints(manifest.endpoints);
-  if (!normalized) return urls;
-  for (const endpoint of normalized) {
-    if (typeof endpoint === "string") urls.add(endpoint);
-  }
-  return urls;
 }
 
 function collectDeclaredFrames(manifest) {
@@ -525,49 +509,10 @@ function collectDeclaredFrames(manifest) {
   return frames;
 }
 
-function parseUrl(value) {
-  try {
-    return new URL(value);
-  } catch {
-    return null;
-  }
-}
-
 function queryParamsForUrl(url) {
   const parsed = parseUrl(url);
   if (!parsed) return {};
   return Object.fromEntries(parsed.searchParams.entries());
-}
-
-function hrefWithoutHash(url) {
-  const next = new URL(url.href);
-  next.hash = "";
-  return next.href;
-}
-
-function isSamePathOrChild(candidatePath, declaredPath) {
-  if (candidatePath === declaredPath) return true;
-  const basePath = declaredPath.endsWith("/") ? declaredPath : `${declaredPath}/`;
-  return candidatePath.startsWith(basePath);
-}
-
-function isDeclaredUrl(url, declaredUrls) {
-  const candidate = parseUrl(url);
-  if (!candidate) return false;
-  if (candidate.username || candidate.password) return false;
-
-  for (const declared of declaredUrls) {
-    const allowed = parseUrl(declared);
-    if (!allowed) continue;
-    if (allowed.username || allowed.password) continue;
-    if (candidate.origin !== allowed.origin) continue;
-    if (allowed.search) {
-      if (hrefWithoutHash(candidate) === hrefWithoutHash(allowed)) return true;
-      continue;
-    }
-    if (isSamePathOrChild(candidate.pathname, allowed.pathname)) return true;
-  }
-  return false;
 }
 
 function normalizeFrameSrc(value) {
