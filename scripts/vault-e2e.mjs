@@ -21,6 +21,7 @@ import { failAgent } from "./agent-error.mjs";
 import { runLaunchConfigChecks } from "./launch-config-e2e.mjs";
 import { collectDeclaredFetchUrls } from "./endpoint-declarations.mjs";
 import { isAllowedExternalRead } from "./e2e-external-reads.mjs";
+import { layoutCheckScript } from "./vault-e2e-layout.mjs";
 
 const ROOT = process.cwd();
 const HOST = "127.0.0.1";
@@ -336,132 +337,6 @@ async function waitForMeaningfulRender(page) {
   await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
   await page.locator("body").waitFor({ state: "visible", timeout: 20_000 });
   await page.waitForFunction(() => document.body.innerText.trim().length > 80, undefined, { timeout: 20_000 });
-}
-
-function layoutCheckScript(skipRiskStatus = false) {
-  const tolerance = 4;
-  const scope = document.querySelector("[data-vault-e2e-scope='vault-preview']") || document.body;
-  const issues = [];
-  const viewport = {
-    width: document.documentElement.clientWidth,
-    height: document.documentElement.clientHeight,
-  };
-
-  const addIssue = (ruleId, message, extra = {}) => issues.push({ ruleId, message, ...extra });
-  const isVisible = (element) => {
-    const style = window.getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) !== 0 && rect.width > 1 && rect.height > 1;
-  };
-  const selectorFor = (element) => {
-    if (element.id) return `#${element.id}`;
-    const dataUi = element.getAttribute("data-flap-ui");
-    if (dataUi) return `[data-flap-ui="${dataUi}"]`;
-    return element.tagName.toLowerCase();
-  };
-  const rectInfo = (rect) => ({
-    x: Math.round(rect.x),
-    y: Math.round(rect.y),
-    width: Math.round(rect.width),
-    height: Math.round(rect.height),
-  });
-
-  if (scope.scrollWidth > scope.clientWidth + tolerance) {
-    addIssue("layout/horizontal-overflow", "Vault business UI has horizontal overflow.", {
-      scrollWidth: scope.scrollWidth,
-      clientWidth: scope.clientWidth,
-    });
-  }
-
-  const scopeRect = scope.getBoundingClientRect();
-  if (scopeRect.left < -tolerance || scopeRect.right > viewport.width + tolerance) {
-    addIssue("layout/scope-out-of-viewport", "Vault preview scope extends outside the viewport.", {
-      rect: rectInfo(scopeRect),
-      viewport,
-    });
-  }
-
-  const textElements = Array.from(scope.querySelectorAll("button, a, label, p, span, h1, h2, h3, h4, h5, h6, [data-flap-ui]"))
-    .filter((element) => isVisible(element))
-    .filter((element) => (element.textContent || "").trim().length > 0);
-  for (const element of textElements) {
-    const style = window.getComputedStyle(element);
-    const clipsX = element.scrollWidth > element.clientWidth + tolerance && style.overflowX !== "visible";
-    const clipsY = element.scrollHeight > element.clientHeight + tolerance && style.overflowY !== "visible";
-    if (clipsX || clipsY) {
-      addIssue("layout/text-overflow", "Visible text appears clipped or overflowing its container.", {
-        selector: selectorFor(element),
-        text: (element.textContent || "").trim().slice(0, 120),
-        scrollWidth: element.scrollWidth,
-        clientWidth: element.clientWidth,
-        scrollHeight: element.scrollHeight,
-        clientHeight: element.clientHeight,
-      });
-    }
-  }
-
-  const controls = Array.from(scope.querySelectorAll("button, input, textarea, select, a[href], [role='button']"))
-    .filter((element) => isVisible(element))
-    .map((element) => ({ element, rect: element.getBoundingClientRect() }))
-    .filter((item) => item.rect.width > 6 && item.rect.height > 6);
-  for (const { element, rect } of controls) {
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    if (centerX < 0 || centerX > viewport.width || centerY < 0 || centerY > viewport.height) continue;
-    const topElement = document.elementFromPoint(centerX, centerY);
-    if (topElement && topElement !== element && !element.contains(topElement) && !topElement.contains(element)) {
-      addIssue("layout/control-covered", "A visible control is covered by another element at its center point.", {
-        selector: selectorFor(element),
-        coveringSelector: selectorFor(topElement),
-        rect: rectInfo(rect),
-      });
-    }
-  }
-
-  for (let leftIndex = 0; leftIndex < controls.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < controls.length; rightIndex += 1) {
-      const left = controls[leftIndex];
-      const right = controls[rightIndex];
-      if (left.element.contains(right.element) || right.element.contains(left.element)) continue;
-      const overlapX = Math.max(0, Math.min(left.rect.right, right.rect.right) - Math.max(left.rect.left, right.rect.left));
-      const overlapY = Math.max(0, Math.min(left.rect.bottom, right.rect.bottom) - Math.max(left.rect.top, right.rect.top));
-      const overlapArea = overlapX * overlapY;
-      if (overlapArea > 24) {
-        addIssue("layout/control-overlap", "Two visible controls overlap.", {
-          left: selectorFor(left.element),
-          right: selectorFor(right.element),
-          overlapArea: Math.round(overlapArea),
-        });
-      }
-    }
-  }
-
-  let riskElement = null;
-  if (!skipRiskStatus) {
-    const riskRegex = /risk|风险|unverified|未验证|missing|缺失|低风险|高风险|中风险/i;
-    riskElement = textElements.find((element) => riskRegex.test((element.textContent || "").trim()));
-    if (!riskElement) {
-      addIssue("layout/risk-status-not-visible", "No visible risk status text was found in the Vault business UI.");
-    } else {
-      const riskRect = riskElement.getBoundingClientRect();
-      if (riskRect.top - scopeRect.top > 420) {
-        addIssue("layout/risk-status-too-low", "Risk status is visible but too low in the Vault business UI.", {
-          riskTopWithinScope: Math.round(riskRect.top - scopeRect.top),
-        });
-      }
-    }
-  }
-
-  return {
-    issues,
-    metrics: {
-      documentScrollWidth: scope.scrollWidth,
-      documentClientWidth: scope.clientWidth,
-      controlCount: controls.length,
-      textNodeCount: textElements.length,
-      riskVisible: skipRiskStatus ? true : Boolean(riskElement),
-    },
-  };
 }
 
 async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase, declaredFetchUrls, wrongNetwork = false, skipRiskStatus = false, has3D = false, forceNoWebGL2 = false, reducedMotion = false, contextLoss = false, launchConfig = false }) {
