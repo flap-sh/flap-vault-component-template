@@ -32,11 +32,11 @@ For factory-scoped UI, `manifest.json` declares `chainId` and `factoryAddress` i
 
 ## Integrate a Launcher UI
 
-Confirm the Launcher Factory, any companion Vault Factory, and the receiving host's supported configuration and actions. The host reviews the factory pair and interprets the draft using a configuration contract that matches the Launcher Factory. The component receives read-only context, sends structured draft values through `onChange`, and uses the host's metadata upload resource when available.
+Confirm the Launcher Factory, any companion Vault Factory, and the receiving host's supported configuration and actions. The host interprets the draft using the configuration contract for the Launcher Factory. The component receives read-only context, sends structured draft values through `onChange`, and uses the host's metadata upload resource when available.
 
 The detail component reads the host snapshot and calls `host.requestAction` to open review for an available action. The host prepares transactions and verifies receipts. Users confirm transactions in their wallets. A different Launcher mechanism may need different draft fields, state and actions.
 
-Self-service custom UI for arbitrary factories is still under development. The example's configuration contract and host adapter support its reviewed factory pair. For another pair, confirm the matching host configuration and action support with the operator.
+The current BSC Testnet preview supports the demo Launcher Factory and `crowd-native-create/v1`. For another factory, confirm the host configuration and action support with Flap.
 
 ### Redirect from Launcher details
 
@@ -84,6 +84,15 @@ The check accepts any project with the required source structure and reports its
 
 ## Preview and publish
 
-Send Flap the Launcher source, the companion Vault source if applicable, and the testnet factory addresses. Include any verified Vault source package you already have. Flap prepares the package, builds it in Workbench, and shares versioned testnet preview links. Normal routing uses the authorized factory mappings. [Testnet onboarding (中文)](developer-testnet-onboarding.zh-CN.md)
+Every Pool Launch UI submission includes a Launcher. The custom Vault UI is optional.
+
+| Submission | What to send Flap |
+| --- | --- |
+| Launcher only | ZIP with `Component.tsx`, `manifest.json` and `i18n.json` at its root, plus the testnet Launcher Factory address and test details. |
+| Launcher and custom Vault UI | One handoff ZIP with both source directories, both testnet factory addresses and the Vault acceptance token. Include an existing verified Vault source package if available. |
+
+Workbench builds and publishes the Launcher-only artifact for the supported testnet factory. The main-site preview link uses `artifactPath` to select the version. When the handoff includes a custom Vault UI, Flap prepares the combined source package and shares the Launcher preview with the companion Vault artifact. The selected package determines which UIs Workbench builds. The factory's contract logic determines whether it deploys a Vault on-chain.
+
+Standalone Mini Apps and ordinary Vault UIs follow their own source-package workflows. [Testnet onboarding (中文)](developer-testnet-onboarding.zh-CN.md) · [Mini App guide](../../docs/from-zero-mini-app.md) · [Vault source packages](../../docs/artifact-intake.md)
 
 Follow the testnet example for the source files, fixture bindings, commands, host props and end-to-end acceptance steps. [BSC Testnet example](testnet-example.md)

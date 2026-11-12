@@ -89,16 +89,22 @@ The component receives `{ context, messages, host }`.
 
 Treat `context` as read-only. `previewOnly` describes capability restrictions. An interactive published-artifact preview on an enabled test host can supply `previewOnly: false`.
 
-## Hand off and test the factory pair
+## Hand off and test the Launcher
 
-Send Flap both source directories, the chain and factory addresses, and the Vault acceptance token. Include any verified Vault source package you already have. Flap validates the sources, prepares one `flap-factory-pair-source-v2` ZIP, and submits it to Workbench. Workbench builds both components. Each published runtime has its own immutable version. The built Launcher artifact uses `flap-launcher-runtime-v1`.
+To test just the Launcher, send Flap its three source files in one ZIP with the chain and Launcher Factory address. Run the following command from the Launcher's source directory. Use an unused output filename so the ZIP contains exactly the three root files.
 
-For normal Pool Launch routing, a caller with `AUDITOR_ROLE` maps the Launcher Factory to its Launcher artifact at scope 5 and the Vault Factory to its Vault artifact at scope 3. On the enabled testnet host, the mapped factory opens creation at `/create/launcher?chain=bnb-testnet&factory=<launcher-factory>` and detail at `/launcher/<launcher-address>?chain=bnb-testnet`.
+```bash
+zip -X -j ../launcher-demo.zip Component.tsx manifest.json i18n.json
+```
 
-To preview published versions before registry mapping, use the Workbench-generated link with `artifactPath` for Launcher and `vaultArtifactPath` for the companion Vault. The Vault page receives its version as `artifactPath`.
+To test both UIs, send both source directories, both factory addresses, and the Vault acceptance token. Include any verified Vault source package you already have. Flap prepares one `flap-factory-pair-source-v2` ZIP for Workbench. Each built runtime has its own immutable version. The Launcher artifact uses `flap-launcher-runtime-v1`.
+
+For normal Pool Launch routing, a caller with `AUDITOR_ROLE` maps the Launcher Factory to its Launcher artifact at scope 5. For a custom Vault UI, the operator also maps the Vault Factory at scope 3. On the enabled testnet host, the mapped factory opens creation at `/create/launcher?chain=bnb-testnet&factory=<launcher-factory>` and detail at `/launcher/<launcher-address>?chain=bnb-testnet`.
+
+To preview a published Launcher before registry mapping, open the Workbench link with `artifactPath`. When a custom Vault UI is included, the link also carries `vaultArtifactPath` and the Vault page receives that version as its own `artifactPath`.
 
 1. Connect a BSC Testnet wallet with enough tBNB for the operation and fees. Upload the token metadata, review the creation request, and confirm it. Open the new Launcher after the host verifies its creation receipt.
 2. Review and approve a contribution. After the receipt succeeds, check the raised amount and your position. A contribution that fills the target can issue the token and create its pool and Vault in the same transaction.
-3. After the host verifies issuance, open `/bnb-testnet/<issued-token>` to check the trade page and `/bnb-testnet/<issued-token>/taxinfo` to check the Vault. Use the actual issued address from the host. The Vault page resolves its own artifact and on-chain context.
-4. Claim allocated tokens from the Launcher with an eligible contributor account. Check the amount after the receipt succeeds. On the Vault page, check cumulative revenue and the account's claimable amount. Vault revenue claims require a positive claimable amount and the eligible market phase.
+3. After the host verifies issuance, open `/bnb-testnet/<issued-token>` to check the trade page. If your submission includes a Vault UI, use the same issued address at `/bnb-testnet/<issued-token>/taxinfo` to verify the Vault artifact and its on-chain context.
+4. Claim allocated tokens from the Launcher with an eligible contributor account. Check the amount after the receipt succeeds. If your submission includes a Vault UI, also check cumulative revenue and the account's claimable amount. Vault revenue claims require a positive claimable amount and the eligible market phase.
 5. For the refund path, use a separate Launcher that misses its target. After the deadline, confirm a refund from an account with a refundable contribution and check the updated amount.

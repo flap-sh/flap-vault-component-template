@@ -85,7 +85,15 @@ Launcher manifest 使用 `schemaVersion: 2`、`kind: "launcher-ui"` 和 `configC
 
 回调请求宿主准备交易并打开确认弹窗。宿主在用户确认后请求钱包签名，并以链上回执更新状态。`snapshot.expectedToken` 是预占地址。发行完成后，以 `snapshot.launched` 和 `snapshot.tokenAddress` 为准。详情页使用宿主传入的 `context.tokenTaxInfoHref` 链接已发行代币的 Vault，收益领取在 Vault 页完成。
 
-## 编写 Vault 组件与交付源码
+## 打包 Launcher 源码
+
+只验收 Launcher 时，在 Launcher 源码目录运行以下命令，提交 ZIP、网络及 LauncherFactory 地址。请使用尚未创建的输出文件名，确保 ZIP 根目录只有这三个文件。
+
+```bash
+zip -X -j ../launcher-demo.zip Component.tsx manifest.json i18n.json
+```
+
+## 编写和交付配套 Vault 组件（可选）
 
 Vault 四件套遵循普通 Vault UI 的 manifest 与 SDK 接口。示例用 `useFlapSdk()` 读取宿主绑定的 Vault 与代币。`VaultABI.ts` 声明读取累计收入、已支付收入和账户分配、已领、可领金额所需的接口，以及 `claim()`。合约风险取自宿主的链上上下文。领取按钮只在正确网络、已连接、满足交易阶段且有可领取收益时启用。提交后等待成功回执，再刷新账户数据。
 
@@ -104,10 +112,12 @@ yarn vault:verify-package dist/vault-demo.zip
 
 首次运行 E2E 时，如果提示缺少 Chromium，运行 `yarn playwright install chromium`。E2E 默认启动本地预览。复用其他预览时，使用提供 Template E2E 验收接口且渲染同一份源码的宿主。正式 Vault 包携带与源码哈希匹配的验收报告。
 
-这组公开命令覆盖 Vault 子包。开发者可以直接交付两个源码目录、工厂地址和验收代币。已有已验收的 Vault 源包时，可以一并提供。Flap 完成验收并生成一个 `flap-factory-pair-source-v2` 源码 ZIP，按 Workbench 流程上传、构建并发布。两个组件各有独立的产物版本。
+同时验收两个 UI 时，交付两个源码目录、两个工厂地址及 Vault 验收代币。已有通过验收的 Vault 源包时，可以一并提供。Flap 生成一个 `flap-factory-pair-source-v2` 源码 ZIP，按 Workbench 流程上传、构建并发布。两个组件各有独立的产物版本。
 
-- **预览。** 使用 Workbench 生成的链接选择已发布的 Launcher 和 Vault 版本。`artifactPath` 对应 Launcher，`vaultArtifactPath` 对应 Vault。进入税费信息页时，宿主将 Vault 的产物路径作为该页的 `artifactPath`。在已启用的测试网宿主中可先预览这组产物，再做链上绑定。
-- **常规入口。** 由具备 `AUDITOR_ROLE` 的链上账户完成 LauncherFactory（scope `5`）和 VaultFactory（scope `3`）各自的 UI 绑定。用户从 Pool Launch 输入 Launcher 工厂进入创建页。发行后，代币的税费信息页按 Vault 工厂解析对应的 UI。
+## 预览与常规入口
+
+- **预览。** Workbench 生成的链接使用 `artifactPath` 选择已发布的 Launcher。交付了自定义 Vault UI 时，链接还带有 `vaultArtifactPath`，进入税费信息页时，宿主将其作为该页的 `artifactPath`。可在链上绑定前通过链接预览。
+- **常规入口。** 由具备 `AUDITOR_ROLE` 的账户绑定 LauncherFactory（scope `5`）。交付了自定义 Vault UI 时，还需要绑定 VaultFactory（scope `3`）。用户从 Pool Launch 输入 Launcher 工厂进入创建页。发行后，代币的税费信息页按 Vault 工厂解析对应的 UI。
 
 ## 验收创建、募资、发行与领取
 
@@ -115,5 +125,5 @@ yarn vault:verify-package dist/vault-demo.zip
 2. **出资。** 核对链、实例地址、募资目标、截止时间和剩余金额。输入出资额，在钱包确认。等回执成功后检查总出资与自己的出资是否更新。最后一笔填满目标的出资可能在同一交易触发发行，确认前检查宿主提示与手续费预算。
 3. **发行。** 等待宿主确认链上已发行状态和实际代币地址。检查募资结果，打开宿主提供的代币交易页，核对页面地址与已发行代币一致。
 4. **领取代币。** 用参与出资的账户回到 Launcher 详情。有正额可领取时发起领取，等成功回执后检查可领取和已领取两项金额。用未参与的账户和未连接钱包的状态复查页面提示。
-5. **查看 Vault。** 从同一代币的 Vault 入口打开收益页面。核对代币、VaultFactory、风险状态、累计收入和账户收益。达到可操作阶段且账户有正额收益时，可以另行测试收益领取。没有收入时检查零收益状态即可。
+5. **查看 Vault（如有）。** 如果交付了配套 Vault UI，从同一代币的 Vault 入口打开收益页面。核对代币、VaultFactory、风险状态、累计收入和账户收益。达到可操作阶段且账户有正额收益时，可以另行测试收益领取。没有收入时检查零收益状态即可。
 6. **验证退款。** 用一笔独立的测试网发行覆盖未达目标的路径。在截止后用有可退款额的出资账户打开详情，确认退款并检查成功回执与状态更新。

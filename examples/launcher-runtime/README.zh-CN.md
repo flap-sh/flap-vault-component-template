@@ -28,7 +28,7 @@ Launcher 组件提交配置或操作请求。宿主负责校验、构造交易�
 
 ## 接入自定义 Launcher UI
 
-Launcher 的配置字段、状态读取和交易操作取决于发行机制。开发自定义 UI 时，需要与宿主确认支持的配置协议和操作。当前可交互的测试网宿主已接入示例的工厂配对。接入其他发行机制时，需要为它实现相应的宿主处理并启用对应工厂。
+Launcher 的配置字段、状态读取和交易操作取决于发行机制。当前 BSC 测试网预览支持 Demo 的 LauncherFactory 及 `crowd-native-create/v1`。接入其他工厂时，先与 Flap 确认宿主支持的配置协议和操作。
 
 ### 从 Launcher 详情跳转到站内页面
 
@@ -74,6 +74,15 @@ yarn launcher:check-source "$launcher_source_dir"
 
 ## 预览与发布
 
-对于已接入的工厂，向 Flap 提供 Launcher 源码、配套 Vault 源码和测试网工厂地址。已有已验收的 Vault 源包时，可以一并提供。Flap 完成打包和 Workbench 构建后，回传指定产物版本的预览链接。常规入口通过授权的链上绑定加载 UI。
+Pool Launch UI 交付必须包含 Launcher，配套的自定义 Vault UI 可选。
+
+| 交付方式 | 提交给 Flap 的材料 |
+| --- | --- |
+| 仅 Launcher | ZIP 根目录放 `Component.tsx`、`manifest.json` 和 `i18n.json`，附测试网 LauncherFactory 地址和测试说明。 |
+| Launcher 与自定义 Vault UI | 两个源码目录放进同一份交接 ZIP，附两个测试网工厂地址和 Vault 验收代币。已有已验收的 Vault 源包时，可以一并提供。 |
+
+对于已接入的测试网工厂，Workbench 可以用仅含 Launcher 的 ZIP 构建并发布 Launcher 产物，主站预览链接通过 `artifactPath` 选择 Launcher 版本。交付配套 Vault UI 时，Flap 生成组合源包，回传包含配套 Vault 产物的预览链接。包的选择决定 Workbench 构建哪些 UI。是否在链上部署 Vault 取决于工厂合约。
+
+独立 Mini App 和普通 Vault UI 各自走对应的源包流程。 [测试网接入与交付](developer-testnet-onboarding.zh-CN.md) · [Mini App 开发指南](../../docs/from-zero-mini-app.zh-CN.md) · [Vault 源包交付说明](../../docs/artifact-intake.md)
 
 测试网示例提供一套众筹发行的具体实现，包含示例合约、配置字段、本地 Vault 预览和 Workbench 交付流程。[BSC 测试网示例](testnet-example.zh-CN.md)
