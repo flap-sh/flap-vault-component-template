@@ -40,6 +40,16 @@ manifest 可选的 `reads` 对象最多声明八个 Launcher 实例上的无参�
 
 详情 Demo 展示 BSC 测试网 Launcher 的已募集金额、发行状态和实际发行的代币地址，并演示怎样点击按钮调用 `host.redirect` 打开 `/apps`。如果项目按预占代币地址自动跳转，请声明项目合约实际提供的读取方法，再参考下面的跳转代码。
 
+### 预览创建表单和详情
+
+使用 `launcher-config-preview/v1` 在同一个 ZIP 里交付创建表单和详情。沿用详情包的 manifest 结构，设置 `configContract: "launcher-config-preview/v1"` 和 `surfaces: ["launcher-config", "launcher-ui"]`。`configContract` 填 Flap 预览协议标识，填入链上接口版本会触发 `launcher-runtime/unsupported-config-contract`。`factoryAddress` 填项目在 `chainId` 对应网络已部署的工厂地址。详情可以声明 `reads`。
+
+在 `Component.tsx` 中具名导出 `LauncherConfig({ context, messages, onChange })` 和 `Launcher({ context, messages, host })`。创建预览传入 `context.previewOnly: true` 并忽略 `onChange` 提交的草稿。项目可以在这里展示锁定配置或演示表单交互。需要支持实际创建时，先与 Flap 确认宿主流程，核对配置编码及工厂的配置校验，并通过交易模拟。
+
+使用 React 具名导入和 JSX 内联样式。Workbench 会拦截 `<style>` 标签、`window.location`、`new URL()` 和 `new Intl.DateTimeFormat()`。详情跳转调用 `host.redirect()`。仅凭 `artifactPath` 可以查看界面，验收自动跳转时请提供同链、同工厂的真实 Launcher 实例，并让组件用已核验的数据解析目标。
+
+把三个源码文件打包后交给 Flap。Workbench 构建并发布后提供「打开创建预览」和「打开详情预览」两个入口。 [源码检查和 ZIP 交付](#检查-launcher-源码)
+
 ### 从 Launcher 详情跳转到站内页面
 
 支持此能力的宿主会向详情组件 `Launcher` 提供可选的 `host.redirect(path: string): boolean`。组件按当前 Launcher 实例解析目标后调用，宿主校验目标与当前站点同源，并替换 Launcher 的历史记录。返回 `true` 表示宿主接受了导航。接口缺失或返回 `false` 时，保留普通详情供用户使用。跳转与钱包连接无关，`host.available` 用于交易操作。
@@ -82,7 +92,9 @@ yarn launcher:check-source "$launcher_source_dir"
 
 打包前用默认命令检查 `Component.tsx`、`manifest.json` 和 `i18n.json`。按压缩前的字节数计算，单文件最多 256,000 字节，三个文件合计最多 512,000 字节。命令还会检查 manifest 结构、TSX 语法、具名函数导出，以及 `en`、`zh`、`ko` 的文案键。
 
-manifest 必须使用 BNB Chain 主网（`56`）或 BSC 测试网（`97`），并填写对应链支持的适配器。原生适配器要求工厂地址与该链的适配器配置完全匹配。通用 `launcher-detail/v1` 支持填写自己已部署的非零 LauncherFactory 地址，检查已声明的 `reads`，并要求仅导出 `Launcher`。原生创建与详情适配器要求导出 `LauncherConfig` 和 `Launcher`。
+manifest 必须使用 BNB Chain 主网（`56`）或 BSC 测试网（`97`），并填写对应链支持的适配器。原生适配器要求工厂地址与该链的适配器配置完全匹配。通用 `launcher-detail/v1` 支持填写自己已部署的非零 LauncherFactory 地址，检查已声明的 `reads`，并要求仅导出 `Launcher`。
+
+`launcher-config-preview/v1` 同样支持这两条链上的项目工厂。检查要求 `launcher-config` 和 `launcher-ui` 两个 surface、对应的两个具名导出，以及有效的可选 `reads`。
 
 `--local` 用于独立的 `launcher-local` 源码格式。Workbench 收包时仍会执行完整的源包和源码策略校验，宿主会核验已部署工厂及其兼容性。
 
@@ -93,17 +105,17 @@ Pool Launch UI 交付必须包含 Launcher，配套的自定义 Vault UI 可选�
 | 交付方式 | 提交给 Flap 的材料 |
 | --- | --- |
 | 仅 Launcher | ZIP 根目录放 `Component.tsx`、`manifest.json` 和 `i18n.json`，附网络、LauncherFactory 地址和测试说明。 |
-| Launcher 配置与详情及配套自定义 Vault UI | 两个源码目录放进同一份交接 ZIP，附两个测试网工厂地址和 Vault 验收代币。已有已验收的 Vault 源包时，可以一并提供。 |
+| 工厂配对 Demo 的 Launcher 与 Vault UI | 两个源码目录放进同一份交接 ZIP，附两个测试网工厂地址和 Vault 验收代币。已有已验收的 Vault 源包时，可以一并提供。 |
 
 在模板根目录运行 `yarn launcher:check-source examples/launcher-runtime/launcher-detail-demo` 可以检查详情 Demo。项目源码通过检查后，在它的源码目录用新文件名生成 ZIP，将三个文件直接放在 ZIP 根目录。
 
 ```sh
-zip -X -j ../launcher-detail.zip Component.tsx manifest.json i18n.json
+zip -X -j ../launcher-ui.zip Component.tsx manifest.json i18n.json
 ```
 
 把 ZIP 交给 Flap 在 Workbench Preview 上传、构建并发布。主站详情预览通过 `artifactPath` 选择 Launcher 版本。如已有同一工厂下的 Launcher，可一并提供地址，便于核验实际读取和跳转。BSC 测试网在主站预览环境打开 `/launcher/<launcher-address>?chain=bnb-testnet&kind=launcher-detail&artifactPath=<encoded-artifact-path>`。主网使用 `chain=bnb`。
 
-`launcher-detail/v1` 配套的 Vault UI 走普通 Vault UI 流程，单独提交源包。发行配置与详情流程若同时交付自定义 Vault UI，Flap 会生成组合源包并回传包含两种产物的预览链接。是否在链上部署 Vault 取决于工厂合约。
+`launcher-detail/v1` 和 `launcher-config-preview/v1` 配套的 Vault UI 走普通 Vault UI 流程，单独提交源包。工厂配对 Demo 的两个 UI 由 Flap 生成组合源包。是否在链上部署 Vault 取决于工厂合约。
 
 独立 Mini App 和普通 Vault UI 各自走对应的源包流程。 [测试网接入与交付](developer-testnet-onboarding.zh-CN.md) · [Mini App 开发指南](../../docs/from-zero-mini-app.zh-CN.md) · [Vault 源包交付说明](../../docs/artifact-intake.md)
 

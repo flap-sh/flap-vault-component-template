@@ -75,6 +75,30 @@ test("an unsupported Launcher chain is rejected", t => {
   assert.equal(result.code, "launcher-source/unsupported-chain");
 });
 
+test("a generic creation preview accepts a custom factory and detail reads with both exports", t => {
+  const manifest = {
+    ...detailManifest,
+    configContract: "launcher-config-preview/v1",
+    surfaces: ["launcher-config", "launcher-ui"],
+  };
+  const directory = fixture(t, manifest, creationComponent);
+  assert.equal(checkSource(directory).configContract, manifest.configContract);
+  writeFileSync(join(directory, "Component.tsx"), detailComponent);
+  assert.equal(checkSource(directory).code, "launcher-source/exports");
+});
+
+test("a generic creation preview rejects incomplete surfaces and malformed detail reads", t => {
+  const manifest = {
+    ...detailManifest,
+    configContract: "launcher-config-preview/v1",
+    surfaces: ["launcher-config", "launcher-ui"],
+  };
+  assert.equal(checkSource(fixture(t, { ...manifest, surfaces: ["launcher-ui"] }, creationComponent)).code,
+    "launcher-source/manifest");
+  assert.equal(checkSource(fixture(t, { ...manifest, reads: { invalid: { functionName: "name", returns: "string" } } }, creationComponent)).code,
+    "launcher-source/reads");
+});
+
 test("a creation adapter unavailable on the chosen chain is rejected", t => {
   const result = checkSource(fixture(t, { ...crowdManifest, chainId: 56 }, creationComponent));
   assert.equal(result.code, "launcher-source/unsupported-config-contract");

@@ -48,6 +48,16 @@ The host verifies the Launcher belongs to the manifest's factory before reading 
 
 The demo displays the amount raised, issuance status and the issued token address from a BSC Testnet Launcher. It also shows how to call `host.redirect` from a button that opens `/apps`. When a project uses the reserved token address for automatic routing, declare the getter the project implements and use the redirect example below.
 
+### Preview a creation form and detail
+
+Use `launcher-config-preview/v1` to deliver a custom creation form and Launcher detail in one ZIP. Follow the detail manifest format and set `configContract: "launcher-config-preview/v1"` and `surfaces: ["launcher-config", "launcher-ui"]`. Use the Flap preview protocol identifier in `configContract`. An on-chain interface version triggers `launcher-runtime/unsupported-config-contract`. Set `factoryAddress` to your deployed Launcher Factory on the selected chain and declare detail `reads` as needed.
+
+Export `LauncherConfig({ context, messages, onChange })` and `Launcher({ context, messages, host })` as named functions in `Component.tsx`. The creation preview supplies `context.previewOnly: true` and discards drafts sent through `onChange`. You can display locked values or demonstrate form interactions. To enable live creation, confirm the host flow with Flap, verify the configuration encoding and factory checks, and simulate the transaction.
+
+Use named React imports and inline JSX styles. Workbench rejects `<style>` tags, `window.location`, `new URL()` and `new Intl.DateTimeFormat()`. Use `host.redirect()` from the detail component for same-site navigation. You can inspect the UI with `artifactPath` alone. To verify automatic redirects, provide a real Launcher from the declared chain and factory and resolve the destination from verified data.
+
+Send Flap the three-file ZIP. Once Flap builds and publishes it in Workbench, the job provides separate creation and detail preview links. [Source checks and ZIP handoff](#check-your-launcher-source)
+
 ### Redirect from Launcher details
 
 On a compatible host, the `Launcher` detail component can call the optional `host.redirect(path: string): boolean` after resolving a destination from the current Launcher. The host accepts paths on its own origin and replaces the Launcher history entry. A `true` return means it accepted the navigation. Keep the normal detail UI available when the function is absent or returns `false`. The call does not depend on wallet connection or `host.available`, which controls transaction actions.
@@ -90,7 +100,9 @@ yarn launcher:check-source "$launcher_source_dir"
 
 Before creating the ZIP, run the default check on the three source files `Component.tsx`, `manifest.json` and `i18n.json`. Each file can contain up to 256,000 bytes and the three files can contain up to 512,000 bytes total, measured before compression. The command checks manifest structure, TSX syntax, named exports and matching non-empty translation dictionaries for `en`, `zh` and `ko`.
 
-The manifest must use BNB Chain (`56`) or BSC Testnet (`97`) with an adapter supported on that chain. Native adapters require the exact factory address for that adapter and chain. The generic `launcher-detail/v1` adapter accepts your deployed nonzero Launcher Factory address, validates any declared `reads` and expects only `Launcher`. Native creation and detail adapters expect both `LauncherConfig` and `Launcher`.
+The manifest must use BNB Chain (`56`) or BSC Testnet (`97`) with an adapter supported on that chain. Native adapters require the exact factory address for that adapter and chain. The generic `launcher-detail/v1` adapter accepts your deployed nonzero Launcher Factory address, validates any declared `reads` and expects only `Launcher`.
+
+For `launcher-config-preview/v1`, the checker accepts a custom factory on the same two chains and requires both surfaces, both named exports and valid optional `reads`.
 
 Use `--local` for the separate `launcher-local` source format. Workbench runs its full package and source policy checks during intake, and the host verifies the deployed factory and its compatibility.
 
@@ -101,17 +113,17 @@ Every Pool Launch UI submission includes a Launcher. The custom Vault UI is opti
 | Submission | What to send Flap |
 | --- | --- |
 | Launcher only | ZIP with `Component.tsx`, `manifest.json` and `i18n.json` at its root, plus the chain, Launcher Factory address and test details. |
-| Launcher creation and detail with custom Vault UI | One handoff ZIP with both source directories, both testnet factory addresses and the Vault acceptance token. Include an existing verified Vault source package if available. |
+| Factory pair demo Launcher and Vault UI | One handoff ZIP with both source directories, both testnet factory addresses and the Vault acceptance token. Include an existing verified Vault source package if available. |
 
 For `launcher-detail/v1`, run `yarn launcher:check-source examples/launcher-runtime/launcher-detail-demo` from the template root to check the demo. After checking your own source, run this command from its directory with a new output filename to put the three files at the ZIP root.
 
 ```sh
-zip -X -j ../launcher-detail.zip Component.tsx manifest.json i18n.json
+zip -X -j ../launcher-ui.zip Component.tsx manifest.json i18n.json
 ```
 
 Send the ZIP to Flap for upload, build and publication in Workbench Preview. The main-site detail preview uses `artifactPath` to select the version. Include an existing Launcher address if available so Flap can verify live reads and redirects. On the BSC Testnet preview host, open `/launcher/<launcher-address>?chain=bnb-testnet&kind=launcher-detail&artifactPath=<encoded-artifact-path>` for that same factory. The mainnet chain slug is `bnb`.
 
-Submit any Vault UI that accompanies `launcher-detail/v1` through the ordinary Vault UI workflow as a separate source package. For the creation and detail flow with a companion custom Vault UI, Flap prepares the combined source package and shares both artifact versions. The factory's contract logic determines whether it deploys a Vault on-chain.
+Submit any Vault UI that accompanies `launcher-detail/v1` or `launcher-config-preview/v1` through the ordinary Vault UI workflow as a separate source package. Flap prepares the combined source package for the factory pair demo. The factory's contract logic determines whether it deploys a Vault on-chain.
 
 Standalone Mini Apps and ordinary Vault UIs follow their own source-package workflows. [Testnet onboarding (中文)](developer-testnet-onboarding.zh-CN.md) · [Mini App guide](../../docs/from-zero-mini-app.md) · [Vault source packages](../../docs/artifact-intake.md)
 

@@ -7,6 +7,7 @@ import { failAgent } from "./agent-error.mjs";
 const usage = "yarn launcher:check-source [--local] <source-directory>";
 const requiredFiles = ["Component.tsx", "i18n.json", "manifest.json"];
 const detailConfigContract = "launcher-detail/v1";
+const configPreviewContract = "launcher-config-preview/v1";
 const workbenchChainIds = new Set([56, 97]);
 // Keep these public deployment profiles and byte limits aligned with Workbench's Launcher upload validator.
 const workbenchProfiles = [
@@ -75,13 +76,13 @@ function checkWorkbenchProfile({ chainId, configContract, factoryAddress }) {
     fail("unsupported-chain", `Workbench does not support Launcher chain ID ${chainId}.`,
       "Use the chain ID of your deployed BNB Chain (56) or BSC Testnet (97) Launcher factory.");
   }
-  if (configContract === detailConfigContract) return;
+  if (configContract === detailConfigContract || configContract === configPreviewContract) return;
 
   const profiles = workbenchProfiles.filter((profile) =>
     profile.chainId === chainId && profile.configContract === configContract);
   if (profiles.length === 0) {
     fail("unsupported-config-contract", `Workbench has no Launcher adapter for ${JSON.stringify(configContract)} on chain ${chainId}.`,
-      "For creation or transaction actions, confirm a supported host adapter with Flap. For read-only detail or a Mini App redirect, use launcher-detail/v1 with only the launcher-ui surface and Launcher export.");
+      "Use launcher-config-preview/v1 for a read-only creation and detail preview, launcher-detail/v1 for detail only, or confirm a supported transaction adapter with Flap.");
   }
   const normalizedFactory = factoryAddress.toLowerCase();
   if (!profiles.some((profile) => profile.factoryAddress === normalizedFactory)) {
@@ -116,7 +117,8 @@ function main(args) {
 
   const manifest = readJson(directory, "manifest.json");
   const detailOnly = !localOnly && manifest?.configContract === detailConfigContract;
-  const hasReads = detailOnly && Object.hasOwn(manifest, "reads");
+  const configPreview = !localOnly && manifest?.configContract === configPreviewContract;
+  const hasReads = (detailOnly || configPreview) && Object.hasOwn(manifest, "reads");
   const surfaces = detailOnly ? ["launcher-ui"] : ["launcher-config", "launcher-ui"];
   const componentNames = detailOnly ? ["Launcher"] : ["Launcher", "LauncherConfig"];
   const manifestKeys = ["schemaVersion", "kind", "artifactId", "name", "chainId", "factoryAddress", "surfaces", "entry"];
