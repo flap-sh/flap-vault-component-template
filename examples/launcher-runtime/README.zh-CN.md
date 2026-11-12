@@ -28,7 +28,7 @@
 
 ## 接入自定义 Launcher UI
 
-Launcher 的配置字段、状态读取和交易操作取决于发行机制。BSC 测试网预览支持 Demo 的 LauncherFactory 及 `crowd-native-create/v1`。其他工厂如需发行配置或交易操作，先与 Flap 确认宿主支持的协议和操作。 [发行配置与详情 Demo](testnet-example.zh-CN.md)
+Launcher 的配置字段、状态读取和交易操作取决于发行机制。`configContract` 是 Flap 宿主适配器标识，其版本与工厂合约的链上接口版本独立。BSC 测试网预览支持 Demo 的 LauncherFactory 及 `crowd-native-create/v1`。其他工厂如需发行配置或交易操作，先与 Flap 确认适配器及支持的操作。 [发行配置与详情 Demo](testnet-example.zh-CN.md)
 
 ### 开发只读 Launcher 详情
 
@@ -80,7 +80,11 @@ useEffect(() => {
 yarn launcher:check-source "$launcher_source_dir"
 ```
 
-命令检查 `Component.tsx`、`manifest.json` 和 `i18n.json`，包括 manifest 结构、TSX 语法、具名函数导出，以及 `en`、`zh`、`ko` 的文案键。`launcher-detail/v1` 检查已声明的 `reads`，并要求仅导出 `Launcher`。同时提供配置和详情的版本需导出 `LauncherConfig` 和 `Launcher`。检查通过后输出 manifest 声明的链、工厂地址和配置协议。宿主和 Workbench 各自核验工厂与协议的兼容性。
+打包前用默认命令检查 `Component.tsx`、`manifest.json` 和 `i18n.json`。按压缩前的字节数计算，单文件最多 256,000 字节，三个文件合计最多 512,000 字节。命令还会检查 manifest 结构、TSX 语法、具名函数导出，以及 `en`、`zh`、`ko` 的文案键。
+
+manifest 必须使用 BNB Chain 主网（`56`）或 BSC 测试网（`97`），并填写对应链支持的适配器。原生适配器要求工厂地址与该链的适配器配置完全匹配。通用 `launcher-detail/v1` 支持填写自己已部署的非零 LauncherFactory 地址，检查已声明的 `reads`，并要求仅导出 `Launcher`。原生创建与详情适配器要求导出 `LauncherConfig` 和 `Launcher`。
+
+`--local` 用于独立的 `launcher-local` 源码格式。Workbench 收包时仍会执行完整的源包和源码策略校验，宿主会核验已部署工厂及其兼容性。
 
 ## 预览与发布
 

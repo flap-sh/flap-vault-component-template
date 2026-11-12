@@ -7,7 +7,14 @@ import { failAgent } from "./agent-error.mjs";
 const usage = "yarn launcher:check-source [--local] <source-directory>";
 const requiredFiles = ["Component.tsx", "i18n.json", "manifest.json"];
 const detailConfigContract = "launcher-detail/v1";
-const detailChainIds = new Set([56, 97]);
+const workbenchChainIds = new Set([56, 97]);
+// Keep these public deployment profiles and byte limits aligned with Workbench's Launcher upload validator.
+const workbenchProfiles = [
+  { chainId: 97, configContract: "crowd-native-create/v1", factoryAddress: "0xc574f30e2ee26fe638eece6d9876217015cd0a38" },
+  { chainId: 56, configContract: "agent-raise-create/v1", factoryAddress: "0xce18f9de452c63d806a9c273efa09ed1f80b3ba3" },
+];
+const maxFileBytes = 256_000;
+const maxSourceBytes = 512_000;
 const detailReturnTypes = new Set(["address", "bool", "uint256"]);
 const locales = ["en", "ko", "zh"];
 
@@ -42,6 +49,47 @@ function readJson(directory, filename) {
   }
 }
 
+function checkWorkbenchSourceSize(directory) {
+  let totalBytes = 0;
+  for (const filename of requiredFiles) {
+    let size;
+    try {
+      ({ size } = fs.statSync(path.join(directory, filename)));
+    } catch (error) {
+      fail("unreadable-source", `${filename}: ${error.message}`, `Provide a readable ${filename} and rerun the check.`);
+    }
+    if (size === 0 || size > maxFileBytes) {
+      fail("source-size", `${filename} is ${size} bytes. Workbench requires 1–${maxFileBytes} bytes per Launcher source file.`,
+        `Keep ${filename} non-empty and within ${maxFileBytes} bytes before zipping.`);
+    }
+    totalBytes += size;
+  }
+  if (totalBytes > maxSourceBytes) {
+    fail("source-size", `The three Launcher source files total ${totalBytes} bytes. Workbench allows at most ${maxSourceBytes} bytes.`,
+      `Reduce the combined source size to ${maxSourceBytes} bytes or less before zipping.`);
+  }
+}
+
+function checkWorkbenchProfile({ chainId, configContract, factoryAddress }) {
+  if (!workbenchChainIds.has(chainId)) {
+    fail("unsupported-chain", `Workbench does not support Launcher chain ID ${chainId}.`,
+      "Use the chain ID of your deployed BNB Chain (56) or BSC Testnet (97) Launcher factory.");
+  }
+  if (configContract === detailConfigContract) return;
+
+  const profiles = workbenchProfiles.filter((profile) =>
+    profile.chainId === chainId && profile.configContract === configContract);
+  if (profiles.length === 0) {
+    fail("unsupported-config-contract", `Workbench has no Launcher adapter for ${JSON.stringify(configContract)} on chain ${chainId}.`,
+      "For creation or transaction actions, confirm a supported host adapter with Flap. For read-only detail or a Mini App redirect, use launcher-detail/v1 with only the launcher-ui surface and Launcher export.");
+  }
+  const normalizedFactory = factoryAddress.toLowerCase();
+  if (!profiles.some((profile) => profile.factoryAddress === normalizedFactory)) {
+    fail("factory", `Workbench does not support factory ${factoryAddress} with ${JSON.stringify(configContract)} on chain ${chainId}.`,
+      "Confirm the chain, factory address, and host adapter with Flap before packaging.");
+  }
+}
+
 function main(args) {
   if (args.length === 1 && args[0] === "--help") {
     console.log(usage);
@@ -64,6 +112,7 @@ function main(args) {
     !requiredFiles.every((filename) => entries.some((entry) => entry.name === filename && entry.isFile()))) {
     fail("source-files", "A Launcher source directory requires three regular files.", `Keep exactly ${requiredFiles.join(", ")} in the source directory.`);
   }
+  if (!localOnly) checkWorkbenchSourceSize(directory);
 
   const manifest = readJson(directory, "manifest.json");
   const detailOnly = !localOnly && manifest?.configContract === detailConfigContract;
@@ -89,10 +138,7 @@ function main(args) {
         ? "Use kind launcher-local, the launcher-config and launcher-ui surfaces, entry Component.tsx, and the project's artifact ID, name, chain ID, and factory address."
         : "Use kind launcher-ui, entry Component.tsx, and the project's artifact ID, name, chain ID, factory address, and configuration contract. Use launcher-ui alone for launcher-detail/v1, or launcher-config and launcher-ui for a creation adapter.");
   }
-  if (detailOnly && !detailChainIds.has(manifest.chainId)) {
-    fail("unsupported-chain", "launcher-detail/v1 supports chain IDs 56 and 97.",
-      "Use the chain ID of your deployed BNB Chain or BSC Testnet Launcher factory.");
-  }
+  if (!localOnly) checkWorkbenchProfile(manifest);
   if (hasReads && !validDetailReads(manifest.reads)) {
     fail("reads", "The Launcher detail read declarations are invalid.",
       "Declare up to eight zero-argument reads as { functionName, returns } with address, bool, or uint256 returns.");

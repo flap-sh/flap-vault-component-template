@@ -38,7 +38,7 @@ yarn vault:scaffold my-project-vault --chain 97 \
   --factory '<VaultFactory 地址>' --token '<验收代币地址>'
 ```
 
-Launcher 源码中，`manifest.json` 声明链、工厂和宿主支持的配置协议。`i18n.json` 提供键一致的 `en`、`zh`、`ko` 文案。只读详情通过 `context.snapshot` 接收 manifest 声明的读取结果。工厂配对流程由 Flap 宿主处理代币元数据上传、交易核对及回执。 [只读详情开发说明](README.zh-CN.md#开发只读-launcher-详情) · [BSC 测试网工厂配对 Demo](testnet-example.zh-CN.md#在本地打开示例)
+Launcher 源码中，`manifest.json` 声明链、工厂和宿主适配器。填写 `configContract` 时使用 Flap 的适配器标识，其版本与工厂的链上接口版本独立。`i18n.json` 提供键一致的 `en`、`zh`、`ko` 文案。只读详情用 `launcher-detail/v1` 通过 `context.snapshot` 接收声明的读取结果。使用发行配置或交易操作前，先向 Flap 确认工厂对应的适配器和支持的操作。 [只读详情开发说明](README.zh-CN.md#开发只读-launcher-详情) · [BSC 测试网工厂配对 Demo](testnet-example.zh-CN.md#在本地打开示例)
 
 将 `launcher_source_dir` 设为 Launcher 源码目录，在模板根目录运行。
 
@@ -48,7 +48,9 @@ yarn typecheck
 yarn dev
 ```
 
-`launcher:check-source` 检查源码结构和声明。本地服务可以检查 Vault 布局、语言和账户状态，Launcher 创建、出资、发行等真实交易在 Flap 回传的测试网预览里验证。
+打包前运行默认的 `launcher:check-source`。它校验 BNB Chain 主网（`56`）或 BSC 测试网（`97`）、该链支持的适配器和对应工厂地址。`launcher-detail/v1` 可填写自己已部署的非零工厂地址。压缩前三个源码文件单个最多 256,000 字节，合计最多 512,000 字节。Workbench 收包时仍会执行完整的源包和源码策略校验。 [源码检查说明](README.zh-CN.md#检查-launcher-源码)
+
+本地服务可以检查 Vault 布局、语言和账户状态，Launcher 创建、出资、发行等真实交易在 Flap 回传的测试网预览里验证。
 
 在模板根目录运行 `yarn launcher:check-source examples/launcher-runtime/launcher-detail-demo` 可检查只读详情 Demo。 [详情 Demo 源码](launcher-detail-demo/)
 

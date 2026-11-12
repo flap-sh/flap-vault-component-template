@@ -36,7 +36,7 @@ For a UI that handles creation, confirm the Launcher Factory, any companion Vaul
 
 The detail component reads the host snapshot and calls `host.requestAction` to open review for an available action. The host prepares transactions and verifies receipts. Users confirm transactions in their wallets. A different Launcher mechanism may need different draft fields, state and actions.
 
-The BSC Testnet preview supports the demo Launcher Factory and `crowd-native-create/v1`. For another factory that needs creation or transaction actions, confirm host support with Flap. [Creation and detail demo](testnet-example.md)
+`configContract` identifies a Flap host adapter. Its version is independent of the factory's on-chain interface version. The BSC Testnet preview supports the demo Launcher Factory with `crowd-native-create/v1`. Confirm the host's adapter and supported actions with Flap before adding creation or transaction actions for another factory. [Creation and detail demo](testnet-example.md)
 
 ### Build a read-only Launcher detail
 
@@ -88,9 +88,11 @@ From the Template repository root, set `launcher_source_dir` to your source dire
 yarn launcher:check-source "$launcher_source_dir"
 ~~~
 
-This read-only command checks the three source files `Component.tsx`, `manifest.json` and `i18n.json`. It checks the manifest, TSX syntax, the named function exports and matching non-empty translation dictionaries for `en`, `zh` and `ko`. For `launcher-detail/v1`, it checks `reads` when provided and expects only `Launcher`. For creation and detail, it expects `LauncherConfig` and `Launcher`.
+Before creating the ZIP, run the default check on the three source files `Component.tsx`, `manifest.json` and `i18n.json`. Each file can contain up to 256,000 bytes and the three files can contain up to 512,000 bytes total, measured before compression. The command checks manifest structure, TSX syntax, named exports and matching non-empty translation dictionaries for `en`, `zh` and `ko`.
 
-The check accepts any project with the required source structure and reports its declared `chainId`, `factoryAddress` and `configContract`. The receiving host and Workbench independently verify the actual factory and its compatibility.
+The manifest must use BNB Chain (`56`) or BSC Testnet (`97`) with an adapter supported on that chain. Native adapters require the exact factory address for that adapter and chain. The generic `launcher-detail/v1` adapter accepts your deployed nonzero Launcher Factory address, validates any declared `reads` and expects only `Launcher`. Native creation and detail adapters expect both `LauncherConfig` and `Launcher`.
+
+Use `--local` for the separate `launcher-local` source format. Workbench runs its full package and source policy checks during intake, and the host verifies the deployed factory and its compatibility.
 
 ## Preview and publish
 
