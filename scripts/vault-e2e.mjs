@@ -19,6 +19,8 @@ import {
 } from "./e2e-report-utils.mjs";
 import { failAgent } from "./agent-error.mjs";
 import { runLaunchConfigChecks } from "./launch-config-e2e.mjs";
+import { collectDeclaredFetchUrls } from "./endpoint-declarations.mjs";
+import { isAllowedExternalRead } from "./e2e-external-reads.mjs";
 
 const ROOT = process.cwd();
 const HOST = "127.0.0.1";
@@ -462,7 +464,7 @@ function layoutCheckScript(skipRiskStatus = false) {
   };
 }
 
-async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase, wrongNetwork = false, skipRiskStatus = false, has3D = false, forceNoWebGL2 = false, reducedMotion = false, contextLoss = false, launchConfig = false }) {
+async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase, declaredFetchUrls, wrongNetwork = false, skipRiskStatus = false, has3D = false, forceNoWebGL2 = false, reducedMotion = false, contextLoss = false, launchConfig = false }) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: 1,
@@ -492,15 +494,21 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
     }
   });
   page.on("pageerror", (error) => pageErrors.push(error.message.slice(0, 500)));
-  page.on("request", (request) => {
-    try {
-      const requestUrl = new URL(request.url());
-      const previewUrl = new URL(baseUrl);
-      if (!["data:", "blob:"].includes(requestUrl.protocol) && requestUrl.origin !== previewUrl.origin && !HOST_OWNED_EXTERNAL_ORIGINS.has(requestUrl.origin)) externalRequests.push(request.url());
-    } catch {
-      externalRequests.push(request.url());
-    }
-  });
+  if (has3D) {
+    const previewOrigin = new URL(baseUrl).origin;
+    page.on("request", (request) => {
+      const rawUrl = request.url();
+      try {
+        const requestUrl = new URL(rawUrl);
+        if (["data:", "blob:"].includes(requestUrl.protocol) || requestUrl.origin === previewOrigin ||
+            HOST_OWNED_EXTERNAL_ORIGINS.has(requestUrl.origin) ||
+            isAllowedExternalRead(request, requestUrl, declaredFetchUrls)) return;
+      } catch {
+        // Unparseable URLs still fail the external request check.
+      }
+      externalRequests.push(rawUrl);
+    });
+  }
   const url = buildPreviewUrl(baseUrl, binding, phase, wrongNetwork, launchConfig);
   const issues = [];
   try {
@@ -623,6 +631,7 @@ if (args["launch-config-fixture"]) {
 }
 const skipRiskStatus = manifest.mode === MINI_APP_MODE;
 const has3D = Array.isArray(manifest.capabilities) && manifest.capabilities.includes("three-r3f-v1");
+const declaredFetchUrls = collectDeclaredFetchUrls(manifest);
 let binding;
 try {
   binding = selectE2EBinding(manifest, {
@@ -656,17 +665,17 @@ try {
   );
   for (const viewport of VIEWPORTS) {
     for (const phase of requiredPhases) {
-      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, skipRiskStatus, has3D }));
+      checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase, declaredFetchUrls, skipRiskStatus, has3D }));
     }
-    if (!standalone) checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", wrongNetwork: true, skipRiskStatus, has3D }));
+    if (!standalone) checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "internal-market", declaredFetchUrls, wrongNetwork: true, skipRiskStatus, has3D }));
     if (hasLaunchConfig) {
       checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "launch-config", skipRiskStatus: true, launchConfig: true }));
     }
-    if (has3D) checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "default", skipRiskStatus, has3D, forceNoWebGL2: true }));
+    if (has3D) checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport, phase: "default", declaredFetchUrls, skipRiskStatus, has3D, forceNoWebGL2: true }));
   }
   if (has3D) {
-    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", skipRiskStatus, has3D, reducedMotion: true }));
-    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", skipRiskStatus, has3D, contextLoss: true }));
+    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", declaredFetchUrls, skipRiskStatus, has3D, reducedMotion: true }));
+    checks.push(await runOneCheck({ browser, outDir, baseUrl: server.baseUrl, binding, viewport: VIEWPORTS[0], phase: "default", declaredFetchUrls, skipRiskStatus, has3D, contextLoss: true }));
   }
 } finally {
   if (browser) await browser.close();
