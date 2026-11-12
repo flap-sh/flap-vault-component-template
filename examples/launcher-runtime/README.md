@@ -6,7 +6,7 @@
 
 Pool Launch contracts provide the data for the default UI. At creation, the Portal attempts to read the Launcher's `description()` JSON for the creation event. The Launcher Factory's `launcherDataSchema()` describes its creation inputs. A Vault Factory supplies `vaultDataSchema()` for its configuration, and a Vault supplies `vaultUISchema()` for its user-facing reads and actions. [Build on the Pool Launch protocol](https://docs.utter.cash/en/flap/v2/developers/pool-launch/build-on-pool-launch#2-ui)
 
-A custom Launcher UI has two exports. `LauncherConfig` collects the creation draft. `Launcher` renders verified instance state and requests host review for supported actions. A companion Vault UI is a separate component that uses the Vault SDK. The factories remain separate contracts and each artifact has its own binding.
+A custom Launcher UI can provide creation and detail together, or just the detail page. `LauncherConfig` collects the creation draft for a factory with a supported creation adapter. `Launcher` renders the instance state and can request host review for supported actions when the adapter provides them. A companion Vault UI is a separate component that uses the Vault SDK. The factories remain separate contracts and each artifact has its own binding.
 
 ## Develop a Vault UI
 
@@ -32,11 +32,21 @@ For factory-scoped UI, `manifest.json` declares `chainId` and `factoryAddress` i
 
 ## Integrate a Launcher UI
 
-Confirm the Launcher Factory, any companion Vault Factory, and the receiving host's supported configuration and actions. The host interprets the draft using the configuration contract for the Launcher Factory. The component receives read-only context, sends structured draft values through `onChange`, and uses the host's metadata upload resource when available.
+For a UI that handles creation, confirm the Launcher Factory, any companion Vault Factory, and the receiving host's supported configuration and actions. The host interprets the draft using the configuration contract for the Launcher Factory. The component receives read-only context, sends structured draft values through `onChange`, and uses the host's metadata upload resource when available.
 
 The detail component reads the host snapshot and calls `host.requestAction` to open review for an available action. The host prepares transactions and verifies receipts. Users confirm transactions in their wallets. A different Launcher mechanism may need different draft fields, state and actions.
 
-The current BSC Testnet preview supports the demo Launcher Factory and `crowd-native-create/v1`. For another factory, confirm the host configuration and action support with Flap.
+The BSC Testnet preview supports the demo Launcher Factory and `crowd-native-create/v1`. For another factory that needs creation or transaction actions, confirm host support with Flap. [Creation and detail demo](testnet-example.md)
+
+### Build a read-only Launcher detail
+
+Use `launcher-detail/v1` to display contract data or redirect to a same-site Mini App. Set `chainId` to `97` for BSC Testnet or `56` for BNB Chain mainnet, and set `factoryAddress` to your deployed Launcher Factory on that chain. In `manifest.json`, use `schemaVersion: 2`, `kind: "launcher-ui"`, `entry: "Component.tsx"`, `configContract: "launcher-detail/v1"` and `surfaces: ["launcher-ui"]`. Export one named `Launcher({ context, messages, host })` function in `Component.tsx`. Put messages in `i18n.json` with matching `en`, `zh` and `ko` keys. [Detail demo source](launcher-detail-demo/)
+
+The optional manifest `reads` object maps up to eight keys to no-argument getters on the Launcher instance. For example, `"reads": { "expectedToken": { "functionName": "expectedToken", "returns": "address" } }` puts the reserved token address in `context.snapshot.expectedToken` when that getter succeeds. Use a lowercase letter at the start of each key and letters or digits after it. Each getter can return a single `address`, `bool` or `uint256`. The host supplies addresses as lowercase strings, booleans as booleans and `uint256` values as decimal strings. A failing getter or zero address yields `null` for that field.
+
+The host verifies the Launcher belongs to the manifest's factory before reading it. The artifact-only preview can open without an instance. Render a fallback when `context.launcherAddress` or `context.snapshot` is `null`. This mode provides `host.available: false` and optional `host.redirect`. Use the creation and detail flow above when the Launcher needs native creation or transaction actions.
+
+The demo displays the amount raised, issuance status and the issued token address from a BSC Testnet Launcher. It also shows how to call `host.redirect` from a button that opens `/apps`. When a project uses the reserved token address for automatic routing, declare the getter the project implements and use the redirect example below.
 
 ### Redirect from Launcher details
 
@@ -78,7 +88,7 @@ From the Template repository root, set `launcher_source_dir` to your source dire
 yarn launcher:check-source "$launcher_source_dir"
 ~~~
 
-This read-only command checks the three source files `Component.tsx`, `manifest.json` and `i18n.json`. It checks the manifest shape, TSX syntax, the named `LauncherConfig` and `Launcher` function exports, and matching non-empty translation dictionaries for `en`, `zh` and `ko`.
+This read-only command checks the three source files `Component.tsx`, `manifest.json` and `i18n.json`. It checks the manifest, TSX syntax, the named function exports and matching non-empty translation dictionaries for `en`, `zh` and `ko`. For `launcher-detail/v1`, it checks `reads` when provided and expects only `Launcher`. For creation and detail, it expects `LauncherConfig` and `Launcher`.
 
 The check accepts any project with the required source structure and reports its declared `chainId`, `factoryAddress` and `configContract`. The receiving host and Workbench independently verify the actual factory and its compatibility.
 
@@ -88,10 +98,18 @@ Every Pool Launch UI submission includes a Launcher. The custom Vault UI is opti
 
 | Submission | What to send Flap |
 | --- | --- |
-| Launcher only | ZIP with `Component.tsx`, `manifest.json` and `i18n.json` at its root, plus the testnet Launcher Factory address and test details. |
-| Launcher and custom Vault UI | One handoff ZIP with both source directories, both testnet factory addresses and the Vault acceptance token. Include an existing verified Vault source package if available. |
+| Launcher only | ZIP with `Component.tsx`, `manifest.json` and `i18n.json` at its root, plus the chain, Launcher Factory address and test details. |
+| Launcher creation and detail with custom Vault UI | One handoff ZIP with both source directories, both testnet factory addresses and the Vault acceptance token. Include an existing verified Vault source package if available. |
 
-Workbench builds and publishes the Launcher-only artifact for the supported testnet factory. The main-site preview link uses `artifactPath` to select the version. When the handoff includes a custom Vault UI, Flap prepares the combined source package and shares the Launcher preview with the companion Vault artifact. The selected package determines which UIs Workbench builds. The factory's contract logic determines whether it deploys a Vault on-chain.
+For `launcher-detail/v1`, run `yarn launcher:check-source examples/launcher-runtime/launcher-detail-demo` from the template root to check the demo. After checking your own source, run this command from its directory with a new output filename to put the three files at the ZIP root.
+
+```sh
+zip -X -j ../launcher-detail.zip Component.tsx manifest.json i18n.json
+```
+
+Send the ZIP to Flap for upload, build and publication in Workbench Preview. The main-site detail preview uses `artifactPath` to select the version. Include an existing Launcher address if available so Flap can verify live reads and redirects. On the BSC Testnet preview host, open `/launcher/<launcher-address>?chain=bnb-testnet&kind=launcher-detail&artifactPath=<encoded-artifact-path>` for that same factory. The mainnet chain slug is `bnb`.
+
+Submit any Vault UI that accompanies `launcher-detail/v1` through the ordinary Vault UI workflow as a separate source package. For the creation and detail flow with a companion custom Vault UI, Flap prepares the combined source package and shares both artifact versions. The factory's contract logic determines whether it deploys a Vault on-chain.
 
 Standalone Mini Apps and ordinary Vault UIs follow their own source-package workflows. [Testnet onboarding (中文)](developer-testnet-onboarding.zh-CN.md) · [Mini App guide](../../docs/from-zero-mini-app.md) · [Vault source packages](../../docs/artifact-intake.md)
 

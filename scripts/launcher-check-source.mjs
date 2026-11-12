@@ -6,17 +6,32 @@ import { failAgent } from "./agent-error.mjs";
 
 const usage = "yarn launcher:check-source [--local] <source-directory>";
 const requiredFiles = ["Component.tsx", "i18n.json", "manifest.json"];
-const surfaces = ["launcher-config", "launcher-ui"];
+const detailConfigContract = "launcher-detail/v1";
+const detailChainIds = new Set([56, 97]);
+const detailReturnTypes = new Set(["address", "bool", "uint256"]);
 const locales = ["en", "ko", "zh"];
-const componentNames = ["Launcher", "LauncherConfig"];
 
 function fail(rule, message, fixHint) {
   failAgent({ code: `launcher-source/${rule}`, message, fixHint });
 }
 
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function hasKeys(value, keys) {
-  return value && typeof value === "object" && !Array.isArray(value) &&
+  return isRecord(value) &&
     Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function validDetailReads(reads) {
+  if (!isRecord(reads)) return false;
+  const entries = Object.entries(reads);
+  return entries.length <= 8 && entries.every(([key, read]) =>
+    /^[a-z][a-zA-Z0-9]{0,39}$/.test(key) && key !== "constructor" && key !== "prototype" &&
+    hasKeys(read, ["functionName", "returns"]) &&
+    typeof read.functionName === "string" && /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(read.functionName) &&
+    detailReturnTypes.has(read.returns));
 }
 
 function readJson(directory, filename) {
@@ -51,8 +66,13 @@ function main(args) {
   }
 
   const manifest = readJson(directory, "manifest.json");
+  const detailOnly = !localOnly && manifest?.configContract === detailConfigContract;
+  const hasReads = detailOnly && Object.hasOwn(manifest, "reads");
+  const surfaces = detailOnly ? ["launcher-ui"] : ["launcher-config", "launcher-ui"];
+  const componentNames = detailOnly ? ["Launcher"] : ["Launcher", "LauncherConfig"];
   const manifestKeys = ["schemaVersion", "kind", "artifactId", "name", "chainId", "factoryAddress", "surfaces", "entry"];
   if (!localOnly) manifestKeys.push("configContract");
+  if (hasReads) manifestKeys.push("reads");
   const schemaVersion = localOnly ? 1 : 2;
   const kind = localOnly ? "launcher-local" : "launcher-ui";
   if (!hasKeys(manifest, manifestKeys) ||
@@ -67,7 +87,15 @@ function main(args) {
     fail("manifest", `The Launcher manifest does not match the schema ${schemaVersion} source format.`,
       localOnly
         ? "Use kind launcher-local, the launcher-config and launcher-ui surfaces, entry Component.tsx, and the project's artifact ID, name, chain ID, and factory address."
-        : "Use kind launcher-ui, the launcher-config and launcher-ui surfaces, entry Component.tsx, and the project's artifact ID, name, chain ID, factory address, and configuration contract.");
+        : "Use kind launcher-ui, entry Component.tsx, and the project's artifact ID, name, chain ID, factory address, and configuration contract. Use launcher-ui alone for launcher-detail/v1, or launcher-config and launcher-ui for a creation adapter.");
+  }
+  if (detailOnly && !detailChainIds.has(manifest.chainId)) {
+    fail("unsupported-chain", "launcher-detail/v1 supports chain IDs 56 and 97.",
+      "Use the chain ID of your deployed BNB Chain or BSC Testnet Launcher factory.");
+  }
+  if (hasReads && !validDetailReads(manifest.reads)) {
+    fail("reads", "The Launcher detail read declarations are invalid.",
+      "Declare up to eight zero-argument reads as { functionName, returns } with address, bool, or uint256 returns.");
   }
 
   const translations = readJson(directory, "i18n.json");
@@ -95,8 +123,8 @@ function main(args) {
   if (exported.length !== componentNames.length || !componentNames.every((name) => exported.some((statement) =>
     ts.isFunctionDeclaration(statement) && statement.name?.text === name && statement.body &&
     !ts.getModifiers(statement)?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)))) {
-    fail("exports", "Component.tsx must export LauncherConfig and Launcher as named functions.",
-      "Declare both components with export function and keep other declarations private to the file.");
+    fail("exports", `Component.tsx must export exactly these named functions: ${componentNames.join(", ")}.`,
+      "Declare the required components with export function and keep other declarations private to the file.");
   }
 
   const { artifactId, chainId, factoryAddress, configContract } = manifest;

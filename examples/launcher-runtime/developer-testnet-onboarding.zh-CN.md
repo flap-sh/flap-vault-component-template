@@ -4,6 +4,7 @@
 
 | 场景 | 验收环境 | 当前可用范围 |
 | --- | --- | --- |
+| Launcher 详情 Demo | BSC 测试网 `97` | 用 `launcher-detail/v1` 读取 Launcher 状态，展示详情及站内跳转。 |
 | 工厂配对 Demo | BSC 测试网 `97` | 使用测试网钱包和 tBNB 验证创建、出资、发行及领取。 |
 | Launcher 跳转 Demo | 支持跳转的本地宿主 | 用已验证的测试网 Launcher 数据演示站内跳转。 |
 
@@ -20,12 +21,13 @@ yarn install --frozen-lockfile
 
 已克隆该测试分支的开发者，可以在模板目录运行 `git pull --ff-only` 获取最新文档、检查命令和示例源码。
 
-当前 BSC 测试网预览支持 Demo 的 LauncherFactory 及 `crowd-native-create/v1`。使用自己的测试网合约时，先提供 LauncherFactory 地址、配置字段及操作对应的合约 ABI 或源码链接。有配套 Vault 时，附上 VaultFactory 地址。Flap 会核对测试网宿主是否支持该工厂和发行机制。 [BSC 测试网示例](testnet-example.zh-CN.md)
+BSC 测试网预览支持 `launcher-detail/v1`，也支持工厂配对 Demo 的发行配置和交易操作。详情页使用自己的测试网合约时，提供 LauncherFactory 地址，以及读取方法对应的合约 ABI 或源码链接。项目需要发行配置、交易操作或配套 Vault 时，请一并提供配置字段、操作接口及 VaultFactory 地址（如有），供 Flap 核对宿主支持。 [BSC 测试网工厂配对示例](testnet-example.zh-CN.md)
 
 ## 2. 本地开发
 
 | 界面 | 需要实现的内容 |
 | --- | --- |
+| Launcher 只读详情 | `manifest.json` 声明 `configContract: "launcher-detail/v1"` 和 `surfaces: ["launcher-ui"]`，按需声明 `reads`。在 `Component.tsx` 中具名导出 `Launcher`，并提供 `i18n.json`。 |
 | Launcher 发行配置与详情 | 在 `Component.tsx` 中具名导出 `LauncherConfig` 和 `Launcher`。配置页收集发行参数，详情页展示募资进度和发行状态，通过宿主发起出资、领取和退款。随附 `manifest.json` 和 `i18n.json`。 |
 | 配套 Vault UI（可选） | 在 `Component.tsx` 中通过 Vault SDK 读取绑定的 Vault，展示风险、收益和领取状态。随附 `manifest.json`、`VaultABI.ts` 和 `i18n.json`。 |
 
@@ -36,7 +38,7 @@ yarn vault:scaffold my-project-vault --chain 97 \
   --factory '<VaultFactory 地址>' --token '<验收代币地址>'
 ```
 
-Launcher 源码中，`manifest.json` 声明链、工厂和宿主支持的配置协议。`i18n.json` 提供键一致的 `en`、`zh`、`ko` 文案。Flap 宿主处理代币元数据上传、交易核对及回执。测试网 Demo 提供完整源码位置、配置协议、组件 props、金额基础单位和交易请求示例。 [BSC 测试网 Demo](testnet-example.zh-CN.md#在本地打开示例) · [Pool Launch UI 开发指南](README.zh-CN.md)
+Launcher 源码中，`manifest.json` 声明链、工厂和宿主支持的配置协议。`i18n.json` 提供键一致的 `en`、`zh`、`ko` 文案。只读详情通过 `context.snapshot` 接收 manifest 声明的读取结果。工厂配对流程由 Flap 宿主处理代币元数据上传、交易核对及回执。 [只读详情开发说明](README.zh-CN.md#开发只读-launcher-详情) · [BSC 测试网工厂配对 Demo](testnet-example.zh-CN.md#在本地打开示例)
 
 将 `launcher_source_dir` 设为 Launcher 源码目录，在模板根目录运行。
 
@@ -47,6 +49,8 @@ yarn dev
 ```
 
 `launcher:check-source` 检查源码结构和声明。本地服务可以检查 Vault 布局、语言和账户状态，Launcher 创建、出资、发行等真实交易在 Flap 回传的测试网预览里验证。
+
+在模板根目录运行 `yarn launcher:check-source examples/launcher-runtime/launcher-detail-demo` 可检查只读详情 Demo。 [详情 Demo 源码](launcher-detail-demo/)
 
 ## 3. 在 Launcher 详情中接入站内跳转
 
@@ -72,8 +76,8 @@ yarn launcher:check-source --local examples/launcher-local/launcher-redirect-dem
 
 Pool Launch 交付必须包含 Launcher。按项目是否交付配套自定义 Vault UI，选择对应的 ZIP 格式。
 
-- **仅 Launcher。** ZIP 根目录放 `Component.tsx`、`manifest.json` 和 `i18n.json`，manifest 使用 `schemaVersion: 2` 和 `kind: "launcher-ui"`。Workbench 识别 Launcher 三件套，为已接入的工厂构建并发布 Launcher 产物。
-- **Launcher 与自定义 Vault UI。** 两个源码目录放入同一份交接 ZIP，保留各自的 manifest。Flap 根据源码和验收材料生成 Workbench 所需的正式组合源包，再上传、构建和发布。
+- **仅 Launcher。** ZIP 根目录放 `Component.tsx`、`manifest.json` 和 `i18n.json`，manifest 使用 `schemaVersion: 2` 和 `kind: "launcher-ui"`。`launcher-detail/v1` 使用这份独立 ZIP，配套的 Vault UI 按普通 Vault UI 流程单独提交。Workbench Preview 会校验、构建并发布对应产物。
+- **Launcher 配置与详情及配套自定义 Vault UI。** 两个源码目录放入同一份交接 ZIP，保留各自的 manifest。Flap 根据源码和验收材料生成 Workbench 所需的正式组合源包，再上传、构建和发布。
 
 Launcher 源码单文件上限为 256,000 字节，三个文件合计上限为 512,000 字节，均按解压后的大小计算。 [Launcher ZIP 打包示例](testnet-example.zh-CN.md#打包-launcher-源码)
 
@@ -88,7 +92,11 @@ Launcher 源码单文件上限为 256,000 字节，三个文件合计上限为 5
 
 ## 5. 收到预览后验收
 
-Flap 在 Workbench 构建并发布测试用产物后，会回传指定版本的主站预览链接。仅交付 Launcher 时，链接通过 `artifactPath` 选择 Launcher 版本。交付自定义 Vault UI 时，链接还包含配套的 `vaultArtifactPath`。版本预览可以在链上 UI 绑定前打开，开发者用自己的测试网钱包和 tBNB 签名测试交易。
+Flap 在 Workbench 构建并发布测试用产物后，会回传指定版本的主站预览链接。仅交付 Launcher 时，链接通过 `artifactPath` 选择 Launcher 版本。交付自定义 Vault UI 时，链接还包含配套的 `vaultArtifactPath`。版本预览可以在链上 UI 绑定前打开。
+
+如果交付的是 `launcher-detail/v1`，打开详情预览检查界面。验收链上读取或站内跳转时，使用同一工厂下已有的 Launcher 和对应产物的实例预览链接。带上 `ref` 和 `lang` 验证跳转目标和浏览器返回行为。 [实例预览链接格式](README.zh-CN.md#预览与发布)
+
+如果交付的是发行配置和详情，用测试网钱包和 tBNB 验收以下步骤。
 
 1. 打开创建链接，连接 BSC Testnet 钱包，填写发行配置并确认创建。成功后进入新 Launcher 的详情。
 2. 在详情页出资，核对募资进度。达到目标后检查发行状态及实际部署的代币地址，再打开代币交易页。
