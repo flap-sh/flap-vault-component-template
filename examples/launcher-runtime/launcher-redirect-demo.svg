@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="366" viewBox="0 0 960 366" role="img" aria-labelledby="title description" xml:lang="en">
+  <title id="title">Launcher redirect flow</title>
+  <desc id="description">Open a Launcher from Launch Pages or a shared link. The Launcher reads the reserved token address and calls host.redirect to open a Mini App project page on the same site. The host preserves ref and lang and replaces the Launcher history entry, so Browser Back returns to the entry page.</desc>
+
+  <defs>
+    <marker id="arrow-forward" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="m2 1 5 4-5 4" fill="none" stroke="#d1ff00" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-back" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="m2 1 5 4-5 4" fill="none" stroke="#9cd8ff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <style>
+    text { font-family: Inter, system-ui, sans-serif; }
+    .heading { fill: #f6f8f7; font-size: 28px; font-weight: 700; }
+    .label { fill: #f6f8f7; font-size: 21px; font-weight: 650; }
+    .body { fill: #bac3bf; font-size: 17px; }
+    .code { fill: #d1ff00; font: 16px "IBM Plex Mono", ui-monospace, monospace; }
+    .card { fill: #141817; stroke: #454e49; }
+    .focus { fill: #232e17; stroke: #d1ff00; stroke-width: 2.5; opacity: 0; }
+    .track { fill: none; stroke: #737f6c; stroke-width: 2; }
+    .return-track { fill: none; stroke: #6d91a6; stroke-width: 2; stroke-dasharray: 6 6; }
+    .trace {
+      fill: none;
+      stroke: #d1ff00;
+      stroke-width: 7;
+      stroke-linecap: round;
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      opacity: 0;
+    }
+    .entry-focus { animation: entry-focus 8s linear infinite; }
+    .launcher-focus { animation: launcher-focus 8s linear infinite; }
+    .app-focus { animation: app-focus 8s linear infinite; }
+    .entry-trace { animation: enter 8s linear infinite; }
+    .redirect-trace { animation: redirect 8s linear infinite; }
+    .back-trace {
+      stroke: #9cd8ff;
+      animation: back 8s linear infinite;
+    }
+
+    @keyframes entry-focus {
+      0%, 14%, 94%, 100% { opacity: 1; }
+      22%, 89% { opacity: 0; }
+    }
+    @keyframes launcher-focus {
+      0%, 24%, 54%, 100% { opacity: 0; }
+      32%, 47% { opacity: 1; }
+    }
+    @keyframes app-focus {
+      0%, 51%, 82%, 100% { opacity: 0; }
+      59%, 74% { opacity: 1; }
+    }
+    @keyframes enter {
+      0%, 14% { opacity: 0; stroke-dashoffset: 1; }
+      17% { opacity: 1; stroke-dashoffset: 0.85; }
+      28%, 31% { opacity: 1; stroke-dashoffset: 0; }
+      36%, 100% { opacity: 0; stroke-dashoffset: 0; }
+    }
+    @keyframes redirect {
+      0%, 43% { opacity: 0; stroke-dashoffset: 1; }
+      46% { opacity: 1; stroke-dashoffset: 0.85; }
+      56%, 59% { opacity: 1; stroke-dashoffset: 0; }
+      64%, 100% { opacity: 0; stroke-dashoffset: 0; }
+    }
+    @keyframes back {
+      0%, 73% { opacity: 0; stroke-dashoffset: 1; }
+      76% { opacity: 1; stroke-dashoffset: 0.85; }
+      92%, 95% { opacity: 1; stroke-dashoffset: 0; }
+      100% { opacity: 0; stroke-dashoffset: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .focus, .trace { animation: none; }
+    }
+  </style>
+
+  <rect x="1" y="1" width="958" height="364" rx="18" fill="#0b0e0d" stroke="#2e3732"/>
+  <rect x="36" y="31" width="4" height="23" rx="2" fill="#d1ff00"/>
+  <text x="52" y="52" class="heading">Launcher redirect flow</text>
+  <text x="36" y="83" class="body">Open a Mini App project page on the same site.</text>
+
+  <rect x="36" y="113" width="252" height="126" rx="12" class="card"/>
+  <rect x="36" y="113" width="252" height="126" rx="12" class="focus entry-focus"/>
+  <text x="54" y="147" class="label">Entry page</text>
+  <text x="54" y="178" class="body">Launch Pages or shared link</text>
+  <text x="54" y="211" class="code">ref · lang</text>
+
+  <rect x="354" y="113" width="252" height="126" rx="12" class="card"/>
+  <rect x="354" y="113" width="252" height="126" rx="12" class="focus launcher-focus"/>
+  <text x="372" y="147" class="label">Launcher details</text>
+  <text x="372" y="178" class="body">Read reserved token address</text>
+  <text x="372" y="211" class="code">host.redirect(path)</text>
+
+  <rect x="672" y="113" width="252" height="126" rx="12" class="card"/>
+  <rect x="672" y="113" width="252" height="126" rx="12" class="focus app-focus"/>
+  <text x="690" y="147" class="label">Mini App project</text>
+  <text x="690" y="178" class="body">Open the project route</text>
+  <text x="690" y="211" class="body">Keep <tspan class="code">ref</tspan> and <tspan class="code">lang</tspan></text>
+
+  <path d="M297 176h46" class="track" marker-end="url(#arrow-forward)"/>
+  <path d="M615 176h46" class="track" marker-end="url(#arrow-forward)"/>
+  <path d="M297 176h46" pathLength="1" class="trace entry-trace"/>
+  <path d="M615 176h46" pathLength="1" class="trace redirect-trace"/>
+
+  <path d="M798 250v20q0 16-16 16H178q-16 0-16-16v-20" class="return-track" marker-end="url(#arrow-back)"/>
+  <path d="M798 250v20q0 16-16 16H178q-16 0-16-16v-20" pathLength="1" class="trace back-trace"/>
+  <text x="480" y="322" class="label" text-anchor="middle">Browser Back</text>
+  <text x="480" y="346" class="body" text-anchor="middle">Returns to the entry page because the host replaced the Launcher history entry.</text>
+</svg>

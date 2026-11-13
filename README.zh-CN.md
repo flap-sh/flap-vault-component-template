@@ -1,5 +1,7 @@
 # Flap Vault UI Template
 
+接入建池发行（Pool Launch）时，先选独立 Mini App、带创建界面的可复用 Launcher 工厂，或通过脚本创建的一次性 Launcher。[选择接入场景](examples/launcher-runtime/README.zh-CN.md#选择创建流程) · [测试网接入与交付](examples/launcher-runtime/developer-testnet-onboarding.zh-CN.md) · [BSC 测试网示例](examples/launcher-runtime/testnet-example.zh-CN.md)
+
 **已发布并核验（2026-11-10 15:18:28，北京时间）。** npm `latest` 为 `@flapsdk/vault-runtime@0.1.42`，来源为 [PR #49](https://github.com/flap-sh/flap-vault-component-template/pull/49) 合并后的干净官方 `main` 源码 `686934578ec40aec418484e7c1dac1f6782d598e`。本版放行精确 BSC 测试网 FSI 查询前缀，保持 SDK 签名、runtime contract version 1 及现有主网路由兼容。公开下载包共 544,455 字节，与已核验发布包逐字一致。`next=0.1.40-next.4`、`routing=0.1.40-beta.routing.0` 未变。消费者 runtime、校验器升级及部署仍待完成。见[已核验发布记录](./docs/releases/0.1.42.zh-CN.md)。
 
 **开发先读：**[Vault UI / Mini App v2 与代码复用](./docs/development.zh-CN.md) · [v2 从零开发](./docs/from-zero-mini-app.zh-CN.md)。

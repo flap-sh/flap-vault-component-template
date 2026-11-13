@@ -1,0 +1,41 @@
+{
+  "en": {
+    "title": "Launcher Detail Demo",
+    "noInstance": "Open a Launcher from this factory to see its on-chain details.",
+    "launcherAddress": "Launcher address",
+    "issuance": "Token issuance",
+    "launched": "Issued",
+    "pending": "Pending",
+    "unknown": "Unavailable",
+    "raised": "Funds raised",
+    "tokenAddress": "Issued token address",
+    "openApps": "Open Apps",
+    "redirectUnavailable": "Apps could not be opened from this page."
+  },
+  "zh": {
+    "title": "Launcher 详情示例",
+    "noInstance": "打开此工厂创建的 Launcher，即可查看链上详情。",
+    "launcherAddress": "Launcher 地址",
+    "issuance": "发行状态",
+    "launched": "已发行",
+    "pending": "待发行",
+    "unknown": "暂无数据",
+    "raised": "已募集金额",
+    "tokenAddress": "已发行代币地址",
+    "openApps": "打开小程序列表",
+    "redirectUnavailable": "当前页面无法打开小程序列表。"
+  },
+  "ko": {
+    "title": "Launcher 상세 데모",
+    "noInstance": "이 팩토리에서 생성한 Launcher를 열어 온체인 정보를 확인하세요.",
+    "launcherAddress": "Launcher 주소",
+    "issuance": "토큰 발행 상태",
+    "launched": "발행됨",
+    "pending": "발행 대기 중",
+    "unknown": "정보 없음",
+    "raised": "모금액",
+    "tokenAddress": "발행된 토큰 주소",
+    "openApps": "앱 목록 열기",
+    "redirectUnavailable": "이 페이지에서 앱 목록을 열 수 없습니다."
+  }
+}

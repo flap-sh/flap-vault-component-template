@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "kind": "launcher-ui",
+  "artifactId": "launcher-detail-demo",
+  "name": "Launcher Detail Demo",
+  "chainId": 97,
+  "factoryAddress": "0xc574f30e2ee26fe638eece6d9876217015cd0a38",
+  "configContract": "launcher-detail/v1",
+  "surfaces": ["launcher-ui"],
+  "entry": "Component.tsx",
+  "reads": {
+    "launched": { "functionName": "launched", "returns": "bool" },
+    "raisedWei": { "functionName": "raised", "returns": "uint256" },
+    "tokenAddress": { "functionName": "token", "returns": "address" }
+  }
+}

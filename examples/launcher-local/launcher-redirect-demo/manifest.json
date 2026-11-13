@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "launcher-local",
+  "artifactId": "launcher-redirect-demo-v1",
+  "name": "Launcher Redirect Demo",
+  "chainId": 97,
+  "factoryAddress": "0xc574f30e2ee26fe638eece6d9876217015cd0a38",
+  "surfaces": ["launcher-config", "launcher-ui"],
+  "entry": "Component.tsx"
+}

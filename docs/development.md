@@ -6,6 +6,8 @@ Flap provides one template repository, one `@flapsdk/vault-runtime` package, sha
 
 ## Choose the integration model first
 
+For Pool Launch, first decide who creates the Launcher and where users participate. [Choose a Pool Launch integration](../examples/launcher-runtime/README.md#choose-a-creation-flow)
+
 | | Vault UI | Mini App v2 |
 | --- | --- | --- |
 | Purpose | A token's Vault business panel | An independent Flap App, possibly covering many tokens |
