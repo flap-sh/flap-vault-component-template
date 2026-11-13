@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 2,
+  "kind": "launcher-ui",
+  "artifactId": "green-presale-launcher",
+  "name": "Green Public Presale",
+  "chainId": 97,
+  "factoryAddress": "0x73db8da6f72f6300c584c506edb652fb903b975c",
+  "configContract": "launcher-config-preview/v1",
+  "surfaces": [
+    "launcher-config",
+    "launcher-ui"
+  ],
+  "entry": "Component.tsx",
+  "reads": {
+    "raised": {
+      "functionName": "raised",
+      "returns": "uint256"
+    },
+    "cap": {
+      "functionName": "presaleCap",
+      "returns": "uint256"
+    },
+    "launched": {
+      "functionName": "launched",
+      "returns": "bool"
+    },
+    "launchedToken": {
+      "functionName": "launchedToken",
+      "returns": "address"
+    },
+    "predictedToken": {
+      "functionName": "predictedToken",
+      "returns": "address"
+    },
+    "startAt": {
+      "functionName": "startAt",
+      "returns": "uint256"
+    },
+    "endAt": {
+      "functionName": "endAt",
+      "returns": "uint256"
+    },
+    "creator": {
+      "functionName": "creator",
+      "returns": "address"
+    },
+    "paidGross": {
+      "functionName": "paidGross",
+      "returns": "uint256",
+      "account": true
+    },
+    "shares": {
+      "functionName": "shares",
+      "returns": "uint256",
+      "account": true
+    },
+    "claimed": {
+      "functionName": "claimed",
+      "returns": "uint256",
+      "account": true
+    },
+    "refunded": {
+      "functionName": "refunded",
+      "returns": "uint256",
+      "account": true
+    },
+    "status": {
+      "functionName": "status",
+      "returns": "uint256"
+    },
+    "remaining": {
+      "functionName": "remaining",
+      "returns": "uint256"
+    },
+    "whitelistEnabled": {
+      "functionName": "whitelistEnabled",
+      "returns": "bool"
+    }
+  },
+  "transactions": {
+    "create": true,
+    "actions": {
+      "contribute": "payable",
+      "claim": "nonpayable",
+      "refund": "nonpayable",
+      "cancel": "nonpayable"
+    }
+  }
+}

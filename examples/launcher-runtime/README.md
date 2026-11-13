@@ -2,11 +2,25 @@
 
 [Developer handoff (简体中文)](developer-testnet-onboarding.zh-CN.md) · [简体中文](README.zh-CN.md)
 
+## Choose a creation flow
+
+Decide where users will participate and who creates the Launcher.
+
+| Integration | What to build |
+| --- | --- |
+| **Standalone Mini App v2** | Implement the applicable creation, participation, claim, and refund flows at `/apps/<slug>` or an app subroute. To accept traffic from Flap Launch Pages, shared links, or other Launcher entries, also submit a lightweight `Launcher` detail component. It can display launch status or automatically redirect once it resolves the project in the Mini App. Users complete the actions in the app. [Mini App guide](../../docs/from-zero-mini-app.md) · [Automatic redirect](#redirect-from-launcher-details) |
+| **Reusable Launcher Factory for users** | If users will enter the factory address on Flap to configure and create their own Launchers, build `LauncherConfig` and `Launcher`. The creation component handles inputs, review, and confirmation. The detail component shows progress and issuance and provides the participation actions supported by the contract. Add a companion Vault UI if the token needs a custom Vault panel for revenue, claims, or other Vault operations. [Creation and detail](#preview-a-creation-form-and-detail) · [Vault UI](#develop-a-vault-ui) |
+| **One-off Launcher created by the project** | Use the project's authorized wallet to run a script that encodes the factory configuration and calls `Portal.newLauncher` on testnet. The user-facing entry only needs the `Launcher` detail component. Implement participation or minting, post-launch claims, and refunds as supported by the deployed contract. If an existing Mini App handles these actions, the detail component can send users there. [Detail integration](#build-a-read-only-launcher-detail) · [Test detail actions](#test-creation-and-participation-with-a-wallet) |
+
+A Vault UI renders Vault data and operations on the token's tax-info page. Use the Vault UI workflow when building just that panel. Package the Mini App and its optional Launcher entry separately. Test transactions initiated from Launcher pages in a BSC Testnet Preview that supports the wallet bridge.
+
+After creating a Launcher by script, share the chain, Launcher Factory address, and real testnet Launcher address with Flap so it can verify detail, redirects, and participation.
+
 ## UI
 
 Pool Launch contracts provide the data for the default UI. At creation, the Portal attempts to read the Launcher's `description()` JSON for the creation event. The Launcher Factory's `launcherDataSchema()` describes its creation inputs. A Vault Factory supplies `vaultDataSchema()` for its configuration, and a Vault supplies `vaultUISchema()` for its user-facing reads and actions. [Build on the Pool Launch protocol](https://docs.utter.cash/en/flap/v2/developers/pool-launch/build-on-pool-launch#2-ui)
 
-A custom Launcher UI can provide creation and detail together, or just the detail page. `LauncherConfig` collects the creation draft for a factory with a supported creation adapter. `Launcher` renders the instance state and can request host review for supported actions when the adapter provides them. A companion Vault UI is a separate component that uses the Vault SDK. The factories remain separate contracts and each artifact has its own binding.
+A custom Launcher UI can provide creation and detail together, or just the detail page. `LauncherConfig` renders the project's creation form and review. `Launcher` renders the instance state. A companion Vault UI is a separate component that uses the Vault SDK. The factories remain separate contracts and each artifact has its own binding.
 
 ## Develop a Vault UI
 
@@ -32,11 +46,11 @@ For factory-scoped UI, `manifest.json` declares `chainId` and `factoryAddress` i
 
 ## Integrate a Launcher UI
 
-For a UI that handles creation, confirm the Launcher Factory, any companion Vault Factory, and the receiving host's supported configuration and actions. The host interprets the draft using the configuration contract for the Launcher Factory. The component receives read-only context, sends structured draft values through `onChange`, and uses the host's metadata upload resource when available.
+For a custom creation form, confirm the Launcher Factory and any companion Vault Factory. Implement the form and review inside your component. The paired testnet demo uses the `crowd-native-create/v1` adapter with its own metadata upload and transaction preparation flow.
 
-The detail component reads the host snapshot and calls `host.requestAction` to open review for an available action. The host prepares transactions and verifies receipts. Users confirm transactions in their wallets. A different Launcher mechanism may need different draft fields, state and actions.
+The paired demo's detail component reads the host snapshot and calls `host.requestAction` for a supported action. The adapter prepares transactions and verifies receipts. Users confirm transactions in their wallets.
 
-`configContract` identifies a Flap host adapter. Its version is independent of the factory's on-chain interface version. The BSC Testnet preview supports the demo Launcher Factory with `crowd-native-create/v1`. Confirm the host's adapter and supported actions with Flap before adding creation or transaction actions for another factory. [Creation and detail demo](testnet-example.md)
+`configContract` identifies the Flap integration protocol. Its version is independent of the factory's on-chain interface version. [Paired creation and detail demo](testnet-example.md)
 
 ### Build a read-only Launcher detail
 
@@ -44,7 +58,7 @@ Use `launcher-detail/v1` to display contract data or redirect to a same-site Min
 
 The optional manifest `reads` object maps up to eight keys to no-argument getters on the Launcher instance. For example, `"reads": { "expectedToken": { "functionName": "expectedToken", "returns": "address" } }` puts the reserved token address in `context.snapshot.expectedToken` when that getter succeeds. Use a lowercase letter at the start of each key and letters or digits after it. Each getter can return a single `address`, `bool` or `uint256`. The host supplies addresses as lowercase strings, booleans as booleans and `uint256` values as decimal strings. A failing getter or zero address yields `null` for that field.
 
-The host verifies the Launcher belongs to the manifest's factory before reading it. The artifact-only preview can open without an instance. Render a fallback when `context.launcherAddress` or `context.snapshot` is `null`. This mode provides `host.available: false` and optional `host.redirect`. Use the creation and detail flow above when the Launcher needs native creation or transaction actions.
+The host verifies the Launcher belongs to the manifest's factory before reading it. The artifact-only preview can open without an instance. Render a fallback when `context.launcherAddress` or `context.snapshot` is `null`. With no transaction declaration, the detail provides `host.available: false` and optional `host.redirect`.
 
 The demo displays the amount raised, issuance status and the issued token address from a BSC Testnet Launcher. It also shows how to call `host.redirect` from a button that opens `/apps`. When a project uses the reserved token address for automatic routing, declare the getter the project implements and use the redirect example below.
 
@@ -52,11 +66,42 @@ The demo displays the amount raised, issuance status and the issued token addres
 
 Use `launcher-config-preview/v1` to deliver a custom creation form and Launcher detail in one ZIP. Follow the detail manifest format and set `configContract: "launcher-config-preview/v1"` and `surfaces: ["launcher-config", "launcher-ui"]`. Use the Flap preview protocol identifier in `configContract`. An on-chain interface version triggers `launcher-runtime/unsupported-config-contract`. Set `factoryAddress` to your deployed Launcher Factory on the selected chain and declare detail `reads` as needed.
 
-Export `LauncherConfig({ context, messages, onChange })` and `Launcher({ context, messages, host })` as named functions in `Component.tsx`. The creation preview supplies `context.previewOnly: true` and discards drafts sent through `onChange`. You can display locked values or demonstrate form interactions. To enable live creation, confirm the host flow with Flap, verify the configuration encoding and factory checks, and simulate the transaction.
+Export `LauncherConfig({ context, messages, host })` and `Launcher({ context, messages, host })` as named functions in `Component.tsx`. At `/create/launcher`, the Flap host renders `LauncherConfig` and supplies read-only context. `context.previewOnly` is true for a published artifact preview and false for a registered factory. Implement the **Review creation** button and review screen in your component. The host provides a no-op `onChange` callback for compatibility with existing packages.
 
-Use named React imports and inline JSX styles. Workbench rejects `<style>` tags, `window.location`, `new URL()` and `new Intl.DateTimeFormat()`. Use `host.redirect()` from the detail component for same-site navigation. You can inspect the UI with `artifactPath` alone. To verify automatic redirects, provide a real Launcher from the declared chain and factory and resolve the destination from verified data.
+For a project with a deployed Mini App, call the optional `host?.redirect?.("/apps/<app-slug>/create")` from your continuation button after review. Use the project's actual same-site route. Browser Back returns to the Launcher creation page after this button-driven handoff. A `true` return means the host accepted the navigation. Show a fallback when the callback is absent or returns `false`. In the Mini App, implement your factory's validation, configuration encoding, transaction review and receipt handling. Use the Mini App wallet SDK for wallet connection and transaction submission. [Mini App developer guide](../../docs/from-zero-mini-app.md)
+
+Use named React imports and inline JSX styles. Workbench rejects `<style>` tags, `window.location`, `new URL()` and `new Intl.DateTimeFormat()`. Both components can use `host.redirect()` for same-site navigation. You can inspect the UI with `artifactPath` alone. To verify automatic detail redirects, provide a real Launcher from the declared chain and factory and resolve the destination from verified data.
 
 Send Flap the three-file ZIP. Once Flap builds and publishes it in Workbench, the job provides separate creation and detail preview links. [Source checks and ZIP handoff](#check-your-launcher-source)
+
+### Test creation and participation with a wallet
+
+The generic wallet bridge is available for approved artifacts on the Flap BSC Testnet Preview. Connect a wallet on chain `97` before confirming a transaction. Your components own the buttons, input validation, review and transaction states. Use the host's wallet bridge for signing and submission. Direct browser or wallet provider access is blocked.
+
+Packages that use `transactions` or an account-scoped read (`reads.*.account: true`) require a Workbench Preview that accepts those declarations and a Flap Preview with the wallet bridge enabled. An older Workbench may return `launcher-runtime/manifest`. Retry the same ZIP on the updated Workbench Preview with its manifest declarations intact.
+
+Declare the operations supported by the deployed contracts. A detail-only `launcher-detail/v1` package declares only `transactions.actions`, for example when the project creates the Launcher by script and the detail component handles participation. The following manifest fragment enables transactions on both surfaces.
+
+```json
+{
+  "transactions": {
+    "create": true,
+    "actions": {
+      "contribute": "payable",
+      "claim": "nonpayable"
+    }
+  },
+  "reads": {
+    "shares": { "functionName": "shares", "returns": "uint256", "account": true }
+  }
+}
+```
+
+- `create: true` enables creation helpers on `launcher-config-preview/v1`. Use `host.quote()` to read the factory's creation fee and `host.findSalt()` if your configuration uses a salt for a tax token address. Use `host.encode` with your factory's actual ABI parameter definitions and values, including tuple components where needed. From the user's confirmation click, call `host.submit({ kind: "create", configuration, valueWei })`. The host wraps the encoded configuration in the Portal call for the manifest's factory.
+- `actions` supports up to eight exact zero-argument method names on a verified Launcher instance. Declare each as `payable` or `nonpayable` to match the deployed contract. From the user's confirmation click, call `host.submit({ kind: "action", action, valueWei })` with a declared method name. Amounts are in wei. Omit `valueWei` when sending no native currency.
+- `account: true` declares a getter with one `address` input. The host supplies the connected wallet address. Read the result from `context.snapshot`. Account reads are `null` when the wallet is disconnected or the read fails. A transaction-enabled manifest can declare up to sixteen reads.
+
+The submission returns a transaction hash and a status of `success`, `pending`, `reverted` or `unverified`. Keep the hash and use `host.checkReceipt(hash)` to recheck a pending or unverified result. After creation succeeds with a verified `launcherAddress`, use `host.openLauncher(launcherAddress)`. Test participation on a detail page opened with a real testnet Launcher address from the declared factory. [Testnet wallet example source](green-presale-launcher/)
 
 ### Redirect from Launcher details
 
@@ -102,13 +147,13 @@ Before creating the ZIP, run the default check on the three source files `Compon
 
 The manifest must use BNB Chain (`56`) or BSC Testnet (`97`) with an adapter supported on that chain. Native adapters require the exact factory address for that adapter and chain. The generic `launcher-detail/v1` adapter accepts your deployed nonzero Launcher Factory address, validates any declared `reads` and expects only `Launcher`.
 
-For `launcher-config-preview/v1`, the checker accepts a custom factory on the same two chains and requires both surfaces, both named exports and valid optional `reads`.
+For `launcher-config-preview/v1`, the checker accepts a custom factory on the same two chains and requires both surfaces, both named exports and valid optional `reads` and `transactions`. A package that omits `transactions` retains read-only behavior.
 
 Use `--local` for the separate `launcher-local` source format. Workbench runs its full package and source policy checks during intake, and the host verifies the deployed factory and its compatibility.
 
 ## Preview and publish
 
-Every Pool Launch UI submission includes a Launcher. The custom Vault UI is optional.
+Every Launcher UI handoff includes a Launcher component. A companion custom Vault UI is optional. A standalone Mini App uses its own handoff.
 
 | Submission | What to send Flap |
 | --- | --- |

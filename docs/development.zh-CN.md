@@ -6,6 +6,8 @@
 
 ## 先选择要开发的类型
 
+如果项目接入建池发行，先决定谁创建 Launcher，以及用户在哪个页面参与。 [选择 Pool Launch 接入场景](../examples/launcher-runtime/README.zh-CN.md#选择创建流程)
+
 | | Vault UI | Mini App v2 |
 | --- | --- | --- |
 | 用途 | 单个 Token 的 Vault 业务面板 | 独立 Flap App，可覆盖多个 Token |

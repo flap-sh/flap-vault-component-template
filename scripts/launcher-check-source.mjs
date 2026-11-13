@@ -16,6 +16,8 @@ const workbenchProfiles = [
 ];
 const maxFileBytes = 256_000;
 const maxSourceBytes = 512_000;
+const functionName = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+const reservedNames = new Set(["constructor", "prototype", "__proto__"]);
 const detailReturnTypes = new Set(["address", "bool", "uint256"]);
 const locales = ["en", "ko", "zh"];
 
@@ -32,14 +34,28 @@ function hasKeys(value, keys) {
     Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 }
 
-function validDetailReads(reads) {
+function validDetailReads(reads, hasTransactions) {
   if (!isRecord(reads)) return false;
   const entries = Object.entries(reads);
-  return entries.length <= 8 && entries.every(([key, read]) =>
-    /^[a-z][a-zA-Z0-9]{0,39}$/.test(key) && key !== "constructor" && key !== "prototype" &&
-    hasKeys(read, ["functionName", "returns"]) &&
-    typeof read.functionName === "string" && /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(read.functionName) &&
-    detailReturnTypes.has(read.returns));
+  return entries.length <= (hasTransactions ? 16 : 8) && entries.every(([key, read]) => {
+    if (!isRecord(read) || !/^[a-z][a-zA-Z0-9]{0,39}$/.test(key) || reservedNames.has(key)) return false;
+    const accountRead = hasTransactions && Object.hasOwn(read, "account");
+    return hasKeys(read, accountRead ? ["functionName", "returns", "account"] : ["functionName", "returns"]) &&
+      (!accountRead || read.account === true) && typeof read.functionName === "string" &&
+      functionName.test(read.functionName) && detailReturnTypes.has(read.returns);
+  });
+}
+
+function validTransactions(transactions, configPreview) {
+  if (!isRecord(transactions)) return false;
+  const keys = Object.keys(transactions);
+  if (!keys.length || keys.some((key) => key !== "create" && key !== "actions")) return false;
+  if (Object.hasOwn(transactions, "create") && (!configPreview || transactions.create !== true)) return false;
+  if (!Object.hasOwn(transactions, "actions")) return true;
+  if (!isRecord(transactions.actions)) return false;
+  const actions = Object.entries(transactions.actions);
+  return actions.length >= 1 && actions.length <= 8 && actions.every(([name, mutability]) =>
+    functionName.test(name) && !reservedNames.has(name) && (mutability === "payable" || mutability === "nonpayable"));
 }
 
 function readJson(directory, filename) {
@@ -82,7 +98,7 @@ function checkWorkbenchProfile({ chainId, configContract, factoryAddress }) {
     profile.chainId === chainId && profile.configContract === configContract);
   if (profiles.length === 0) {
     fail("unsupported-config-contract", `Workbench has no Launcher adapter for ${JSON.stringify(configContract)} on chain ${chainId}.`,
-      "Use launcher-config-preview/v1 for a read-only creation and detail preview, launcher-detail/v1 for detail only, or confirm a supported transaction adapter with Flap.");
+      "Use launcher-config-preview/v1 for creation and detail, or launcher-detail/v1 for detail only. See the Launcher guide for the testnet wallet bridge.");
   }
   const normalizedFactory = factoryAddress.toLowerCase();
   if (!profiles.some((profile) => profile.factoryAddress === normalizedFactory)) {
@@ -119,11 +135,13 @@ function main(args) {
   const detailOnly = !localOnly && manifest?.configContract === detailConfigContract;
   const configPreview = !localOnly && manifest?.configContract === configPreviewContract;
   const hasReads = (detailOnly || configPreview) && Object.hasOwn(manifest, "reads");
+  const hasTransactions = (detailOnly || configPreview) && Object.hasOwn(manifest, "transactions");
   const surfaces = detailOnly ? ["launcher-ui"] : ["launcher-config", "launcher-ui"];
   const componentNames = detailOnly ? ["Launcher"] : ["Launcher", "LauncherConfig"];
   const manifestKeys = ["schemaVersion", "kind", "artifactId", "name", "chainId", "factoryAddress", "surfaces", "entry"];
   if (!localOnly) manifestKeys.push("configContract");
   if (hasReads) manifestKeys.push("reads");
+  if (hasTransactions) manifestKeys.push("transactions");
   const schemaVersion = localOnly ? 1 : 2;
   const kind = localOnly ? "launcher-local" : "launcher-ui";
   if (!hasKeys(manifest, manifestKeys) ||
@@ -141,9 +159,13 @@ function main(args) {
         : "Use kind launcher-ui, entry Component.tsx, and the project's artifact ID, name, chain ID, factory address, and configuration contract. Use launcher-ui alone for launcher-detail/v1, or launcher-config and launcher-ui for a creation adapter.");
   }
   if (!localOnly) checkWorkbenchProfile(manifest);
-  if (hasReads && !validDetailReads(manifest.reads)) {
+  if (hasTransactions && !validTransactions(manifest.transactions, configPreview)) {
+    fail("transactions", "The Launcher transaction declarations are invalid.",
+      "Use create: true only on launcher-config-preview/v1, or declare one to eight zero-argument actions using payable or nonpayable.");
+  }
+  if (hasReads && !validDetailReads(manifest.reads, hasTransactions)) {
     fail("reads", "The Launcher detail read declarations are invalid.",
-      "Declare up to eight zero-argument reads as { functionName, returns } with address, bool, or uint256 returns.");
+      "Use up to eight zero-argument reads with address, bool, or uint256 returns. With transactions declared, use up to sixteen reads and account: true for a getter that takes one address.");
   }
 
   const translations = readJson(directory, "i18n.json");

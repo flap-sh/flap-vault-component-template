@@ -99,6 +99,35 @@ test("a generic creation preview rejects incomplete surfaces and malformed detai
     "launcher-source/reads");
 });
 
+test("generic Launcher wallet declarations match Workbench's transaction and account-read policy", t => {
+  const actions = { subscribe: "payable", claim: "nonpayable" };
+  const reads = Object.fromEntries(Array.from({ length: 16 }, (_, index) => [
+    "value" + index, { functionName: "_read" + index, returns: "uint256", ...(index === 0 ? { account: true } : {}) },
+  ]));
+  const creation = {
+    ...detailManifest,
+    configContract: "launcher-config-preview/v1",
+    surfaces: ["launcher-config", "launcher-ui"],
+    transactions: { create: true, actions },
+    reads,
+  };
+  assert.equal(checkSource(fixture(t, creation, creationComponent)).ok, true);
+  const detail = { ...detailManifest, transactions: { actions }, reads };
+  assert.equal(checkSource(fixture(t, detail)).ok, true);
+  assert.equal(checkSource(fixture(t, { ...detail, transactions: { create: true, actions } })).code, "launcher-source/transactions");
+  assert.equal(checkSource(fixture(t, { ...crowdManifest, transactions: { create: true } }, creationComponent)).code, "launcher-source/manifest");
+  for (const invalid of [null, {}, { create: false }, { create: true, target: customFactory }, { actions: {} },
+    { actions: { "claim()": "nonpayable" } }, { actions: { claim: "view" } }, { actions: { constructor: "payable" } },
+    { actions: Object.fromEntries(Array.from({ length: 9 }, (_, index) => ["action" + index, "payable"])) }]) {
+    assert.equal(checkSource(fixture(t, { ...creation, transactions: invalid }, creationComponent)).code, "launcher-source/transactions");
+  }
+  assert.equal(checkSource(fixture(t, { ...creation, reads: { ...reads, extra: reads.value1 } }, creationComponent)).code, "launcher-source/reads");
+  assert.equal(checkSource(fixture(t, { ...detailManifest, reads: { value: reads.value0 } })).code, "launcher-source/reads");
+  assert.equal(checkSource(fixture(t, { ...detail, reads: { value: { ...reads.value0, account: false } } })).code, "launcher-source/reads");
+  const ninePublicReads = Object.fromEntries(Object.entries(reads).slice(1, 10));
+  assert.equal(checkSource(fixture(t, { ...detailManifest, reads: ninePublicReads })).code, "launcher-source/reads");
+});
+
 test("a creation adapter unavailable on the chosen chain is rejected", t => {
   const result = checkSource(fixture(t, { ...crowdManifest, chainId: 56 }, creationComponent));
   assert.equal(result.code, "launcher-source/unsupported-config-contract");
