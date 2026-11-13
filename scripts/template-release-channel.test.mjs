@@ -156,6 +156,78 @@ test("stable App ZIPs require the exact published latest identity before submiss
   assert.throws(() => assertPublishedRuntimeIdentity({ ...identity, head: repo.git(["rev-parse", "HEAD"]) }), /matching npm latest runtime/);
 });
 
+function stableLauncherRepository(t) {
+  const repo = previewRepository(t);
+  const publishedPackage = {
+    version: "0.1.42",
+    scripts: { ci: "yarn lint && yarn typecheck", build: "next build" },
+    dependencies: { react: "19.2.0" },
+  };
+  repo.write("package.json", JSON.stringify(publishedPackage));
+  repo.commit("publish stable runtime");
+  const publishedHead = repo.git(["rev-parse", "HEAD"]);
+  const launcherPackage = {
+    ...publishedPackage,
+    scripts: {
+      ...publishedPackage.scripts,
+      ci: `yarn test:launcher-source && ${publishedPackage.scripts.ci}`,
+      "launcher:check-source": "node scripts/launcher-check-source.mjs",
+      "test:launcher-source": "node --test scripts/launcher-check-source.test.mjs",
+    },
+  };
+  return {
+    ...repo,
+    launcherPackage,
+    identity: () => ({
+      root: repo.root,
+      localVersion: publishedPackage.version,
+      publishedVersion: publishedPackage.version,
+      head: repo.git(["rev-parse", "HEAD"]),
+      publishedHead,
+    }),
+  };
+}
+
+test("stable App packaging retains the published identity after the Launcher examples and checks land", (t) => {
+  const repo = stableLauncherRepository(t);
+  repo.write("examples/launcher-local/demo/Component.tsx", "export default () => null;\n");
+  repo.write("examples/launcher-runtime/demo/manifest.json", "{}\n");
+  repo.write("examples/launcher-runtime/launcher-demo.svg", "<svg/>\n");
+  repo.write("package.json", JSON.stringify(repo.launcherPackage));
+  assert.throws(() => assertPublishedRuntimeIdentity(repo.identity()), /Restore local runtime\/tool edits/);
+  repo.commit("add Launcher authoring examples and checks");
+
+  const identity = repo.identity();
+  assert.deepEqual(assertPublishedRuntimeIdentity(identity), {
+    status: "published-runtime-source",
+    templateGitHead: identity.head,
+    runtimePackageGitHead: identity.publishedHead,
+  });
+});
+
+for (const [description, change] of [
+  ["dependency", (manifest) => { manifest.dependencies = { react: "18.3.1" }; }],
+  ["build script", (manifest) => { manifest.scripts.build = "node other-build.mjs"; }],
+  ["Launcher command", (manifest) => { manifest.scripts["test:launcher-source"] = "node other-test.mjs"; }],
+  ["CI steps", (manifest) => { manifest.scripts.ci = "yarn test:launcher-source && yarn lint"; }],
+]) {
+  test(`stable Launcher authoring changes cannot hide a changed ${description}`, (t) => {
+    const repo = stableLauncherRepository(t);
+    change(repo.launcherPackage);
+    repo.write("package.json", JSON.stringify(repo.launcherPackage));
+    repo.commit(`also change ${description}`);
+    assert.throws(() => assertPublishedRuntimeIdentity(repo.identity()), /matching npm latest runtime.*package\.json/);
+  });
+}
+
+test("the Launcher exception excludes declarations and other example directories", (t) => {
+  const repo = stableLauncherRepository(t);
+  repo.write("examples/launcher-runtime/global.d.ts", "declare const example: string;\n");
+  repo.write("examples/other/demo/Component.tsx", "export default () => null;\n");
+  repo.commit("add files outside the Launcher example boundary");
+  assert.throws(() => assertPublishedRuntimeIdentity(repo.identity()), /examples\/launcher-runtime\/global\.d\.ts, examples\/other\/demo\/Component\.tsx/);
+});
+
 test("routing requires explicit separate App/runtime workflows and the official ref", (t) => {
   const env = { FLAP_TEMPLATE_CHANNEL: "routing", FLAP_TEMPLATE_WORKFLOW: "runtime" };
   assert.deepEqual(templateReleasePolicy(env), { channel: "routing", npmTag: "routing", officialRef: "origin/feat/mini-app-routing", packageName: "@flapsdk/vault-runtime" });

@@ -90,6 +90,12 @@ const PUBLISHED_PROTOCOL_SCRIPTS = new Set([
   "scripts/standalone-app.mjs",
 ]);
 
+const LAUNCHER_EXAMPLE_FILE = /^examples\/launcher-(?:local|runtime)\/(?:[^/]+\/)*(?:Component\.tsx|manifest\.json|i18n\.json|[^/]+\.(?:md|svg))$/;
+const LAUNCHER_AUTHORING_SCRIPTS = {
+  "launcher:check-source": "node scripts/launcher-check-source.mjs",
+  "test:launcher-source": "node --test scripts/launcher-check-source.test.mjs",
+};
+
 function isDocumentation(file) {
   return file.startsWith("docs/") || file.startsWith("skills/") || /^[^/]+\.md$/.test(file)
     || [".cursorrules", ".windsurfrules", ".github/copilot-instructions.md"].includes(file)
@@ -99,6 +105,29 @@ function isDocumentation(file) {
 function isAuthoringOnly(file) {
   return isDocumentation(file) || file === "agent-contract.json" || file.startsWith("src/vaults/")
     || (file.startsWith("scripts/") && !PUBLISHED_PROTOCOL_SCRIPTS.has(file));
+}
+
+function hasOnlyLauncherScriptChanges(git, publishedHead, head) {
+  try {
+    if (git(["diff", "--summary", "--no-renames", publishedHead, head, "--", "package.json"])) return false;
+    const published = JSON.parse(git(["show", `${publishedHead}:package.json`]));
+    const current = JSON.parse(git(["show", `${head}:package.json`]));
+    const publishedCi = published.scripts.ci;
+    if (typeof publishedCi === "string"
+      && current.scripts.ci === `yarn test:launcher-source && ${publishedCi}`
+      && current.scripts["test:launcher-source"] === LAUNCHER_AUTHORING_SCRIPTS["test:launcher-source"]) {
+      current.scripts.ci = publishedCi;
+    }
+    for (const [name, command] of Object.entries(LAUNCHER_AUTHORING_SCRIPTS)) {
+      if (!Object.hasOwn(published.scripts, name) && current.scripts[name] === command) {
+        delete current.scripts[name];
+      }
+    }
+    // Keep the remaining key order, which can affect conditional exports.
+    return JSON.stringify(current) === JSON.stringify(published);
+  } catch {
+    return false;
+  }
 }
 
 export function assertPublishedRuntimeIdentity({ localVersion, publishedVersion, head, publishedHead, root = process.cwd(), channel = "latest" }) {
@@ -117,7 +146,12 @@ export function assertPublishedRuntimeIdentity({ localVersion, publishedVersion,
   }
 
   const committed = files(["diff", "--name-only", "--no-renames", "-z", publishedHead, head, "--"]);
-  const runtimeChanges = committed.filter((file) => !isAuthoringOnly(file));
+  const runtimeChanges = committed.filter((file) => {
+    if (isAuthoringOnly(file)) return false;
+    if (channel !== "latest") return true;
+    if (LAUNCHER_EXAMPLE_FILE.test(file)) return false;
+    return file !== "package.json" || !hasOnlyLauncherScriptChanges(git, publishedHead, head);
+  });
   if (runtimeChanges.length) {
     throw new Error(`Publish a matching npm ${channel} runtime before packaging: runtime source, dependencies, build configuration or package protocol changed (${runtimeChanges.join(", ")}).`);
   }
