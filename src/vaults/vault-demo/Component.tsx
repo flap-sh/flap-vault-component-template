@@ -80,7 +80,7 @@ export default function VaultDemo(_props: VaultComponentProps) {
       if (receipt.status !== "success") { setError(t("errors.reverted")); return; }
       setConfirmed(true);
       sdk.notify.success(t("messages.claimed"));
-      await loadData();
+      await sdk.refetch();
     } catch (nextError) { setError(handleTxError(nextError, messages)); }
     finally { claimLock.current = false; setBusy(false); }
   }
