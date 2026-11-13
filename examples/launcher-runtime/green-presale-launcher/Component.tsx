@@ -522,7 +522,7 @@ export function Launcher({ context, messages: m, host }: DetailProps) {
   const now = BigInt(Math.floor(Date.now() / 1000));
   const closed = snapshot?.status === "2";
   const expired = snapshot?.status === "0" && end !== null && now > end;
-  const live = snapshot?.status === "0" && start !== null && end !== null && now >= start && now <= end;
+  const live = snapshot?.status === "0" && start !== null && end !== null && now >= start && now < end;
   const status = tokenIssued ? m.issued : closed ? m.cancelled
     : expired ? m.ended : live ? m.saleOpen : snapshot?.launched === false ? m.notIssued : m.unknown;
   const canTransact = supportsIdentity(identity) && !!host?.wallet && !!host?.submit;
