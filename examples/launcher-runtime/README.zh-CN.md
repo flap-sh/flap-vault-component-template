@@ -135,13 +135,17 @@ useEffect(() => {
 yarn launcher:check-source "$launcher_source_dir"
 ```
 
-打包前用默认命令检查 `Component.tsx`、`manifest.json` 和 `i18n.json`。按压缩前的字节数计算，单文件最多 256,000 字节，三个文件合计最多 512,000 字节。命令还会检查 manifest 结构、TSX 语法、具名函数导出，以及 `en`、`zh`、`ko` 的文案键。
+检查覆盖 `Component.tsx`、`manifest.json` 和 `i18n.json`。按压缩前的大小计算，单文件最多 256,000 字节，三个文件合计最多 512,000 字节。命令检查 manifest、TSX 语法、具名导出、`en`、`zh`、`ko` 的文案键，以及可在本地执行的 Workbench 源码规则。源码问题会给出文件、行号、列号和修复提示 `fixHint`。
+
+- 遇到 `launcher-preview/source-import` 时，从 `react` 具名导入需要的 Hook。图标可使用不引用资源的内联 SVG 路径。
+- 遇到 `launcher-preview/source-constructor` 时，日期可用 `Intl.DateTimeFormat(locale, options).format(timestamp)` 格式化。跳转时用固定的站内路径和已校验参数拼出目标，再交给 `host.redirect()`。
+- 遇到 `launcher-preview/resource-tag` 或 `launcher-preview/resource-url` 时，移除 `<img>` 等加载资源的标签、内嵌的 `data:` 图片或 CSS `url(...)`。布局和渐变可使用 JSX 内联样式。
 
 manifest 必须使用 BNB Chain 主网（`56`）或 BSC 测试网（`97`），并填写对应链支持的适配器。原生适配器要求工厂地址与该链的适配器配置完全匹配。通用 `launcher-detail/v1` 支持填写自己已部署的非零 LauncherFactory 地址，检查已声明的 `reads`，并要求仅导出 `Launcher`。
 
 `launcher-config-preview/v1` 同样支持这两条链上的项目工厂。检查要求 `launcher-config` 和 `launcher-ui` 两个 surface、对应的两个具名导出，以及有效的可选 `reads` 和 `transactions`。省略 `transactions` 的包保留只读行为。
 
-`--local` 用于独立的 `launcher-local` 源码格式。Workbench 收包时仍会执行完整的源包和源码策略校验，宿主会核验已部署工厂及其兼容性。
+`--local` 用于检查独立的 `launcher-local` 源码格式。Workbench 负责最终的包和源码校验，宿主会核验已部署工厂及其兼容性。
 
 ## 预览与发布
 
@@ -149,14 +153,18 @@ Launcher UI 源包包含 Launcher 组件，配套的自定义 Vault UI 可选。
 
 | 交付方式 | 提交给 Flap 的材料 |
 | --- | --- |
-| 仅 Launcher | ZIP 根目录放 `Component.tsx`、`manifest.json` 和 `i18n.json`，附网络、LauncherFactory 地址和测试说明。 |
+| 仅 Launcher | `yarn launcher:package` 生成的 ZIP，附网络、LauncherFactory 地址和测试说明。 |
 | 工厂配对 Demo 的 Launcher 与 Vault UI | 两个源码目录放进同一份交接 ZIP，附两个测试网工厂地址和 Vault 验收代币。已有已验收的 Vault 源包时，可以一并提供。 |
 
-在模板根目录运行 `yarn launcher:check-source examples/launcher-runtime/launcher-detail-demo` 可以检查详情 Demo。项目源码通过检查后，在它的源码目录用新文件名生成 ZIP，将三个文件直接放在 ZIP 根目录。
+在模板根目录指定项目的 Launcher 源码目录并打包。
 
 ```sh
-zip -X -j ../launcher-ui.zip Component.tsx manifest.json i18n.json
+yarn launcher:package "$launcher_source_dir"
 ```
+
+命令先执行同一套源码检查，通过后生成 `dist/<artifactId>-launcher.zip`。可传入第二个参数，在源码目录之外指定新的 `.zip` 路径。输出已存在时，请换个文件名或移除旧 ZIP 后重跑。ZIP 根目录只包含 `Component.tsx`、`manifest.json` 和 `i18n.json`，源包元数据由 Workbench 收包时生成。可以将源码目录换为 `examples/launcher-runtime/launcher-detail-demo` 试跑详情 Demo。
+
+用其他工具生成的 ZIP 若报 `launcher-preview/zip-entry`，解压这三个源码文件，再用上述命令打包。命令会省略时间戳和 Unix 文件所有者等 ZIP 扩展字段。
 
 把 ZIP 交给 Flap 在 Workbench Preview 上传、构建并发布。主站详情预览通过 `artifactPath` 选择 Launcher 版本。如已有同一工厂下的 Launcher，可一并提供地址，便于核验实际读取和跳转。BSC 测试网在主站预览环境打开 `/launcher/<launcher-address>?chain=bnb-testnet&kind=launcher-detail&artifactPath=<encoded-artifact-path>`。主网使用 `chain=bnb`。
 
