@@ -25,13 +25,13 @@ Vault UI 用于代币税费信息页中的 Vault 面板。它可以单独开发�
 使用 Node.js 22 或以上版本，以及 Yarn Classic 1.22.22。
 
 ```sh
-git clone --branch test/pool-launch-developer-preview --single-branch \
+git clone --branch main \
   https://github.com/flap-sh/flap-vault-component-template.git
 cd flap-vault-component-template
 yarn install --frozen-lockfile
 ```
 
-已克隆该测试分支的开发者，可以在模板目录运行 `git pull --ff-only` 获取最新文档、检查命令和示例源码。
+已在官方 `main` 开发时，可运行 `git pull --ff-only` 更新模板。此前使用 `test/pool-launch-developer-preview` 时，请把项目的 Launcher 源码目录带到最新的官方 `main` 后再打包。
 
 提交 Launcher UI 时，请提供测试网 LauncherFactory 地址，以及读取方法对应的合约 ABI 或源码链接。需要实际创建、交易操作或配套 Vault 时，也请提供配置字段、操作接口及 VaultFactory 地址（如有），便于 Flap 核对预览环境支持的能力。 [BSC 测试网工厂配对示例](testnet-example.zh-CN.md)
 
@@ -63,7 +63,7 @@ yarn typecheck
 yarn dev
 ```
 
-打包前运行默认的 `launcher:check-source`。它校验 BNB Chain 主网（`56`）或 BSC 测试网（`97`）、该链支持的适配器和对应工厂地址。`launcher-detail/v1` 和 `launcher-config-preview/v1` 可填写自己已部署的非零工厂地址。压缩前三个源码文件单个最多 256,000 字节，合计最多 512,000 字节。Workbench 收包时仍会执行完整的源包和源码策略校验。 [源码检查说明](README.zh-CN.md#检查-launcher-源码)
+默认的 `launcher:check-source` 校验 BNB Chain 主网（`56`）或 BSC 测试网（`97`）、对应的适配器和工厂地址，以及可在本地执行的 Workbench 源码规则。`launcher-detail/v1` 和 `launcher-config-preview/v1` 可填写自己已部署的非零工厂地址。源码问题会给出文件、行号、列号和修复提示。 [源码检查说明](README.zh-CN.md#检查-launcher-源码)
 
 本地服务可以检查 Vault 布局、语言和账户状态。用户通过主站创建的流程在 Flap 回传的测试网预览里验收。项目方通过脚本创建时，先用脚本生成测试网实例，再打开实例详情预览。
 
@@ -93,7 +93,7 @@ yarn launcher:check-source --local examples/launcher-local/launcher-redirect-dem
 
 Launcher UI 交付包含 Launcher 源码。按项目是否交付配套自定义 Vault UI，选择对应的 ZIP 格式。独立 Mini App 按自己的流程打包。
 
-- **独立 Launcher。** ZIP 根目录放 `Component.tsx`、`manifest.json` 和 `i18n.json`，manifest 使用 `schemaVersion: 2` 和 `kind: "launcher-ui"`。`launcher-detail/v1` 和 `launcher-config-preview/v1` 都走此流程，配套 Vault UI 按普通 Vault UI 流程单独提交。Flap 在 Workbench Preview 校验、构建和发布。
+- **独立 Launcher。** 在模板根目录运行 `yarn launcher:package "$launcher_source_dir"`。通过检查后，命令生成 `dist/<artifactId>-launcher.zip`，包含三份根目录源码。manifest 使用 `schemaVersion: 2` 和 `kind: "launcher-ui"`。`launcher-detail/v1` 和 `launcher-config-preview/v1` 都走此流程，配套 Vault UI 按普通 Vault UI 流程单独提交。Flap 在 Workbench Preview 完成最终校验、构建和发布。
 - **工厂配对 Demo 的 Launcher 与 Vault UI。** 两个源码目录放入同一份交接 ZIP，保留各自的 manifest。Flap 根据源码和验收材料生成 Workbench 所需的正式组合源包，再上传、构建和发布。
 
 Launcher 源码单文件上限为 256,000 字节，三个文件合计上限为 512,000 字节，均按解压后的大小计算。 [Launcher ZIP 打包示例](testnet-example.zh-CN.md#打包-launcher-源码)

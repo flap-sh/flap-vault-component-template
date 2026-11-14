@@ -22,10 +22,10 @@
 | `examples/launcher-runtime/launcher-demo/` | `Component.tsx`、`manifest.json`、`i18n.json` |
 | `src/vaults/vault-demo/` | `Component.tsx`、`manifest.json`、`VaultABI.ts`、`i18n.json` |
 
-克隆测试分支并启动开发服务器。示例 Vault 已注册本地预览路由。
+克隆官方 `main` 并启动开发服务器。示例 Vault 已注册本地预览路由。
 
 ```sh
-git clone --branch test/pool-launch-developer-preview --single-branch \
+git clone --branch main \
   https://github.com/flap-sh/flap-vault-component-template.git
 cd flap-vault-component-template
 yarn install --frozen-lockfile
@@ -87,11 +87,13 @@ Launcher manifest 使用 `schemaVersion: 2`、`kind: "launcher-ui"` 和 `configC
 
 ## 打包 Launcher 源码
 
-只验收 Launcher 时，在 Launcher 源码目录运行以下命令，提交 ZIP、网络及 LauncherFactory 地址。请使用尚未创建的输出文件名，确保 ZIP 根目录只有这三个文件。
+只验收 Launcher 时，在模板根目录运行以下命令，提交生成的 ZIP、网络及 LauncherFactory 地址。
 
 ```bash
-zip -X -j ../launcher-demo.zip Component.tsx manifest.json i18n.json
+yarn launcher:package examples/launcher-runtime/launcher-demo
 ```
+
+命令检查源码，通过后生成 `dist/launcher-demo-testnet-v1-launcher.zip`。Workbench 在构建和发布前执行最终校验。 [Launcher 源码检查](README.zh-CN.md#检查-launcher-源码)
 
 ## 编写和交付配套 Vault 组件（可选）
 
