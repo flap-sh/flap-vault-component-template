@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { inflateRawSync } from "node:zlib";
 
 const checker = fileURLToPath(new URL("./launcher-check-source.mjs", import.meta.url));
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -33,9 +34,14 @@ const crowdManifest = {
   surfaces: ["launcher-config", "launcher-ui"],
 };
 
-function fixture(t, manifest, component = detailComponent) {
-  const directory = mkdtempSync(join(tmpdir(), "launcher-check-source-"));
+function temporaryDirectory(t) {
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "launcher-check-source-")));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
+  return directory;
+}
+
+function fixture(t, manifest, component = detailComponent) {
+  const directory = temporaryDirectory(t);
   writeFileSync(join(directory, "Component.tsx"), component);
   writeFileSync(join(directory, "manifest.json"), JSON.stringify(manifest));
   writeFileSync(join(directory, "i18n.json"), JSON.stringify({
@@ -47,13 +53,59 @@ function fixture(t, manifest, component = detailComponent) {
 }
 
 function checkSource(...args) {
-  const result = spawnSync(process.execPath, [checker, ...args], { cwd: root, encoding: "utf8" });
+  return runLauncher(root, ...args);
+}
+
+function runLauncher(cwd, ...args) {
+  const result = spawnSync(process.execPath, [checker, ...args], { cwd, encoding: "utf8" });
   assert.ifError(result.error);
   assert.equal(result.signal, null);
   assert.ok(result.status === 0 || result.status === 1, result.stderr);
   const output = JSON.parse(result.status === 0 ? result.stdout : result.stderr);
   assert.equal(output.ok, result.status === 0);
   return output;
+}
+
+function assertSourceIssue(result, rule, line) {
+  assert.equal(result.ok, false);
+  const issue = result.issues.find(issue => issue.ruleId.endsWith(`/${rule}`));
+  assert.ok(issue, `Expected ${rule} in ${JSON.stringify(result.issues)}`);
+  assert.equal(issue.file, "Component.tsx");
+  assert.equal(issue.line, line);
+  assert.ok(Number.isInteger(issue.column) && issue.column > 0);
+  assert.equal(issue.severity, "blocking");
+  assert.ok(issue.message?.trim());
+  assert.ok(issue.fixHint?.trim());
+  return issue;
+}
+
+function readZipEntries(zip) {
+  const end = zip.length - 22;
+  assert.equal(zip.readUInt32LE(end), 0x06054b50);
+  assert.equal(zip.readUInt16LE(end + 10), 3);
+  assert.equal(zip.readUInt16LE(end + 20), 0);
+  let central = zip.readUInt32LE(end + 16);
+  const entries = new Map();
+  for (let index = 0; index < 3; index += 1) {
+    assert.equal(zip.readUInt32LE(central), 0x02014b50);
+    const method = zip.readUInt16LE(central + 10);
+    const compressedSize = zip.readUInt32LE(central + 20);
+    const nameLength = zip.readUInt16LE(central + 28);
+    assert.equal(zip.readUInt16LE(central + 30), 0, "central directory extra field");
+    assert.equal(zip.readUInt16LE(central + 32), 0, "file comment");
+    const name = zip.toString("utf8", central + 46, central + 46 + nameLength);
+    const local = zip.readUInt32LE(central + 42);
+    assert.equal(zip.readUInt32LE(local), 0x04034b50);
+    assert.equal(zip.readUInt16LE(local + 28), 0, "local header extra field");
+    const data = local + 30 + zip.readUInt16LE(local + 26);
+    assert.equal(zip.toString("utf8", local + 30, data), name);
+    const compressed = zip.subarray(data, data + compressedSize);
+    assert.ok(method === 0 || method === 8);
+    entries.set(name, method === 8 ? inflateRawSync(compressed) : compressed);
+    central += 46 + nameLength;
+  }
+  assert.equal(central, end);
+  return entries;
 }
 
 test("the creation and detail demos pass the source checker", () => {
@@ -171,4 +223,256 @@ test("individually valid source sizes can exceed the combined limit", t => {
   const result = checkSource(directory);
   assert.equal(result.code, "launcher-source/source-size");
   assert.match(result.error, /total/);
+});
+
+test("source checking and packing report both a data URI and its image element", t => {
+  const directory = fixture(t, detailManifest, [
+    'const icon = "data:image/webp;base64,AA==";',
+    "export function Launcher() {",
+    '  return <img src={icon} alt="" />;',
+    "}",
+  ].join("\n"));
+  const output = join(temporaryDirectory(t), "invalid.zip");
+
+  const checked = checkSource(directory);
+  assertSourceIssue(checked, "resource-url", 1);
+  assertSourceIssue(checked, "resource-tag", 3);
+
+  const packed = checkSource("--package", directory, output);
+  assert.deepEqual(packed.issues, checked.issues);
+  assert.equal(existsSync(output), false);
+});
+
+test("source checking reports unsupported imports and constructors", t => {
+  const directory = fixture(t, detailManifest, [
+    'import { formatEther } from "viem";',
+    "export function Launcher() {",
+    "  return String(new Date(0));",
+    "}",
+  ].join("\n"));
+  const result = checkSource(directory);
+  assertSourceIssue(result, "source-import", 1);
+  assert.match(assertSourceIssue(result, "source-constructor", 3).fixHint, /timestamp.*Intl\.DateTimeFormat/);
+});
+
+test("constructor and identifier hints suggest repairs for common Launcher source failures", t => {
+  const result = checkSource(fixture(t, detailManifest, [
+    "export function Launcher() {",
+    '  const request = new Error("Invalid draft");',
+    "  const bytes = new Uint8Array(16);",
+    "  const wait = new Promise(resolve => setTimeout(resolve, 0));",
+    "  return null;",
+    "}",
+  ].join("\n")));
+  assert.equal(result.ok, false);
+  const hints = Object.fromEntries(result.issues.map(issue => [`${issue.ruleId}:${issue.line}`, issue.fixHint]));
+  assert.match(hints["launcher-preview/source-constructor:2"], /Error\(message\)/);
+  assert.match(hints["launcher-preview/source-constructor:3"], /Uint8Array\.from/);
+  assert.match(hints["launcher-preview/source-constructor:4"], /async function/);
+  assert.match(hints["launcher-preview/forbidden-api:2"], /Rename request/);
+  assert.match(hints["launcher-preview/forbidden-api:4"], /microtask/);
+});
+
+test("configuration previews require create permission for host submission", t => {
+  const manifest = {
+    ...detailManifest,
+    configContract: "launcher-config-preview/v1",
+    surfaces: ["launcher-config", "launcher-ui"],
+  };
+  const directory = fixture(t, manifest, [
+    "export function Launcher() { return null; }",
+    "export function LauncherConfig({ host }) {",
+    "  const submit = () => host.submit();",
+    "  return <button onClick={submit}>Create</button>;",
+    "}",
+  ].join("\n"));
+  assertSourceIssue(checkSource(directory), "config-action", 3);
+  writeFileSync(join(directory, "manifest.json"), JSON.stringify({ ...manifest, transactions: { create: true } }));
+  assert.equal(checkSource(directory).ok, true);
+});
+
+test("configuration previews explain how to replace whole-host refs and aliases", t => {
+  const manifest = {
+    ...detailManifest,
+    configContract: "launcher-config-preview/v1",
+    surfaces: ["launcher-config", "launcher-ui"],
+    transactions: { create: true },
+  };
+  const directory = fixture(t, manifest, [
+    'import { useRef } from "react";',
+    "export function Launcher() { return null; }",
+    "export function LauncherConfig({ host }) {",
+    "  const latest = useRef(host);",
+    "  latest.current = host;",
+    "  return null;",
+    "}",
+  ].join("\n"));
+  const result = checkSource(directory);
+  const hostIssues = result.issues.filter(issue => issue.ruleId === "launcher-preview/config-action");
+  assert.deepEqual(hostIssues.map(issue => issue.line), [4, 5]);
+  for (const issue of hostIssues) assert.match(issue.fixHint, /Save or pass only permitted members/);
+  writeFileSync(join(directory, "Component.tsx"), [
+    'import { useRef } from "react";',
+    "export function Launcher() { return null; }",
+    "export function LauncherConfig({ host }) {",
+    "  const submit = useRef(host?.submit);",
+    "  submit.current = host?.submit;",
+    "  return null;",
+    "}",
+  ].join("\n"));
+  assert.equal(checkSource(directory).ok, true);
+});
+
+test("the package command accepts callable date formatting and writes three root entries unchanged", t => {
+  const directory = fixture(t, detailManifest, [
+    "export function Launcher() {",
+    '  const dates = Intl.DateTimeFormat("en-GB", { timeZone: "UTC" });',
+    "  return dates.format(0);",
+    "}",
+  ].join("\n"));
+  const outputDirectory = temporaryDirectory(t);
+  const result = runLauncher(outputDirectory, "--package", directory);
+  const output = join(outputDirectory, "dist", `${detailManifest.artifactId}-launcher.zip`);
+  assert.equal(result.ok, true);
+  assert.equal(result.sourcePackageAbsolutePath, output);
+  const entries = readZipEntries(readFileSync(output));
+  const files = ["Component.tsx", "i18n.json", "manifest.json"];
+  assert.deepEqual([...entries.keys()].sort(), files);
+  for (const file of files) {
+    assert.deepEqual(entries.get(file), readFileSync(join(directory, file)), file);
+  }
+});
+
+test("the package command preserves an existing destination", t => {
+  const directory = fixture(t, detailManifest);
+  const output = join(temporaryDirectory(t), "launcher.zip");
+  const original = Buffer.from("existing archive bytes");
+  writeFileSync(output, original);
+
+  assert.equal(checkSource("--package", directory, output).code, "launcher-source/output-exists");
+  assert.deepEqual(readFileSync(output), original);
+});
+
+test("check and package reject computed constructor names resolved through const aliases", t => {
+  const directory = fixture(t, detailManifest, [
+    'const key = "con" + "structor";',
+    'export function Launcher() { return ([])[key][key]("return 40 + 2")(); }',
+  ].join("\n"));
+  const output = join(temporaryDirectory(t), "blocked.zip");
+  const checked = checkSource(directory);
+  assertSourceIssue(checked, "computed-capability", 2);
+  assert.deepEqual(checkSource("--package", directory, output).issues, checked.issues);
+  assert.equal(existsSync(output), false);
+});
+
+test("computed checks reject prototype access and unverified calls while allowing data reads", t => {
+  const directory = fixture(t, detailManifest);
+  const file = join(directory, "Component.tsx");
+  const lines = [
+    'const prefix = "con";',
+    'const key = `${prefix}structor` as string;',
+    'export function Launcher({ messages, index }) {',
+    '  const unsafe = [][key];',
+    '  const proto = Array["prototype"];',
+    '  const method = [][index];',
+    '  const invoke = method.call;',
+    '  invoke(null, "return 42");',
+    '  const { [key]: unsafeFn } = [];',
+    '  return method[index];',
+    '}',
+  ];
+  writeFileSync(file, lines.join("\n"));
+  const result = checkSource(directory);
+  assertSourceIssue(result, "prototype-access", 5);
+  assert.deepEqual(result.issues.filter(issue => issue.ruleId.endsWith("/computed-capability")).map(issue => issue.line), [4, 8, 9, 10]);
+
+  writeFileSync(file, [
+    ...lines.slice(0, 3),
+    '  const values = [["ok"]];',
+    '  const key = 0;',
+    '  const first = +index;',
+    '  return messages[index] ?? values[first][key];',
+    '}',
+  ].join("\n"));
+  assert.equal(checkSource(directory).ok, true);
+});
+
+test("Launcher requires JSX when React element creation is imported or aliased", t => {
+  const cases = [
+    ['import { createElement as make } from "react";', 'return make("iframe", { srcDoc: title });'],
+    ['import { cloneElement as clone } from "react";', 'return clone(<div />, { dangerouslySetInnerHTML: { __html: title } });'],
+    ['import React from "react";', 'const make = React.createElement; return make("iframe", { srcDoc: title });'],
+    ['import React from "react";', 'const clone = React["clone" + "Element"]; return clone(<div />);'],
+    ['import { default as React } from "react";', 'const { createElement: make } = React; return make("iframe", { srcDoc: title });'],
+    ['import React from "react";', 'const api = { React }; return api.React.createElement("iframe", { srcDoc: title });'],
+  ];
+  for (const [importLine, body] of cases) {
+    const result = checkSource(fixture(t, detailManifest, [
+      importLine,
+      'export function Launcher({ messages: { title } }) { ' + body + ' }',
+    ].join("\n")));
+    assert.equal(result.ok, false);
+    assert.ok(result.issues.some(issue => issue.ruleId === "launcher-preview/react-element-api"), JSON.stringify(result));
+  }
+
+  assert.equal(checkSource(fixture(t, detailManifest, [
+    'import React, { useState } from "react";',
+    'export function Launcher() {',
+    '  function show(React) { return React; }',
+    '  const [value] = useState("ok");',
+    '  const child: React.ReactNode = <span>{show(value)}</span>;',
+    '  return <React.Fragment>{child}</React.Fragment>;',
+    '}',
+  ].join("\n"))).ok, true);
+});
+
+test("the tax-info href requires the exported first parameter's host context", t => {
+  const anchor = '<a href={context.tokenTaxInfoHref} target="_blank" rel="noopener noreferrer">Tax info</a>';
+  const config = 'export function LauncherConfig() { return null; }\n';
+  for (const parameters of ['{ context }', '{ "context": context }']) {
+    const component = config + 'export function Launcher(' + parameters + ') { return ' + anchor + '; }';
+    assert.equal(checkSource(fixture(t, crowdManifest, component)).ok, true);
+  }
+  for (const parameters of [
+    '{ messages: context }',
+    '{ context = { tokenTaxInfoHref: "fallback" } }',
+    '{ context } = { context: { tokenTaxInfoHref: "fallback" } }',
+    '{ ...context }',
+    '{ messages: { context } }',
+    '_props, { context }',
+  ]) {
+    const component = config + 'export function Launcher(' + parameters + ') { return ' + anchor + '; }';
+    const result = checkSource(fixture(t, crowdManifest, component));
+    assertSourceIssue(result, "context-shadow", 2);
+    assertSourceIssue(result, "resource-tag", 2);
+  }
+  const shadowed = config + 'export function Launcher({ context }) { function nested(context) { return ' + anchor + '; } return nested({}); }';
+  assertSourceIssue(checkSource(fixture(t, crowdManifest, shadowed)), "resource-tag", 2);
+  const nestedComponent = config + 'export function Launcher() { function Launcher({ context }) { return ' + anchor + '; } return null; }';
+  assertSourceIssue(checkSource(fixture(t, crowdManifest, nestedComponent)), "context-shadow", 2);
+});
+
+test("configuration helpers receive individual props without receiving the full host capability", t => {
+  const manifest = {
+    ...detailManifest,
+    configContract: "launcher-config-preview/v1",
+    surfaces: ["launcher-config", "launcher-ui"],
+  };
+  const input = body => [
+    'function submitDraft(props) { props.host.submit(); }',
+    'function show(data) { return <p>{data.title}</p>; }',
+    'export function Launcher() { return null; }',
+    'export function LauncherConfig(props) {',
+    '  ' + body,
+    '}',
+  ].join("\n");
+  for (const operation of ['return submitDraft(props);', 'return submitDraft({ ...props });',
+    'const alias = props; return submitDraft(alias);', 'return submitDraft({ props });']) {
+    const result = checkSource(fixture(t, manifest, input(operation)));
+    assert.match(assertSourceIssue(result, "config-action", 5).fixHint, /Read individual props/);
+  }
+  const safe = input('function display(props) { return show(props); } return display(props.messages);');
+  assert.equal(checkSource(fixture(t, manifest, safe)).ok, true);
+  const rest = input('return submitDraft(rest);').replace('LauncherConfig(props)', 'LauncherConfig({ ...rest })');
+  assertSourceIssue(checkSource(fixture(t, manifest, rest)), "config-action", 4);
 });

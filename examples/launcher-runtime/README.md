@@ -137,19 +137,23 @@ The read-only `launcher-local` Demo opens the host's `/apps` directory. Set the 
 
 ### Check your Launcher source
 
-From the Template repository root, set `launcher_source_dir` to your source directory and pass it explicitly.
+From the template repository root, set `launcher_source_dir` to your Launcher's source directory.
 
 ~~~sh
 yarn launcher:check-source "$launcher_source_dir"
 ~~~
 
-Before creating the ZIP, run the default check on the three source files `Component.tsx`, `manifest.json` and `i18n.json`. Each file can contain up to 256,000 bytes and the three files can contain up to 512,000 bytes total, measured before compression. The command checks manifest structure, TSX syntax, named exports and matching non-empty translation dictionaries for `en`, `zh` and `ko`.
+The checker validates `Component.tsx`, `manifest.json` and `i18n.json`. Each file can contain up to 256,000 bytes, with a combined limit of 512,000 bytes before compression. It checks the manifest, TSX syntax, named exports, matching translation keys for `en`, `zh` and `ko`, and the Workbench rules that can run locally. Source findings identify the file, line and column and include a `fixHint`.
+
+- For `launcher-preview/source-import`, import the hooks you need from `react`. For icons, use inline SVG paths with no resource references.
+- For `launcher-preview/source-constructor`, format dates with `Intl.DateTimeFormat(locale, options).format(timestamp)`. Build Launcher destinations from a fixed site-relative path and validated parameters, then pass them to `host.redirect()`.
+- For `launcher-preview/resource-tag` or `launcher-preview/resource-url`, remove resource-loading tags such as `<img>`, embedded `data:` images, and CSS `url(...)` values. Use JSX inline styles for layout and gradients.
 
 The manifest must use BNB Chain (`56`) or BSC Testnet (`97`) with an adapter supported on that chain. Native adapters require the exact factory address for that adapter and chain. The generic `launcher-detail/v1` adapter accepts your deployed nonzero Launcher Factory address, validates any declared `reads` and expects only `Launcher`.
 
 For `launcher-config-preview/v1`, the checker accepts a custom factory on the same two chains and requires both surfaces, both named exports and valid optional `reads` and `transactions`. A package that omits `transactions` retains read-only behavior.
 
-Use `--local` for the separate `launcher-local` source format. Workbench runs its full package and source policy checks during intake, and the host verifies the deployed factory and its compatibility.
+Use `--local` to check the separate `launcher-local` source format. Workbench runs final package and source validation, and the host verifies the deployed factory and its compatibility.
 
 ## Preview and publish
 
@@ -157,14 +161,18 @@ Every Launcher UI handoff includes a Launcher component. A companion custom Vaul
 
 | Submission | What to send Flap |
 | --- | --- |
-| Launcher only | ZIP with `Component.tsx`, `manifest.json` and `i18n.json` at its root, plus the chain, Launcher Factory address and test details. |
+| Launcher only | ZIP from `yarn launcher:package`, plus the chain, Launcher Factory address and test details. |
 | Factory pair demo Launcher and Vault UI | One handoff ZIP with both source directories, both testnet factory addresses and the Vault acceptance token. Include an existing verified Vault source package if available. |
 
-For `launcher-detail/v1`, run `yarn launcher:check-source examples/launcher-runtime/launcher-detail-demo` from the template root to check the demo. After checking your own source, run this command from its directory with a new output filename to put the three files at the ZIP root.
+From the template root, package your Launcher source directory.
 
 ```sh
-zip -X -j ../launcher-ui.zip Component.tsx manifest.json i18n.json
+yarn launcher:package "$launcher_source_dir"
 ```
+
+The command runs the same source checks before writing `dist/<artifactId>-launcher.zip`. Pass a second argument to choose a new `.zip` path outside the source directory. If the output already exists, choose a new filename or remove the old ZIP before rerunning. The ZIP contains only `Component.tsx`, `manifest.json` and `i18n.json` at its root. Workbench generates its package metadata during intake. To try the workflow with the detail demo, use `examples/launcher-runtime/launcher-detail-demo` as the source directory.
+
+If a ZIP made with another tool fails with `launcher-preview/zip-entry`, extract the three source files and package them with this command. It omits ZIP extra fields such as timestamps and Unix ownership metadata.
 
 Send the ZIP to Flap for upload, build and publication in Workbench Preview. The main-site detail preview uses `artifactPath` to select the version. Include an existing Launcher address if available so Flap can verify live reads and redirects. On the BSC Testnet preview host, open `/launcher/<launcher-address>?chain=bnb-testnet&kind=launcher-detail&artifactPath=<encoded-artifact-path>` for that same factory. The mainnet chain slug is `bnb`.
 

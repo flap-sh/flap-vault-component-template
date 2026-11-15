@@ -37,6 +37,7 @@
     "vault:register": "node scripts/vault-register.mjs",
     "vault:ai-context": "node scripts/vault-ai-context.mjs",
     "launcher:check-source": "node scripts/launcher-check-source.mjs",
+    "launcher:package": "node scripts/launcher-check-source.mjs --package",
     "test:launcher-source": "node --test scripts/launcher-check-source.test.mjs",
     "vault:check": "node scripts/vault-check.mjs",
     "vault:check:selftest": "node scripts/vault-check-selftest.mjs",

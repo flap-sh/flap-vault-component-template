@@ -93,6 +93,7 @@ const PUBLISHED_PROTOCOL_SCRIPTS = new Set([
 const LAUNCHER_EXAMPLE_FILE = /^examples\/launcher-(?:local|runtime)\/(?:[^/]+\/)*(?:Component\.tsx|manifest\.json|i18n\.json|[^/]+\.(?:md|svg))$/;
 const LAUNCHER_AUTHORING_SCRIPTS = {
   "launcher:check-source": "node scripts/launcher-check-source.mjs",
+  "launcher:package": "node scripts/launcher-check-source.mjs --package",
   "test:launcher-source": "node --test scripts/launcher-check-source.test.mjs",
 };
 

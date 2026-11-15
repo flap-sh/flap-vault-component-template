@@ -172,6 +172,7 @@ function stableLauncherRepository(t) {
       ...publishedPackage.scripts,
       ci: `yarn test:launcher-source && ${publishedPackage.scripts.ci}`,
       "launcher:check-source": "node scripts/launcher-check-source.mjs",
+      "launcher:package": "node scripts/launcher-check-source.mjs --package",
       "test:launcher-source": "node --test scripts/launcher-check-source.test.mjs",
     },
   };
@@ -209,6 +210,7 @@ for (const [description, change] of [
   ["dependency", (manifest) => { manifest.dependencies = { react: "18.3.1" }; }],
   ["build script", (manifest) => { manifest.scripts.build = "node other-build.mjs"; }],
   ["Launcher command", (manifest) => { manifest.scripts["test:launcher-source"] = "node other-test.mjs"; }],
+  ["Launcher package command", (manifest) => { manifest.scripts["launcher:package"] = "node other-package.mjs"; }],
   ["CI steps", (manifest) => { manifest.scripts.ci = "yarn test:launcher-source && yarn lint"; }],
 ]) {
   test(`stable Launcher authoring changes cannot hide a changed ${description}`, (t) => {

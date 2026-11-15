@@ -16,12 +16,12 @@ The example covers creation, fundraising, token issuance, and post-launch claims
 
 The two factories are separate contracts. The host approves their pairing. The issued token in the Vault manifest is a test fixture for acceptance. Factory-scoped mapping can serve later tokens from that Vault Factory under the configured CA policy.
 
-## Develop on the test branch
+## Run the example locally
 
-Use Node.js 24 and Yarn 1.22.22. The test branch already registers the Vault preview route.
+Use Node.js 24 and Yarn 1.22.22. The official `main` branch includes the registered Vault preview route.
 
 ~~~sh
-git clone --branch test/pool-launch-developer-preview --single-branch \
+git clone --branch main \
   https://github.com/flap-sh/flap-vault-component-template.git
 cd flap-vault-component-template
 yarn install --frozen-lockfile
@@ -34,7 +34,7 @@ The Launcher source check reports the example's declared chain, Launcher Factory
 
 Use the local Vault preview to check layout, translations, wallet connection and read failures. During acceptance, the generic Template host reported `chain-read-unavailable` for the example's market phase and risk context. The Vault renders the corresponding warning and checks the wallet, market phase and account data before enabling actions. A compatible testnet host provides the full Launcher and Vault flow. [Open the local Vault preview](http://localhost:3000/vault-demo?chainId=97&factoryAddress=0xb89113e16c78989b7bccf5d0e13e99bf2c58dc32&tokenAddress=0x6d36b2959b88f5d9c3f83badd20405a4bcf37777&vaultAddress=0xcfa21bea1f9a3fef5907230ca30a3d37f404d321)
 
-The companion Vault source was validated with `@flapsdk/vault-runtime@0.1.42`. Use the test branch for `dev` and `typecheck`. For formal Vault acceptance, place the same four source files in an official stable Template checkout that satisfies the SDK provenance and freshness checks. The commands below use `vault-demo` because it is this example's source folder. [Vault source package guide](../../docs/artifact-intake.md)
+The companion Vault source was validated with `@flapsdk/vault-runtime@0.1.42`. Formal Vault acceptance requires an official stable Template checkout that satisfies the SDK provenance and freshness checks. The example uses `vault-demo` as its source folder. [Vault source package guide](../../docs/artifact-intake.md)
 
 ~~~sh
 yarn vault:register vault-demo
@@ -91,11 +91,13 @@ Treat `context` as read-only. `previewOnly` describes capability restrictions. A
 
 ## Hand off and test the Launcher
 
-To test just the Launcher, send Flap its three source files in one ZIP with the chain and Launcher Factory address. Run the following command from the Launcher's source directory. Use an unused output filename so the ZIP contains exactly the three root files.
+To test just the Launcher, run the following command from the template root. Send Flap the resulting ZIP, chain and Launcher Factory address.
 
 ```bash
-zip -X -j ../launcher-demo.zip Component.tsx manifest.json i18n.json
+yarn launcher:package examples/launcher-runtime/launcher-demo
 ```
+
+The command validates the source and writes `dist/launcher-demo-testnet-v1-launcher.zip`. Workbench performs final validation before build and publication. [Launcher source checks](README.md#check-your-launcher-source)
 
 To test both UIs, send both source directories, both factory addresses, and the Vault acceptance token. Include any verified Vault source package you already have. Flap prepares one `flap-factory-pair-source-v2` ZIP for Workbench. Each built runtime has its own immutable version. The Launcher artifact uses `flap-launcher-runtime-v1`.
 
