@@ -18,6 +18,25 @@ const configActions = new Set(["simulateAction", "writeContract", "simulateContr
 const configTransactions = new Set(["submit", "quote", "encode", "wallet", "findSalt", "checkReceipt", "openLauncher"]);
 const resourceUrl = /url\s*\(|(?:javascript|https?|data):/i;
 const useHostCapability = "Use the Launcher context or a capability supplied by the host.";
+const useConfigCapabilities = "Use onChange for draft updates. Use host.redirect on the generic configuration profile and declare transactions.create for its supported creation actions.";
+const useIndividualHostMembers = "Keep host in the component props. Save or pass only permitted members, such as host.redirect or host?.submit when creation is declared.";
+const constructorHints = new Map([
+  ["Array", "Use an array literal for known items or Array.from for a sized or derived array."],
+  ["Date", "Keep the timestamp as a number and pass milliseconds to Intl.DateTimeFormat(...).format() or .formatToParts()."],
+  ["Error", "Call Error(message) directly to create the error."],
+  ["Intl.DateTimeFormat", "Call Intl.DateTimeFormat(locale, options) directly and pass milliseconds to .format() or .formatToParts()."],
+  ["Promise", "Use an async function and await an existing promise. Use Promise.resolve only when a microtask is sufficient."],
+  ["URL", "Build a site-relative path from a fixed path and validated parameters, then pass it to host.redirect."],
+]);
+
+function getConstructorHint(expression) {
+  const name = expression.getText();
+  if (/^(?:(?:Uint|Int)(?:8|16|32)|Uint8Clamped|Float(?:16|32|64)|Big(?:Uint|Int)64)Array$/.test(name)) {
+    const zero = name.startsWith("Big") ? "0n" : "0";
+    return `Use ${name}.from(values) for existing data or ${name}.from({ length }, () => ${zero}) for a zero-filled array.`;
+  }
+  return constructorHints.get(name) ?? "Use an allowed function or literal to build this value.";
+}
 
 function isTaxInfoLink(node, source) {
   if (node.tagName.getText(source) !== "a") return false;
@@ -73,8 +92,13 @@ export function checkLauncherComponentPolicy(source, manifest) {
       || (allowConfigRedirect && ts.isElementAccessExpression(node) && node.argumentExpression
         && ts.isStringLiteralLike(node.argumentExpression)
         && (node.argumentExpression.text === "host" || configActions.has(node.argumentExpression.text))))) {
-      add(node, "config-action", "LauncherConfig uses a host action unavailable to this profile.",
-        "Use onChange for draft updates. Use host.redirect on the generic configuration profile and declare transactions.create for its supported creation actions.");
+      const hostReference = ts.isPropertyAccessExpression(node.parent) && node.parent.name === node ? node.parent : node;
+      const memberAccess = ts.isPropertyAccessExpression(hostReference.parent) && hostReference.parent.expression === hostReference;
+      if (allowConfigRedirect && ts.isIdentifier(node) && node.text === "host" && !memberAccess) {
+        add(node, "config-action", "LauncherConfig cannot use the entire host object here.", useIndividualHostMembers);
+      } else {
+        add(node, "config-action", "LauncherConfig uses a host action unavailable to this profile.", useConfigCapabilities);
+      }
     }
 
     if (ts.isImportDeclaration(node)) {
@@ -92,14 +116,16 @@ export function checkLauncherComponentPolicy(source, manifest) {
         "Use export function Launcher, and export function LauncherConfig if the manifest declares it.");
     }
     if (ts.isNewExpression(node)) {
-      add(node, "source-constructor", "Launcher does not allow new expressions.",
-        "Use an allowed function or literal. For dates, call Intl.DateTimeFormat(...) and pass the timestamp to .format() or .formatToParts().");
+      add(node, "source-constructor", "Launcher does not allow new expressions.", getConstructorHint(node.expression));
     }
     if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       add(node, "dynamic-import", "Launcher does not allow dynamic imports.", "Use a static import from react.");
     }
     if (ts.isIdentifier(node) && forbiddenNames.has(node.text)) {
-      add(node, "forbidden-api", `Launcher does not allow ${node.text}.`, useHostCapability);
+      const fixHint = node.text === "setTimeout" || node.text === "setInterval"
+        ? "Use a host capability or await existing asynchronous work. Use an awaited resolved promise only when a microtask is sufficient."
+        : `Rename ${node.text} if it is a local variable or field. For a browser API, use the Launcher context or a capability supplied by the host.`;
+      add(node, "forbidden-api", `Launcher reserves the identifier ${node.text}.`, fixHint);
     }
     if (ts.isPropertyAccessExpression(node) && node.name.text === "prototype") {
       add(node, "prototype-access", "Launcher does not allow direct prototype access.", "Remove the prototype access.");

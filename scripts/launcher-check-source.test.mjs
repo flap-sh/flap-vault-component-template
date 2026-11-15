@@ -76,6 +76,7 @@ function assertSourceIssue(result, rule, line) {
   assert.equal(issue.severity, "blocking");
   assert.ok(issue.message?.trim());
   assert.ok(issue.fixHint?.trim());
+  return issue;
 }
 
 function readZipEntries(zip) {
@@ -251,7 +252,25 @@ test("source checking reports unsupported imports and constructors", t => {
   ].join("\n"));
   const result = checkSource(directory);
   assertSourceIssue(result, "source-import", 1);
-  assertSourceIssue(result, "source-constructor", 3);
+  assert.match(assertSourceIssue(result, "source-constructor", 3).fixHint, /timestamp.*Intl\.DateTimeFormat/);
+});
+
+test("constructor and identifier hints suggest repairs for common Launcher source failures", t => {
+  const result = checkSource(fixture(t, detailManifest, [
+    "export function Launcher() {",
+    '  const request = new Error("Invalid draft");',
+    "  const bytes = new Uint8Array(16);",
+    "  const wait = new Promise(resolve => setTimeout(resolve, 0));",
+    "  return null;",
+    "}",
+  ].join("\n")));
+  assert.equal(result.ok, false);
+  const hints = Object.fromEntries(result.issues.map(issue => [`${issue.ruleId}:${issue.line}`, issue.fixHint]));
+  assert.match(hints["launcher-preview/source-constructor:2"], /Error\(message\)/);
+  assert.match(hints["launcher-preview/source-constructor:3"], /Uint8Array\.from/);
+  assert.match(hints["launcher-preview/source-constructor:4"], /async function/);
+  assert.match(hints["launcher-preview/forbidden-api:2"], /Rename request/);
+  assert.match(hints["launcher-preview/forbidden-api:4"], /microtask/);
 });
 
 test("configuration previews require create permission for host submission", t => {
@@ -269,6 +288,38 @@ test("configuration previews require create permission for host submission", t =
   ].join("\n"));
   assertSourceIssue(checkSource(directory), "config-action", 3);
   writeFileSync(join(directory, "manifest.json"), JSON.stringify({ ...manifest, transactions: { create: true } }));
+  assert.equal(checkSource(directory).ok, true);
+});
+
+test("configuration previews explain how to replace whole-host refs and aliases", t => {
+  const manifest = {
+    ...detailManifest,
+    configContract: "launcher-config-preview/v1",
+    surfaces: ["launcher-config", "launcher-ui"],
+    transactions: { create: true },
+  };
+  const directory = fixture(t, manifest, [
+    'import { useRef } from "react";',
+    "export function Launcher() { return null; }",
+    "export function LauncherConfig({ host }) {",
+    "  const latest = useRef(host);",
+    "  latest.current = host;",
+    "  return null;",
+    "}",
+  ].join("\n"));
+  const result = checkSource(directory);
+  const hostIssues = result.issues.filter(issue => issue.ruleId === "launcher-preview/config-action");
+  assert.deepEqual(hostIssues.map(issue => issue.line), [4, 5]);
+  for (const issue of hostIssues) assert.match(issue.fixHint, /Save or pass only permitted members/);
+  writeFileSync(join(directory, "Component.tsx"), [
+    'import { useRef } from "react";',
+    "export function Launcher() { return null; }",
+    "export function LauncherConfig({ host }) {",
+    "  const submit = useRef(host?.submit);",
+    "  submit.current = host?.submit;",
+    "  return null;",
+    "}",
+  ].join("\n"));
   assert.equal(checkSource(directory).ok, true);
 });
 
