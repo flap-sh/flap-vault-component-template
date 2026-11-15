@@ -352,3 +352,127 @@ test("the package command preserves an existing destination", t => {
   assert.equal(checkSource("--package", directory, output).code, "launcher-source/output-exists");
   assert.deepEqual(readFileSync(output), original);
 });
+
+test("check and package reject computed constructor names resolved through const aliases", t => {
+  const directory = fixture(t, detailManifest, [
+    'const key = "con" + "structor";',
+    'export function Launcher() { return ([])[key][key]("return 40 + 2")(); }',
+  ].join("\n"));
+  const output = join(temporaryDirectory(t), "blocked.zip");
+  const checked = checkSource(directory);
+  assertSourceIssue(checked, "computed-capability", 2);
+  assert.deepEqual(checkSource("--package", directory, output).issues, checked.issues);
+  assert.equal(existsSync(output), false);
+});
+
+test("computed checks reject prototype access and unverified calls while allowing data reads", t => {
+  const directory = fixture(t, detailManifest);
+  const file = join(directory, "Component.tsx");
+  const lines = [
+    'const prefix = "con";',
+    'const key = `${prefix}structor` as string;',
+    'export function Launcher({ messages, index }) {',
+    '  const unsafe = [][key];',
+    '  const proto = Array["prototype"];',
+    '  const method = [][index];',
+    '  const invoke = method.call;',
+    '  invoke(null, "return 42");',
+    '  const { [key]: unsafeFn } = [];',
+    '  return method[index];',
+    '}',
+  ];
+  writeFileSync(file, lines.join("\n"));
+  const result = checkSource(directory);
+  assertSourceIssue(result, "prototype-access", 5);
+  assert.deepEqual(result.issues.filter(issue => issue.ruleId.endsWith("/computed-capability")).map(issue => issue.line), [4, 8, 9, 10]);
+
+  writeFileSync(file, [
+    ...lines.slice(0, 3),
+    '  const values = [["ok"]];',
+    '  const key = 0;',
+    '  const first = +index;',
+    '  return messages[index] ?? values[first][key];',
+    '}',
+  ].join("\n"));
+  assert.equal(checkSource(directory).ok, true);
+});
+
+test("Launcher requires JSX when React element creation is imported or aliased", t => {
+  const cases = [
+    ['import { createElement as make } from "react";', 'return make("iframe", { srcDoc: title });'],
+    ['import { cloneElement as clone } from "react";', 'return clone(<div />, { dangerouslySetInnerHTML: { __html: title } });'],
+    ['import React from "react";', 'const make = React.createElement; return make("iframe", { srcDoc: title });'],
+    ['import React from "react";', 'const clone = React["clone" + "Element"]; return clone(<div />);'],
+    ['import { default as React } from "react";', 'const { createElement: make } = React; return make("iframe", { srcDoc: title });'],
+    ['import React from "react";', 'const api = { React }; return api.React.createElement("iframe", { srcDoc: title });'],
+  ];
+  for (const [importLine, body] of cases) {
+    const result = checkSource(fixture(t, detailManifest, [
+      importLine,
+      'export function Launcher({ messages: { title } }) { ' + body + ' }',
+    ].join("\n")));
+    assert.equal(result.ok, false);
+    assert.ok(result.issues.some(issue => issue.ruleId === "launcher-preview/react-element-api"), JSON.stringify(result));
+  }
+
+  assert.equal(checkSource(fixture(t, detailManifest, [
+    'import React, { useState } from "react";',
+    'export function Launcher() {',
+    '  function show(React) { return React; }',
+    '  const [value] = useState("ok");',
+    '  const child: React.ReactNode = <span>{show(value)}</span>;',
+    '  return <React.Fragment>{child}</React.Fragment>;',
+    '}',
+  ].join("\n"))).ok, true);
+});
+
+test("the tax-info href requires the exported first parameter's host context", t => {
+  const anchor = '<a href={context.tokenTaxInfoHref} target="_blank" rel="noopener noreferrer">Tax info</a>';
+  const config = 'export function LauncherConfig() { return null; }\n';
+  for (const parameters of ['{ context }', '{ "context": context }']) {
+    const component = config + 'export function Launcher(' + parameters + ') { return ' + anchor + '; }';
+    assert.equal(checkSource(fixture(t, crowdManifest, component)).ok, true);
+  }
+  for (const parameters of [
+    '{ messages: context }',
+    '{ context = { tokenTaxInfoHref: "fallback" } }',
+    '{ context } = { context: { tokenTaxInfoHref: "fallback" } }',
+    '{ ...context }',
+    '{ messages: { context } }',
+    '_props, { context }',
+  ]) {
+    const component = config + 'export function Launcher(' + parameters + ') { return ' + anchor + '; }';
+    const result = checkSource(fixture(t, crowdManifest, component));
+    assertSourceIssue(result, "context-shadow", 2);
+    assertSourceIssue(result, "resource-tag", 2);
+  }
+  const shadowed = config + 'export function Launcher({ context }) { function nested(context) { return ' + anchor + '; } return nested({}); }';
+  assertSourceIssue(checkSource(fixture(t, crowdManifest, shadowed)), "resource-tag", 2);
+  const nestedComponent = config + 'export function Launcher() { function Launcher({ context }) { return ' + anchor + '; } return null; }';
+  assertSourceIssue(checkSource(fixture(t, crowdManifest, nestedComponent)), "context-shadow", 2);
+});
+
+test("configuration helpers receive individual props without receiving the full host capability", t => {
+  const manifest = {
+    ...detailManifest,
+    configContract: "launcher-config-preview/v1",
+    surfaces: ["launcher-config", "launcher-ui"],
+  };
+  const input = body => [
+    'function submitDraft(props) { props.host.submit(); }',
+    'function show(data) { return <p>{data.title}</p>; }',
+    'export function Launcher() { return null; }',
+    'export function LauncherConfig(props) {',
+    '  ' + body,
+    '}',
+  ].join("\n");
+  for (const operation of ['return submitDraft(props);', 'return submitDraft({ ...props });',
+    'const alias = props; return submitDraft(alias);', 'return submitDraft({ props });']) {
+    const result = checkSource(fixture(t, manifest, input(operation)));
+    assert.match(assertSourceIssue(result, "config-action", 5).fixHint, /Read individual props/);
+  }
+  const safe = input('function display(props) { return show(props); } return display(props.messages);');
+  assert.equal(checkSource(fixture(t, manifest, safe)).ok, true);
+  const rest = input('return submitDraft(rest);').replace('LauncherConfig(props)', 'LauncherConfig({ ...rest })');
+  assertSourceIssue(checkSource(fixture(t, manifest, rest)), "config-action", 4);
+});
