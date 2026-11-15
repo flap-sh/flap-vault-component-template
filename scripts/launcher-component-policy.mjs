@@ -126,10 +126,17 @@ export function checkLauncherComponentPolicy(source, manifest) {
         "launcher-runtime");
     }
     if (protectContext && ts.isBinaryExpression(node) && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment
-      && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
-      && (node.left.getText(source) === "context" || node.left.getText(source).startsWith("context."))) {
-      add(node, "context-write", "Launcher cannot assign to the host context.", "Keep draft state separate from the host context.",
-        "launcher-runtime");
+      && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment) {
+      let target = node.left;
+      while (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target)
+        || ts.isParenthesizedExpression(target) || ts.isAsExpression(target)
+        || ts.isTypeAssertionExpression(target) || ts.isNonNullExpression(target)) {
+        target = target.expression;
+      }
+      if (ts.isIdentifier(target) && target.text === "context") {
+        add(node, "context-write", "Launcher cannot assign to the host context.", "Keep draft state separate from the host context.",
+          "launcher-runtime");
+      }
     }
     if (ts.isJsxSpreadAttribute(node)) {
       add(node, "jsx-spread", "Launcher does not allow JSX prop spreads.", "Write each permitted JSX prop explicitly.");
