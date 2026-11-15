@@ -141,7 +141,9 @@ export function checkLauncherComponentPolicy(source, manifest) {
     if (ts.isJsxSpreadAttribute(node)) {
       add(node, "jsx-spread", "Launcher does not allow JSX prop spreads.", "Write each permitted JSX prop explicitly.");
     }
-    if (ts.isStringLiteralLike(node) && resourceUrl.test(node.text)) {
+    if ((ts.isStringLiteralLike(node) || node.kind === ts.SyntaxKind.TemplateHead
+      || node.kind === ts.SyntaxKind.TemplateMiddle || node.kind === ts.SyntaxKind.TemplateTail)
+      && resourceUrl.test(node.text)) {
       add(node, "resource-url", "Launcher does not allow URL literals, data URIs or CSS url(...).",
         "Remove the resource URL. Use inline SVG paths for decorative icons, or host.redirect with a relative app route.");
     }
