@@ -267,7 +267,22 @@ async function main(args) {
   const result = { ok: true, directory, artifactId, chainId, factoryAddress, ...(localOnly ? { localOnly } : { configContract }) };
   if (packaging) {
     const destination = path.resolve(directoryArgs[1] ?? path.join("dist", `${artifactId}-launcher.zip`));
-    const relative = path.relative(directory, destination);
+    let relative;
+    try {
+      let parent = path.dirname(destination);
+      const suffix = [path.basename(destination)];
+      while (!fs.existsSync(parent)) {
+        suffix.unshift(path.basename(parent));
+        const next = path.dirname(parent);
+        if (next === parent) throw new Error("No existing output directory ancestor.");
+        parent = next;
+      }
+      const resolvedDestination = path.join(fs.realpathSync(parent), ...suffix);
+      relative = path.relative(fs.realpathSync(directory), resolvedDestination);
+    } catch (error) {
+      fail("output-path", `Could not resolve the Launcher ZIP output path: ${error.message}`,
+        "Choose a writable output path outside the source directory.");
+    }
     if (path.extname(destination).toLowerCase() !== ".zip"
       || !(relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))) {
       fail("output-path", "Launcher ZIP output must be a .zip file outside the source directory.",
