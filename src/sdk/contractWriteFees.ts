@@ -1,5 +1,8 @@
 export const MAX_CONTRACT_WRITE_GAS = 5_000_000n;
 export const MAX_GAS_PRICE_MULTIPLIER = 2n;
+// Pool launches can initialize pools and Vaults in the same transaction.
+// Keep the BSC override below the 16,777,216 per-transaction network limit.
+const BSC_MAX_CONTRACT_WRITE_GAS = 15_000_000n;
 
 interface ContractWriteFeeOverrides {
   gas?: bigint;
@@ -9,11 +12,13 @@ interface ContractWriteFeeOverrides {
 export async function resolveSafeContractWriteFeeOverrides(
   request: ContractWriteFeeOverrides,
   getNetworkGasPrice: () => Promise<bigint>,
+  chainId: number,
 ): Promise<ContractWriteFeeOverrides> {
   if (request.gas !== undefined) {
     if (request.gas <= 0n) throw new Error("Contract write gas must be greater than zero.");
-    if (request.gas > MAX_CONTRACT_WRITE_GAS) {
-      throw new Error(`Contract write gas must not exceed ${MAX_CONTRACT_WRITE_GAS.toString()}.`);
+    const maximumGas = chainId === 56 || chainId === 97 ? BSC_MAX_CONTRACT_WRITE_GAS : MAX_CONTRACT_WRITE_GAS;
+    if (request.gas > maximumGas) {
+      throw new Error(`Contract write gas must not exceed ${maximumGas.toString()}.`);
     }
   }
 

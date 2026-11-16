@@ -71,6 +71,39 @@ test("resolved claims use genuine handles, re-resolve, and reject changed/forged
   await assert.rejects(f.sdk.writeContract({ ...call, address: portal }), /override|handle-with-address/);
   f.setResolved(owner); await assert.rejects(f.sdk.writeContract(call), /changed/);
 });
+test("a resolved BNB launcher mint can simulate and submit above five million gas", async () => {
+  const { runtime, calls } = fixture({
+    readContract: async (_chain, { functionName }) => {
+      assert.equal(functionName, "mintForLaunchSalt");
+      return vault;
+    },
+  });
+  const allow = ["function mint(bytes32[] candidates) payable"];
+  const value = 2_000_000_000_000_000_000n;
+  const sdk = createFlapChainSdk(runtime, {
+    chainId: 56, writableChains: [56], i18n: {}, notify: {},
+    manifest: {
+      appModel: "standalone", walletChains: [56], match: { bindings: [] },
+      walletContracts: [{
+        id: "launcher-factory", chainId: 56, address: portal,
+        read: ["function deploymentCount() view returns (uint256)"],
+        resolvedContracts: [{
+          id: "launcher", resolver: "function mintForLaunchSalt(bytes32 salt) view returns (address)",
+          allow, maxValueWei: value.toString(),
+        }],
+      }],
+    },
+  });
+  const contract = await sdk.resolveContract("launcher", [hash]);
+  const gas = 6_532_584n;
+  const simulation = await sdk.simulateContract({ contract, abi: parseAbi(allow), functionName: "mint", args: [[]], value, gas });
+  assert.equal(await sdk.writeContract(simulation.request), hash);
+  assert.deepEqual(calls.map(([kind, chainId, request]) => [kind, chainId, request.address, request.gas, request.value]), [
+    ["simulate", 56, vault, gas, value],
+    ["simulate", 56, vault, gas, value],
+    ["write", 56, vault, gas, value],
+  ]);
+});
 test("resolved target or wallet changes during simulation abort the write", async () => {
   const f = fixture(); const handle = await f.sdk.resolveContract("rewards", [portal]);
   f.runtime.simulateContract = async () => { f.setResolved(owner); };
@@ -89,7 +122,8 @@ test("reverted receipts and wallet rejections are preserved", async () => {
 });
 test("fees and event lookbacks retain the existing bounds", async () => {
   const f = fixture(); await assert.rejects(f.sdk.writeContract({ ...request("claim"), gasPrice: 21n }), /safety limit/);
-  await assert.rejects(f.sdk.writeContract({ ...request("claim"), gas: 5000001n }), /must not exceed/);
+  await assert.rejects(f.sdk.writeContract({ ...request("claim"), gas: 15_000_001n }), /must not exceed 15000000/);
+  assert.equal(f.calls.length, 0);
   const events = await f.sdk.getContractEvents({ address: portal, abi: [], eventName: "Transfer", fromBlock: 0n, toBlock: 2500n }).catch(() => []); assert.deepEqual(events, []);
   const eventAbi = parseAbi(["event Transfer(address indexed from,address indexed to,uint256 amount)"]);
   assert.deepEqual(await f.sdk.getContractEvents({ address: portal, abi: eventAbi, eventName: "Transfer", fromBlock: 0n, toBlock: 2500n }), [0n, 1001n, 2002n]);
