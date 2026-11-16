@@ -1,4 +1,4 @@
-import { encodeFunctionData, toFunctionSelector, keccak256 } from "viem";
+import { encodeFunctionData, toFunctionSelector, keccak256, prepareEncodeFunctionData } from "viem";
 import { parseAppWalletContracts, type ParsedAppWalletPermissions } from "./appWalletPolicy.mjs";
 import type { Address, ContractWriteRequest, VaultManifest } from "./types";
 import type { FlapWalletRuntime } from "./flapChainRuntime";
@@ -36,11 +36,21 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
   }
   function checkFunction(request: ContractWriteRequest, policy: ParsedAppWalletPermissions, write: boolean) {
     requireRule(request.abi && request.functionName, "invalid-call");
-    const data = encodeFunctionData({ abi: request.abi!, functionName: request.functionName, args: request.args });
+    const parameters = { abi: request.abi!, functionName: request.functionName, args: request.args };
+    const value = request.value ?? 0n;
+    const prepared = write && policy.writeConstraints?.size ? prepareEncodeFunctionData(parameters) : undefined;
+    const constraint = prepared && policy.writeConstraints?.get(prepared.functionName);
+    if (constraint) {
+      for (const [index, length] of constraint.fixedBytes) {
+        const bytes = request.args?.[index];
+        requireRule(typeof bytes === "string" && bytes.length === 2 + 2 * length && bytes.startsWith("0x") && !/[^a-f0-9]/i.test(bytes.slice(2)), "fixed-bytes-length-mismatch");
+      }
+      requireRule(constraint.valueWei === undefined || value === constraint.valueWei, "exact-value-mismatch");
+    }
+    const data = encodeFunctionData({ ...parameters, ...prepared });
     const entry = (write ? policy.writes : policy.reads).find((f) => toFunctionSelector(f) === data.slice(0, 10));
     requireRule(entry, "selector-not-allowed");
     requireRule(encodeFunctionData({ abi: [entry!], functionName: entry!.name, args: request.args }) === data, "abi-mismatch");
-    const value = request.value ?? 0n;
     requireRule(value >= 0n && (value === 0n || entry!.stateMutability === "payable" && policy.definition.maxValueWei && value <= BigInt(policy.definition.maxValueWei)), "value-not-allowed");
     if (write && entry!.name === "approve") {
       requireRule(policy.definition.approvalSpenders?.some((a) => same(a, request.args?.[0])), "spender-not-allowed");

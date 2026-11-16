@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildSync } from "esbuild";
 const bundled = buildSync({ entryPoints: ["src/sdk/flapChainRuntime.ts"], bundle: true, platform: "node", format: "esm", write: false });
 const { createFlapChainSdk } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
-const { parseAbi, encodeFunctionData } = await import("viem");
+const { parseAbi, encodeFunctionData, keccak256, toFunctionSelector } = await import("viem");
 const owner = "0x1111111111111111111111111111111111111111";
 const portal = "0x2222222222222222222222222222222222222222";
 const vault = "0x3333333333333333333333333333333333333333";
@@ -116,6 +116,96 @@ test("raw calldata cannot bypass signatures or send native currency to arbitrary
   for (const call of [{ to: owner, value: 1n }, { to: portal, data: "0x12345678" }, { to: portal, data, value: 1001n }]) await assert.rejects(f.sdk.sendTransaction(call));
   assert.equal(f.calls.length, 1);
 });
+
+const evidenceWrite = "function submitEvidence(uint256 id, bytes evidence, bytes checksum) payable";
+const idOnlyWrite = "function submitEvidence(uint256 id)";
+const evidenceAbi = parseAbi([evidenceWrite, idOnlyWrite]);
+const evidenceArgs = [5n, `0x${"aB".repeat(16)}`, `0x${"cd".repeat(32)}`];
+
+async function constrainedWriteFixture(valueWei = "42") {
+  const f = fixture();
+  const readRoot = f.manifest.walletContracts[0];
+  const codeHash = keccak256(await f.runtime.getCode(56, portal));
+  readRoot.codeHash = codeHash;
+  const target = readRoot.resolvedContracts[0];
+  target.codeHash = codeHash;
+  target.maxValueWei = "100";
+  target.allow.push(evidenceWrite, idOnlyWrite);
+  target.writeConstraints = [{
+    selector: toFunctionSelector(evidenceWrite),
+    fixedBytes: [{ index: 1, length: 16 }, { index: 2, length: 32 }],
+    ...(valueWei === null ? {} : { valueWei }),
+  }];
+  const sdk = createFlapChainSdk(f.runtime, {
+    chainId: 56, manifest: f.manifest, writableChains: f.manifest.walletChains, i18n: {}, notify: {},
+  });
+  const contract = await sdk.resolveContract("rewards", [portal]);
+  const call = { contract, abi: evidenceAbi, functionName: "submitEvidence", args: [...evidenceArgs], value: 42n };
+  return { ...f, sdk, call };
+}
+
+test("constrained bytes use the declared selector and indexes on simulate and write", async () => {
+  const { sdk, call, calls } = await constrainedWriteFixture();
+  const simulation = await sdk.simulateContract(call);
+  assert.equal(simulation.request.contract, call.contract);
+  assert.equal(simulation.request.address, undefined);
+  assert.equal(await sdk.writeContract(simulation.request), hash);
+  assert.deepEqual(calls.map(([kind, chain, request]) => [kind, chain, request.address, request.args, request.value]), [
+    ["simulate", 56, vault, evidenceArgs, 42n],
+    ["simulate", 56, vault, evidenceArgs, 42n],
+    ["write", 56, vault, evidenceArgs, 42n],
+  ]);
+  assert.equal(await sdk.writeContract({ ...call, args: [6n], value: undefined }), hash);
+  assert.deepEqual(calls.at(-1)[2].args, [6n]);
+  const unconstrained = await constrainedWriteFixture(null);
+  await unconstrained.sdk.writeContract({ ...unconstrained.call, value: 99n });
+  await assert.rejects(unconstrained.sdk.writeContract({ ...unconstrained.call, value: 101n }), /value-not-allowed/);
+});
+
+test("wrong byte lengths, invalid hex and incorrect exact values never reach the wallet transport", async () => {
+  const { sdk, call, calls } = await constrainedWriteFixture();
+  for (const argument of [
+    "0x",
+    `0x${"ab".repeat(15)}`,
+    `0x${"ab".repeat(17)}`,
+    `0x${"ab".repeat(4097)}`,
+    `0x${"ab".repeat(15)}0`,
+    `0x${"ab".repeat(15)}zz`,
+    new Uint8Array(16),
+  ]) {
+    const invalid = { ...call, args: [5n, argument, evidenceArgs[2]] };
+    await assert.rejects(sdk.simulateContract(invalid), /app-wallet\//);
+    await assert.rejects(sdk.writeContract(invalid), /app-wallet\//);
+  }
+  await assert.rejects(sdk.writeContract({ ...call, args: [5n, evidenceArgs[2], evidenceArgs[1]] }), /fixed-bytes-length-mismatch/);
+  for (const value of [undefined, 41n, 43n]) {
+    const invalid = { ...call, value };
+    await assert.rejects(sdk.simulateContract(invalid), /exact-value-mismatch/);
+    await assert.rejects(sdk.writeContract(invalid), /exact-value-mismatch/);
+  }
+  assert.deepEqual(calls, []);
+});
+
+test("constrained writes reject foreign handles, direct addresses and changed code pins", async () => {
+  const { sdk, call, calls, runtime } = await constrainedWriteFixture();
+  await assert.rejects(sdk.writeContract({ ...call, contract: { ...call.contract } }), /forged/);
+  await assert.rejects(sdk.writeContract({ ...call, contract: undefined, address: vault }), /undeclared-target/);
+  const data = encodeFunctionData({ abi: evidenceAbi, functionName: call.functionName, args: call.args });
+  await assert.rejects(sdk.sendTransaction({ to: vault, data, value: call.value }), /undeclared-target/);
+  const beforeSimulation = runtime.simulateContract;
+  const readCode = runtime.getCode;
+  for (const changedAddress of [portal, vault]) {
+    runtime.getCode = readCode;
+    runtime.simulateContract = async (chain, request) => {
+      const result = await beforeSimulation(chain, request);
+      runtime.getCode = async (chainId, target) => target === changedAddress ? "0x6001" : readCode(chainId, target);
+      return result;
+    };
+    await assert.rejects(sdk.writeContract(call), /code-hash-changed/);
+  }
+  assert.deepEqual(calls.map(([kind]) => kind), ["simulate", "simulate"]);
+});
+
 test("reverted receipts and wallet rejections are preserved", async () => {
   const f = fixture({ waitForTx: async () => ({ hash, status: "reverted", blockNumber: 11n, logs: [] }), writeContract: async () => { throw new Error("User rejected"); } });
   assert.equal((await f.sdk.waitForTx(hash)).status, "reverted"); await assert.rejects(f.sdk.writeContract(request("claim")), /User rejected/);

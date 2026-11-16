@@ -32,7 +32,28 @@ This is illustrative ABI, not the Flap Portal ABI or a deployable factory. Use t
 }]
 ```
 
-A resolver is a reviewed view/pure function on its fixed root with a single address output. Returned targets must contain code; optional `codeHash` pins code for either roots or resolved targets. The runtime stores genuine handles privately, re-resolves before writes, simulates dynamic writes and checks again before forwarding. Addresses supplied by an external token API, copied handles and handle/address overrides do not authorize transactions. Dynamic targets cannot expose nested dynamic-bytes execution methods. Dynamic token approvals use a resolver policy with the exact approve signature, approved spender addresses and a bounded `maxApprovalWei` too. Critical ownership/provenance must also be enforced on-chain: an application-side check cannot make upgrades or mining atomic.
+A resolver is a reviewed view/pure function on its fixed root with a single address output. Returned targets must contain code; `codeHash` pins deployed bytecode for either roots or resolved targets. The runtime stores genuine handles privately, re-resolves before writes, simulates dynamic writes and checks again before forwarding. Addresses supplied by an external token API, copied handles and handle/address overrides do not authorize transactions. Dynamic token approvals use a resolver policy with the exact approve signature, approved spender addresses and a bounded `maxApprovalWei` too. Critical ownership and provenance must also be enforced on-chain.
+
+### Fixed-length inputs declared as `bytes`
+
+A standalone resolver can declare `writeConstraints` when a reviewed method takes an exact-length payload encoded as ABI `bytes`. Set `codeHash` on both the fixed root and resolved target. Each rule selects a single entry from the resolver's `allow` list by its four-byte function selector, and must list every top-level `bytes` parameter with its zero-based ABI input index and exact length in bytes. The lengths must be positive integers and sum to at most 4096 per method. An optional decimal `valueWei` sets the exact native value for a payable method within its existing `maxValueWei`.
+
+For example, use this rule for a method that stores a 12-byte tag. Generate the selector when authoring the manifest and put the resulting hex string in JSON.
+
+```ts
+import { toFunctionSelector } from "viem";
+
+const signature = "function storeTag(uint256 recordId, bytes tag)";
+const rule = {
+  selector: toFunctionSelector(signature),
+  fixedBytes: [{ index: 1, length: 12 }],
+};
+// Use signature in the resolver's allow list and rule in its writeConstraints.
+```
+
+The runtime checks constraints before simulation and again before wallet forwarding, using the genuine resolver handle and the reviewed ABI. Nested `bytes`, `bytes[]`, and prohibited execution or administrative methods remain blocked. Review how the contract interprets the payload and vet upgrade controls. A bytecode hash of a proxy does not pin its implementation. Length checks cover the payload size, so the contract must enforce its own payload semantics and authorization.
+
+Use this field after the template, Workbench, and host runtime support `sdkFeatures.resolvedWriteConstraints: 1` from the same coordinated release.
 
 ## Shared transaction flow
 
