@@ -187,6 +187,24 @@ and synchronize the Workbench source checker before accepting those packages.
 
 \`waitForTx(hash)\` polls the original transaction hash through the public client selected for that operation. It queries immediately, then every 2 seconds after a pending or transient-error response, with an 8-second deadline per query and a 180-second total deadline. It returns the original success/reverted status; applications must check \`status === "success"\` before showing success or refreshing as successful. A timeout means the result is unknown: retain the hash and reconcile it before offering another transaction. Polling does not follow sped-up or cancelled replacement transactions; the original hash can time out. The public API and receipt fields remain compatible.
 
+## Standalone resolved write constraints
+
+Standalone Mini Apps can use \`walletContracts[].resolvedContracts[].writeConstraints\`
+to declare exact lengths for top-level ABI \`bytes\` inputs. Each rule identifies
+an allowed function selector and lists its constrained input positions and lengths.
+Pin the resolver root and resolved target code hashes. A payable rule can require
+an exact \`valueWei\` within the existing cap. The SDK checks the declared constraints
+before simulation and wallet submission.
+
+The supporting runtime advertises \`sdkFeatures.resolvedWriteConstraints = 1\`.
+Deploy the matching Workbench checker and host runtime before accepting manifests
+that use the field. See the [Mini App wallet guide](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/mini-app-wallet.md#fixed-length-inputs-declared-as-bytes).
+
+## BNB Chain gas overrides
+
+Explicit contract-write gas overrides can be up to 15,000,000 on BNB Chain
+mainnet and testnet. Other chains retain the existing 5,000,000 limit.
+
 ## taxed.fun source-checker compatibility
 
 The official template source for stable \`0.1.40\` adds reviewed native-fetch
