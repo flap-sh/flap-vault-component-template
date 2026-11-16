@@ -83,7 +83,7 @@ await sdk.simulateContract(request);
 const hash = await sdk.writeContract(request);
 ```
 
-Explicit write overrides are opt-in and guarded by the runtime. `gasPrice` must be positive and no more than two times the current network suggestion; `gas`, when supplied, must be positive and no more than 5,000,000. A component should normally omit `gas` so the wallet can estimate it. These fields describe transaction execution; they do not replace the native `value` required by a contract for VRF or other protocol fees.
+Explicit write overrides are opt-in and guarded by the runtime. `gasPrice` must be positive and no more than two times the current network suggestion. If supplied, `gas` must be positive and no more than 15,000,000 on BNB Smart Chain mainnet and testnet (chain IDs 56 and 97), or 5,000,000 on other chains. A component should normally omit `gas` so the wallet can estimate it. These fields describe transaction execution; they do not replace the native `value` required by a contract for VRF or other protocol fees.
 
 ABI methods with multiple return values are tuple arrays at runtime. Even if the ABI names the outputs, `returns (uint256 currentPool, uint256 totalReceived)` should be read as `readonly [currentPool: bigint, totalReceived: bigint]`, then mapped into object-shaped UI state if that is easier to render. Do not type a multi-output `sdk.readContract` call as an object interface. A single returned Solidity `tuple` / struct output declared as one ABI output with `components` may still be read as an object.
 

@@ -344,7 +344,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       // Genuine handles use their reviewed signature policy, including execute.
       // Raw requests retain the restricted NFT-account selector guard.
       if (!prepared.record) prepared.request = snapshotGenericContractWrite(prepared.request);
-      const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice);
+      const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice, runtimeContext.chainId);
       const checked = await contractRuntime.validate(prepared, true);
       const request = checked.request;
       const simulation = await publicClient.simulateContract({
@@ -354,7 +354,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       });
       const resultRequest = prepared.record ? { ...request, address: undefined, contract } : request;
       return { request: resultRequest, result: simulation.result };
-    }, [assertWalletWriteReady, getGasPrice, publicClient, contractRuntime],
+    }, [assertWalletWriteReady, getGasPrice, publicClient, contractRuntime, runtimeContext.chainId],
   );
 
   const writeContract = useCallback(
@@ -363,7 +363,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       if (!walletClient || !publicClient || !contractRuntime) throw new Error("resolved-contract/client-unavailable");
       const prepared = contractRuntime.snapshot(input);
       if (!prepared.record) prepared.request = snapshotGenericContractWrite(prepared.request);
-      const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice);
+      const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice, runtimeContext.chainId);
       let checked = await contractRuntime.validate(prepared, true);
       if (prepared.record) {
         await publicClient.simulateContract({
@@ -381,7 +381,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
         functionName: request.functionName, args: request.args, value: request.value, ...feeOverrides,
       });
       return hash as Address;
-    }, [assertWalletWriteReady, getGasPrice, walletClient, publicClient, contractRuntime],
+    }, [assertWalletWriteReady, getGasPrice, walletClient, publicClient, contractRuntime, runtimeContext.chainId],
   );
 
   const waitForTx = useCallback(
