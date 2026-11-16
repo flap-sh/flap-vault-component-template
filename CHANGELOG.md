@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.43 — Standalone write constraints and BNB Chain gas overrides
+
+- Allow standalone Mini Apps to declare exact byte lengths for reviewed resolved-contract writes. The runtime checks the declared selector, payload lengths, code hashes and any exact native value before simulation and submission.
+- Raise the SDK gas override limit to 15,000,000 on BNB Chain mainnet and testnet.
+
 ## 0.1.42 — BSC Testnet FSI queries (published 2026-11-10)
 
 - Add the exact `https://bsc-testnet-debug.butterfly.army/fsi/v1` query prefix to the SDK and template checker. Retain the existing mainnet selection order, safe GET options, path checks, manifest review and no-fallback behavior.
