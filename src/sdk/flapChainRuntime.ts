@@ -92,7 +92,7 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
     const prepared = appPolicy?.snapshot(request);
     const snapshot = prepared?.request ?? structuredClone(request);
     assertValue(snapshot.value);
-    const fees = await resolveSafeContractWriteFeeOverrides(snapshot, () => runtime.getGasPrice(chainId));
+    const fees = await resolveSafeContractWriteFeeOverrides(snapshot, () => runtime.getGasPrice(chainId), chainId);
     const call = appPolicy && prepared ? await appPolicy.validate(prepared, true) : contractRequest(snapshot);
     writeAccount(account);
     return { call: { ...call, ...fees, account, value: snapshot.value }, prepared };
