@@ -12,6 +12,7 @@ test("returns safe gas overrides and accepts the exact gas-price ceiling", async
       gasPrice: networkGasPrice * MAX_GAS_PRICE_MULTIPLIER,
     },
     async () => networkGasPrice,
+    56,
   );
 
   assert.deepEqual(overrides, {
@@ -25,7 +26,7 @@ test("does not fetch the network gas price when no gasPrice override is requeste
   const overrides = await resolveSafeContractWriteFeeOverrides({ gas: 500_000n }, async () => {
     calls += 1;
     return 50_000_000n;
-  });
+  }, 56);
 
   assert.deepEqual(overrides, { gas: 500_000n });
   assert.equal(calls, 0);
@@ -33,30 +34,42 @@ test("does not fetch the network gas price when no gasPrice override is requeste
 
 test("rejects invalid or excessive gas limits", async () => {
   await assert.rejects(
-    resolveSafeContractWriteFeeOverrides({ gas: 0n }, async () => 50_000_000n),
+    resolveSafeContractWriteFeeOverrides({ gas: 0n }, async () => 50_000_000n, 56),
     /gas must be greater than zero/,
   );
   await assert.rejects(
-    resolveSafeContractWriteFeeOverrides({ gas: MAX_CONTRACT_WRITE_GAS + 1n }, async () => 50_000_000n),
-    /gas must not exceed/,
+    resolveSafeContractWriteFeeOverrides({ gas: MAX_CONTRACT_WRITE_GAS + 1n }, async () => 50_000_000n, 1),
+    /gas must not exceed 5000000/,
   );
+});
+
+test("allows the BSC gas override ceiling on mainnet and testnet", async () => {
+  const gasPrice = async () => 50_000_000n;
+  for (const chainId of [56, 97]) {
+    assert.deepEqual(await resolveSafeContractWriteFeeOverrides({ gas: 15_000_000n }, gasPrice, chainId), { gas: 15_000_000n });
+    await assert.rejects(
+      resolveSafeContractWriteFeeOverrides({ gas: 15_000_001n }, gasPrice, chainId),
+      /gas must not exceed 15000000/,
+    );
+  }
 });
 
 test("rejects invalid or excessive gas prices", async () => {
   const networkGasPrice = 50_000_000n;
   await assert.rejects(
-    resolveSafeContractWriteFeeOverrides({ gasPrice: 0n }, async () => networkGasPrice),
+    resolveSafeContractWriteFeeOverrides({ gasPrice: 0n }, async () => networkGasPrice, 56),
     /gasPrice must be greater than zero/,
   );
   await assert.rejects(
     resolveSafeContractWriteFeeOverrides(
       { gasPrice: networkGasPrice * MAX_GAS_PRICE_MULTIPLIER + 1n },
       async () => networkGasPrice,
+      56,
     ),
     /exceeds the runtime safety limit/,
   );
   await assert.rejects(
-    resolveSafeContractWriteFeeOverrides({ gasPrice: 1n }, async () => 0n),
+    resolveSafeContractWriteFeeOverrides({ gasPrice: 1n }, async () => 0n, 56),
     /invalid network gas price/,
   );
 });
