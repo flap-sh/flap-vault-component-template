@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { toFunctionSelector } from "viem";
 import { checkStandaloneWalletManifest, checkStandaloneWalletSource } from "./standalone-wallet-policy.mjs";
 const address = "0x2222222222222222222222222222222222222222";
 const app = { schemaVersion: 2, appModel: "standalone", mode: "mini-app", slug: "demo-app", match: { bindings: [] }, walletChains: [56], walletContracts: [{ id: "portal", chainId: 56, address, allow: ["function launch(uint256) payable"], read: ["function vaultOf(address) view returns (address)"], maxValueWei: "1000", resolvedContracts: [{ id: "rewards", resolver: "function vaultOf(address) view returns (address)", allow: ["function claim()"] }] }] };
@@ -42,3 +43,87 @@ test("full upload checker accepts declared shared SDK writes and still blocks un
 });
 
 test("dynamic targets cannot expose nested calldata executors", () => { const root = { ...app.walletContracts[0], resolvedContracts: [{ id: "unsafe", resolver: "function vaultOf(address) view returns (address)", allow: ["function callAnything(bytes)"] }] }; assert.ok(blocking(checkStandaloneWalletManifest({ ...app, walletContracts: [root] })).length); });
+
+const evidenceWrite = "function submitEvidence(uint256 id, bytes evidence, bytes checksum) payable";
+const evidenceConstraint = {
+  selector: toFunctionSelector(evidenceWrite),
+  fixedBytes: [{ index: 1, length: 16 }, { index: 2, length: 32 }],
+  valueWei: "42",
+};
+
+function constrainedWallet(resolverPatch = {}, rootPatch = {}) {
+  const root = app.walletContracts[0];
+  const resolver = {
+    ...root.resolvedContracts[0],
+    allow: [evidenceWrite],
+    codeHash: `0x${"a".repeat(64)}`,
+    maxValueWei: "100",
+    writeConstraints: [evidenceConstraint],
+    ...resolverPatch,
+  };
+  return {
+    ...app,
+    walletContracts: [{ ...root, codeHash: `0x${"b".repeat(64)}`, resolvedContracts: [resolver], ...rootPatch }],
+  };
+}
+
+test("resolved write constraints appear in the checker review alongside the code pins", () => {
+  const manifest = constrainedWallet();
+  const [review] = checkStandaloneWalletManifest(manifest);
+  assert.equal(review.ruleId, "manual-review/standalone-wallet");
+  assert.equal(review.codeHash, manifest.walletContracts[0].codeHash);
+  assert.deepEqual(review.resolvedContracts, manifest.walletContracts[0].resolvedContracts);
+});
+
+test("resolved write constraints require both code pins and valid complete selector/index coverage", () => {
+  const invalid = [
+    constrainedWallet({ codeHash: undefined }),
+    constrainedWallet({}, { codeHash: undefined }),
+    constrainedWallet({}, { writeConstraints: [evidenceConstraint] }),
+    constrainedWallet({ writeConstraints: undefined }),
+    constrainedWallet({ writeConstraints: [] }),
+    constrainedWallet({ writeConstraints: [evidenceConstraint, evidenceConstraint] }),
+    ...[
+      { selector: "0x12345678" },
+      { fixedBytes: [{ index: 1, length: 16 }] },
+      { fixedBytes: [{ index: 1, length: 16 }, { index: 1, length: 32 }] },
+      { fixedBytes: [{ index: 0, length: 16 }, { index: 2, length: 32 }] },
+      { fixedBytes: [{ index: 3, length: 16 }, { index: 2, length: 32 }] },
+      { fixedBytes: [{ index: 1, length: 0 }, { index: 2, length: 32 }] },
+      { fixedBytes: [{ index: 1, length: 2048 }, { index: 2, length: 2049 }] },
+      { valueWei: "101" },
+      { valueWei: "042" },
+    ].map((patch) => constrainedWallet({ writeConstraints: [{ ...evidenceConstraint, ...patch }] })),
+  ];
+  for (const [index, manifest] of invalid.entries()) {
+    assert.ok(blocking(checkStandaloneWalletManifest(manifest)).length, `invalid policy case ${index}`);
+  }
+});
+
+test("constraints cannot grant tuple, array, read, admin, or nonpayable value permissions", () => {
+  const invalid = [
+    "function registerEvidence(bytes[] evidence)",
+    "function registerEvidence((bytes evidence) record)",
+    "function registeredEvidence(bytes evidence) view returns (bool)",
+    "function execute(address target, uint256 value, bytes data) payable",
+    "function submitEvidence(bytes evidence)",
+  ];
+  for (const signature of invalid) {
+    const manifest = constrainedWallet({
+      allow: signature.includes(" view ") ? ["function claim()"] : [signature],
+      read: signature.includes(" view ") ? [signature] : undefined,
+      writeConstraints: [{
+        selector: toFunctionSelector(signature),
+        fixedBytes: [{ index: signature.startsWith("function execute") ? 2 : 0, length: 16 }],
+        ...(signature === invalid.at(-1) ? { valueWei: "42" } : {}),
+      }],
+    });
+    assert.ok(blocking(checkStandaloneWalletManifest(manifest)).length, signature);
+  }
+  const valid = constrainedWallet({
+    allow: ["function submitEvidence(bytes32[] hashes)"],
+    writeConstraints: undefined,
+    maxValueWei: undefined,
+  });
+  assert.deepEqual(blocking(checkStandaloneWalletManifest(valid)), []);
+});
