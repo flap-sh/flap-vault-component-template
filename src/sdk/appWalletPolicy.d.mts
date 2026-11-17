@@ -20,6 +20,6 @@ export interface ParsedAppWalletPermissions {
   writeConstraints?: ReadonlyMap<string, { fixedBytes: ReadonlyMap<number, number>; valueWei?: bigint }>;
 }
 export interface ParsedAppWalletContract extends ParsedAppWalletPermissions { definition: AppWalletContract; resolved: (ParsedAppWalletPermissions & { resolver: AbiFunction })[] }
-export const ERC20_APPROVE_SELECTOR: "0x095ea7b3";
-export const PRESALE_CONTRIBUTE_QUOTE_SELECTOR: `0x${string}`;
+export declare const ERC20_APPROVE_SELECTOR: "0x095ea7b3";
+export declare const PRESALE_CONTRIBUTE_QUOTE_SELECTOR: `0x${string}`;
 export function parseAppWalletContracts(value: unknown): ParsedAppWalletContract[];
