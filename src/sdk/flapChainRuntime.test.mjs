@@ -120,9 +120,11 @@ test("raw calldata cannot bypass signatures or send native currency to arbitrary
 const quoteToken = "0x4444444444444444444444444444444444444444";
 const otherQuoteToken = "0x5555555555555555555555555555555555555555";
 const contributeQuote = "function contributeQuote(uint256 amount)";
-async function presaleFixture() {
+async function presaleFixture(otherContracts = []) {
   const f = fixture();
   const root = f.manifest.walletContracts[0];
+  root.allow = [...root.allow, contributeQuote];
+  f.manifest.walletContracts.push(...otherContracts);
   const launcher = root.resolvedContracts[0];
   launcher.allow.push(contributeQuote);
   root.presaleApproval = { policyId: "presale-test", launcherResolver: launcher.id, maxApprovalWei: "100" };
@@ -188,6 +190,51 @@ test("presale guards reject fake handles, an unrelated resolver, overrides and e
   await assert.rejects(f.sdk.writeContract({ ...f.contribution, contract: secondPool }), /undeclared-presale-launcher/);
   await assert.rejects(f.sdk.sendTransaction({ to: portal, data: encodeFunctionData({ abi, functionName: "approve", args: [vault, 10n] }) }), /spender-not-allowed/);
   assert.equal(f.calls.length, 0);
+});
+
+test("presale checks apply to the declaring Factory and preserve other authorized contributions", async () => {
+  const otherFactory = "0x6666666666666666666666666666666666666666";
+  const otherLauncher = "0x7777777777777777777777777777777777777777";
+  const f = await presaleFixture([{
+    id: "other-factory",
+    chainId: 56,
+    address: otherFactory,
+    allow: [contributeQuote],
+    resolvedContracts: [{
+      id: "other-launcher",
+      resolver: "function launcherAt(uint256 index) view returns (address)",
+      allow: [contributeQuote],
+    }],
+  }]);
+  const originalRead = f.runtime.readContract;
+  f.runtime.readContract = (chain, request) => request.functionName === "launcherAt"
+    ? Promise.resolve(otherLauncher)
+    : originalRead(chain, request);
+
+  const { abi, functionName, args } = f.contribution;
+  const data = encodeFunctionData({ abi, functionName, args });
+  await assert.rejects(
+    f.sdk.sendTransaction({ to: portal, data }),
+    /undeclared-presale-launcher/,
+  );
+
+  assert.equal(await f.sdk.writeContract({ address: otherFactory, abi, functionName, args }), hash);
+  assert.equal(await f.sdk.sendTransaction({ to: otherFactory, data }), hash);
+  const otherPool = await f.sdk.resolveContract("other-launcher", [0n]);
+  assert.equal(await f.sdk.writeContract({ contract: otherPool, abi, functionName, args }), hash);
+  await assert.rejects(
+    f.sdk.approveQuote({ pool: otherPool, amount: 40n }),
+    /undeclared-presale-launcher/,
+  );
+
+  assert.deepEqual(f.calls.filter(([action]) => action !== "simulate").map(([action, , request]) => [
+    action, request.address ?? request.to,
+  ]), [
+    ["write", otherFactory],
+    ["send", otherFactory],
+    ["write", otherLauncher],
+  ]);
+  assert.deepEqual(f.checked, []);
 });
 
 test("presale writes fail closed on missing policy, a false approval, or a quote change during simulation", async () => {
