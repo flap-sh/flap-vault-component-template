@@ -101,7 +101,7 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
     if (record) { address = await resolve(record.root, record.policy, record.args); requireRule(same(address, record.address), "resolved-target-changed"); }
     else if (write) await checkCode(address!, policy);
     const { selector, call } = checkFunction({ ...prepared.request, address }, policy, write);
-    if (write && hasPresaleApproval && selector === PRESALE_CONTRIBUTE_QUOTE_SELECTOR) {
+    if (write && hasPresaleApproval && (record?.root ?? root)?.definition.presaleApproval !== undefined && selector === PRESALE_CONTRIBUTE_QUOTE_SELECTOR) {
       requireRule(account, "presale-account-unavailable");
       const { token, amount } = await resolvePresaleQuote(record, address, call.args?.[0]);
       const allowance = await runtime.readContract(chainId, { address: token, abi: quoteAbi, functionName: "allowance", args: [account, address] });
