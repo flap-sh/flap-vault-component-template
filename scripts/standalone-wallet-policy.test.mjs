@@ -15,6 +15,27 @@ test("approvals require declared spenders and a positive cap", () => {
  assert.ok(blocking(checkStandaloneWalletManifest({ ...app, walletContracts: [contract] })).length);
  assert.deepEqual(blocking(checkStandaloneWalletManifest({ ...app, walletContracts: [{ ...contract, approvalSpenders: [address], maxApprovalWei: "100" }] })), []);
 });
+test("a presale approval declaration requires a bounded cap and its own exact Launcher resolver", () => {
+ const root = {
+  ...app.walletContracts[0],
+  presaleApproval: { policyId: "reviewed-sale", launcherResolver: "launcher", maxApprovalWei: "100" },
+  resolvedContracts: [{ id: "launcher", resolver: "function launcherOf(uint256) view returns (address)", allow: ["function contributeQuote(uint256)"] }],
+ };
+ const manifest = { ...app, walletContracts: [root] };
+ assert.deepEqual(checkStandaloneWalletManifest(manifest)[0].presaleApproval, root.presaleApproval);
+ for (const patch of [
+  { launcherResolver: "other" },
+  { maxApprovalWei: "0" },
+  { maxApprovalWei: (2n ** 256n - 1n).toString() },
+  { quoteToken: address },
+ ]) assert.ok(blocking(checkStandaloneWalletManifest({ ...manifest, walletContracts: [{ ...root, presaleApproval: { ...root.presaleApproval, ...patch } }] })).length);
+ for (const allow of [["function contributeQuote(uint256) payable"], ["function contributeQuote(address,uint256)"]]) {
+  assert.ok(blocking(checkStandaloneWalletManifest({ ...manifest, walletContracts: [{ ...root, resolvedContracts: [{ ...root.resolvedContracts[0], allow }] }] })).length);
+ }
+ const approval = 'import { useFlapSdk } from "@/src/sdk"; const sdk = useFlapSdk({ chainId: 56 }); const pool = await sdk.resolveContract("launcher", [1n]); await sdk.approveQuote({ pool, amount: 10n });';
+ assert.deepEqual(blocking(checkStandaloneWalletSource(approval, "Component.tsx", manifest)), []);
+ assert.ok(blocking(checkStandaloneWalletSource(approval, "Component.tsx", app)).some(({ ruleId }) => ruleId === "standalone-wallet/undeclared-presale-approval"));
+});
 test("one SDK hook needs explicit chain and resolver IDs must be declared", () => {
  const good = 'import { useFlapSdk } from "@/src/sdk"; const sdk = useFlapSdk({ chainId: 56 }); const vault = await sdk.resolveContract("rewards", [token]); await sdk.writeContract({ contract: vault, abi, functionName: "claim" });';
  assert.deepEqual(blocking(checkStandaloneWalletSource(good, "Component.tsx", app)), []);

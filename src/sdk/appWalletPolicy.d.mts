@@ -7,7 +7,12 @@ export interface AppResolvedWriteConstraint {
   valueWei?: string;
 }
 export interface AppResolvedContract extends AppWalletPermissions { resolver: string; writeConstraints?: AppResolvedWriteConstraint[] }
-export interface AppWalletContract extends AppWalletPermissions { chainId: number; address: Address; resolvedContracts?: AppResolvedContract[] }
+export interface AppPresaleApproval {
+  policyId: string;
+  launcherResolver: string;
+  maxApprovalWei: string;
+}
+export interface AppWalletContract extends AppWalletPermissions { chainId: number; address: Address; resolvedContracts?: AppResolvedContract[]; presaleApproval?: AppPresaleApproval }
 export interface ParsedAppWalletPermissions {
   definition: AppWalletPermissions;
   writes: AbiFunction[];
@@ -15,4 +20,6 @@ export interface ParsedAppWalletPermissions {
   writeConstraints?: ReadonlyMap<string, { fixedBytes: ReadonlyMap<number, number>; valueWei?: bigint }>;
 }
 export interface ParsedAppWalletContract extends ParsedAppWalletPermissions { definition: AppWalletContract; resolved: (ParsedAppWalletPermissions & { resolver: AbiFunction })[] }
+export const ERC20_APPROVE_SELECTOR: "0x095ea7b3";
+export const PRESALE_CONTRIBUTE_QUOTE_SELECTOR: `0x${string}`;
 export function parseAppWalletContracts(value: unknown): ParsedAppWalletContract[];

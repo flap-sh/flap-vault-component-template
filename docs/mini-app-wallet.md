@@ -55,6 +55,30 @@ The runtime checks constraints before simulation and again before wallet forward
 
 Use this field after the template, Workbench, and host runtime support `sdkFeatures.resolvedWriteConstraints: 1` from the same coordinated release.
 
+## Presale quote approvals
+
+An independent app can declare `presaleApproval` on a fixed Factory in
+`walletContracts`. Set `policyId` to the host-issued policy ID,
+`launcherResolver` to a resolver on that same Factory, and `maxApprovalWei` to
+the maximum approved amount in the ERC20's smallest units. The Launcher
+resolver's write list must include `function contributeQuote(uint256 amount)`.
+The declaration requires a corresponding host policy for the chain and
+Factory. It does not authorize approval on its own.
+
+Use a genuine pool handle from `sdk.resolveContract` and call
+`sdk.approveQuote({ pool, amount })` with the required amount. The runtime
+resolves the ERC20 through the host, simulates the standard ERC20 approval, and
+checks the pool and wallet again before submission. Wait for a successful
+approval receipt before writing `contributeQuote` through the same handle.
+The runtime checks the current allowance for the connected account and the
+same Launcher before contributing. The raw transaction API does not accept
+dynamic spender approvals. Existing fixed spender approvals use their own
+`approvalSpenders` policy.
+
+Deploy a coordinated runtime and checker that advertise
+`sdkFeatures.presaleApproval = 1` and configure the reviewed host policy
+before using this field.
+
 ## Shared transaction flow
 
 `waitForTx(hash)` polls the original transaction hash through the public client selected for that operation. It queries immediately, then every 2 seconds after a pending or transient-error response, with an 8-second deadline per query and a 180-second total deadline. It returns the original success/reverted status; applications must check `status === "success"` before showing success or refreshing as successful. A timeout means the result is unknown: retain the hash and reconcile it before offering another transaction. Polling does not follow sped-up or cancelled replacement transactions; the original hash can time out. The public API and receipt fields remain compatible.
