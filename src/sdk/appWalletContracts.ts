@@ -1,14 +1,22 @@
-import { encodeFunctionData, toFunctionSelector, keccak256, prepareEncodeFunctionData } from "viem";
-import { parseAppWalletContracts, type ParsedAppWalletPermissions } from "./appWalletPolicy.mjs";
+import { encodeFunctionData, toFunctionSelector, keccak256, parseAbi, prepareEncodeFunctionData } from "viem";
+import { ERC20_APPROVE_SELECTOR, PRESALE_CONTRIBUTE_QUOTE_SELECTOR, parseAppWalletContracts, type ParsedAppWalletPermissions } from "./appWalletPolicy.mjs";
 import type { Address, ContractWriteRequest, VaultManifest } from "./types";
-import type { FlapWalletRuntime } from "./flapChainRuntime";
+import type { FlapWalletRuntime, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
 import type { ResolvedContractHandle } from "./resolvedContractTypes";
-const requireRule = (ok: unknown, reason: string) => { if (!ok) throw new Error(`app-wallet/${reason}`); };
+function requireRule(ok: unknown, reason: string): asserts ok { if (!ok) throw new Error(`app-wallet/${reason}`); }
 const same = (a: unknown, b: unknown) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
+function isContractAddress(address: unknown): address is Address {
+  return typeof address === "string" && /^0x[0-9a-f]{40}$/i.test(address) && !/^0x0{40}$/i.test(address);
+}
+const quoteAbi = parseAbi([
+  "function approve(address spender,uint256 amount) returns (bool)",
+  "function allowance(address owner,address spender) view returns (uint256)",
+]);
 export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: number, manifest: VaultManifest) {
   const roots = manifest.walletContracts === undefined ? [] : parseAppWalletContracts(manifest.walletContracts).filter((p) => p.definition.chainId === chainId);
   type RecordEntry = { root: typeof roots[number]; policy: typeof roots[number]["resolved"][number]; address: Address; args: unknown[] };
   const records = new WeakMap<object, RecordEntry>();
+  const hasPresaleApproval = roots.some(({ definition }) => definition.presaleApproval !== undefined);
   async function checkCode(address: Address, policy: ParsedAppWalletPermissions) {
     const code = await runtime.getCode(chainId, address); requireRule(code && code !== "0x", "missing-code");
     if (policy.definition.codeHash) requireRule(same(keccak256(code!), policy.definition.codeHash), "code-hash-changed");
@@ -16,8 +24,8 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
   async function resolve(root: typeof roots[number], policy: RecordEntry["policy"], args: unknown[]) {
     await checkCode(root.definition.address, root);
     const address = await runtime.readContract(chainId, { address: root.definition.address, abi: [policy.resolver], functionName: policy.resolver.name, args });
-    requireRule(typeof address === "string" && /^0x[0-9a-f]{40}$/i.test(address) && !/^0x0{40}$/i.test(address), "invalid-resolved-target");
-    await checkCode(address as Address, policy); return address as Address;
+    requireRule(isContractAddress(address), "invalid-resolved-target");
+    await checkCode(address, policy); return address;
   }
   async function resolveContract(id: string, input: readonly unknown[]): Promise<ResolvedContractHandle> {
     const root = roots.find((p) => p.resolved.some((r) => r.definition.id === id)); const policy = root?.resolved.find((p) => p.definition.id === id);
@@ -48,22 +56,59 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
       requireRule(constraint.valueWei === undefined || value === constraint.valueWei, "exact-value-mismatch");
     }
     const data = encodeFunctionData({ ...parameters, ...prepared });
-    const entry = (write ? policy.writes : policy.reads).find((f) => toFunctionSelector(f) === data.slice(0, 10));
+    const selector = data.slice(0, 10);
+    const entry = (write ? policy.writes : policy.reads).find((f) => toFunctionSelector(f) === selector);
     requireRule(entry, "selector-not-allowed");
     requireRule(encodeFunctionData({ abi: [entry!], functionName: entry!.name, args: request.args }) === data, "abi-mismatch");
     requireRule(value >= 0n && (value === 0n || entry!.stateMutability === "payable" && policy.definition.maxValueWei && value <= BigInt(policy.definition.maxValueWei)), "value-not-allowed");
-    if (write && entry!.name === "approve") {
+    if (write && selector === ERC20_APPROVE_SELECTOR) {
       requireRule(policy.definition.approvalSpenders?.some((a) => same(a, request.args?.[0])), "spender-not-allowed");
       const amount = request.args?.[1]; requireRule(typeof amount === "bigint" && amount >= 0n && amount <= BigInt(policy.definition.maxApprovalWei!), "approval-cap-exceeded");
     }
-    return { ...request, abi: [entry!], functionName: entry!.name };
+    return { selector, call: { ...request, abi: [entry], functionName: entry.name } };
   }
-  async function validate(prepared: ReturnType<typeof snapshot>, write: boolean) {
+
+  async function resolvePresaleQuote(record: RecordEntry | undefined, launcher: Address | undefined, amount: unknown) {
+    const declaration = record?.root.definition.presaleApproval;
+    requireRule(record && launcher && declaration && record.policy.definition.id === declaration.launcherResolver, "undeclared-presale-launcher");
+    requireRule(typeof amount === "bigint" && amount > 0n && amount <= BigInt(declaration.maxApprovalWei), "presale-approval-cap-exceeded");
+    requireRule(runtime.resolvePresaleApproval, "presale-approval-unavailable");
+    const approval = await runtime.resolvePresaleApproval({ chainId, policyId: declaration.policyId, factory: record.root.definition.address, launcher });
+    requireRule(approval && isContractAddress(approval.quoteToken), "invalid-presale-quote-token");
+    requireRule(typeof approval.maxApprovalWei === "bigint" && amount <= approval.maxApprovalWei, "presale-approval-cap-exceeded");
+    return { token: approval.quoteToken, amount };
+  }
+
+  function snapshotQuoteApproval(input: PresaleQuoteApprovalRequest) {
+    requireRule(input && typeof input === "object" && Object.keys(input).every((key) => key === "pool" || key === "amount"), "invalid-presale-approval-request");
+    const { pool, amount } = input;
+    const record = records.get(pool);
+    requireRule(record, "forged-or-expired-handle");
+    return { record, amount };
+  }
+
+  async function validateQuoteApproval(prepared: ReturnType<typeof snapshotQuoteApproval>) {
+    const { record, amount } = prepared;
+    const launcher = await resolve(record.root, record.policy, record.args);
+    requireRule(same(launcher, record.address), "resolved-target-changed");
+    const { token } = await resolvePresaleQuote(record, launcher, amount);
+    return { address: token, abi: quoteAbi, functionName: "approve", args: [launcher, amount], value: 0n };
+  }
+
+  async function validate(prepared: ReturnType<typeof snapshot>, write: boolean, account?: Address) {
     const { record, root, policy } = prepared;
     let address = root?.definition.address;
     if (record) { address = await resolve(record.root, record.policy, record.args); requireRule(same(address, record.address), "resolved-target-changed"); }
     else if (write) await checkCode(address!, policy);
-    return checkFunction({ ...prepared.request, address }, policy, write);
+    const { selector, call } = checkFunction({ ...prepared.request, address }, policy, write);
+    if (write && hasPresaleApproval && (record?.root ?? root)?.definition.presaleApproval !== undefined && selector === PRESALE_CONTRIBUTE_QUOTE_SELECTOR) {
+      requireRule(account, "presale-account-unavailable");
+      const { token, amount } = await resolvePresaleQuote(record, address, call.args?.[0]);
+      const allowance = await runtime.readContract(chainId, { address: token, abi: quoteAbi, functionName: "allowance", args: [account, address] });
+      requireRule(typeof allowance === "bigint" && allowance >= amount, "presale-allowance-insufficient");
+      return { call, presaleQuoteToken: token };
+    }
+    return { call, presaleQuoteToken: undefined };
   }
-  return { roots, snapshot, validate, resolveContract };
+  return { roots, snapshot, validate, resolveContract, snapshotQuoteApproval, validateQuoteApproval };
 }

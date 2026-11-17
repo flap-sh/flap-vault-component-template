@@ -8,17 +8,18 @@ export function checkStandaloneWalletManifest(manifest) {
   try {
     const parsed = parseAppWalletContracts(contracts);
     if (parsed.some((p) => !chains.includes(p.definition.chainId))) throw new Error("Contract chain must be declared in walletChains.");
-    return parsed.map((p) => ({ severity: "warning", ruleId: "manual-review/standalone-wallet", ...p.definition, message: "Review this App's fixed contract, exact signatures, resolver provenance, spender/approval caps and native-value cap. Rendering fixtures do not authorize transactions or prove business behavior." }));
+    return parsed.map((p) => ({ severity: "warning", ruleId: "manual-review/standalone-wallet", ...p.definition, message: "Review this App's fixed contract, exact signatures, resolver provenance, spender/approval caps and native-value cap. Presale approval also requires the matching host policy. Rendering fixtures do not authorize transactions or prove business behavior." }));
   } catch (error) { return [{ severity: "blocking", ruleId: "standalone-wallet/invalid-contracts", message: error.message }]; }
 }
 export function checkStandaloneWalletSource(content, file, manifest) {
   if (!isStandaloneApp(manifest)) return [];
   const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const issues = []; const hooks = new Set(); const handles = new Set(); let hasWrites = false;
+  const walletWrites = new Set(["writeContract", "simulateContract", "sendTransaction", "approveQuote"]);
   const add = (ruleId, message, node) => issues.push({ severity: "blocking", ruleId, message, file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
   for (const node of source.statements) if (ts.isImportDeclaration(node) && node.moduleSpecifier.text === "@/src/sdk" && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) for (const item of node.importClause.namedBindings.elements) if ((item.propertyName ?? item.name).text === "useFlapSdk") hooks.add(item.name.text);
   function visit(node) {
-    if (ts.isIdentifier(node) && ["writeContract", "simulateContract", "sendTransaction"].includes(node.text)) hasWrites = true;
+    if (ts.isIdentifier(node) && walletWrites.has(node.text)) hasWrites = true;
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && ts.isAwaitExpression(node.initializer) && ts.isCallExpression(node.initializer.expression) && ts.isPropertyAccessExpression(node.initializer.expression.expression) && node.initializer.expression.expression.name.text === "resolveContract") handles.add(node.name.text);
     if (ts.isCallExpression(node)) {
       if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "resolveContract") {
@@ -28,6 +29,10 @@ export function checkStandaloneWalletSource(content, file, manifest) {
       if (ts.isIdentifier(node.expression) && hooks.has(node.expression.text)) {
         const arg = node.arguments[0];
         if (!arg || !ts.isObjectLiteralExpression(arg) || !arg.properties.some((p) => ts.isPropertyAssignment(p) && p.name.getText(source).replace(/["']/g, "") === "chainId")) add("standalone-wallet/explicit-chain", "Independent Apps use the shared useFlapSdk({ chainId }) hook.", node);
+      }
+      if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "approveQuote"
+        && !(Array.isArray(manifest.walletContracts) && manifest.walletContracts.some((entry) => entry?.presaleApproval))) {
+        add("standalone-wallet/undeclared-presale-approval", "approveQuote requires a declared presaleApproval policy.", node);
       }
       if (ts.isPropertyAccessExpression(node.expression) && ["writeContract", "simulateContract", "sendTransaction"].includes(node.expression.name.text)) {
         const arg = node.arguments[0];
