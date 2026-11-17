@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.44 — ERC20 quote approvals for standalone presales
+
+- Add `sdk.approveQuote({ pool, amount })` for reviewed standalone Mini Apps. The runtime approves the ERC20 quote token for the verified Launcher and checks the allowance before a direct `contributeQuote(uint256)` call.
+- Apply presale checks to the Factory that declares the policy so independently approved contracts on the same chain can keep their existing contribution flow.
+- Receiving hosts must configure a matching presale approval policy. Workbench must verify source packages against the matching published runtime.
+
 ## 0.1.43 — Standalone write constraints and BNB Chain gas overrides
 
 - Allow standalone Mini Apps to declare exact byte lengths for reviewed resolved-contract writes. The runtime checks the declared selector, payload lengths, code hashes and any exact native value before simulation and submission.
