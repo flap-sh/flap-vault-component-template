@@ -78,10 +78,10 @@ export const NFT_ACCOUNT_WITHDRAWAL_VERSION = 1;
 export type { ManifestResolvedContract, ResolvedContractCheck, ResolvedContractHandle } from "./resolvedContractTypes";
 export const RESOLVED_CONTRACTS_VERSION = 1;
 
-export { FLAP_WALLET_RUNTIME_VERSION } from "./flapChainRuntime";
-export type { FlapChainSdk, FlapSendTransactionRequest, FlapTransactionReceipt } from "./flapChainRuntime";
+export { FLAP_WALLET_RUNTIME_VERSION, PRESALE_APPROVAL_VERSION } from "./flapChainRuntime";
+export type { FlapChainSdk, FlapSendTransactionRequest, FlapTransactionReceipt, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
 
-export type { AppWalletContract, AppResolvedContract } from "./appWalletPolicy.mjs";
+export type { AppWalletContract, AppPresaleApproval, AppResolvedContract } from "./appWalletPolicy.mjs";
 /** Controlled dynamic CID text reads and image rendering. */
 export const IPFS_CONTENT_VERSION = 1;
 export { DEVICE_SENSORS_VERSION } from "./deviceSensors";

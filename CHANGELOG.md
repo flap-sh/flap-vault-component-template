@@ -11,6 +11,12 @@ See `docs/versioning.md` for the rules that govern when each surface increments.
 
 ---
 
+## [0.1.44-next.0] - Unreleased
+
+- Add host-reviewed ERC20 approval for a resolved Presale Launcher in standalone Mini Apps.
+- Revalidate Launcher and quote-token policy before signing and require the buyer's allowance before direct contribution.
+- Declare `sdkFeatures.presaleApproval = 1` for coordinated hosts.
+
 ## [0.1.40-next.4] - 2026-10-26
 
 Published on npm `next`; public registry identity and archive bytes are verified. Stable `latest` remains `0.1.39` with its pre-publication identity unchanged. See [the release record](docs/releases/0.1.40-next.4.md).

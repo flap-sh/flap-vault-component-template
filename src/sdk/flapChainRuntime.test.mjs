@@ -83,6 +83,97 @@ test("raw calldata cannot bypass signatures or send native currency to arbitrary
   for (const call of [{ to: owner, value: 1n }, { to: portal, data: "0x12345678" }, { to: portal, data, value: 1001n }]) await assert.rejects(f.sdk.sendTransaction(call));
   assert.equal(f.calls.length, 1);
 });
+
+const quoteToken = "0x4444444444444444444444444444444444444444";
+const otherQuoteToken = "0x5555555555555555555555555555555555555555";
+const contributeQuote = "function contributeQuote(uint256 amount)";
+async function presaleFixture() {
+  const f = fixture();
+  const root = f.manifest.walletContracts[0];
+  const launcher = root.resolvedContracts[0];
+  launcher.allow.push(contributeQuote);
+  root.presaleApproval = { policyId: "presale-test", launcherResolver: launcher.id, maxApprovalWei: "100" };
+  root.resolvedContracts.push({ ...launcher, id: "second-resolver" });
+  let token = quoteToken;
+  let approved = true;
+  let allowance = 0n;
+  const checked = [];
+  const originalRead = f.runtime.readContract;
+  f.runtime.readContract = async (chain, request) => {
+    if (request.functionName !== "allowance") return originalRead(chain, request);
+    assert.equal(request.address, token);
+    assert.deepEqual(request.args, [owner, vault]);
+    return allowance;
+  };
+  f.runtime.resolvePresaleApproval = async (request) => {
+    checked.push(request);
+    return { quoteToken: token, maxApprovalWei: 50n };
+  };
+  f.runtime.simulateContract = async (chain, request) => {
+    f.calls.push(["simulate", chain, request]);
+    return request.functionName === "approve" ? approved : undefined;
+  };
+  const sdk = createFlapChainSdk(f.runtime, { chainId: 56, manifest: f.manifest, writableChains: [56], i18n: {}, notify: {} });
+  const pool = await sdk.resolveContract(launcher.id, [portal]);
+  const contribution = { contract: pool, abi: parseAbi([contributeQuote]), functionName: "contributeQuote", args: [40n] };
+  return {
+    ...f, sdk, pool, contribution, checked,
+    setAllowance: (amount) => { allowance = amount; },
+    setQuote: (address) => { token = address; },
+    setApprovalResult: (value) => { approved = value; },
+  };
+}
+
+test("presale approval and contribution use the same reviewed pool, quote token and buyer", async () => {
+  const f = await presaleFixture();
+  await assert.rejects(f.sdk.writeContract(f.contribution), /presale-allowance-insufficient/);
+  await f.sdk.approveQuote({ pool: f.pool, amount: 40n });
+  const approval = f.calls.at(-1)[2];
+  assert.equal(approval.address, quoteToken);
+  assert.equal(approval.account, owner);
+  assert.equal(approval.value, 0n);
+  assert.equal(encodeFunctionData(approval), encodeFunctionData({
+    abi, functionName: "approve", args: [vault, 40n],
+  }));
+  f.setAllowance(40n);
+  await f.sdk.writeContract(f.contribution);
+  assert.equal(f.calls.at(-1)[2].address, vault);
+  assert.equal(f.calls.at(-1)[2].account, owner);
+  assert.ok(f.checked.every((entry) => entry.chainId === 56 && entry.policyId === "presale-test" && entry.factory === portal && entry.launcher === vault));
+});
+
+test("presale guards reject fake handles, an unrelated resolver, overrides and excess approval before signing", async () => {
+  const f = await presaleFixture();
+  const secondPool = await f.sdk.resolveContract("second-resolver", [portal]);
+  for (const request of [
+    { pool: { ...f.pool }, amount: 10n },
+    { pool: secondPool, amount: 10n },
+    { pool: f.pool, amount: 10n, quoteToken: otherQuoteToken },
+    { pool: f.pool, amount: 0n },
+    { pool: f.pool, amount: 51n },
+  ]) await assert.rejects(f.sdk.approveQuote(request), /app-wallet\//);
+  await assert.rejects(f.sdk.writeContract({ ...f.contribution, contract: secondPool }), /undeclared-presale-launcher/);
+  await assert.rejects(f.sdk.sendTransaction({ to: portal, data: encodeFunctionData({ abi, functionName: "approve", args: [vault, 10n] }) }), /spender-not-allowed/);
+  assert.equal(f.calls.length, 0);
+});
+
+test("presale writes fail closed on missing policy, a false approval, or a quote change during simulation", async () => {
+  const f = await presaleFixture();
+  const savedCallback = f.runtime.resolvePresaleApproval;
+  delete f.runtime.resolvePresaleApproval;
+  const approval = { pool: f.pool, amount: 40n };
+  await assert.rejects(f.sdk.approveQuote(approval), /presale-approval-unavailable/);
+  f.runtime.resolvePresaleApproval = savedCallback;
+  f.setApprovalResult(false);
+  await assert.rejects(f.sdk.approveQuote(approval), /presale-approval-simulation-failed/);
+  f.runtime.simulateContract = async () => { f.setQuote(otherQuoteToken); return true; };
+  await assert.rejects(f.sdk.approveQuote(approval), /presale-quote-changed/);
+  f.setQuote(quoteToken);
+  f.setAllowance(40n);
+  await assert.rejects(f.sdk.writeContract(f.contribution), /presale-quote-changed/);
+  assert.ok(f.calls.every(([operation]) => operation !== "write" && operation !== "send"));
+});
+
 test("reverted receipts and wallet rejections are preserved", async () => {
   const f = fixture({ waitForTx: async () => ({ hash, status: "reverted", blockNumber: 11n, logs: [] }), writeContract: async () => { throw new Error("User rejected"); } });
   assert.equal((await f.sdk.waitForTx(hash)).status, "reverted"); await assert.rejects(f.sdk.writeContract(request("claim")), /User rejected/);

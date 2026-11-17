@@ -8,8 +8,10 @@ import { readContractEventsInBlockRanges } from "./contractEvents";
 import type { Address, ContractReadRequest, ContractWriteRequest, ContractEventRequest, FlapI18n, FlapNotify, FlapWallet, MediaUploader, MediaUploadOptions, SimulateResult, VaultManifest } from "./types";
 
 export const FLAP_WALLET_RUNTIME_VERSION = 1;
+export const PRESALE_APPROVAL_VERSION = 1;
 export interface FlapSendTransactionRequest { to: Address; value?: bigint; data?: `0x${string}`; gas?: bigint; gasPrice?: bigint }
 export interface FlapTransactionReceipt { hash: Address; status: "success" | "reverted"; blockNumber: bigint; logs: TransactionReceipt["logs"] }
+export interface PresaleQuoteApprovalRequest { pool: ResolvedContractHandle; amount: bigint }
 export interface FlapChainSdk {
   context: { chainId: number; manifest: VaultManifest };
   i18n: FlapI18n;
@@ -19,6 +21,7 @@ export interface FlapChainSdk {
   readContract<T = unknown>(request: ContractReadRequest): Promise<T>;
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;
+  approveQuote(request: PresaleQuoteApprovalRequest): Promise<Address>;
   sendTransaction(request: FlapSendTransactionRequest): Promise<Address>;
   waitForTx(hash: Address): Promise<FlapTransactionReceipt>;
   getGasPrice(): Promise<bigint>;
@@ -38,6 +41,8 @@ export interface FlapWalletRuntime {
   readOnly?: boolean;
   generation?: string;
   assertActive?(): void;
+  /** Authorize the reviewed Launcher for this host context and resolve its ERC20 quote token and cap. */
+  resolvePresaleApproval?(input: { chainId: number; policyId: string; factory: Address; launcher: Address }): Promise<{ quoteToken: Address; maxApprovalWei: bigint }>;
   getAccount(): FlapWalletAccount;
   connect(): void;
   disconnect(): void;
@@ -93,9 +98,11 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
     const snapshot = prepared?.request ?? structuredClone(request);
     assertValue(snapshot.value);
     const fees = await resolveSafeContractWriteFeeOverrides(snapshot, () => runtime.getGasPrice(chainId));
-    const call = appPolicy && prepared ? await appPolicy.validate(prepared, true) : contractRequest(snapshot);
+    const { call, presaleQuoteToken } = appPolicy && prepared
+      ? await appPolicy.validate(prepared, true, account)
+      : { call: contractRequest(snapshot), presaleQuoteToken: undefined };
     writeAccount(account);
-    return { call: { ...call, ...fees, account, value: snapshot.value }, prepared };
+    return { call: { ...call, ...fees, account, value: snapshot.value }, prepared, presaleQuoteToken };
   }
   let switchingChain = false;
   const wallet: Omit<FlapWallet, "balance"> = {
@@ -113,7 +120,7 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
     context: { chainId, manifest }, i18n, notify, wallet,
     resolveContract: async (id, args) => { if (!appPolicy) throw new Error("Use the Vault SDK's resolveContract for bound targets."); return appPolicy.resolveContract(id, args); },
     readContract: async <T,>(request: ContractReadRequest) => {
-      const call = appPolicy ? await appPolicy.validate(appPolicy.snapshot(request), false) : contractRequest(request);
+      const call = appPolicy ? (await appPolicy.validate(appPolicy.snapshot(request), false)).call : contractRequest(request);
       return runtime.readContract(chainId, call) as Promise<T>;
     },
     simulateContract: async (request) => {
@@ -122,13 +129,27 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
       return { request: { ...call, ...(typeof request.contract === "object" ? { contract: request.contract, address: undefined } : {}) }, result };
     },
     writeContract: async (request) => {
-      let { call, prepared } = await prepareWrite(request);
+      const { call, prepared, presaleQuoteToken } = await prepareWrite(request);
       if (appPolicy && prepared?.record) {
         await runtime.simulateContract(chainId, call);
-        call = { ...call, ...await appPolicy.validate(prepared, true), account: call.account };
+        const rechecked = await appPolicy.validate(prepared, true, call.account);
+        if (rechecked.presaleQuoteToken?.toLowerCase() !== presaleQuoteToken?.toLowerCase()) throw new Error("app-wallet/presale-quote-changed");
       }
       writeAccount(call.account);
       return runtime.writeContract(chainId, call);
+    },
+    approveQuote: async (request) => {
+      const account = writeAccount();
+      if (!appPolicy) throw new Error("app-wallet/presale-approval-unavailable");
+      const prepared = appPolicy.snapshotQuoteApproval(request);
+      const call = await appPolicy.validateQuoteApproval(prepared);
+      writeAccount(account);
+      const accepted = await runtime.simulateContract(chainId, { ...call, account });
+      if (accepted !== true) throw new Error("app-wallet/presale-approval-simulation-failed");
+      const rechecked = await appPolicy.validateQuoteApproval(prepared);
+      if (rechecked.address.toLowerCase() !== call.address.toLowerCase()) throw new Error("app-wallet/presale-quote-changed");
+      writeAccount(account);
+      return runtime.writeContract(chainId, { ...call, account });
     },
     sendTransaction: async (request) => {
       request = structuredClone(request);

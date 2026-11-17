@@ -34,6 +34,30 @@ This is illustrative ABI, not the Flap Portal ABI or a deployable factory. Use t
 
 A resolver is a reviewed view/pure function on its fixed root with a single address output. Returned targets must contain code; optional `codeHash` pins code for either roots or resolved targets. The runtime stores genuine handles privately, re-resolves before writes, simulates dynamic writes and checks again before forwarding. Addresses supplied by an external token API, copied handles and handle/address overrides do not authorize transactions. Dynamic targets cannot expose nested dynamic-bytes execution methods. Dynamic token approvals use a resolver policy with the exact approve signature, approved spender addresses and a bounded `maxApprovalWei` too. Critical ownership/provenance must also be enforced on-chain: an application-side check cannot make upgrades or mining atomic.
 
+## Presale quote approvals
+
+An independent app can declare `presaleApproval` on a fixed Factory in
+`walletContracts`. Set `policyId` to the host-issued policy ID,
+`launcherResolver` to a resolver on that same Factory, and `maxApprovalWei` to
+the maximum approved amount in the ERC20's smallest units. The Launcher
+resolver's write list must include `function contributeQuote(uint256 amount)`.
+The declaration requires a corresponding host policy for the chain and
+Factory. It does not authorize approval on its own.
+
+Use a genuine pool handle from `sdk.resolveContract` and call
+`sdk.approveQuote({ pool, amount })` with the required amount. The runtime
+resolves the ERC20 through the host, simulates the standard ERC20 approval, and
+checks the pool and wallet again before submission. Wait for a successful
+approval receipt before writing `contributeQuote` through the same handle.
+The runtime checks the current allowance for the connected account and the
+same Launcher before contributing. The raw transaction API does not accept
+dynamic spender approvals. Existing fixed spender approvals use their own
+`approvalSpenders` policy.
+
+Deploy a coordinated runtime and checker that advertise
+`sdkFeatures.presaleApproval = 1` and configure the reviewed host policy
+before using this field.
+
 ## Shared transaction flow
 
 ```tsx

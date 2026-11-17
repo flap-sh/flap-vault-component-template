@@ -9,8 +9,8 @@ import { createLocalMediaUploader } from "./mediaUpload";
 
 const defaultUploader = createLocalMediaUploader();
 /** Host-only bridge. Always uses the enclosing WagmiProvider's connector/config. */
-export function useFlapWalletRuntime({ connect, readOnly = false, mediaUploader = defaultUploader }: {
-  connect(): void; readOnly?: boolean; mediaUploader?: MediaUploader;
+export function useFlapWalletRuntime({ connect, readOnly = false, mediaUploader = defaultUploader, resolvePresaleApproval }: {
+  connect(): void; readOnly?: boolean; mediaUploader?: MediaUploader; resolvePresaleApproval?: FlapWalletRuntime["resolvePresaleApproval"];
 }): FlapWalletRuntime {
   const config = useConfig();
   const account = useAccount();
@@ -26,6 +26,7 @@ export function useFlapWalletRuntime({ connect, readOnly = false, mediaUploader 
     };
     return {
       chains: config.chains.map((chain) => ({ id: chain.id, name: chain.name, explorerBaseUrl: chain.blockExplorers?.default.url })), readOnly,
+      resolvePresaleApproval,
       getAccount: () => { const current = getAccount(config); return { address: current.address, chainId: current.chainId, isConnected: current.isConnected }; },
       generation: `${account.address ?? ""}:${account.chainId ?? ""}:${account.isConnected}`,
       connect: () => connectRef.current(), disconnect: () => { void disconnect(config); },
@@ -49,5 +50,5 @@ export function useFlapWalletRuntime({ connect, readOnly = false, mediaUploader 
       upload: mediaUploader,
       openUrl: (url) => { window.open(url, "_blank", "noopener,noreferrer"); },
     };
-  }, [config, readOnly, mediaUploader, account.address, account.chainId, account.isConnected]);
+  }, [config, readOnly, mediaUploader, resolvePresaleApproval, account.address, account.chainId, account.isConnected]);
 }

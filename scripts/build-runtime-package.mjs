@@ -127,7 +127,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1, streetMap: 1, streetMapPresentation: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, deviceSensors: 1, miniAppRouting: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, deviceSensors: 1, miniAppRouting: 1, presaleApproval: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -158,6 +158,13 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 - \`./server\`: server-side presentation, runtime oracle-registry helpers, controlled image/text upload handler, and the Vault V2 NFT metadata/media resolver
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
+
+## Presale quote approvals
+
+Standalone Mini Apps can use \`sdk.approveQuote({ pool, amount })\` with a genuine
+Launcher handle under a reviewed \`walletContracts[].presaleApproval\` policy.
+The host must provision the policy to resolve and authorize the pool's ERC20 quote
+token. This feature is advertised by \`sdkFeatures.presaleApproval = 1\`.
 
 ## Mini App subroutes
 

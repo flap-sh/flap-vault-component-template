@@ -192,6 +192,7 @@ async function main() {
   const sdkModule = await import(`${pathToFileURL(path.join(packageDir, "sdk.js")).href}?verify=${Date.now()}`);
   const hostModule = await import(`${pathToFileURL(path.join(packageDir, "host.js")).href}?verify=${Date.now()}`);
   if ("VaultRuntimeProvider" in sdkModule || typeof hostModule.VaultRuntimeProvider !== "function") throw new Error("Provider must be host-only.");
+  if (runtimeContract.sdkFeatures?.presaleApproval !== 1 || sdkModule.PRESALE_APPROVAL_VERSION !== 1) throw new Error("The shared runtime must expose presale approval v1.");
 
   await verifyStreetMapWorker(path.join(packageDir, STREET_MAP_ASSET_CONTRACT.workerPath));
   if (typeof uiModule.FlapStreetMap !== "function" || runtimeContract.uiFeatures?.streetMap !== 1 || uiModule.STREET_MAP_PRESENTATION_V1 !== 1 || runtimeContract.uiFeatures?.streetMapPresentation !== 1 || JSON.stringify(runtimeContract.streetMap) !== JSON.stringify(STREET_MAP_ASSET_CONTRACT)) throw new Error("Street map export, presentation capability or fixed Worker integrity mismatch.");
