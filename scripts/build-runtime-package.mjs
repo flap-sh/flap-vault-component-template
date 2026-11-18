@@ -218,6 +218,9 @@ Runtime. The SDK verifies the project binding and the approved Beacon
 implementations, then permits the reviewed \`commitTapeout\`, \`revealTapeout\`,
 and optional \`verifyMiner\` methods. Commit and verification carry zero native
 value. Reveal requires the approved fee and a 35-byte payload.
+The same binding may request reviewed token approval, farm staking, fuel and
+claim methods. A host token code pin and finite token allowance cap are required
+for approval and spending. The spender is the current verified Runtime.
 This profile advertises \`sdkFeatures.vaultAssembly = 1\`.
 See the [host and artifact setup](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/resolved-contracts.md#host-approved-vault-assembly).
 

@@ -13,6 +13,18 @@ const declaration = {
   ],
 };
 const verifyMiner = "function verifyMiner(uint256 minerId) returns (bool)";
+const tokenActions = [
+  "function approve(address spender,uint256 amount) returns (bool)",
+  "function openFarmStake(uint256 tier,uint256 farmId) returns (uint256)",
+  "function openFarmStakeAmount(uint256 tier,uint256 farmId,uint256 amount) returns (uint256)",
+  "function buyFuel(uint256 id,uint256 tier,uint256 durationIndex,uint256 maximumCost) returns (uint256)",
+  "function claimFarmProduction(uint256 id) returns (uint256)",
+  "function claimMiner(uint256 id) returns (uint256)",
+  "function claimStakePrincipal(uint256 id) returns (uint256)",
+  "function claimStakeReward(uint256 id) returns (uint256)",
+  "function claimMany(uint256[] minerIds) returns ((address token,address account,uint256[] minerIds,uint256[] amounts,uint256 total,uint256 positiveCount,uint64 asOf,bool complete,uint64 nextExpiry,uint256 asOfBlock))",
+  "function claimRewards(address account,uint256[] miners,uint256[] stakes,uint256[] farms) returns ((address token,address account,(uint256[] ids,uint256[] amounts,uint256 total) miners,(uint256[] ids,uint256[] amounts,uint256 total) stakes,(uint256[] ids,uint256[] amounts,uint256 total) farms,uint256 total,uint256 positiveCount,uint256 asOfBlock,uint64 asOf,bool complete,uint64 nextExpiry))",
+];
 
 test("Existing two-method Vault assembly declarations retain their BNB Chain factory scope", () => {
   const binding = { chainId: 97, factoryAddress: "0x123", resolvedContracts: [declaration] };
@@ -65,6 +77,67 @@ test("Vault assembly grants and reports verification only when declared with its
     ].map((invalidAbi) => [commit, reveal, invalidAbi]),
   ]) {
     assert.throws(() => parseResolvedContract({ ...declaration, allow: invalid }), /invalid-assembly-writes/);
+  }
+});
+
+test("Vault assembly accepts only the exact declared staking, fuel, approval and claim subset", () => {
+  for (const action of tokenActions) {
+    const updated = { ...declaration, allow: [action, ...declaration.allow] };
+    const parsed = parseResolvedContract(updated);
+    assert.equal(parsed.writes.length, 3);
+    assert.deepEqual(parsed.definition.allow, updated.allow);
+    const name = action.match(/^function ([^(]+)/)[1];
+    assert.deepEqual(parsed.writes.map((method) => method.name), ["commitTapeout", "revealTapeout", name]);
+    assert.throws(() => parseResolvedContract({ ...updated, allow: [...updated.allow, action] }), /invalid-assembly-writes/);
+    for (const mutability of ["view", "payable"]) {
+      assert.throws(() => parseResolvedContract({
+        ...updated,
+        allow: [...declaration.allow, action.replace(" returns", ` ${mutability} returns`)],
+      }), /invalid-assembly-writes/);
+    }
+  }
+
+  const allow = [...tokenActions, verifyMiner, ...declaration.allow].reverse();
+  const updated = { ...declaration, allow };
+  const binding = { chainId: 97, factoryAddress: "0x123", resolvedContracts: [updated] };
+  assert.equal(parseResolvedContract(updated).writes.length, allow.length);
+  const [review] = checkResolvedContractDeclarations([updated], "field", binding);
+  assert.equal(review.ruleId, "manual-review/resolved-contract");
+  assert.deepEqual(review.allow, allow);
+  assert.match(review.message, /Runtime spender and bounded approval amount/);
+  assert.ok(checkResolvedContractDeclarations([updated, entry], "field", binding).some((issue) => issue.severity === "blocking"));
+
+  const approval = `const runtime = await sdk.resolveContract("${VAULT_ASSEMBLY_ID}", []);
+    await sdk.simulateContract({ contract: runtime, abi, functionName: "approve", args: [runtime.address, amount] });`;
+  assert.deepEqual(checkResolvedContractSource(approval, "Component.tsx", [binding]), []);
+  assert.ok(checkResolvedContractSource(approval, "Component.tsx", [{ ...binding, resolvedContracts: [declaration] }]).some((issue) => issue.severity === "blocking"));
+  assert.ok(checkResolvedContractSource(approval.replace("contract: runtime,", "contract: runtime, address: token,"), "Component.tsx", [binding]).some((issue) => issue.severity === "blocking"));
+
+  for (const unsupported of [
+    "function approve(address spender,uint256 amount)",
+    "function approve(address spender,uint256 amount) returns (uint256)",
+    "function openFarmStake(uint256 tier) returns (uint256)",
+    "function buyFuel(uint256 id,uint256 tier,uint256 maximumCost) returns (uint256)",
+    "function createFarm(string name,uint256 expectedBurnCost,string logoCID) returns (uint256)",
+    "function execute(address,uint256,bytes)",
+  ]) {
+    assert.throws(() => parseResolvedContract({ ...declaration, allow: [...declaration.allow, unsupported] }), /invalid-assembly-writes/);
+  }
+  assert.throws(() => parseResolvedContract({ ...entry, allow: [tokenActions[0]] }), /forbidden-write/);
+});
+
+test("Vault assembly compares nested claim return types recursively", () => {
+  const [claimMany, claimRewards] = tokenActions.slice(-2);
+  for (const invalid of [
+    claimMany.replace("uint64 asOf", "uint256 asOf"),
+    claimMany.replace("uint256[] amounts", "address[] amounts"),
+    claimMany.replace("address token,", ""),
+    claimMany.replace("asOfBlock))", "asOfBlock)[])"),
+    claimRewards.replace("uint256[] ids", "bytes32[] ids"),
+    claimRewards.replace("uint256 total) stakes", "uint64 total) stakes"),
+    claimRewards.replace("uint256 total) farms", "uint256 total,bool extra) farms"),
+  ]) {
+    assert.throws(() => parseResolvedContract({ ...declaration, allow: [...declaration.allow, invalid] }), /invalid-assembly-writes/);
   }
 });
 test("declarations still reject other execution methods, approvals, dynamic calldata and invalid resolver/check/value rules",()=>{

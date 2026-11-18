@@ -65,20 +65,35 @@ globalThis.testVaultAssembly=async(chainId)=>{
  const pin={kind:'immutable',codeHash:keccak256('0x6000')};
  const beaconPin=(beacon,implementation)=>({kind:'eip1967-beacon',codeHash:pin.codeHash,beacon,implementation,
   beaconCodeHash:keccak256('0x6002'),implementationCodeHash:keccak256('0x6001')});
+ const includesVerification=chainId===97;
  const approval={chainId,manifestSha256,componentSha256,taxFactory,businessFactory,businessFactoryCode:pin,
-  taxVaultCode:beaconPin(taxBeacon,taxImplementation),runtimeCode:beaconPin(runtimeBeacon,implementation),revealValueWei:2_000_000_000_000_000n};
+  taxVaultCode:beaconPin(taxBeacon,taxImplementation),runtimeCode:beaconPin(runtimeBeacon,implementation),revealValueWei:2_000_000_000_000_000n,
+  ...(includesVerification?{tokenSpending:{tokenCode:pin,maxApprovalWei:100n}}:{})};
  const host={verifiedManifestSha256:manifestSha256,verifiedComponentSha256:componentSha256,approval};
  const resolver='function businessVault() view returns (address)';
  const writes=['function commitTapeout(bytes32 commitment)','function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)'];
  const verifyMethod='function verifyMiner(uint256 id) returns (bool)';
- const includesVerification=chainId===97;
- if(includesVerification)writes.push(verifyMethod);
+ const approvalMethod='function approve(address spender,uint256 amount) returns (bool)';
+ const followUpMethods=[
+  ['openFarmStake','function openFarmStake(uint256 tier,uint256 farmId) returns (uint256)',[1n,2n]],
+  ['openFarmStakeAmount','function openFarmStakeAmount(uint256 tier,uint256 farmId,uint256 amount) returns (uint256)',[1n,2n,40n]],
+  ['buyFuel','function buyFuel(uint256 id,uint256 tier,uint256 durationIndex,uint256 maximumCost) returns (uint256)',[1n,2n,3n,30n]],
+  ['claimMiner','function claimMiner(uint256 id) returns (uint256)',[1n]],
+  ['claimMany','function claimMany(uint256[] minerIds) returns ((address token,address account,uint256[] ids,uint256[] amounts,uint256 total,uint256 positiveCount,uint64 asOf,bool complete,uint64 nextExpiry,uint256 asOfBlock))',[[1n]]],
+  ['claimStakePrincipal','function claimStakePrincipal(uint256 id) returns (uint256)',[1n]],
+  ['claimStakeReward','function claimStakeReward(uint256 id) returns (uint256)',[1n]],
+  ['claimFarmProduction','function claimFarmProduction(uint256 id) returns (uint256)',[1n]],
+  ['claimRewards','function claimRewards(address account,uint256[] miners,uint256[] stakes,uint256[] farms) returns ((address token,address account,(uint256[] ids,uint256[] amounts,uint256 total) miners,(uint256[] ids,uint256[] amounts,uint256 total) stakes,(uint256[] ids,uint256[] amounts,uint256 total) farms,uint256 total,uint256 positiveCount,uint256 asOfBlock,uint64 asOf,bool complete,uint64 nextExpiry))',[a(9),[1n],[1n],[1n]]],
+ ];
+ if(includesVerification)writes.push(verifyMethod,approvalMethod,...followUpMethods.map(([,method])=>method));
  const vaultAssemblyManifest={...manifest,match:{bindings:[{chainId,factoryAddress:taxFactory,
   externalContracts:[{address:runtimeA,label:'reviewed read'}],resolvedContracts:[{id:'vault-assembly-v1',label:'vault',resolver,allow:writes}]}]}};
  const sends=[];
  const resolverReads=[];
  let upgradeAfterSimulation=false,swapped=false,upgraded=false,changedCode=false;
+ let allowance=0n,approvalResult=true,changeTokenAfterSimulation=false,changedToken=false,runtimeToken=tokenA;
  state.chain=chainId;
+ state.user=a(9);
  const expectedBlock=()=>upgraded?101n:100n;
  env.client={...client,...receiptClient(chainId),getChainId:async()=>chainId,getBlockNumber:async(options)=>{
   if(options?.cacheTime!==0)throw new Error('cached-assembly-block-number');
@@ -88,6 +103,7 @@ globalThis.testVaultAssembly=async(chainId)=>{
   if(address===runtimeBeacon||address===taxBeacon)return '0x6002';
   if(address===implementation)return changedCode?'0x6003':'0x6001';
   if(address===taxImplementation||address===upgradedImplementation)return '0x6001';
+  if(address===tokenA && changedToken)return '0x6003';
   return '0x6000';
  },getStorageAt:async({address,slot,blockNumber})=>{
   if(blockNumber!==expectedBlock()||slot!=='0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50')throw new Error('wrong-beacon-slot');
@@ -101,13 +117,17 @@ globalThis.testVaultAssembly=async(chainId)=>{
   if(functionName==='implementation'&&address===taxBeacon)return taxImplementation;
   if(functionName==='implementation'&&address===runtimeBeacon)return upgraded?upgradedImplementation:implementation;
   if(functionName==='taxVault')return address===runtimeA?vaultA:vaultB;
+  if(functionName==='runtimeState'&&address===runtimeA)return {token:runtimeToken};
+  if(functionName==='allowance'&&address===tokenA&&args[0]===state.user&&args[1]===runtimeA)return allowance;
   throw new Error('unexpected fixture query: '+functionName);
  },simulateContract:async({functionName})=>{
   if(upgradeAfterSimulation)upgraded=true;
-  return {result:functionName==='verifyMiner'?true:1n};
+  if(changeTokenAfterSimulation)changedToken=true;
+  return {result:functionName==='approve'?approvalResult:functionName==='verifyMiner'?true:1n};
  }};
  env.walletClient={...walletClient,writeContract:async(request)=>{
   sends.push({target:request.address,functionName:request.functionName,value:String(request.value??0n)});
+  if(request.functionName==='approve')allowance=request.args[1];
   return hex('42',32);
  }};
  const before=globalThis.providerRenders;
@@ -133,6 +153,38 @@ globalThis.testVaultAssembly=async(chainId)=>{
  const revealReceipt=await submit(reveal);
  const verifyReceipt=includesVerification?await submit(verify):undefined;
  if(includesVerification){
+  const approve={contract,abi:parseAbi([approvalMethod]),functionName:'approve',args:[runtimeA,50n]};
+  const requestFor=(name)=>{
+   const [functionName,method,args]=followUpMethods.find(([functionName])=>functionName===name);
+   return {contract,abi:parseAbi([method]),functionName,args};
+  };
+  await denied('approvalOtherSpender',()=>sdk.writeContract({...approve,args:[runtimeB,50n]}));
+  await denied('approvalTokenOverride',()=>sdk.writeContract({...approve,address:tokenB}));
+  await denied('approvalRaw',()=>sdk.writeContract({...approve,contract:undefined,address:tokenA}));
+  await denied('approvalOverCap',()=>sdk.writeContract({...approve,args:[runtimeA,101n]}));
+  await denied('approvalValue',()=>sdk.writeContract({...approve,value:1n}));
+  runtimeToken=tokenB;
+  await denied('approvalTokenMismatch',()=>sdk.writeContract(approve));
+  await denied('claimTokenMismatch',()=>sdk.writeContract(requestFor('claimMiner')));
+  runtimeToken=tokenA;
+  approvalResult=false;
+  await denied('approvalFalseSimulation',()=>sdk.simulateContract(approve));
+  await denied('approvalFalse',()=>sdk.writeContract(approve));
+  approvalResult=true;
+  changeTokenAfterSimulation=true;
+  await denied('approvalTokenCodeChanged',()=>sdk.writeContract(approve));
+  changeTokenAfterSimulation=false;
+  changedToken=false;
+  await submit(approve);
+  allowance=101n;
+  await denied('existingAllowanceOverCap',()=>sdk.writeContract(requestFor('openFarmStake')));
+  allowance=50n;
+  await denied('stakeAmountOverCap',()=>sdk.writeContract({...requestFor('openFarmStakeAmount'),args:[1n,2n,101n]}));
+  await denied('fuelCostOverCap',()=>sdk.writeContract({...requestFor('buyFuel'),args:[1n,2n,3n,101n]}));
+  await denied('claimForOther',()=>sdk.writeContract({...requestFor('claimRewards'),args:[a(8),[1n],[],[]]}));
+  for(const [functionName,method,args] of followUpMethods){
+   await submit({contract,abi:parseAbi([method]),functionName,args});
+  }
   await denied('verifyValue',()=>sdk.writeContract({...verify,value:1n}));
   await denied('otherRuntimeOverride',()=>sdk.writeContract({...verify,address:runtimeB}));
   await denied('otherRuntimeRaw',()=>sdk.writeContract({...verify,contract:undefined,address:runtimeB}));
@@ -153,7 +205,7 @@ globalThis.testVaultAssembly=async(chainId)=>{
  changedCode=false;
  upgradeAfterSimulation=true;
  await denied('upgradedAfterSimulation',()=>sdk.writeContract(includesVerification?verify:reveal));
- return {failures,sends,runtimeA,vaultA,resolverReads,commitReceipt,revealReceipt,verifyReceipt};
+ return {failures,sends,runtimeA,tokenA,vaultA,resolverReads,commitReceipt,revealReceipt,verifyReceipt};
 };
 globalThis.renderProvider();`;
  const wagmi=`export const useAccount=()=>({address:globalThis.env.state.user,isConnected:true});
@@ -362,7 +414,25 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  ];
  if(chainId===97){
   expectedSends.push({target:vaultAssembly.runtimeA,functionName:'verifyMiner',value:'0'});
+  expectedSends.push({target:vaultAssembly.tokenA,functionName:'approve',value:'0'});
+  for(const functionName of ['openFarmStake','openFarmStakeAmount','buyFuel','claimMiner','claimMany','claimStakePrincipal','claimStakeReward','claimFarmProduction','claimRewards']){
+   expectedSends.push({target:vaultAssembly.runtimeA,functionName,value:'0'});
+  }
   assert.deepEqual(vaultAssembly.verifyReceipt,{result:true,status:'success'});
+  assert.match(vaultAssembly.failures.approvalOtherSpender,/spender/);
+  assert.match(vaultAssembly.failures.approvalTokenOverride,/handle-with-address/);
+  assert.match(vaultAssembly.failures.approvalRaw,/assembly-handle-required/);
+  assert.match(vaultAssembly.failures.approvalOverCap,/approval|allowance/);
+  assert.match(vaultAssembly.failures.approvalValue,/value-mismatch/);
+  assert.match(vaultAssembly.failures.approvalTokenMismatch,/runtime-token-mismatch/);
+  assert.match(vaultAssembly.failures.claimTokenMismatch,/runtime-token-mismatch/);
+  assert.match(vaultAssembly.failures.approvalFalseSimulation,/approval.*simulation/);
+  assert.match(vaultAssembly.failures.approvalFalse,/approval.*simulation/);
+  assert.match(vaultAssembly.failures.approvalTokenCodeChanged,/code-hash-mismatch/);
+  assert.match(vaultAssembly.failures.existingAllowanceOverCap,/allowance/);
+  assert.match(vaultAssembly.failures.stakeAmountOverCap,/cap/);
+  assert.match(vaultAssembly.failures.fuelCostOverCap,/cap/);
+  assert.match(vaultAssembly.failures.claimForOther,/account|recipient/);
   assert.match(vaultAssembly.failures.verifyValue,/value-mismatch/);
   assert.match(vaultAssembly.failures.otherRuntimeOverride,/handle-with-address/);
   assert.match(vaultAssembly.failures.otherRuntimeRaw,/assembly-handle-required/);
@@ -385,5 +455,5 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  assert.ok(vaultAssembly.resolverReads.length>0);
  for(const read of vaultAssembly.resolverReads)assert.deepEqual(read,{address:vaultAssembly.vaultA,args:[]});
  }
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including testnet commit, reveal, verification, project isolation and pre-wallet checks.');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including testnet assembly, bounded token approvals, farm staking, fuel, claims, and project isolation.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}

@@ -357,6 +357,9 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
         functionName: request.functionName, args: request.args, value: request.value,
         blockNumber: checked.blockNumber, ...feeOverrides,
       });
+      if (checked.requiresTrueSimulation && simulation.result !== true) {
+        throw new Error("vault-assembly/approval-simulation-failed");
+      }
       const resultRequest = prepared.record ? { ...request, address: undefined, contract } : request;
       return { request: resultRequest, result: simulation.result };
     }, [assertWalletWriteReady, getGasPrice, publicClient, contractRuntime, runtimeContext.chainId],
@@ -371,11 +374,14 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       const feeOverrides = await resolveSafeContractWriteFeeOverrides(prepared.request, getGasPrice, runtimeContext.chainId);
       let checked = await contractRuntime.validate(prepared, true);
       if (prepared.record) {
-        await publicClient.simulateContract({
+        const simulation = await publicClient.simulateContract({
           account: checked.sender, address: checked.request.address!, abi: checked.request.abi!,
           functionName: checked.request.functionName, args: checked.request.args, value: checked.request.value,
           blockNumber: checked.blockNumber, ...feeOverrides,
         });
+        if (checked.requiresTrueSimulation && simulation.result !== true) {
+          throw new Error("vault-assembly/approval-simulation-failed");
+        }
         checked = await contractRuntime.validate(prepared, true, checked.sender);
       }
       await contractRuntime.assertWallet(checked.sender);

@@ -145,9 +145,12 @@ export function createResolvedContractRuntime(environment: Environment) {
     }
     const f = allowedFunction(request, record.parsed.writes);
     if (d.id === VAULT_ASSEMBLY_ID) {
-      getVaultAssembly().validateWrite(f, request);
+      const assemblyWrite = await getVaultAssembly().validateWrite(f, request, {
+        runtimeAddress: record.address, sender: sender!, blockNumber,
+      });
+      request.address = assemblyWrite.address;
       request.account = sender;
-      return { request, sender, blockNumber };
+      return { request, sender, blockNumber, requiresTrueSimulation: assemblyWrite.requiresTrueSimulation };
     }
     const value = request.value ?? 0n;
     requireRule(typeof value === "bigint" && value >= 0n && (value === 0n || (d.payable && f.stateMutability === "payable" && value <= BigInt(d.maxValueWei!))), "value-not-allowed");

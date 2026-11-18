@@ -1,4 +1,4 @@
-import { keccak256, parseAbi, toFunctionSelector } from "viem";
+import { keccak256, maxUint256, parseAbi, toFunctionSelector } from "viem";
 import type { AbiFunction, PublicClient } from "viem";
 import type { Address, ContractWriteRequest, VaultRuntimeContext } from "./types";
 import { isVaultAssemblyChain } from "./resolvedContractPolicy.mjs";
@@ -29,6 +29,10 @@ export interface VaultAssemblyApproval {
   taxVaultCode: BeaconCodePin;
   runtimeCode: BeaconCodePin;
   revealValueWei: bigint;
+  tokenSpending?: {
+    tokenCode: CodePin;
+    maxApprovalWei: bigint;
+  };
 }
 
 /** Pass only from the host using the digests computed over the verified artifact bytes. */
@@ -49,10 +53,28 @@ const taxVaultAbi = parseAbi([
   "function taxFactory() view returns (address)",
   "function taxToken() view returns (address)",
 ]);
-const runtimeAbi = parseAbi(["function taxVault() view returns (address)"]);
+const runtimeAbi = parseAbi([
+  "function taxVault() view returns (address)",
+  "function runtimeState() view returns ((address crystalNFT,address minerNFT,address launcher,address token,address pool,uint64 activatedAt,bool inventoryReceived,bytes32 executionHash,uint256 miningInventory,uint256 stakePrincipal,uint256 protectedBacking,uint256 grossBacking,uint256 pendingBurn,uint256 actualBalance,uint256 shortfall,uint256 dockBalance,uint256 accountedDockBalance,uint256 totalHeld,bool dockKnown))",
+]);
+const tokenAbi = parseAbi(["function allowance(address owner,address spender) view returns (uint256)"]);
 const commitSelector = toFunctionSelector("commitTapeout(bytes32)");
 const revealSelector = toFunctionSelector("revealTapeout(address,uint256[5],bytes,bytes32,bytes32)");
 const verifySelector = toFunctionSelector("verifyMiner(uint256)");
+const approveSelector = toFunctionSelector("approve(address,uint256)");
+const openFarmStakeSelector = toFunctionSelector("openFarmStake(uint256,uint256)");
+const openFarmStakeAmountSelector = toFunctionSelector("openFarmStakeAmount(uint256,uint256,uint256)");
+const buyFuelSelector = toFunctionSelector("buyFuel(uint256,uint256,uint256,uint256)");
+const claimRewardsSelector = toFunctionSelector("claimRewards(address,uint256[],uint256[],uint256[])");
+const claimSelectors = new Set([
+  "claimFarmProduction(uint256)",
+  "claimMany(uint256[])",
+  "claimMiner(uint256)",
+  "claimRewards(address,uint256[],uint256[],uint256[])",
+  "claimStakePrincipal(uint256)",
+  "claimStakeReward(uint256)",
+].map(toFunctionSelector));
+const tokenSpendSelectors = new Set([openFarmStakeSelector, openFarmStakeAmountSelector, buyFuelSelector]);
 const zeroValueOnly = { valueWei: 0n };
 const netlistBytes = new Map([[2, 35]]);
 
@@ -113,11 +135,13 @@ export function createVaultAssemblyPolicy(client: PublicClient, context: VaultRu
     && approval.revealValueWei < 2n ** 256n, "invalid-reveal-value");
   requireAssembly(approval.taxVaultCode?.kind === "eip1967-beacon"
     && approval.runtimeCode?.kind === "eip1967-beacon", "beacon-pin-required");
-  const { businessFactory: approvedFactory, businessFactoryCode, taxVaultCode, runtimeCode, revealValueWei } = approval;
+  const { businessFactory: approvedFactory, businessFactoryCode, taxVaultCode, runtimeCode, revealValueWei, tokenSpending } = approval;
   const writeConstraints = new Map<string, ResolvedWriteConstraint>([
     [commitSelector, zeroValueOnly],
     [verifySelector, zeroValueOnly],
     [revealSelector, { valueWei: revealValueWei, fixedBytes: netlistBytes, caseInsensitiveHexPrefix: true }],
+    [approveSelector, zeroValueOnly],
+    ...[...tokenSpendSelectors, ...claimSelectors].map((selector) => [selector, zeroValueOnly] as const),
   ]);
 
   async function resolve(blockNumber: bigint) {
@@ -140,12 +164,54 @@ export function createVaultAssemblyPolicy(client: PublicClient, context: VaultRu
     return boundRuntime;
   }
 
-  function validateWrite(method: AbiFunction, request: ContractWriteRequest) {
-    const constraint = writeConstraints.get(toFunctionSelector(method));
+  async function validateWrite(
+    method: AbiFunction,
+    request: ContractWriteRequest,
+    live: { runtimeAddress: Address; sender: Address; blockNumber: bigint },
+  ) {
+    const selector = toFunctionSelector(method);
+    const constraint = writeConstraints.get(selector);
     requireAssembly(constraint, "value-mismatch");
     const { fixedBytesMatch, valueMatches } = checkResolvedWriteConstraint(request, constraint);
     requireAssembly(valueMatches, "value-mismatch");
     requireAssembly(fixedBytesMatch, "netlist-length");
+    const { runtimeAddress, sender, blockNumber } = live;
+    if (selector === claimRewardsSelector) {
+      requireAssembly(same(request.args?.[0] as string | undefined, sender), "claim-account-mismatch");
+    }
+    const tokenApproval = selector === approveSelector;
+    const usesTokenSpending = tokenApproval || tokenSpendSelectors.has(selector);
+    if (usesTokenSpending || claimSelectors.has(selector)) {
+      const state = await client.readContract({
+        address: runtimeAddress, abi: runtimeAbi, functionName: "runtimeState", blockNumber,
+      });
+      requireAssembly(same(state.token, tokenAddress), "runtime-token-mismatch");
+    }
+    if (usesTokenSpending) {
+      const spending = tokenSpending;
+      requireAssembly(spending && typeof spending.maxApprovalWei === "bigint" &&
+        spending.maxApprovalWei > 0n && spending.maxApprovalWei < maxUint256, "token-spending-not-approved");
+      await verifyCode(client, tokenAddress, spending.tokenCode, blockNumber);
+      const withinCap = (amount: unknown) => typeof amount === "bigint" &&
+        amount >= 0n && amount <= spending.maxApprovalWei;
+      if (tokenApproval) {
+        requireAssembly(same(request.args?.[0] as string | undefined, runtimeAddress), "approval-spender-mismatch");
+        requireAssembly(withinCap(request.args?.[1]), "approval-cap-exceeded");
+      } else {
+        const allowance = await client.readContract({
+          address: tokenAddress, abi: tokenAbi, functionName: "allowance",
+          args: [sender, runtimeAddress], blockNumber,
+        });
+        requireAssembly(withinCap(allowance), "allowance-cap-exceeded");
+        if (selector === openFarmStakeAmountSelector) {
+          requireAssembly(withinCap(request.args?.[2]), "spend-cap-exceeded");
+        }
+        if (selector === buyFuelSelector) {
+          requireAssembly(withinCap(request.args?.[3]), "spend-cap-exceeded");
+        }
+      }
+    }
+    return { address: tokenApproval ? tokenAddress : runtimeAddress, requiresTrueSimulation: tokenApproval };
   }
 
   return { resolve, validateWrite };
