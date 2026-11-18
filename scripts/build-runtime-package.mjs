@@ -75,7 +75,7 @@ async function main() {
   // Preserve Next.js client boundaries without turning host preflight helpers into client references.
   const hostReexport = '\nexport { VaultRuntimeProvider, useFlapWalletRuntime } from "./host-client.js";\n';
   await writeFile(path.join(OUT_DIR, "host.js"), (await readFile(path.join(OUT_DIR, "host.js"), "utf8")) + hostReexport);
-  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, useFlapWalletRuntime, type RuntimeProviderProps, type TapeXAssemblyApproval, type TapeXAssemblyHostContext } from "./host-client.mjs";\n');
+  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, useFlapWalletRuntime, type RuntimeProviderProps, type VaultAssemblyApproval, type VaultAssemblyHostContext } from "./host-client.mjs";\n');
 
   const peerVersion = (name) => rootPackage.dependencies?.[name] ?? rootPackage.devDependencies?.[name];
   const packageManifest = {
@@ -125,7 +125,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, tapeXVaultAssembly: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, vaultAssembly: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -207,16 +207,18 @@ Launcher handle under a reviewed \`walletContracts[].presaleApproval\` policy.
 The host must provision the policy to resolve and authorize the pool's ERC20 quote
 token. This feature is advertised by \`sdkFeatures.presaleApproval = 1\`.
 
-## TapeX Vault assembly on BNB Testnet
+## Host-approved Vault assembly
 
-Hosts can opt a reviewed TapeX Vault artifact into assembly on chain 97 through
-\`VaultRuntimeProvider\`'s \`tapeXAssembly\` configuration. The component calls
-\`sdk.resolveContract("tapex-assembly-v1", [])\` to resolve its current tax Vault's
+Hosts can enable assembly for a reviewed Vault artifact on BNB Smart Chain
+(56) or BNB Testnet (97) through \`VaultRuntimeProvider\`'s \`vaultAssembly\`
+configuration. Approvals are chain-specific and the initial rollout uses testnet.
+The component calls
+\`sdk.resolveContract("vault-assembly-v1", [])\` to resolve its current tax Vault's
 Runtime. The SDK verifies the project binding and the approved Beacon
 implementations, then restricts writes to \`commitTapeout\` and
 \`revealTapeout\` with the reviewed fees and a 35-byte reveal payload.
-This profile advertises \`sdkFeatures.tapeXVaultAssembly = 1\`.
-See the [host and artifact setup](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/resolved-contracts.md#tapex-assembly-on-bnb-testnet).
+This profile advertises \`sdkFeatures.vaultAssembly = 1\`.
+See the [host and artifact setup](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/resolved-contracts.md#host-approved-vault-assembly).
 
 ## BNB Chain gas overrides
 

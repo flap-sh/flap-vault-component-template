@@ -2,6 +2,6 @@
 
 export { VaultRuntimeProvider } from "./runtime";
 export type { RuntimeProviderProps } from "./runtime";
-export type { TapeXAssemblyApproval, TapeXAssemblyHostContext } from "./tapeXAssembly";
+export type { VaultAssemblyApproval, VaultAssemblyHostContext } from "./vaultAssembly";
 
 export { useFlapWalletRuntime } from "./useFlapWalletRuntime";

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseResolvedContract, TAPEX_ASSEMBLY_ID } from "../src/sdk/resolvedContractPolicy.mjs";
+import { parseResolvedContract, VAULT_ASSEMBLY_ID } from "../src/sdk/resolvedContractPolicy.mjs";
 import { checkResolvedContractDeclarations,checkResolvedContractSource } from "./resolved-contract-policy.mjs";
 const entry={id:"position",label:"nft",resolver:"function poolOf(uint256 round) view returns(address)",allow:["function claim(uint256 amount)"]};
-test("TapeX's declaration is restricted to its two methods on one testnet factory binding", () => {
+test("Vault assembly is restricted to its two methods on BNB Chain factory bindings", () => {
   const declaration = {
-    id: TAPEX_ASSEMBLY_ID,
+    id: VAULT_ASSEMBLY_ID,
     label: "vault",
     resolver: "function businessVault() view returns (address)",
     allow: [
@@ -17,13 +17,14 @@ test("TapeX's declaration is restricted to its two methods on one testnet factor
   const issues = checkResolvedContractDeclarations([declaration], "field", binding);
   assert.equal(issues.length, 1);
   assert.match(issues[0].message, /independent host approval/);
-  assert.ok(checkResolvedContractDeclarations([declaration], "field", { ...binding, chainId: 56 }).some((issue) => issue.severity === "blocking"));
+  assert.ok(checkResolvedContractDeclarations([declaration], "field", { ...binding, chainId: 56 }).every((issue) => issue.severity === "warning"));
+  assert.ok(checkResolvedContractDeclarations([declaration], "field", { ...binding, chainId: 1 }).some((issue) => issue.severity === "blocking"));
   assert.ok(checkResolvedContractDeclarations([declaration, entry], "field", binding).some((issue) => issue.severity === "blocking"));
   assert.throws(() => parseResolvedContract({ ...declaration, id: "another-project" }), /invalid-resolver/);
-  assert.throws(() => parseResolvedContract({ ...declaration, resolver: entry.resolver }), /invalid-tapex-resolver/);
-  assert.throws(() => parseResolvedContract({ ...declaration, allow: [declaration.allow[0], "function execute(bytes)"] }), /invalid-tapex-writes/);
-  assert.throws(() => parseResolvedContract({ ...declaration, maxValueWei: "10" }), /invalid-tapex-declaration/);
-  const call = `const runtime = await sdk.resolveContract("${TAPEX_ASSEMBLY_ID}", []);`;
+  assert.throws(() => parseResolvedContract({ ...declaration, resolver: entry.resolver }), /invalid-assembly-resolver/);
+  assert.throws(() => parseResolvedContract({ ...declaration, allow: [declaration.allow[0], "function execute(bytes)"] }), /invalid-assembly-writes/);
+  assert.throws(() => parseResolvedContract({ ...declaration, maxValueWei: "10" }), /invalid-assembly-declaration/);
+  const call = `const runtime = await sdk.resolveContract("${VAULT_ASSEMBLY_ID}", []);`;
   assert.deepEqual(checkResolvedContractSource(call, "Component.tsx", [binding]), []);
   assert.ok(checkResolvedContractSource(call.replace("[]", "[projectId]"), "Component.tsx", [binding]).some((issue) => issue.severity === "blocking"));
 });

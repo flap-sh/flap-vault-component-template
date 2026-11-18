@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { parseResolvedContract, TAPEX_ASSEMBLY_ID } from "../src/sdk/resolvedContractPolicy.mjs";
+import { isVaultAssemblyChain, parseResolvedContract, VAULT_ASSEMBLY_ID } from "../src/sdk/resolvedContractPolicy.mjs";
 
 export function checkResolvedContractDeclarations(value, field, binding) {
   const bad = (message) => ({ severity: "blocking", ruleId: "resolved-contract/invalid-declaration", message, field });
@@ -10,13 +10,13 @@ export function checkResolvedContractDeclarations(value, field, binding) {
       const parsed = parseResolvedContract(definition);
       if (ids.has(parsed.definition.id)) throw new Error("Duplicate resolver id.");
       ids.add(parsed.definition.id);
-      if (parsed.definition.id === TAPEX_ASSEMBLY_ID) {
-        if (binding.chainId !== 97 || value.length !== 1 || binding.nftAccountWithdrawals !== undefined) {
-          throw new Error("TapeX assembly requires a BNB testnet factory binding with no other write profiles.");
+      if (parsed.definition.id === VAULT_ASSEMBLY_ID) {
+        if (!isVaultAssemblyChain(binding.chainId) || value.length !== 1 || binding.nftAccountWithdrawals !== undefined) {
+          throw new Error("Vault assembly requires a BNB Chain factory binding with no other write profiles.");
         }
         issues.push({
           severity: "warning", ruleId: "manual-review/resolved-contract",
-          message: "TapeX assembly requires independent host approval of the verified artifact, Factory, code, project linkage and exact reveal value. Only the two reviewed writes use this binding. Netlist must be exactly 35 bytes.",
+          message: "Vault assembly requires independent host approval of the chain, verified artifact, Factory, code, project linkage and exact reveal value. Only the two reviewed writes use this binding. Netlist must be exactly 35 bytes.",
           chainId: binding.chainId, factoryAddress: binding.factoryAddress, field, ...parsed.definition,
         });
         continue;
@@ -55,8 +55,8 @@ export function checkResolvedContractSource(content, file, bindings) {
         const [id, args] = node.arguments;
         if (!id || !ts.isStringLiteral(id) || !definitions.some((d) => d.id === id.text)) {
           bad(node, "resolveContract requires a declared literal id.");
-        } else if (id.text === TAPEX_ASSEMBLY_ID && (!args || !ts.isArrayLiteralExpression(args) || args.elements.length !== 0)) {
-          bad(node, "TapeX resolves the current tax Vault with an empty argument list.");
+        } else if (id.text === VAULT_ASSEMBLY_ID && (!args || !ts.isArrayLiteralExpression(args) || args.elements.length !== 0)) {
+          bad(node, "Vault assembly resolves the current tax Vault with an empty argument list.");
         }
       }
       if (["readContract", "simulateContract", "writeContract"].includes(method) && node.arguments[0] && ts.isObjectLiteralExpression(node.arguments[0])) {
