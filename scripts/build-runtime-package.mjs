@@ -207,6 +207,17 @@ Launcher handle under a reviewed \`walletContracts[].presaleApproval\` policy.
 The host must provision the policy to resolve and authorize the pool's ERC20 quote
 token. This feature is advertised by \`sdkFeatures.presaleApproval = 1\`.
 
+## TapeX Vault assembly on BNB Testnet
+
+Hosts can opt a reviewed TapeX Vault artifact into assembly on chain 97 through
+\`VaultRuntimeProvider\`'s \`tapeXAssembly\` configuration. The component calls
+\`sdk.resolveContract("tapex-assembly-v1", [])\` to resolve its current tax Vault's
+Runtime. The SDK verifies the project binding and the approved Beacon
+implementations, then restricts writes to \`commitTapeout\` and
+\`revealTapeout\` with the reviewed fees and a 35-byte reveal payload.
+This profile advertises \`sdkFeatures.tapeXVaultAssembly = 1\`.
+See the [host and artifact setup](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/resolved-contracts.md#tapex-assembly-on-bnb-testnet).
+
 ## BNB Chain gas overrides
 
 Explicit contract-write gas overrides can be up to 15,000,000 on BNB Chain

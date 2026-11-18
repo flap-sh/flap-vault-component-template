@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.45 — TapeX assembly on BNB Testnet
+
+- Add an opt-in Vault assembly profile on chain 97. The host approves the exact artifact and contract configuration. The SDK resolves the Runtime through the current tax Vault's `businessVault()` and verifies the Runtime's link back to that Vault.
+- Restrict the profile to `commitTapeout` and `revealTapeout`. Check the approved Beacon implementations and enforce the exact reveal payload length and value before wallet submission.
+- Receiving testnet hosts and Workbench must use the matching runtime and checker. See [TapeX assembly](docs/resolved-contracts.md#tapex-assembly-on-bnb-testnet).
+
 ## 0.1.44 — ERC20 quote approvals for standalone presales
 
 - Add `sdk.approveQuote({ pool, amount })` for reviewed standalone Mini Apps. The runtime approves the ERC20 quote token for the verified Launcher and checks the allowance before a direct `contributeQuote(uint256)` call.
