@@ -35,7 +35,7 @@ function parseTapeXAssembly(input) {
   requireRule(Array.isArray(input.allow) && input.allow.length === tapeXWrites.length, "invalid-tapex-writes");
   const declared = input.allow.map(func);
   requireRule(tapeXWrites.every((method) => declared.some((entry) => sameFunction(entry, method))), "invalid-tapex-writes");
-  return { definition: structuredClone(input), resolver: tapeXResolver, writes: tapeXWrites, reads: [] };
+  return { definition: structuredClone(input), resolver: structuredClone(tapeXResolver), writes: structuredClone(tapeXWrites), reads: [] };
 }
 
 export function parseResolvedContract(input) {
