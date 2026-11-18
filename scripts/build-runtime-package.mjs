@@ -75,7 +75,7 @@ async function main() {
   // Preserve Next.js client boundaries without turning host preflight helpers into client references.
   const hostReexport = '\nexport { VaultRuntimeProvider, useFlapWalletRuntime } from "./host-client.js";\n';
   await writeFile(path.join(OUT_DIR, "host.js"), (await readFile(path.join(OUT_DIR, "host.js"), "utf8")) + hostReexport);
-  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, useFlapWalletRuntime, type RuntimeProviderProps } from "./host-client.mjs";\n');
+  await writeFile(path.join(OUT_DIR, "host.d.mts"), (await readFile(path.join(OUT_DIR, "host.d.mts"), "utf8")) + '\nexport { VaultRuntimeProvider, useFlapWalletRuntime, type RuntimeProviderProps, type TapeXAssemblyApproval, type TapeXAssemblyHostContext } from "./host-client.mjs";\n');
 
   const peerVersion = (name) => rootPackage.dependencies?.[name] ?? rootPackage.devDependencies?.[name];
   const packageManifest = {
@@ -125,7 +125,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, tapeXVaultAssembly: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],

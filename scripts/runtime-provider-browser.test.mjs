@@ -32,7 +32,7 @@ import {useFlapWalletRuntime} from "${walletRuntimeEntrypoint}";
 import {useFlapSdk} from "${sdkEntrypoint}";
 import {IpfsImage} from "${imageEntrypoint}";
 import {IpfsText} from "${textEntrypoint}";
-import {encodeFunctionResult,parseAbi} from "viem";
+import {encodeFunctionResult,keccak256,parseAbi} from "viem";
 const a=(i)=>'0x'+i.toString(16).padStart(40,'0');
 const state={user:a(9),chain:56,sends:0,changeOnSimulation:false,simulations:0,target:a(5),receiptStatus:'success',receiptCalls:[],legacyWaits:0};
 const receiptClient=(chainId)=>({getTransactionReceipt:async({hash})=>{state.receiptCalls.push({chainId,hash});return{transactionHash:hash,status:state.receiptStatus,blockNumber:100n,logs:[{data:'0x01',topics:[]}]};},waitForTransactionReceipt:async()=>{state.legacyWaits++;throw new Error('The legacy receipt waiter must not be called.');}});
@@ -53,6 +53,81 @@ globalThis.rerenderProvider=async(nextContext=context)=>{const before=globalThis
 globalThis.readOwner=(read=sdk.readContract,address=context.host.taxInfo.quoteToken,extra={})=>read({address,abi:parseAbi(['function owner() view returns(address)']),functionName:'owner',...extra});
 globalThis.encodeOwner=(owner)=>encodeFunctionResult({abi:parseAbi(['function owner() view returns(address)']),functionName:'owner',result:owner});
 globalThis.testWrite=async()=>{const handle=await sdk.resolveContract('position',[1n]);const prepared=await sdk.simulateContract({contract:handle,abi:parseAbi(['function claim(uint256 amount)']),functionName:'claim',args:[1n]});return sdk.writeContract(prepared.request);};
+globalThis.testTapeX=async()=>{
+ const hex=(byte,length)=>'0x'+byte.repeat(length);
+ const projectB=hex('bb',32);
+ const taxFactory=a(31),businessFactory=a(32),vaultA=a(33),vaultB=a(34),tokenA=a(35),tokenB=a(36),runtimeA=a(37),runtimeB=a(38),implementation=a(39);
+ const runtimeBeacon=a(40),taxBeacon=a(41),taxImplementation=a(42),upgradedImplementation=a(43);
+ const manifestSha256='a'.repeat(64),componentSha256='b'.repeat(64);
+ const pin={kind:'immutable',codeHash:keccak256('0x6000')};
+ const beaconPin=(beacon,implementation)=>({kind:'eip1967-beacon',codeHash:pin.codeHash,beacon,implementation,
+  beaconCodeHash:keccak256('0x6002'),implementationCodeHash:keccak256('0x6001')});
+ const approval={manifestSha256,componentSha256,taxFactory,businessFactory,businessFactoryCode:pin,
+  taxVaultCode:beaconPin(taxBeacon,taxImplementation),runtimeCode:beaconPin(runtimeBeacon,implementation),revealValueWei:2_000_000_000_000_000n};
+ const host={verifiedManifestSha256:manifestSha256,verifiedComponentSha256:componentSha256,approval};
+ const resolver='function businessVault() view returns (address)';
+ const writes=['function commitTapeout(bytes32 commitment)','function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)'];
+ const tapeXManifest={...manifest,match:{bindings:[{chainId:97,factoryAddress:taxFactory,
+  externalContracts:[{address:runtimeA,label:'reviewed read'}],resolvedContracts:[{id:'tapex-assembly-v1',label:'vault',resolver,allow:writes}]}]}};
+ const sends=[];
+ const resolverReads=[];
+ let upgradeAfterSimulation=false,swapped=false,upgraded=false,changedCode=false;
+ state.chain=97;
+ const expectedBlock=()=>upgraded?101n:100n;
+ env.client={...client,getChainId:async()=>97,getBlockNumber:async(options)=>{
+  if(options?.cacheTime!==0)throw new Error('cached-tapex-block-number');
+  return expectedBlock();
+ },getCode:async({address,blockNumber})=>{
+  if(blockNumber!==expectedBlock())throw new Error('unpinned-code-read');
+  if(address===runtimeBeacon||address===taxBeacon)return '0x6002';
+  if(address===implementation)return changedCode?'0x6003':'0x6001';
+  if(address===taxImplementation||address===upgradedImplementation)return '0x6001';
+  return '0x6000';
+ },getStorageAt:async({address,slot,blockNumber})=>{
+  if(blockNumber!==expectedBlock()||slot!=='0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50')throw new Error('wrong-beacon-slot');
+  const beacon=address===vaultA||address===vaultB?taxBeacon:runtimeBeacon;
+  return '0x'+beacon.slice(2).padStart(64,'0');
+ },
+ readContract:async({address,args,functionName,blockNumber})=>{
+  if(blockNumber!==expectedBlock())throw new Error('unpinned-contract-read');
+  if(functionName==='businessVault')resolverReads.push({address,args:args??[]});
+  if(address===vaultA||address===vaultB)return ({businessVault:address===vaultA&&!swapped?runtimeA:runtimeB,businessFactory,taxFactory,taxToken:address===vaultA?tokenA:tokenB})[functionName];
+  if(functionName==='implementation'&&address===taxBeacon)return taxImplementation;
+  if(functionName==='implementation'&&address===runtimeBeacon)return upgraded?upgradedImplementation:implementation;
+  if(functionName==='taxVault')return address===runtimeA?vaultA:vaultB;
+  throw new Error('unexpected fixture query: '+functionName);
+ },simulateContract:async()=>{if(upgradeAfterSimulation)upgraded=true;return {result:1n};}};
+ env.walletClient={...walletClient,writeContract:async(request)=>{
+  sends.push({target:request.address,functionName:request.functionName,value:String(request.value??0n)});
+  return a(20);
+ }};
+ const before=globalThis.providerRenders;
+ root.render(React.createElement(VaultRuntimeProvider,{manifest:tapeXManifest,i18n,
+  runtimeContext:{chainId:97,factoryAddress:taxFactory,vaultAddress:vaultA,tokenAddress:tokenA},tapeXAssembly:host},React.createElement(Probe)));
+ while(globalThis.providerRenders===before)await new Promise(requestAnimationFrame);
+ const contract=await sdk.resolveContract('tapex-assembly-v1',[]);
+ const abi=parseAbi(writes);
+ const commit={contract,abi,functionName:'commitTapeout',args:[hex('42',32)]};
+ const reveal={contract,abi,functionName:'revealTapeout',args:[a(9),[1n,2n,3n,4n,5n],hex('11',35),hex('22',32),hex('33',32)],value:approval.revealValueWei};
+ const failures={};
+ const denied=async(key,action)=>{try{await action();failures[key]='allowed';}catch(error){failures[key]=error.message;}};
+ await sdk.writeContract((await sdk.simulateContract(commit)).request);
+ await sdk.writeContract((await sdk.simulateContract(reveal)).request);
+ await denied('wrongProject',()=>sdk.resolveContract('tapex-assembly-v1',[projectB]));
+ swapped=true;
+ await denied('otherRuntime',()=>sdk.resolveContract('tapex-assembly-v1',[]));
+ swapped=false;
+ await denied('wrongValue',()=>sdk.writeContract({...reveal,value:1n}));
+ await denied('wrongLength',()=>sdk.writeContract({...reveal,args:reveal.args.map((arg,i)=>i===2?hex('11',34):arg)}));
+ await denied('rawTarget',()=>sdk.writeContract({...reveal,contract:undefined,address:runtimeA}));
+ await denied('forgedHandle',()=>sdk.writeContract({...reveal,contract:{...contract}}));
+ changedCode=true;
+ await denied('implementationCodeChanged',()=>sdk.writeContract(reveal));
+ changedCode=false;
+ upgradeAfterSimulation=true;
+ await denied('upgradedAfterSimulation',()=>sdk.writeContract(reveal));
+ return {failures,sends,runtimeA,vaultA,resolverReads};
+};
 globalThis.renderProvider();`;
  const wagmi=`export const useAccount=()=>({address:globalThis.env.state.user,isConnected:true});
 const config={chains:[{id:56,name:"BNB"}]}; export const useConfig=()=>config;
@@ -252,5 +327,20 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  assert.match(await page.evaluate(()=>testWrite()),/^0x/);assert.equal(await page.evaluate(()=>env.state.sends),3);
  const denied=await page.evaluate(async()=>{env.state.changeOnSimulation=true;try{await testWrite();return 'sent';}catch(e){return e.message;}});assert.match(denied,/wallet-or-chain-changed|ownership-check-failed/);assert.equal(await page.evaluate(()=>env.state.sends),3);
  const isolated=await page.evaluate(()=>{sdk.context.host.taxInfo.quoteToken='0x'+(88).toString(16).padStart(40,'0');return hostContext.host.taxInfo.quoteToken!==sdk.context.host.taxInfo.quoteToken;});assert(isolated,'Component context must not mutate host authorization inputs');
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'): public receipt polling on both bridges, success/reverted receipt preservation, stable SDK/read identity, latest authorization/client, reviewed execute simulation/write, raw/forged/undeclared-overload/value rejection, pending guard, wallet switch before send, isolated host authorization context.');
+ const tapeX=await page.evaluate(()=>testTapeX());
+ assert.deepEqual(tapeX.sends,[
+  {target:tapeX.runtimeA,functionName:'commitTapeout',value:'0'},
+  {target:tapeX.runtimeA,functionName:'revealTapeout',value:'2000000000000000'},
+ ]);
+ assert.match(tapeX.failures.wrongProject,/invalid-tapex-request/);
+ assert.match(tapeX.failures.otherRuntime,/runtime-vault-mismatch/);
+ assert.match(tapeX.failures.wrongValue,/value-mismatch/);
+ assert.match(tapeX.failures.wrongLength,/netlist-length/);
+ assert.match(tapeX.failures.rawTarget,/tapex-handle-required/);
+ assert.match(tapeX.failures.forgedHandle,/forged-or-expired-handle/);
+ assert.match(tapeX.failures.implementationCodeChanged,/implementation-hash-mismatch/);
+ assert.match(tapeX.failures.upgradedAfterSimulation,/implementation-address-mismatch/);
+ assert.ok(tapeX.resolverReads.length>0);
+ for(const read of tapeX.resolverReads)assert.deepEqual(read,{address:tapeX.vaultA,args:[]});
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including TapeX project isolation and pre-wallet checks.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}

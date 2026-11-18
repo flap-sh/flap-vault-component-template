@@ -83,6 +83,32 @@ Local template and Workbench preview use `"warn"` to inventory legacy derived wr
 
 `VaultRuntimeProvider` is available only from `@flapsdk/vault-runtime/host`, which artifact imports cannot access. Component SDK module shims remove the Provider even on older installed runtimes. The host refuses a resolvedContracts artifact unless `RESOLVED_CONTRACTS_VERSION === 1` and runtime-contract flags `resolvedContracts`, `strictContractTargets`, and `hostOnlyProvider` are all 1. Existing artifacts must also be checked for raw derived writes before upgrading the production host.
 
+## TapeX assembly on BNB testnet
+
+The testnet profile is available only on chain 97. Declare the following as the factory binding's sole entry in `resolvedContracts`:
+
+```json
+{
+  "id": "tapex-assembly-v1",
+  "label": "vault",
+  "resolver": "function businessVault() view returns (address)",
+  "allow": [
+    "function commitTapeout(bytes32 commitment)",
+    "function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)"
+  ]
+}
+```
+
+The component uses `await sdk.resolveContract("tapex-assembly-v1", [])` and the resulting handle on the normal simulation and write path. With this profile active, raw contract writes are rejected. Read calls still use the ordinary Vault path.
+
+Only the host can pass `tapeXAssembly` to `VaultRuntimeProvider`. Match the verified manifest and component SHA-256 digests against an independently approved record. The record supplies both Factory addresses, business Factory code, tax Vault and Runtime BeaconProxy pins, and the exact reveal value in wei. The host supplies the verified token and tax Vault. For the v14 fee use `2000000000000000n` after verifying the testnet deployment. Review the actual proxy bytecode, external libraries and upgrade authority. Each BeaconProxy pin includes the proxy bytecode hash, Beacon address and bytecode hash, and implementation address and bytecode hash.
+
+The SDK reads `businessVault()` on the current tax Vault and verifies the Runtime's `taxVault()` back-reference. It also checks that the token and Factory addresses match. For each proxy it reads the ERC-1967 Beacon slot, confirms the reviewed Beacon and calls `implementation()` there. Reads use the same block within each verification. The binding and code checks repeat after simulation. The wallet submits directly to the Runtime. On-chain rules still govern the commit window, sender, materials, payload and fees at execution, when Beacon state may have changed again.
+
+Run `yarn test:resolved-contracts` to check the manifest rules and `yarn test:runtime-provider` for the browser wallet fixture. For bmom's A–D reproduction, the original generic rules continue to reject zero-argument and dynamic-byte Vault declarations. The approved TapeX testnet entry accepts `businessVault()` and the exact reveal ABI, calls the current tax Vault with zero arguments, and rejects the old `projectVault(projectId)` declaration for this entry. The browser fixture also checks an upgrade after simulation with unchanged proxy bytecode.
+
+For live testnet acceptance, use two projects on that same Factory. The wallet on A must commit, wait for the contract's reveal window, reveal and receive a successful receipt on A. Passing B's project ID on the A page must fail before any wallet request. Get the Factory addresses, the two project IDs, both tokens, tax Vaults and Runtimes, reviewed Beacon and implementation evidence, fee, a test wallet with eligible materials and gas, and the exact Factory-bound UI source package.
+
 ## Validation and release
 
 Run `yarn test:resolved-contracts`, `yarn test:runtime-provider`, `yarn test:nft-account-withdrawal`, lint/typecheck and checker selftests. Tests include genuine/forged/expired handles, post-resolution address/code/implementation/owner/wallet/chain changes, ABI/selectors, native-value caps, recipient/balance, overloads, manifest/context mutation and real React Provider wiring with mocked chain clients. They are not an audit or a real project's fork proof.

@@ -38,6 +38,7 @@ import { isValidAddress, ZERO_ADDRESS } from "./taxInfo";
 import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
 import { readContractEventsInBlockRanges } from "./contractEvents";
 import { createResolvedContractRuntime } from "./resolvedContracts";
+import type { TapeXAssemblyHostContext } from "./tapeXAssembly";
 import { snapshotGenericContractWrite, withdrawNftAccount as runNftAccountWithdrawal } from "./nftAccountWithdrawal";
 import type { NftAccountWithdrawalPolicy, NftAccountWithdrawalRequest } from "./nftAccountTypes";
 import { createLocalMediaUploader } from "./mediaUpload";
@@ -65,6 +66,8 @@ export interface RuntimeProviderProps {
   mediaUploader?: MediaUploader;
   /** Host-reviewed deployment pins. Artifact declarations never grant approval. */
   nftAccountWithdrawalPolicies?: readonly NftAccountWithdrawalPolicy[];
+  /** Testnet-only permission selected by the host for verified TapeX artifact bytes. */
+  tapeXAssembly?: TapeXAssemblyHostContext;
   /** Warning mode is for local migration diagnostics only. */
   contractTargetPolicy?: "strict" | "warn";
 }
@@ -102,7 +105,7 @@ function getPreviewOracleEndpoint(extraConfig: Record<string, unknown> | undefin
   return typeof endpoint === "string" ? endpoint : undefined;
 }
 
-export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, nftAccountWithdrawalPolicies = EMPTY_NFT_ACCOUNT_POLICIES, contractTargetPolicy = "strict" }: RuntimeProviderProps) {
+export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext: runtimeOverrides, hostRuntimeResult, locale = "en", oracleReader, nftMetadataReader, mediaUploader, nftAccountWithdrawalPolicies = EMPTY_NFT_ACCOUNT_POLICIES, contractTargetPolicy = "strict", tapeXAssembly }: RuntimeProviderProps) {
   const [version, setVersion] = useState(0);
   const [messages, setMessages] = useState<ToastItem[]>([]);
   const toastTimersRef = useRef<Map<number, number>>(new Map());
@@ -234,6 +237,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
 
   const contractRuntime = useMemo(() => publicClient ? createResolvedContractRuntime({
     client: publicClient, manifest, context: runtimeContext, targetPolicy: contractTargetPolicy,
+    tapeXAssembly,
     getWallet: async () => {
       if (!walletClient) throw new Error("resolved-contract/wallet-unavailable");
       const [address] = await walletClient.getAddresses();
@@ -241,7 +245,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       return { address, chainId: await walletClient.getChainId() };
     },
     warn: (message) => console.warn(message),
-  }) : undefined, [publicClient, walletClient, manifest, runtimeContext, contractTargetPolicy]);
+  }) : undefined, [publicClient, walletClient, manifest, runtimeContext, contractTargetPolicy, tapeXAssembly]);
   const currentContractRuntime = useRef(contractRuntime);
   currentContractRuntime.current = contractRuntime;
   const currentReadRuntime = useRef({ publicClient, contractRuntime });

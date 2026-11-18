@@ -1,4 +1,11 @@
-import { parseAbi, toFunctionSelector } from "viem";
+import { parseAbi, toFunctionSelector, toFunctionSignature } from "viem";
+
+export const TAPEX_ASSEMBLY_ID = "tapex-assembly-v1";
+const [tapeXResolver, ...tapeXWrites] = parseAbi([
+  "function businessVault() view returns (address)",
+  "function commitTapeout(bytes32 commitment)",
+  "function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)",
+]);
 
 const forbiddenName = /^(?:execute(?:Call|Batch)?|multicall|delegatecall|approve|increaseAllowance|decreaseAllowance|setApprovalForAll|transferOwnership|acceptOwnership|upgradeTo.*|setConfig|setSwapPath|setSplit)$/i;
 const forbiddenSignatures = ["executeCall(address,uint256,bytes)", "approve(address,uint256)", "setApprovalForAll(address,bool)", "transferOwnership(address)", "upgradeTo(address)", "upgradeToAndCall(address,bytes)"];
@@ -14,8 +21,26 @@ function func(text) {
   return entries[0];
 }
 const hasDynamicBytes = (p) => /^bytes(?:\[|$)/.test(p.type) || p.components?.some(hasDynamicBytes);
+
+function sameFunction(actual, expected) {
+  return toFunctionSignature(actual) === toFunctionSignature(expected)
+    && actual.stateMutability === expected.stateMutability
+    && actual.outputs.map((output) => output.type).join(",") === expected.outputs.map((output) => output.type).join(",");
+}
+
+function parseTapeXAssembly(input) {
+  requireRule(Object.keys(input).every((key) => ["id", "label", "resolver", "allow"].includes(key))
+    && input.label === "vault", "invalid-tapex-declaration");
+  requireRule(sameFunction(func(input.resolver), tapeXResolver), "invalid-tapex-resolver");
+  requireRule(Array.isArray(input.allow) && input.allow.length === tapeXWrites.length, "invalid-tapex-writes");
+  const declared = input.allow.map(func);
+  requireRule(tapeXWrites.every((method) => declared.some((entry) => sameFunction(entry, method))), "invalid-tapex-writes");
+  return { definition: structuredClone(input), resolver: tapeXResolver, writes: tapeXWrites, reads: [] };
+}
+
 export function parseResolvedContract(input) {
   requireRule(input && typeof input === "object" && !Array.isArray(input), "invalid-declaration");
+  if (input.id === TAPEX_ASSEMBLY_ID) return parseTapeXAssembly(input);
   const allowed = new Set(["id", "label", "resolver", "allow", "read", "payable", "maxValueWei", "codePattern", "codeHash", "implementationCodeHash", "checks"]);
   requireRule(Object.keys(input).every((k) => allowed.has(k)), "unknown-field");
   const definition = structuredClone(input);

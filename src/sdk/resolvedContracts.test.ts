@@ -4,10 +4,56 @@ import { keccak256, parseAbi } from "viem";
 import type { PublicClient } from "viem";
 import type { Address, VaultManifest, VaultRuntimeContext } from "./types";
 import type { ManifestResolvedContract } from "./resolvedContractTypes";
+import { TAPEX_ASSEMBLY_ID } from "./resolvedContractPolicy.mjs";
+import type { TapeXAssemblyHostContext } from "./tapeXAssembly";
 // @ts-expect-error Node runner needs the source extension.
 import { createResolvedContractRuntime, isEip6551Proxy } from "./resolvedContracts.ts";
 
 const a = (i: number) => `0x${i.toString(16).padStart(40,"0")}` as Address;
+test("using the TapeX declaration cannot activate wallet permissions without matched host approval on chain 97", () => {
+  const manifest = (chainId: number): VaultManifest => ({
+    artifactId: "test-vault",
+    name: "TapeX",
+    i18n: ["en"],
+    match: { bindings: [{ chainId, factoryAddress: a(1), resolvedContracts: [{
+      id: TAPEX_ASSEMBLY_ID, label: "vault",
+      resolver: "function businessVault() view returns (address)",
+      allow: [
+        "function commitTapeout(bytes32)",
+        "function revealTapeout(address,uint256[5],bytes,bytes32,bytes32) payable returns (uint256)",
+      ],
+    }] }] },
+  });
+  const pin = { kind: "immutable", codeHash: keccak256("0x6000") } as const;
+  const beaconPin = {
+    ...pin, kind: "eip1967-beacon", beacon: a(6), implementation: a(7),
+    beaconCodeHash: keccak256("0x6001"), implementationCodeHash: keccak256("0x6002"),
+  } as const;
+  const approval: TapeXAssemblyHostContext["approval"] = {
+    manifestSha256: "a".repeat(64),
+    componentSha256: "b".repeat(64),
+    taxFactory: a(1),
+    businessFactory: a(4),
+    businessFactoryCode: pin,
+    taxVaultCode: beaconPin,
+    runtimeCode: beaconPin,
+    revealValueWei: 2000000000000000n,
+  };
+  const approved = { verifiedManifestSha256: approval.manifestSha256, verifiedComponentSha256: approval.componentSha256, approval };
+  const runtime = (chainId: number, tapeXAssembly?: TapeXAssemblyHostContext) => createResolvedContractRuntime({
+    client: {} as PublicClient,
+    context: { chainId, factoryAddress: a(1), vaultAddress: a(2), tokenAddress: a(3) } as VaultRuntimeContext,
+    manifest: manifest(chainId),
+    getWallet: async () => ({ address: a(9), chainId }),
+    tapeXAssembly,
+  });
+  assert.throws(() => runtime(97), /artifact-not-approved/);
+  assert.throws(() => runtime(97, { ...approved, verifiedManifestSha256: "c".repeat(64) }), /artifact-not-approved/);
+  assert.throws(() => runtime(97, { ...approved, verifiedComponentSha256: "c".repeat(64) }), /artifact-not-approved/);
+  assert.throws(() => runtime(97, { ...approved, approval: { ...approval, taxFactory: a(5) } }), /invalid-host-binding/);
+  assert.throws(() => runtime(56, approved), /testnet-only/);
+  assert.doesNotThrow(() => runtime(97, approved));
+});
 const definition: ManifestResolvedContract = { id: "position", label: "nft", resolver: "function poolOf(uint256 round) view returns (address)", allow: ["function claim(uint256 amount,address to)"], read: ["function pending() view returns (uint256)"], codeHash: keccak256("0x6000"), checks: [{kind:"owner",target:"resolved"},{kind:"recipient",function:"function claim(uint256 amount,address to)",arg:1},{kind:"balance",function:"function claim(uint256 amount,address to)",amountArg:0,token:"resolved",owner:"resolved"}] };
 function fixture(custom = definition, targetPolicy: "strict" | "warn" = "strict") {
   custom = structuredClone(custom);
