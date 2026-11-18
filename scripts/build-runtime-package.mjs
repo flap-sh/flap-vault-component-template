@@ -215,8 +215,9 @@ configuration. Approvals are chain-specific and the initial rollout uses testnet
 The component calls
 \`sdk.resolveContract("vault-assembly-v1", [])\` to resolve its current tax Vault's
 Runtime. The SDK verifies the project binding and the approved Beacon
-implementations, then restricts writes to \`commitTapeout\` and
-\`revealTapeout\` with the reviewed fees and a 35-byte reveal payload.
+implementations, then permits the reviewed \`commitTapeout\`, \`revealTapeout\`,
+and optional \`verifyMiner\` methods. Commit and verification carry zero native
+value. Reveal requires the approved fee and a 35-byte payload.
 This profile advertises \`sdkFeatures.vaultAssembly = 1\`.
 See the [host and artifact setup](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/resolved-contracts.md#host-approved-vault-assembly).
 

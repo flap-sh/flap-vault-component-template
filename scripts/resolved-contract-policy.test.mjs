@@ -3,23 +3,27 @@ import test from "node:test";
 import { parseResolvedContract, VAULT_ASSEMBLY_ID } from "../src/sdk/resolvedContractPolicy.mjs";
 import { checkResolvedContractDeclarations,checkResolvedContractSource } from "./resolved-contract-policy.mjs";
 const entry={id:"position",label:"nft",resolver:"function poolOf(uint256 round) view returns(address)",allow:["function claim(uint256 amount)"]};
-test("Vault assembly is restricted to its two methods on BNB Chain factory bindings", () => {
-  const declaration = {
-    id: VAULT_ASSEMBLY_ID,
-    label: "vault",
-    resolver: "function businessVault() view returns (address)",
-    allow: [
-      "function commitTapeout(bytes32 commitment)",
-      "function revealTapeout(address,uint256[5],bytes,bytes32,bytes32) payable returns (uint256)",
-    ],
-  };
+const declaration = {
+  id: VAULT_ASSEMBLY_ID,
+  label: "vault",
+  resolver: "function businessVault() view returns (address)",
+  allow: [
+    "function commitTapeout(bytes32 commitment)",
+    "function revealTapeout(address,uint256[5],bytes,bytes32,bytes32) payable returns (uint256)",
+  ],
+};
+const verifyMiner = "function verifyMiner(uint256 minerId) returns (bool)";
+
+test("Existing two-method Vault assembly declarations retain their BNB Chain factory scope", () => {
   const binding = { chainId: 97, factoryAddress: "0x123", resolvedContracts: [declaration] };
   const issues = checkResolvedContractDeclarations([declaration], "field", binding);
   assert.equal(issues.length, 1);
   assert.match(issues[0].message, /independent host approval/);
+  assert.doesNotMatch(issues[0].message, /verifyMiner/);
   assert.ok(checkResolvedContractDeclarations([declaration], "field", { ...binding, chainId: 56 }).every((issue) => issue.severity === "warning"));
   assert.ok(checkResolvedContractDeclarations([declaration], "field", { ...binding, chainId: 1 }).some((issue) => issue.severity === "blocking"));
   assert.ok(checkResolvedContractDeclarations([declaration, entry], "field", binding).some((issue) => issue.severity === "blocking"));
+  assert.ok(checkResolvedContractDeclarations([declaration], "field", { ...binding, nftAccountWithdrawals: [] }).some((issue) => issue.severity === "blocking"));
   assert.throws(() => parseResolvedContract({ ...declaration, id: "another-project" }), /invalid-resolver/);
   assert.throws(() => parseResolvedContract({ ...declaration, resolver: entry.resolver }), /invalid-assembly-resolver/);
   assert.throws(() => parseResolvedContract({ ...declaration, allow: [declaration.allow[0], "function execute(bytes)"] }), /invalid-assembly-writes/);
@@ -27,6 +31,41 @@ test("Vault assembly is restricted to its two methods on BNB Chain factory bindi
   const call = `const runtime = await sdk.resolveContract("${VAULT_ASSEMBLY_ID}", []);`;
   assert.deepEqual(checkResolvedContractSource(call, "Component.tsx", [binding]), []);
   assert.ok(checkResolvedContractSource(call.replace("[]", "[projectId]"), "Component.tsx", [binding]).some((issue) => issue.severity === "blocking"));
+});
+
+test("Vault assembly grants and reports verification only when declared with its exact ABI", () => {
+  const allow = [verifyMiner, ...declaration.allow];
+  const updated = { ...declaration, allow };
+  const binding = { chainId: 97, factoryAddress: "0x123", resolvedContracts: [updated] };
+  const [review] = checkResolvedContractDeclarations([updated], "field", binding);
+  assert.equal(review.ruleId, "manual-review/resolved-contract");
+  assert.deepEqual(review.allow, allow);
+  assert.match(review.message, /verified manifest and component SHA-256 digests/);
+  assert.match(review.message, /commitTapeout, revealTapeout, verifyMiner/);
+
+  const call = `const runtime = await sdk.resolveContract("${VAULT_ASSEMBLY_ID}", []);
+    await sdk.simulateContract({ contract: runtime, abi, functionName: "verifyMiner", args: [minerId] });`;
+  assert.deepEqual(checkResolvedContractSource(call, "Component.tsx", [binding]), []);
+  assert.ok(checkResolvedContractSource(call, "Component.tsx", [{ ...binding, resolvedContracts: [declaration] }]).some((issue) => issue.severity === "blocking"));
+  assert.ok(checkResolvedContractSource(call.replace("simulateContract", "readContract"), "Component.tsx", [binding]).some((issue) => issue.severity === "blocking"));
+
+  const [commit, reveal] = declaration.allow;
+  for (const invalid of [
+    [verifyMiner, reveal],
+    [commit, verifyMiner],
+    [commit, reveal, commit],
+    [commit, reveal, verifyMiner, verifyMiner],
+    [commit, reveal, verifyMiner, "function burnMiner(uint256)"],
+    ...[
+      "function verifyMiner(bytes32) returns (bool)",
+      "function verifyMiner(uint256) returns (uint256)",
+      "function verifyMiner(uint256)",
+      "function verifyMiner(uint256) view returns (bool)",
+      "function verifyMiner(uint256) payable returns (bool)",
+    ].map((invalidAbi) => [commit, reveal, invalidAbi]),
+  ]) {
+    assert.throws(() => parseResolvedContract({ ...declaration, allow: invalid }), /invalid-assembly-writes/);
+  }
 });
 test("declarations still reject other execution methods, approvals, dynamic calldata and invalid resolver/check/value rules",()=>{
  for(const patch of [

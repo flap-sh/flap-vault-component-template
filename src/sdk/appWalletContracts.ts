@@ -1,8 +1,10 @@
-import { encodeFunctionData, toFunctionSelector, keccak256, parseAbi, prepareEncodeFunctionData } from "viem";
+import { encodeFunctionData, keccak256, parseAbi, prepareEncodeFunctionData } from "viem";
 import { ERC20_APPROVE_SELECTOR, PRESALE_CONTRIBUTE_QUOTE_SELECTOR, parseAppWalletContracts, type ParsedAppWalletPermissions } from "./appWalletPolicy.mjs";
 import type { Address, ContractWriteRequest, VaultManifest } from "./types";
 import type { FlapWalletRuntime, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
 import type { ResolvedContractHandle } from "./resolvedContractTypes";
+// @ts-expect-error Node's source tests need the TypeScript extension.
+import { checkResolvedWriteConstraint, checkReviewedContractCall } from "./resolvedWriteConstraints.ts";
 function requireRule(ok: unknown, reason: string): asserts ok { if (!ok) throw new Error(`app-wallet/${reason}`); }
 const same = (a: unknown, b: unknown) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
 function isContractAddress(address: unknown): address is Address {
@@ -49,23 +51,22 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
     const prepared = write && policy.writeConstraints?.size ? prepareEncodeFunctionData(parameters) : undefined;
     const constraint = prepared && policy.writeConstraints?.get(prepared.functionName);
     if (constraint) {
-      for (const [index, length] of constraint.fixedBytes) {
-        const bytes = request.args?.[index];
-        requireRule(typeof bytes === "string" && bytes.length === 2 + 2 * length && bytes.startsWith("0x") && !/[^a-f0-9]/i.test(bytes.slice(2)), "fixed-bytes-length-mismatch");
-      }
-      requireRule(constraint.valueWei === undefined || value === constraint.valueWei, "exact-value-mismatch");
+      const { fixedBytesMatch, valueMatches } = checkResolvedWriteConstraint(request, constraint);
+      requireRule(fixedBytesMatch, "fixed-bytes-length-mismatch");
+      requireRule(valueMatches, "exact-value-mismatch");
     }
-    const data = encodeFunctionData({ ...parameters, ...prepared });
-    const selector = data.slice(0, 10);
-    const entry = (write ? policy.writes : policy.reads).find((f) => toFunctionSelector(f) === selector);
+    const { selector, entry, abiMatches } = checkReviewedContractCall(
+      { ...parameters, ...prepared }, write ? policy.writes : policy.reads,
+    );
     requireRule(entry, "selector-not-allowed");
-    requireRule(encodeFunctionData({ abi: [entry!], functionName: entry!.name, args: request.args }) === data, "abi-mismatch");
+    requireRule(abiMatches, "abi-mismatch");
     requireRule(value >= 0n && (value === 0n || entry!.stateMutability === "payable" && policy.definition.maxValueWei && value <= BigInt(policy.definition.maxValueWei)), "value-not-allowed");
     if (write && selector === ERC20_APPROVE_SELECTOR) {
       requireRule(policy.definition.approvalSpenders?.some((a) => same(a, request.args?.[0])), "spender-not-allowed");
       const amount = request.args?.[1]; requireRule(typeof amount === "bigint" && amount >= 0n && amount <= BigInt(policy.definition.maxApprovalWei!), "approval-cap-exceeded");
     }
-    return { selector, call: { ...request, abi: [entry], functionName: entry.name } };
+    // The component can change a simulation request, so keep the reviewed ABI private.
+    return { selector, call: { ...request, abi: [structuredClone(entry)], functionName: entry.name } };
   }
 
   async function resolvePresaleQuote(record: RecordEntry | undefined, launcher: Address | undefined, amount: unknown) {

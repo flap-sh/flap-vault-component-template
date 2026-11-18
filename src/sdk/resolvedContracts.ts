@@ -5,6 +5,8 @@ import type { ParsedResolvedContract, ResolvedContractHandle } from "./resolvedC
 import { parseResolvedContract, VAULT_ASSEMBLY_ID } from "./resolvedContractPolicy.mjs";
 // @ts-expect-error Node's source tests need the TypeScript extension.
 import { createVaultAssemblyPolicy } from "./vaultAssembly.ts";
+// @ts-expect-error Node's source tests need the TypeScript extension.
+import { checkReviewedContractCall } from "./resolvedWriteConstraints.ts";
 import type { VaultAssemblyHostContext } from "./vaultAssembly";
 
 const zero = /^0x0+$/i;
@@ -107,11 +109,11 @@ export function createResolvedContractRuntime(environment: Environment) {
     return { record, request };
   }
   function allowedFunction(request: ContractWriteRequest, functions: AbiFunction[]) {
-    const data = encodeFunctionData({ abi: request.abi!, functionName: request.functionName, args: request.args });
-    const selected = functions.find((f) => toFunctionSelector(f) === data.slice(0, 10));
+    const { entry: selected, abiMatches } = checkReviewedContractCall(
+      { abi: request.abi!, functionName: request.functionName, args: request.args }, functions,
+    );
     requireRule(selected, "selector-not-allowed");
-    // Decode/encode with the reviewed ABI too, preventing caller ABI ambiguity.
-    requireRule(encodeFunctionData({ abi: [selected], functionName: selected.name, args: request.args }) === data, "abi-mismatch");
+    requireRule(abiMatches, "abi-mismatch");
     // A simulation request is returned to the component. Keep authorization ABI objects private.
     request.abi = [structuredClone(selected)]; request.functionName = selected.name;
     return selected;

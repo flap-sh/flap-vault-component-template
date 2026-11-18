@@ -2,10 +2,11 @@ import { parseAbi, toFunctionSelector, toFunctionSignature } from "viem";
 
 export const VAULT_ASSEMBLY_ID = "vault-assembly-v1";
 export const isVaultAssemblyChain = (chainId) => chainId === 56 || chainId === 97;
-const [vaultAssemblyResolver, ...vaultAssemblyWrites] = parseAbi([
+const [vaultAssemblyResolver, commitTapeout, revealTapeout, verifyMiner] = parseAbi([
   "function businessVault() view returns (address)",
   "function commitTapeout(bytes32 commitment)",
   "function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)",
+  "function verifyMiner(uint256 minerId) returns (bool)",
 ]);
 
 const forbiddenName = /^(?:execute(?:Call|Batch)?|multicall|delegatecall|approve|increaseAllowance|decreaseAllowance|setApprovalForAll|transferOwnership|acceptOwnership|upgradeTo.*|setConfig|setSwapPath|setSplit)$/i;
@@ -33,10 +34,13 @@ function parseVaultAssembly(input) {
   requireRule(Object.keys(input).every((key) => ["id", "label", "resolver", "allow"].includes(key))
     && input.label === "vault", "invalid-assembly-declaration");
   requireRule(sameFunction(func(input.resolver), vaultAssemblyResolver), "invalid-assembly-resolver");
-  requireRule(Array.isArray(input.allow) && input.allow.length === vaultAssemblyWrites.length, "invalid-assembly-writes");
+  requireRule(Array.isArray(input.allow), "invalid-assembly-writes");
+  const writes = [commitTapeout, revealTapeout];
+  if (input.allow.length === writes.length + 1) writes.push(verifyMiner);
+  requireRule(input.allow.length === writes.length, "invalid-assembly-writes");
   const declared = input.allow.map(func);
-  requireRule(vaultAssemblyWrites.every((method) => declared.some((entry) => sameFunction(entry, method))), "invalid-assembly-writes");
-  return { definition: structuredClone(input), resolver: structuredClone(vaultAssemblyResolver), writes: structuredClone(vaultAssemblyWrites), reads: [] };
+  requireRule(writes.every((method) => declared.some((entry) => sameFunction(entry, method))), "invalid-assembly-writes");
+  return { definition: structuredClone(input), resolver: structuredClone(vaultAssemblyResolver), writes: structuredClone(writes), reads: [] };
 }
 
 export function parseResolvedContract(input) {

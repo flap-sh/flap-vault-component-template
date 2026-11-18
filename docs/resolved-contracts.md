@@ -99,15 +99,17 @@ The assembly profile supports BNB Smart Chain (56) and BNB Testnet (97). A recei
 }
 ```
 
+Keep both `commitTapeout` and `revealTapeout` in `allow`. A component that needs on-chain miner verification may also declare `function verifyMiner(uint256 minerId) returns (bool)`. The host must review the updated manifest and component digests before enabling verification. `commitTapeout` and `verifyMiner` accept zero native value. `revealTapeout` requires the approved exact value and a 35-byte netlist.
+
 The component uses `await sdk.resolveContract("vault-assembly-v1", [])` and the resulting handle on the normal simulation and write path. With this profile active, raw contract writes are rejected. Read calls still use the ordinary Vault path.
 
 Only the host can pass `vaultAssembly` to `VaultRuntimeProvider`. Match the active chain and verified manifest and component SHA-256 digests against an independently approved record. The record supplies its `chainId`, both Factory addresses, business Factory code, tax Vault and Runtime BeaconProxy pins, and the exact reveal value in wei. The host supplies the verified token and tax Vault. Without a matching approval, the artifact can render and read data, but assembly writes are rejected. Review the actual proxy bytecode, external libraries and upgrade authority. Each BeaconProxy pin includes the proxy bytecode hash, Beacon address and bytecode hash, and implementation address and bytecode hash.
 
 The SDK reads `businessVault()` on the current tax Vault and verifies the Runtime's `taxVault()` back-reference. It also checks that the token and Factory addresses match. For each proxy it reads the ERC-1967 Beacon slot, confirms the reviewed Beacon and calls `implementation()` there. Reads use the same block within each verification. The binding and code checks repeat after simulation. The wallet submits directly to the Runtime. On-chain rules still govern the commit window, sender, materials, payload and fees at execution, when Beacon state may have changed again.
 
-Run `yarn test:resolved-contracts` to check the manifest rules and `yarn test:runtime-provider` for the browser wallet fixture. The assembly profile accepts `businessVault()` and the exact reveal ABI. It calls the current tax Vault with zero arguments and rejects a declaration that resolves by project ID. The browser fixture covers both BNB chains and an upgrade after simulation with unchanged proxy bytecode.
+Run `yarn test:resolved-contracts` to check the manifest rules and `yarn test:runtime-provider` for the browser wallet fixture. The assembly profile calls `businessVault()` on the current tax Vault with zero arguments and rejects a declaration that resolves by project ID. The browser fixture covers both BNB chains and an upgrade after simulation with unchanged proxy bytecode.
 
-For live testnet acceptance, use two projects on that same Factory. The wallet on A must commit, wait for the contract's reveal window, reveal and receive a successful receipt on A. Passing B's project ID on the A page must fail before any wallet request. Get the Factory addresses, the two project IDs, both tokens, tax Vaults and Runtimes, reviewed Beacon and implementation evidence, fee, a test wallet with eligible materials and gas, and the exact Factory-bound UI source package.
+For live testnet acceptance, use two projects on the same Factory. The wallet on A must commit, wait for the reveal window to open, reveal, then verify the new miner. Check successful receipts on A and confirm the miner is verified on-chain. Passing B's project ID or overriding the verification target with B's Runtime on the A page must fail before any wallet request. Get the Factory addresses, the two project IDs, both tokens, tax Vaults and Runtimes, reviewed Beacon and implementation evidence, fee, a test wallet with eligible materials and gas, and the exact Factory-bound UI source package.
 
 ## Validation and release
 

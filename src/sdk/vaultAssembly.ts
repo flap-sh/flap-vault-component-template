@@ -1,7 +1,9 @@
-import { keccak256, parseAbi } from "viem";
+import { keccak256, parseAbi, toFunctionSelector } from "viem";
 import type { AbiFunction, PublicClient } from "viem";
 import type { Address, ContractWriteRequest, VaultRuntimeContext } from "./types";
 import { isVaultAssemblyChain } from "./resolvedContractPolicy.mjs";
+// @ts-expect-error Node's source tests need the TypeScript extension.
+import { checkResolvedWriteConstraint, type ResolvedWriteConstraint } from "./resolvedWriteConstraints.ts";
 
 type BeaconCodePin = {
   kind: "eip1967-beacon";
@@ -48,6 +50,11 @@ const taxVaultAbi = parseAbi([
   "function taxToken() view returns (address)",
 ]);
 const runtimeAbi = parseAbi(["function taxVault() view returns (address)"]);
+const commitSelector = toFunctionSelector("commitTapeout(bytes32)");
+const revealSelector = toFunctionSelector("revealTapeout(address,uint256[5],bytes,bytes32,bytes32)");
+const verifySelector = toFunctionSelector("verifyMiner(uint256)");
+const zeroValueOnly = { valueWei: 0n };
+const netlistBytes = new Map([[2, 35]]);
 
 function requireAssembly(ok: unknown, code: string): asserts ok {
   if (!ok) throw new Error(`vault-assembly/${code}`);
@@ -107,6 +114,11 @@ export function createVaultAssemblyPolicy(client: PublicClient, context: VaultRu
   requireAssembly(approval.taxVaultCode?.kind === "eip1967-beacon"
     && approval.runtimeCode?.kind === "eip1967-beacon", "beacon-pin-required");
   const { businessFactory: approvedFactory, businessFactoryCode, taxVaultCode, runtimeCode, revealValueWei } = approval;
+  const writeConstraints = new Map<string, ResolvedWriteConstraint>([
+    [commitSelector, zeroValueOnly],
+    [verifySelector, zeroValueOnly],
+    [revealSelector, { valueWei: revealValueWei, fixedBytes: netlistBytes, caseInsensitiveHexPrefix: true }],
+  ]);
 
   async function resolve(blockNumber: bigint) {
     const vault = { address: vaultAddress, abi: taxVaultAbi, blockNumber } as const;
@@ -129,14 +141,11 @@ export function createVaultAssemblyPolicy(client: PublicClient, context: VaultRu
   }
 
   function validateWrite(method: AbiFunction, request: ContractWriteRequest) {
-    const value = request.value ?? 0n;
-    if (method.name === "commitTapeout") {
-      requireAssembly(value === 0n, "value-mismatch");
-      return;
-    }
-    requireAssembly(method.name === "revealTapeout" && value === revealValueWei, "value-mismatch");
-    const netlist = request.args?.[2];
-    requireAssembly(typeof netlist === "string" && /^0x[0-9a-f]{70}$/i.test(netlist), "netlist-length");
+    const constraint = writeConstraints.get(toFunctionSelector(method));
+    requireAssembly(constraint, "value-mismatch");
+    const { fixedBytesMatch, valueMatches } = checkResolvedWriteConstraint(request, constraint);
+    requireAssembly(valueMatches, "value-mismatch");
+    requireAssembly(fixedBytesMatch, "netlist-length");
   }
 
   return { resolve, validateWrite };

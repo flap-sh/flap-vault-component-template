@@ -8,12 +8,15 @@ import os from "node:os";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 const ROOT=process.cwd();
-const packaged=process.argv.includes('--package');
-const providerEntrypoint=packaged?'./dist/vault-runtime/host-client.js':'./src/sdk/runtime';
-const walletRuntimeEntrypoint=packaged?'./dist/vault-runtime/host-client.js':'./src/sdk/useFlapWalletRuntime';
-const sdkEntrypoint=packaged?'./dist/vault-runtime/sdk.js':'./src/sdk/runtimeStore';
-const imageEntrypoint=packaged?'./dist/vault-runtime/ui.js':'./src/ui/IpfsImage';
-const textEntrypoint=packaged?'./dist/vault-runtime/ui.js':'./src/ui/IpfsText';
+const packageDirIndex=process.argv.indexOf('--package-dir');
+if(packageDirIndex>=0 && !process.argv[packageDirIndex+1])throw new Error('Pass the unpacked runtime directory after --package-dir.');
+const packaged=process.argv.includes('--package')||packageDirIndex>=0;
+const packageDir=path.resolve(ROOT,packageDirIndex>=0?process.argv[packageDirIndex+1]:'dist/vault-runtime');
+const providerEntrypoint=packaged?path.join(packageDir,'host-client.js'):'./src/sdk/runtime';
+const walletRuntimeEntrypoint=packaged?providerEntrypoint:'./src/sdk/useFlapWalletRuntime';
+const sdkEntrypoint=packaged?path.join(packageDir,'sdk.js'):'./src/sdk/runtimeStore';
+const imageEntrypoint=packaged?path.join(packageDir,'ui.js'):'./src/ui/IpfsImage';
+const textEntrypoint=packaged?imageEntrypoint:'./src/ui/IpfsText';
 function fixtureCid(bytes) {
  const data=Buffer.concat([Buffer.from([1,0x55,0x12,0x20]),createHash('sha256').update(bytes).digest()]);
  let bits=0,value=0,result='b';
@@ -27,11 +30,11 @@ let server,browser;
 try {
  const entry=`import * as React from "react";
 import {createRoot} from "react-dom/client";
-import {VaultRuntimeProvider} from "${providerEntrypoint}";
-import {useFlapWalletRuntime} from "${walletRuntimeEntrypoint}";
-import {useFlapSdk} from "${sdkEntrypoint}";
-import {IpfsImage} from "${imageEntrypoint}";
-import {IpfsText} from "${textEntrypoint}";
+import {VaultRuntimeProvider} from ${JSON.stringify(providerEntrypoint)};
+import {useFlapWalletRuntime} from ${JSON.stringify(walletRuntimeEntrypoint)};
+import {useFlapSdk} from ${JSON.stringify(sdkEntrypoint)};
+import {IpfsImage} from ${JSON.stringify(imageEntrypoint)};
+import {IpfsText} from ${JSON.stringify(textEntrypoint)};
 import {encodeFunctionResult,keccak256,parseAbi} from "viem";
 const a=(i)=>'0x'+i.toString(16).padStart(40,'0');
 const state={user:a(9),chain:56,sends:0,changeOnSimulation:false,simulations:0,target:a(5),receiptStatus:'success',receiptCalls:[],legacyWaits:0};
@@ -67,6 +70,9 @@ globalThis.testVaultAssembly=async(chainId)=>{
  const host={verifiedManifestSha256:manifestSha256,verifiedComponentSha256:componentSha256,approval};
  const resolver='function businessVault() view returns (address)';
  const writes=['function commitTapeout(bytes32 commitment)','function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)'];
+ const verifyMethod='function verifyMiner(uint256 id) returns (bool)';
+ const includesVerification=chainId===97;
+ if(includesVerification)writes.push(verifyMethod);
  const vaultAssemblyManifest={...manifest,match:{bindings:[{chainId,factoryAddress:taxFactory,
   externalContracts:[{address:runtimeA,label:'reviewed read'}],resolvedContracts:[{id:'vault-assembly-v1',label:'vault',resolver,allow:writes}]}]}};
  const sends=[];
@@ -74,7 +80,7 @@ globalThis.testVaultAssembly=async(chainId)=>{
  let upgradeAfterSimulation=false,swapped=false,upgraded=false,changedCode=false;
  state.chain=chainId;
  const expectedBlock=()=>upgraded?101n:100n;
- env.client={...client,getChainId:async()=>chainId,getBlockNumber:async(options)=>{
+ env.client={...client,...receiptClient(chainId),getChainId:async()=>chainId,getBlockNumber:async(options)=>{
   if(options?.cacheTime!==0)throw new Error('cached-assembly-block-number');
   return expectedBlock();
  },getCode:async({address,blockNumber})=>{
@@ -96,10 +102,13 @@ globalThis.testVaultAssembly=async(chainId)=>{
   if(functionName==='implementation'&&address===runtimeBeacon)return upgraded?upgradedImplementation:implementation;
   if(functionName==='taxVault')return address===runtimeA?vaultA:vaultB;
   throw new Error('unexpected fixture query: '+functionName);
- },simulateContract:async()=>{if(upgradeAfterSimulation)upgraded=true;return {result:1n};}};
+ },simulateContract:async({functionName})=>{
+  if(upgradeAfterSimulation)upgraded=true;
+  return {result:functionName==='verifyMiner'?true:1n};
+ }};
  env.walletClient={...walletClient,writeContract:async(request)=>{
   sends.push({target:request.address,functionName:request.functionName,value:String(request.value??0n)});
-  return a(20);
+  return hex('42',32);
  }};
  const before=globalThis.providerRenders;
  root.render(React.createElement(VaultRuntimeProvider,{manifest:vaultAssemblyManifest,i18n,
@@ -109,16 +118,31 @@ globalThis.testVaultAssembly=async(chainId)=>{
  const abi=parseAbi(writes);
  const commit={contract,abi,functionName:'commitTapeout',args:[hex('42',32)]};
  const reveal={contract,abi,functionName:'revealTapeout',args:[a(9),[1n,2n,3n,4n,5n],hex('11',35),hex('22',32),hex('33',32)],value:approval.revealValueWei};
+ const verify={contract,abi:parseAbi([verifyMethod]),functionName:'verifyMiner',args:[1n]};
  const failures={};
  const denied=async(key,action)=>{try{await action();failures[key]='allowed';}catch(error){failures[key]=error.message;}};
  const changed=await sdk.simulateContract(commit);
  changed.request.abi[0].inputs[0].type='uint256';
  await denied('mutatedAbi',()=>sdk.writeContract({...changed.request,args:[1n]}));
- await sdk.writeContract((await sdk.simulateContract(commit)).request);
- await sdk.writeContract((await sdk.simulateContract(reveal)).request);
+ const submit=async(request)=>{
+  const simulated=await sdk.simulateContract(request);
+  const hash=await sdk.writeContract(simulated.request);
+  return {result:simulated.result,status:(await sdk.waitForTx(hash)).status};
+ };
+ const commitReceipt=await submit(commit);
+ const revealReceipt=await submit(reveal);
+ const verifyReceipt=includesVerification?await submit(verify):undefined;
+ if(includesVerification){
+  await denied('verifyValue',()=>sdk.writeContract({...verify,value:1n}));
+  await denied('otherRuntimeOverride',()=>sdk.writeContract({...verify,address:runtimeB}));
+  await denied('otherRuntimeRaw',()=>sdk.writeContract({...verify,contract:undefined,address:runtimeB}));
+ }else{
+  await denied('undeclaredVerify',()=>sdk.writeContract(verify));
+ }
  await denied('wrongProject',()=>sdk.resolveContract('vault-assembly-v1',[projectB]));
  swapped=true;
  await denied('otherRuntime',()=>sdk.resolveContract('vault-assembly-v1',[]));
+ if(includesVerification)await denied('verifyOnSwappedRuntime',()=>sdk.writeContract(verify));
  swapped=false;
  await denied('wrongValue',()=>sdk.writeContract({...reveal,value:1n}));
  await denied('wrongLength',()=>sdk.writeContract({...reveal,args:reveal.args.map((arg,i)=>i===2?hex('11',34):arg)}));
@@ -128,8 +152,8 @@ globalThis.testVaultAssembly=async(chainId)=>{
  await denied('implementationCodeChanged',()=>sdk.writeContract(reveal));
  changedCode=false;
  upgradeAfterSimulation=true;
- await denied('upgradedAfterSimulation',()=>sdk.writeContract(reveal));
- return {failures,sends,runtimeA,vaultA,resolverReads};
+ await denied('upgradedAfterSimulation',()=>sdk.writeContract(includesVerification?verify:reveal));
+ return {failures,sends,runtimeA,vaultA,resolverReads,commitReceipt,revealReceipt,verifyReceipt};
 };
 globalThis.renderProvider();`;
  const wagmi=`export const useAccount=()=>({address:globalThis.env.state.user,isConnected:true});
@@ -143,7 +167,7 @@ export const useBalance=()=>({data:undefined});`;
  const wagmiActions=`export const getAccount=()=>({address:globalThis.env.state.user,chainId:globalThis.env.state.chain,isConnected:true});
 export const getPublicClient=(_config,{chainId})=>globalThis.env.clients[chainId];
 export const getWalletClient=async()=>globalThis.env.walletClient;export const switchChain=async()=>{};export const disconnect=()=>{};`;
- await build({absWorkingDir:ROOT,stdin:{contents:entry,resolveDir:ROOT,sourcefile:'provider-harness.tsx',loader:'tsx'},outfile:path.join(tmp,'app.js'),bundle:true,format:'esm',platform:'browser',jsx:'automatic',plugins:[{name:'provider-fixtures',setup(b){b.onResolve({filter:/^wagmi(?:\/actions)?$/},({path})=>({path,namespace:'fixture'}));b.onResolve({filter:/^@\/src\/ui$/},()=>({path:'ui',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},({path})=>({contents:path==='wagmi'?wagmi:path==='wagmi/actions'?wagmiActions:'export const Alert=()=>null;',loader:'js'}));}}]});
+ await build({absWorkingDir:ROOT,nodePaths:[path.join(ROOT,'node_modules')],stdin:{contents:entry,resolveDir:ROOT,sourcefile:'provider-harness.tsx',loader:'tsx'},outfile:path.join(tmp,'app.js'),bundle:true,format:'esm',platform:'browser',jsx:'automatic',plugins:[{name:'provider-fixtures',setup(b){b.onResolve({filter:/^wagmi(?:\/actions)?$/},({path})=>({path,namespace:'fixture'}));b.onResolve({filter:/^@\/src\/ui$/},()=>({path:'ui',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},({path})=>({contents:path==='wagmi'?wagmi:path==='wagmi/actions'?wagmiActions:'export const Alert=()=>null;',loader:'js'}));}}]});
  server=createServer(async(req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':'text/html');res.end(req.url==='/app.js'?await readFile(path.join(tmp,'app.js')):'<div id="root"></div><script type="module" src="/app.js"></script>');});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -332,10 +356,23 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  const isolated=await page.evaluate(()=>{sdk.context.host.taxInfo.quoteToken='0x'+(88).toString(16).padStart(40,'0');return hostContext.host.taxInfo.quoteToken!==sdk.context.host.taxInfo.quoteToken;});assert(isolated,'Component context must not mutate host authorization inputs');
  for(const chainId of [97,56]){
  const vaultAssembly=await page.evaluate(chain=>testVaultAssembly(chain),chainId);
- assert.deepEqual(vaultAssembly.sends,[
+ const expectedSends=[
   {target:vaultAssembly.runtimeA,functionName:'commitTapeout',value:'0'},
   {target:vaultAssembly.runtimeA,functionName:'revealTapeout',value:'2000000000000000'},
- ]);
+ ];
+ if(chainId===97){
+  expectedSends.push({target:vaultAssembly.runtimeA,functionName:'verifyMiner',value:'0'});
+  assert.deepEqual(vaultAssembly.verifyReceipt,{result:true,status:'success'});
+  assert.match(vaultAssembly.failures.verifyValue,/value-mismatch/);
+  assert.match(vaultAssembly.failures.otherRuntimeOverride,/handle-with-address/);
+  assert.match(vaultAssembly.failures.otherRuntimeRaw,/assembly-handle-required/);
+  assert.match(vaultAssembly.failures.verifyOnSwappedRuntime,/runtime-vault-mismatch/);
+ }else{
+  assert.match(vaultAssembly.failures.undeclaredVerify,/selector-not-allowed/);
+ }
+ assert.deepEqual(vaultAssembly.sends,expectedSends);
+ assert.equal(vaultAssembly.commitReceipt.status,'success');
+ assert.equal(vaultAssembly.revealReceipt.status,'success');
  assert.match(vaultAssembly.failures.wrongProject,/invalid-assembly-request/);
  assert.match(vaultAssembly.failures.mutatedAbi,/selector-not-allowed/);
  assert.match(vaultAssembly.failures.otherRuntime,/runtime-vault-mismatch/);
@@ -348,5 +385,5 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  assert.ok(vaultAssembly.resolverReads.length>0);
  for(const read of vaultAssembly.resolverReads)assert.deepEqual(read,{address:vaultAssembly.vaultA,args:[]});
  }
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including assembly project isolation and pre-wallet checks on both BNB chains.');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including testnet commit, reveal, verification, project isolation and pre-wallet checks.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}

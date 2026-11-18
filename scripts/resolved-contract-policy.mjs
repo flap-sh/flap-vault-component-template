@@ -16,7 +16,7 @@ export function checkResolvedContractDeclarations(value, field, binding) {
         }
         issues.push({
           severity: "warning", ruleId: "manual-review/resolved-contract",
-          message: "Vault assembly requires independent host approval of the chain, verified artifact, Factory, code, project linkage and exact reveal value. Only the two reviewed writes use this binding. Netlist must be exactly 35 bytes.",
+          message: `Vault assembly requires independent host approval of the chain, verified manifest and component SHA-256 digests, Factory, code, project linkage and exact reveal value. The declared write methods are ${parsed.writes.map((method) => method.name).join(", ")}. Netlist must be exactly 35 bytes.`,
           chainId: binding.chainId, factoryAddress: binding.factoryAddress, field, ...parsed.definition,
         });
         continue;
