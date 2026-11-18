@@ -4,10 +4,68 @@ import { keccak256, parseAbi } from "viem";
 import type { PublicClient } from "viem";
 import type { Address, VaultManifest, VaultRuntimeContext } from "./types";
 import type { ManifestResolvedContract } from "./resolvedContractTypes";
+import { VAULT_ASSEMBLY_ID } from "./resolvedContractPolicy.mjs";
+import type { VaultAssemblyHostContext } from "./vaultAssembly";
 // @ts-expect-error Node runner needs the source extension.
 import { createResolvedContractRuntime, isEip6551Proxy } from "./resolvedContracts.ts";
 
 const a = (i: number) => `0x${i.toString(16).padStart(40,"0")}` as Address;
+test("assembly previews work read-only and writes require approval for the current BNB chain", async () => {
+  const manifest = (chainId: number): VaultManifest => ({
+    artifactId: "test-vault",
+    name: "Assembly",
+    i18n: ["en"],
+    match: { bindings: [{ chainId, factoryAddress: a(1), resolvedContracts: [{
+      id: VAULT_ASSEMBLY_ID, label: "vault",
+      resolver: "function businessVault() view returns (address)",
+      allow: [
+        "function commitTapeout(bytes32)",
+        "function revealTapeout(address,uint256[5],bytes,bytes32,bytes32) payable returns (uint256)",
+      ],
+    }] }] },
+  });
+  const pin = { kind: "immutable", codeHash: keccak256("0x6000") } as const;
+  const beaconPin = {
+    ...pin, kind: "eip1967-beacon", beacon: a(6), implementation: a(7),
+    beaconCodeHash: keccak256("0x6001"), implementationCodeHash: keccak256("0x6002"),
+  } as const;
+  const approval: VaultAssemblyHostContext["approval"] = {
+    chainId: 97,
+    manifestSha256: "a".repeat(64),
+    componentSha256: "b".repeat(64),
+    taxFactory: a(1),
+    businessFactory: a(4),
+    businessFactoryCode: pin,
+    taxVaultCode: beaconPin,
+    runtimeCode: beaconPin,
+    revealValueWei: 2000000000000000n,
+  };
+  const approved = { verifiedManifestSha256: approval.manifestSha256, verifiedComponentSha256: approval.componentSha256, approval };
+  const runtime = (chainId: number, vaultAssembly?: VaultAssemblyHostContext) => createResolvedContractRuntime({
+    client: {
+      getChainId: async () => chainId,
+      getBlockNumber: async () => 1n,
+      getCode: async () => { throw new Error("fixture/reached-chain-check"); },
+    } as unknown as PublicClient,
+    context: { chainId, factoryAddress: a(1), vaultAddress: a(2), tokenAddress: a(3) } as VaultRuntimeContext,
+    manifest: manifest(chainId),
+    getWallet: async () => ({ address: a(9), chainId }),
+    vaultAssembly,
+  });
+  const resolve = (chainId: number, host?: VaultAssemblyHostContext) => runtime(chainId, host).resolveContract(VAULT_ASSEMBLY_ID, []);
+  const readOnly = runtime(56);
+  const request = { address: a(2), abi: parseAbi(["function owner() view returns (address)"]), functionName: "owner" };
+  assert.equal((await readOnly.validate(readOnly.snapshot(request), false)).request.address, a(2));
+  await assert.rejects(resolve(97), /artifact-not-approved/);
+  await assert.rejects(resolve(56), /artifact-not-approved/);
+  await assert.rejects(resolve(97, { ...approved, verifiedManifestSha256: "c".repeat(64) }), /artifact-not-approved/);
+  await assert.rejects(resolve(97, { ...approved, verifiedComponentSha256: "c".repeat(64) }), /artifact-not-approved/);
+  await assert.rejects(resolve(97, { ...approved, approval: { ...approval, taxFactory: a(5) } }), /invalid-host-binding/);
+  await assert.rejects(resolve(56, approved), /approval-chain-mismatch/);
+  await assert.rejects(resolve(1, approved), /unsupported-chain/);
+  await assert.rejects(resolve(97, approved), /fixture\/reached-chain-check/);
+  await assert.rejects(resolve(56, { ...approved, approval: { ...approval, chainId: 56 } }), /fixture\/reached-chain-check/);
+});
 const definition: ManifestResolvedContract = { id: "position", label: "nft", resolver: "function poolOf(uint256 round) view returns (address)", allow: ["function claim(uint256 amount,address to)"], read: ["function pending() view returns (uint256)"], codeHash: keccak256("0x6000"), checks: [{kind:"owner",target:"resolved"},{kind:"recipient",function:"function claim(uint256 amount,address to)",arg:1},{kind:"balance",function:"function claim(uint256 amount,address to)",amountArg:0,token:"resolved",owner:"resolved"}] };
 function fixture(custom = definition, targetPolicy: "strict" | "warn" = "strict") {
   custom = structuredClone(custom);

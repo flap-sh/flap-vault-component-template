@@ -2,7 +2,10 @@ import { encodeFunctionData, keccak256, parseAbi, toFunctionSelector } from "vie
 import type { AbiFunction, PublicClient } from "viem";
 import type { Address, ContractReadRequest, ContractWriteRequest, VaultManifest, VaultRuntimeContext } from "./types";
 import type { ParsedResolvedContract, ResolvedContractHandle } from "./resolvedContractTypes";
-import { parseResolvedContract } from "./resolvedContractPolicy.mjs";
+import { parseResolvedContract, VAULT_ASSEMBLY_ID } from "./resolvedContractPolicy.mjs";
+// @ts-expect-error Node's source tests need the TypeScript extension.
+import { createVaultAssemblyPolicy } from "./vaultAssembly.ts";
+import type { VaultAssemblyHostContext } from "./vaultAssembly";
 
 const zero = /^0x0+$/i;
 const same = (a: unknown, b: unknown) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
@@ -19,6 +22,7 @@ interface Environment {
   manifest: VaultManifest;
   context: VaultRuntimeContext;
   getWallet(): Promise<{ address: Address; chainId: number }>;
+  vaultAssembly?: VaultAssemblyHostContext;
   /** Preview-only migration diagnostic. Production hosts must use strict. */
   targetPolicy?: "strict" | "warn";
   warn?(message: string): void;
@@ -38,11 +42,20 @@ export function createResolvedContractRuntime(environment: Environment) {
     requireRule(validAddress(binding.factoryAddress) && binding.resolvedContracts.length > 0 && binding.resolvedContracts.length <= 8, "invalid-declarations");
     for (const input of binding.resolvedContracts) { const parsed = parseResolvedContract(input); requireRule(!definitions.has(parsed.definition.id), "duplicate-id"); definitions.set(parsed.definition.id, parsed); }
   }
+  const usesVaultAssembly = definitions.has(VAULT_ASSEMBLY_ID);
+  requireRule(!usesVaultAssembly || (manifest.mode === undefined && definitions.size === 1
+    && binding?.nftAccountWithdrawals === undefined), "invalid-assembly-binding");
+  const vaultAssemblyHost = usesVaultAssembly ? structuredClone(environment.vaultAssembly) : undefined;
+  const getVaultAssembly = () => createVaultAssemblyPolicy(client, context, vaultAssemblyHost);
   const genericAddresses = new Set<string>();
   const add = (a: unknown) => { if (validAddress(a)) genericAddresses.add(a.toLowerCase()); };
   [context.vaultAddress, context.tokenAddress, context.factoryAddress, context.paymentToken?.address, context.host?.taxInfo?.quoteToken, context.host?.taxInfo?.dividendToken].forEach(add);
   if (binding) [binding.factoryAddress, ...(binding.vaultAddresses ?? []), ...(binding.tokenAddresses ?? []), ...(binding.externalContracts ?? []).map((c) => c.address)].forEach(add);
   async function chain() { requireRule(await client.getChainId() === context.chainId, "chain-changed"); }
+  // Assembly revalidates after simulation without using viem's block-number cache.
+  const getValidationBlock = () => usesVaultAssembly
+    ? client.getBlockNumber({ cacheTime: 0 })
+    : client.getBlockNumber();
   async function wallet(expected?: Address) {
     const live = await environment.getWallet();
     requireRule(validAddress(live.address) && live.chainId === context.chainId && (!expected || same(live.address, expected)), "wallet-or-chain-changed");
@@ -61,6 +74,9 @@ export function createResolvedContractRuntime(environment: Environment) {
     }
   }
   async function resolve(parsed: ParsedResolvedContract, args: readonly unknown[], blockNumber: bigint) {
+    if (parsed.definition.id === VAULT_ASSEMBLY_ID) {
+      return getVaultAssembly().resolve(blockNumber);
+    }
     requireRule(validAddress(context.vaultAddress), "missing-vault");
     const address = await client.readContract({ address: context.vaultAddress, abi: [parsed.resolver], functionName: parsed.resolver.name, args, blockNumber } as never);
     requireRule(validAddress(address), "invalid-resolved-address");
@@ -70,9 +86,10 @@ export function createResolvedContractRuntime(environment: Environment) {
   async function resolveContract(id: string, input: readonly unknown[]): Promise<ResolvedContractHandle> {
     const parsed = definitions.get(id); requireRule(parsed, "undeclared-resolver");
     const args = structuredClone([...input]);
+    requireRule(id !== VAULT_ASSEMBLY_ID || args.length === 0, "invalid-assembly-request");
     encodeFunctionData({ abi: [parsed.resolver], functionName: parsed.resolver.name, args });
     await chain();
-    const address = await resolve(parsed, args, await client.getBlockNumber());
+    const address = await resolve(parsed, args, await getValidationBlock());
     const handle = freezeData({ id, address, args: structuredClone(args), chainId: context.chainId });
     records.set(handle, { parsed, args, address });
     return handle;
@@ -95,16 +112,18 @@ export function createResolvedContractRuntime(environment: Environment) {
     requireRule(selected, "selector-not-allowed");
     // Decode/encode with the reviewed ABI too, preventing caller ABI ambiguity.
     requireRule(encodeFunctionData({ abi: [selected], functionName: selected.name, args: request.args }) === data, "abi-mismatch");
-    request.abi = [selected]; request.functionName = selected.name;
+    // A simulation request is returned to the component. Keep authorization ABI objects private.
+    request.abi = [structuredClone(selected)]; request.functionName = selected.name;
     return selected;
   }
   async function validate(input: ReturnType<typeof snapshot>, write: boolean, expectedSender?: Address) {
     const { record, request } = input;
     await chain();
     const sender = write ? await wallet(expectedSender) : undefined;
-    const blockNumber = await client.getBlockNumber();
+    const blockNumber = await getValidationBlock();
     if (!record) {
       if (write) {
+        requireRule(!usesVaultAssembly, "assembly-handle-required");
         if (!genericAddresses.has(request.address!.toLowerCase())) {
           requireRule(environment.targetPolicy === "warn", "unapproved-raw-target");
           environment.warn?.("resolved-contract/legacy-derived-target: migrate to resolveContract before production");
@@ -123,6 +142,11 @@ export function createResolvedContractRuntime(environment: Environment) {
       return { request, blockNumber };
     }
     const f = allowedFunction(request, record.parsed.writes);
+    if (d.id === VAULT_ASSEMBLY_ID) {
+      getVaultAssembly().validateWrite(f, request);
+      request.account = sender;
+      return { request, sender, blockNumber };
+    }
     const value = request.value ?? 0n;
     requireRule(typeof value === "bigint" && value >= 0n && (value === 0n || (d.payable && f.stateMutability === "payable" && value <= BigInt(d.maxValueWei!))), "value-not-allowed");
     request.account = sender;

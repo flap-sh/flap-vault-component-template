@@ -1,4 +1,12 @@
-import { parseAbi, toFunctionSelector } from "viem";
+import { parseAbi, toFunctionSelector, toFunctionSignature } from "viem";
+
+export const VAULT_ASSEMBLY_ID = "vault-assembly-v1";
+export const isVaultAssemblyChain = (chainId) => chainId === 56 || chainId === 97;
+const [vaultAssemblyResolver, ...vaultAssemblyWrites] = parseAbi([
+  "function businessVault() view returns (address)",
+  "function commitTapeout(bytes32 commitment)",
+  "function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)",
+]);
 
 const forbiddenName = /^(?:execute(?:Call|Batch)?|multicall|delegatecall|approve|increaseAllowance|decreaseAllowance|setApprovalForAll|transferOwnership|acceptOwnership|upgradeTo.*|setConfig|setSwapPath|setSplit)$/i;
 const forbiddenSignatures = ["executeCall(address,uint256,bytes)", "approve(address,uint256)", "setApprovalForAll(address,bool)", "transferOwnership(address)", "upgradeTo(address)", "upgradeToAndCall(address,bytes)"];
@@ -14,8 +22,26 @@ function func(text) {
   return entries[0];
 }
 const hasDynamicBytes = (p) => /^bytes(?:\[|$)/.test(p.type) || p.components?.some(hasDynamicBytes);
+
+function sameFunction(actual, expected) {
+  return toFunctionSignature(actual) === toFunctionSignature(expected)
+    && actual.stateMutability === expected.stateMutability
+    && actual.outputs.map((output) => output.type).join(",") === expected.outputs.map((output) => output.type).join(",");
+}
+
+function parseVaultAssembly(input) {
+  requireRule(Object.keys(input).every((key) => ["id", "label", "resolver", "allow"].includes(key))
+    && input.label === "vault", "invalid-assembly-declaration");
+  requireRule(sameFunction(func(input.resolver), vaultAssemblyResolver), "invalid-assembly-resolver");
+  requireRule(Array.isArray(input.allow) && input.allow.length === vaultAssemblyWrites.length, "invalid-assembly-writes");
+  const declared = input.allow.map(func);
+  requireRule(vaultAssemblyWrites.every((method) => declared.some((entry) => sameFunction(entry, method))), "invalid-assembly-writes");
+  return { definition: structuredClone(input), resolver: structuredClone(vaultAssemblyResolver), writes: structuredClone(vaultAssemblyWrites), reads: [] };
+}
+
 export function parseResolvedContract(input) {
   requireRule(input && typeof input === "object" && !Array.isArray(input), "invalid-declaration");
+  if (input.id === VAULT_ASSEMBLY_ID) return parseVaultAssembly(input);
   const allowed = new Set(["id", "label", "resolver", "allow", "read", "payable", "maxValueWei", "codePattern", "codeHash", "implementationCodeHash", "checks"]);
   requireRule(Object.keys(input).every((k) => allowed.has(k)), "unknown-field");
   const definition = structuredClone(input);

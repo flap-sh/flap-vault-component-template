@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.45 — Host-approved Vault assembly
+
+- Add an opt-in Vault assembly profile for BNB Chain. Each host approval applies to one chain, artifact and contract configuration. The SDK resolves the Runtime through the current tax Vault's `businessVault()` and verifies the Runtime's link back to that Vault.
+- Restrict the profile to `commitTapeout` and `revealTapeout`. Check the approved Beacon implementations and enforce the exact reveal payload length and value before wallet submission.
+- The initial rollout is limited to BNB Testnet. Receiving hosts and Workbench must use the matching runtime and checker. See [Vault assembly](docs/resolved-contracts.md#host-approved-vault-assembly).
+
 ## 0.1.44 — ERC20 quote approvals for standalone presales
 
 - Add `sdk.approveQuote({ pool, amount })` for reviewed standalone Mini Apps. The runtime approves the ERC20 quote token for the verified Launcher and checks the allowance before a direct `contributeQuote(uint256)` call.

@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { parseResolvedContract } from "../src/sdk/resolvedContractPolicy.mjs";
+import { isVaultAssemblyChain, parseResolvedContract, VAULT_ASSEMBLY_ID } from "../src/sdk/resolvedContractPolicy.mjs";
 
 export function checkResolvedContractDeclarations(value, field, binding) {
   const bad = (message) => ({ severity: "blocking", ruleId: "resolved-contract/invalid-declaration", message, field });
@@ -10,6 +10,17 @@ export function checkResolvedContractDeclarations(value, field, binding) {
       const parsed = parseResolvedContract(definition);
       if (ids.has(parsed.definition.id)) throw new Error("Duplicate resolver id.");
       ids.add(parsed.definition.id);
+      if (parsed.definition.id === VAULT_ASSEMBLY_ID) {
+        if (!isVaultAssemblyChain(binding.chainId) || value.length !== 1 || binding.nftAccountWithdrawals !== undefined) {
+          throw new Error("Vault assembly requires a BNB Chain factory binding with no other write profiles.");
+        }
+        issues.push({
+          severity: "warning", ruleId: "manual-review/resolved-contract",
+          message: "Vault assembly requires independent host approval of the chain, verified artifact, Factory, code, project linkage and exact reveal value. Only the two reviewed writes use this binding. Netlist must be exactly 35 bytes.",
+          chainId: binding.chainId, factoryAddress: binding.factoryAddress, field, ...parsed.definition,
+        });
+        continue;
+      }
       const executeReview = parsed.writes.some((f) => f.name === "execute")
         ? " execute requires explicit human review of nested targets, calldata/selectors, operation modes, amounts/value and contract-enforced authorization. Runtime checks cover only the declared outer ABI and fixed predicates, not nested calls."
         : "";
@@ -40,7 +51,14 @@ export function checkResolvedContractSource(content, file, bindings) {
   function visit(node) {
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
       const method = node.expression.name.text;
-      if (method === "resolveContract" && (!node.arguments[0] || !ts.isStringLiteral(node.arguments[0]) || !definitions.some((d) => d.id === node.arguments[0].text))) bad(node, "resolveContract requires a declared literal id.");
+      if (method === "resolveContract") {
+        const [id, args] = node.arguments;
+        if (!id || !ts.isStringLiteral(id) || !definitions.some((d) => d.id === id.text)) {
+          bad(node, "resolveContract requires a declared literal id.");
+        } else if (id.text === VAULT_ASSEMBLY_ID && (!args || !ts.isArrayLiteralExpression(args) || args.elements.length !== 0)) {
+          bad(node, "Vault assembly resolves the current tax Vault with an empty argument list.");
+        }
+      }
       if (["readContract", "simulateContract", "writeContract"].includes(method) && node.arguments[0] && ts.isObjectLiteralExpression(node.arguments[0])) {
         const props = node.arguments[0].properties;
         const prop = (key) => props.find((p) => ts.isPropertyAssignment(p) && p.name.getText(source).replace(/["']/g, "") === key)?.initializer;
