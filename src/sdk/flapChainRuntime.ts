@@ -19,6 +19,8 @@ export interface FlapChainSdk {
   wallet: Omit<FlapWallet, "balance">;
   resolveContract(id: string, args: readonly unknown[]): Promise<ResolvedContractHandle>;
   readContract<T = unknown>(request: ContractReadRequest): Promise<T>;
+  /** Opt-in display snapshot only. Never use its results as transaction authorization. */
+  withDisplayReadBatch?<T>(read: (sdk: Pick<FlapChainSdk, "context" | "readContract" | "resolveContract">) => Promise<T>): Promise<T>;
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;
   approveQuote(request: PresaleQuoteApprovalRequest): Promise<Address>;
@@ -35,6 +37,11 @@ export interface FlapChainSdk {
   openExplorerTx(hash: Address): void;
 }
 export interface FlapWalletAccount { address?: Address; chainId?: number; isConnected: boolean }
+/** Host-created reads pinned to one block; no wallet or transaction capabilities. */
+export interface FlapDisplayReadSnapshot {
+  getCode(address: Address): Promise<`0x${string}` | undefined>;
+  readContract(request: ContractReadRequest): Promise<unknown>;
+}
 /** Host-only transport: never supplied by uploaded components. */
 export interface FlapWalletRuntime {
   chains: readonly { id: number; name: string; explorerBaseUrl?: string }[];
@@ -53,6 +60,7 @@ export interface FlapWalletRuntime {
   sendTransaction(chainId: number, request: FlapSendTransactionRequest & { account: Address }): Promise<Address>;
   waitForTx(chainId: number, hash: Address): Promise<FlapTransactionReceipt>;
   getCode(chainId: number, address: Address): Promise<`0x${string}` | undefined>;
+  createDisplayReadSnapshot?(chainId: number): Promise<FlapDisplayReadSnapshot>;
   getGasPrice(chainId: number): Promise<bigint>;
   getBlockNumber(chainId: number): Promise<bigint>;
   getBalance(chainId: number, address: Address): Promise<bigint>;
@@ -122,6 +130,46 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
     readContract: async <T,>(request: ContractReadRequest) => {
       const call = appPolicy ? (await appPolicy.validate(appPolicy.snapshot(request), false)).call : contractRequest(request);
       return runtime.readContract(chainId, call) as Promise<T>;
+    },
+    withDisplayReadBatch: async <T,>(read: (sdk: Pick<FlapChainSdk, "context" | "readContract" | "resolveContract">) => Promise<T>) => {
+      let active = true;
+      const assertActive = () => { if (!active) throw new Error("app-wallet/display-batch-closed"); runtime.assertActive?.(); };
+      let pendingSnapshot: Promise<FlapDisplayReadSnapshot> | undefined;
+      // Resolve the block lazily: invalid quantities/targets need no extra RPC.
+      const snapshot = () => {
+        assertActive();
+        if (!pendingSnapshot) {
+          const pending = Promise.resolve().then(() => runtime.createDisplayReadSnapshot!(chainId));
+          pendingSnapshot = pending;
+          void pending.catch(() => { if (pendingSnapshot === pending) pendingSnapshot = undefined; });
+        }
+        return pendingSnapshot;
+      };
+      const pinned: FlapDisplayReadSnapshot = {
+        getCode: async address => { const reads = await snapshot(); assertActive(); return reads.getCode(address); },
+        readContract: async request => { const reads = await snapshot(); assertActive(); return reads.readContract(request); },
+      };
+      // Older hosts keep the exact fresh-read path, without claiming a snapshot
+      // or caching latest reads across potentially different blocks.
+      const scopedPolicy = runtime.createDisplayReadSnapshot ? appPolicy?.withDisplayReadSnapshot(pinned) : undefined;
+      const facade = Object.freeze({
+        context: { chainId, manifest },
+        resolveContract: async (id: string, args: readonly unknown[]) => {
+          assertActive();
+          if (!appPolicy) throw new Error("Use the Vault SDK's resolveContract for bound targets.");
+          const handle = await (scopedPolicy ? scopedPolicy.resolveContract(id, args) : appPolicy.resolveContract(id, args));
+          assertActive(); return handle;
+        },
+        readContract: async <R,>(request: ContractReadRequest): Promise<R> => {
+          assertActive();
+          const call = appPolicy ? (scopedPolicy ? await scopedPolicy.validate(appPolicy.snapshot(request)) : await appPolicy.validate(appPolicy.snapshot(request), false)).call : contractRequest(request);
+          assertActive();
+          const value = runtime.createDisplayReadSnapshot ? await pinned.readContract(call) : await runtime.readContract(chainId, call);
+          assertActive(); return value as R;
+        },
+      });
+      try { return await read(facade); }
+      finally { active = false; scopedPolicy?.close(); pendingSnapshot = undefined; }
     },
     simulateContract: async (request) => {
       const { call } = await prepareWrite(request);

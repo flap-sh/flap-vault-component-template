@@ -25,6 +25,14 @@ export function useFlapWalletRuntime({ connect, readOnly = false, mediaUploader 
       if (!current.isConnected || current.chainId !== chainId || current.address?.toLowerCase() !== expected.toLowerCase() || client.account.address.toLowerCase() !== expected.toLowerCase() || client.chain.id !== chainId) throw new Error("The host wallet changed. Review the account and network again.");
       return client;
     };
+    const readContract = async (chainId: number, request: ContractReadRequest, blockNumber?: bigint) => {
+      const client = publicClient(chainId);
+      if (request.gasPrice !== undefined) {
+        const { data } = await client.call({ to: request.address, data: encodeFunctionData(request as never), account: request.account, gasPrice: request.gasPrice, ...(blockNumber !== undefined ? { blockNumber } : {}) });
+        return decodeFunctionResult({ abi: request.abi!, functionName: request.functionName, data: data ?? "0x" });
+      }
+      return client.readContract(blockNumber === undefined ? request as never : { ...request, blockNumber } as never);
+    };
     return {
       chains: config.chains.map((chain) => ({ id: chain.id, name: chain.name, explorerBaseUrl: chain.blockExplorers?.default.url })), readOnly,
       resolvePresaleApproval,
@@ -32,19 +40,20 @@ export function useFlapWalletRuntime({ connect, readOnly = false, mediaUploader 
       generation: `${account.address ?? ""}:${account.chainId ?? ""}:${account.isConnected}`,
       connect: () => connectRef.current(), disconnect: () => { void disconnect(config); },
       switchChain: async (chainId) => { if (readOnly) throw new Error("Preview fixtures cannot switch a wallet."); await switchChain(config, { chainId }); },
-      readContract: async (chainId, request: ContractReadRequest) => {
-        const client = publicClient(chainId);
-        if (request.gasPrice !== undefined) {
-          const { data } = await client.call({ to: request.address, data: encodeFunctionData(request as never), account: request.account, gasPrice: request.gasPrice });
-          return decodeFunctionResult({ abi: request.abi!, functionName: request.functionName, data: data ?? "0x" });
-        }
-        return client.readContract(request as never);
-      },
+      readContract,
       simulateContract: async (chainId, request) => (await publicClient(chainId).simulateContract(request as never)).result,
       writeContract: async (chainId, request) => (await walletClient(chainId, request.account)).writeContract(request as never),
       sendTransaction: async (chainId, request) => (await walletClient(chainId, request.account)).sendTransaction(request as never),
       waitForTx: async (chainId, hash) => { const receipt = await pollTransactionReceipt(publicClient(chainId), hash); return { hash: receipt.transactionHash, status: receipt.status, blockNumber: receipt.blockNumber, logs: receipt.logs }; },
       getCode: (chainId, address) => publicClient(chainId).getCode({ address }),
+      createDisplayReadSnapshot: async chainId => {
+        const client = publicClient(chainId);
+        const blockNumber = await client.getBlockNumber({ cacheTime: 0 });
+        return {
+          getCode: address => client.getCode({ address, blockNumber }),
+          readContract: request => readContract(chainId, request, blockNumber),
+        };
+      },
       getGasPrice: (chainId) => publicClient(chainId).getGasPrice(), getBlockNumber: (chainId) => publicClient(chainId).getBlockNumber(),
       getBalance: (chainId, address) => publicClient(chainId).getBalance({ address }),
       getContractEvents: async (chainId, request) => publicClient(chainId).getContractEvents(request as never),
