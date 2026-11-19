@@ -170,6 +170,14 @@ identify the feature. Hosts inject a \`router\` into \`MiniAppRuntimeProvider\`;
 explicitly if the host has not enabled routing. Deploy supporting hosts before
 accepting new route-dependent artifacts; source-package provenance is unchanged.
 
+## Mini App display read batches
+
+Standalone Mini Apps can use the optional \`sdk.withDisplayReadBatch(reads => ...)\`
+API for display data. The batch uses one block and reuses bytecode and contract
+resolver reads inside the callback. Per-call contract validation still applies.
+Use the regular SDK for fresh transaction preparation and wallet operations.
+Older hosts keep the regular read behavior.
+
 ## FSI queries
 
 Declare the intended FSI root in \`manifest.endpoints\` to use
