@@ -211,12 +211,18 @@ token. This feature is advertised by \`sdkFeatures.presaleApproval = 1\`.
 
 Hosts can enable assembly for a reviewed Vault artifact on BNB Smart Chain
 (56) or BNB Testnet (97) through \`VaultRuntimeProvider\`'s \`vaultAssembly\`
-configuration. Approvals are chain-specific and the initial rollout uses testnet.
+configuration. Each chain requires an independent approval of the artifact,
+Factory, and contract code.
 The component calls
 \`sdk.resolveContract("vault-assembly-v1", [])\` to resolve its current tax Vault's
 Runtime. The SDK verifies the project binding and the approved Beacon
-implementations, then restricts writes to \`commitTapeout\` and
-\`revealTapeout\` with the reviewed fees and a 35-byte reveal payload.
+implementations, then permits the reviewed \`commitTapeout\`, \`revealTapeout\`,
+and optional \`verifyMiner\` methods. Commit and verification carry zero native
+value. Reveal requires the approved fee and a 35-byte payload.
+The same binding may request reviewed token approval, farm creation, upgrade,
+join and exit, staking, fuel and claim methods. A host token code pin and finite
+allowance cap are required for approval, creation, upgrade, staking and fuel.
+The spender is the current verified Runtime.
 This profile advertises \`sdkFeatures.vaultAssembly = 1\`.
 See the [host and artifact setup](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/resolved-contracts.md#host-approved-vault-assembly).
 

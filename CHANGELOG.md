@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.46 — Reviewed Vault actions on BNB Chain
+
+- Support the reviewed assembly, miner verification, token approval, farm management, staking, fuel and claim methods in one Factory binding on BNB Smart Chain and BNB Testnet.
+- Share exact ABI and per-method write checks with standalone Mini Apps. Vault writes stay scoped to the current project. Token approvals are limited to the current Runtime and the host-approved amount.
+- Keep commit and reveal required for the assembly profile and preserve existing declarations. The reserved profile accepts up to 17 reviewed methods. Receiving hosts and Workbench need the matching runtime and checker. Each chain needs an independent host approval. See [Vault assembly](docs/resolved-contracts.md#host-approved-vault-assembly).
+
 ## 0.1.45 — Host-approved Vault assembly
 
 - Add an opt-in Vault assembly profile for BNB Chain. Each host approval applies to one chain, artifact and contract configuration. The SDK resolves the Runtime through the current tax Vault's `businessVault()` and verifies the Runtime's link back to that Vault.

@@ -299,6 +299,15 @@ test("constrained bytes use the declared selector and indexes on simulate and wr
   await assert.rejects(unconstrained.sdk.writeContract({ ...unconstrained.call, value: 101n }), /value-not-allowed/);
 });
 
+test("a returned simulation ABI cannot change the reviewed write policy", async () => {
+  const { sdk, call, calls } = await constrainedWriteFixture();
+  const { request } = await sdk.simulateContract(call);
+  request.abi[0].name = "unreviewedWrite";
+  await assert.rejects(sdk.writeContract({ ...request, functionName: "unreviewedWrite" }), /selector-not-allowed/);
+  assert.equal(await sdk.writeContract(call), hash);
+  assert.deepEqual(calls.filter(([kind]) => kind === "write").map(([, , sent]) => sent.functionName), ["submitEvidence"]);
+});
+
 test("wrong byte lengths, invalid hex and incorrect exact values never reach the wallet transport", async () => {
   const { sdk, call, calls } = await constrainedWriteFixture();
   for (const argument of [
@@ -341,6 +350,57 @@ test("constrained writes reject foreign handles, direct addresses and changed co
     await assert.rejects(sdk.writeContract(call), /code-hash-changed/);
   }
   assert.deepEqual(calls.map(([kind]) => kind), ["simulate", "simulate"]);
+});
+
+test("a reviewed Mini App resolver can commit, reveal and verify a miner on BNB Testnet", async () => {
+  const chainId = 97;
+  const { runtime, calls, setAccount } = fixture({
+    readContract: async (_chainId, { functionName, args }) => {
+      assert.equal(functionName, "projectVault");
+      assert.deepEqual(args, [hash]);
+      return vault;
+    },
+  });
+  runtime.chains.push({ id: chainId, name: "BNB Testnet" });
+  setAccount({ address: owner, chainId, isConnected: true });
+  const value = 2_000_000_000_000_000n;
+  const resolver = "function projectVault(bytes32) view returns (address)";
+  const reveal = "function revealTapeout(address,uint256[5],bytes,bytes32,bytes32) payable returns (uint256)";
+  const allow = ["function commitTapeout(bytes32)", reveal, "function verifyMiner(uint256) returns (bool)"];
+  const codeHash = keccak256(await runtime.getCode(chainId, portal));
+  const sdk = createFlapChainSdk(runtime, {
+    chainId, writableChains: [chainId], i18n: {}, notify: {},
+    manifest: {
+      appModel: "standalone", walletChains: [chainId], match: { bindings: [] },
+      walletContracts: [{
+        id: "factory", chainId, address: portal, codeHash, read: [resolver],
+        resolvedContracts: [{
+          id: "assembly", resolver,
+          allow, codeHash, maxValueWei: String(value),
+          writeConstraints: [{ selector: toFunctionSelector(reveal), fixedBytes: [{ index: 2, length: 35 }], valueWei: String(value) }],
+        }],
+      }],
+    },
+  });
+  const contract = await sdk.resolveContract("assembly", [hash]);
+  const assemblyAbi = parseAbi(allow);
+  const operations = [
+    { functionName: "commitTapeout", args: [hash] },
+    { functionName: "revealTapeout", args: [owner, [1n, 2n, 3n, 4n, 5n], `0x${"ab".repeat(35)}`, hash, hash], value },
+    { functionName: "verifyMiner", args: [1n] },
+  ];
+  for (const operation of operations) {
+    const prepared = await sdk.simulateContract({ ...operation, contract, abi: assemblyAbi });
+    const receipt = await sdk.waitForTx(await sdk.writeContract(prepared.request));
+    assert.equal(receipt.status, "success");
+  }
+  assert.deepEqual(calls.filter(([kind]) => kind === "write").map(([, chain, call]) => [
+    chain, call.address, call.functionName, call.value ?? 0n,
+  ]), [
+    [chainId, vault, "commitTapeout", 0n],
+    [chainId, vault, "revealTapeout", value],
+    [chainId, vault, "verifyMiner", 0n],
+  ]);
 });
 
 test("reverted receipts and wallet rejections are preserved", async () => {

@@ -41,7 +41,7 @@ For writes, the runtime re-resolves the address, checks code and fixed predicate
 
 ## Deliberately bounded rules
 
-- At most 8 definitions per factory binding, 16 write signatures per definition, 8 fixed checks. Resolver signatures are view/pure, have 1-32 inputs and exactly one address output.
+- At most 8 definitions per factory binding, 16 write signatures per ordinary definition, 8 fixed checks. Ordinary resolver signatures are view/pure, have 1-32 inputs and exactly one address output. The reserved assembly profile has one zero-argument resolver and up to 17 exact write signatures.
 - Writes require an exact declared selector and reviewed ABI encoding. A literal `execute` signature is allowed only when explicitly listed in `allow` on a human-reviewed resolver and called with its genuine handle; it may accept dynamic `bytes`, including tuple/array forms. `executeCall`, `executeBatch`, multicall, delegatecall, approvals and listed administrative methods/selectors remain excluded. Dynamic `bytes` inputs remain excluded for other write methods. These syntactic rules do not establish method safety; review the code and arguments.
 - Native value defaults to zero. `payable: true` requires a positive decimal `maxValueWei` and the selected function must be payable. The cap is per transaction, not a cumulative spending limit. General fee/gas ceilings remain unchanged.
 - `read` defaults to `"any"` view/pure ABI methods; use a signature list for tighter reads.
@@ -85,7 +85,7 @@ Local template and Workbench preview use `"warn"` to inventory legacy derived wr
 
 ## Host-approved Vault assembly
 
-The assembly profile supports BNB Smart Chain (56) and BNB Testnet (97). A receiving host must approve each chain separately before enabling writes. The initial rollout uses chain 97. Declare the following as the factory binding's sole entry in `resolvedContracts`:
+The assembly profile in Runtime `0.1.46` supports BNB Smart Chain (56) and BNB Testnet (97). Before enabling writes, the receiving host must approve the artifact and its contract configuration on the active chain. Declare the following as the factory binding's sole entry in `resolvedContracts`:
 
 ```json
 {
@@ -99,15 +99,29 @@ The assembly profile supports BNB Smart Chain (56) and BNB Testnet (97). A recei
 }
 ```
 
+Keep both `commitTapeout` and `revealTapeout` in `allow`. A component that needs on-chain miner verification may also declare `function verifyMiner(uint256 minerId) returns (bool)`. The host must review the updated manifest and component digests before enabling verification. `commitTapeout` and `verifyMiner` accept zero native value. `revealTapeout` requires the approved exact value and a 35-byte netlist.
+
+The same binding can also declare the exact ABI signatures for `approve`, `openFarmStake`, `openFarmStakeAmount`, `buyFuel`, `claimMiner`, `claimMany`, `claimRewards`, `claimStakeReward`, `claimStakePrincipal`, and `claimFarmProduction`. These methods take zero native value. Add each method only after reviewing the exact call in the artifact. `claimRewards` requires its account argument to match the connected wallet. Review principal withdrawal separately from claiming rewards.
+
+Farm management uses `createFarm(string name,uint256 expectedBurnCost,string logoCID) returns (uint256)`, `upgradeFarm(uint256 id)`, `joinFarm(uint256 id,uint256 farmId)`, and `exitFarm(uint256 id)` through the same handle, all with zero native value. Read the current creation quote and pass its burn cost. The SDK checks the current token code and allowance cap before creation and upgrade and bounds the creation burn cost in token base units. Join and exit use the current Runtime without a token approval requirement.
+
+To enable approval, farm creation or upgrade, staking or fuel, the host approval must include `tokenSpending` with the reviewed `tokenCode` pin and a finite `maxApprovalWei` in the project's token base units. Use the genuine assembly handle to simulate and write `approve(address spender,uint256 amount) returns (bool)` with `spender` set to `handle.address`. The SDK submits this one selector to the current tax token, checks that it matches the Runtime's token and verifies the candidate spender, approval amount and token code. The wallet request follows a successful `true` simulation. After a successful approval receipt, read `allowance(owner, handle.address)` on the token before the dependent action. Approve only the amount that action needs. An approval of zero can revoke an existing allowance.
+
+Staking and fuel continue to target the current Runtime. The SDK checks the token and its code, the connected wallet's allowance to that Runtime and the explicit stake amount or maximum fuel cost against the approved cap. The host repeats all project and code checks before wallet submission. Token approval persists on-chain until it is used or changed by the owner. Vaults using the original assembly methods can keep their existing approval shape.
+
 The component uses `await sdk.resolveContract("vault-assembly-v1", [])` and the resulting handle on the normal simulation and write path. With this profile active, raw contract writes are rejected. Read calls still use the ordinary Vault path.
 
 Only the host can pass `vaultAssembly` to `VaultRuntimeProvider`. Match the active chain and verified manifest and component SHA-256 digests against an independently approved record. The record supplies its `chainId`, both Factory addresses, business Factory code, tax Vault and Runtime BeaconProxy pins, and the exact reveal value in wei. The host supplies the verified token and tax Vault. Without a matching approval, the artifact can render and read data, but assembly writes are rejected. Review the actual proxy bytecode, external libraries and upgrade authority. Each BeaconProxy pin includes the proxy bytecode hash, Beacon address and bytecode hash, and implementation address and bytecode hash.
 
 The SDK reads `businessVault()` on the current tax Vault and verifies the Runtime's `taxVault()` back-reference. It also checks that the token and Factory addresses match. For each proxy it reads the ERC-1967 Beacon slot, confirms the reviewed Beacon and calls `implementation()` there. Reads use the same block within each verification. The binding and code checks repeat after simulation. The wallet submits directly to the Runtime. On-chain rules still govern the commit window, sender, materials, payload and fees at execution, when Beacon state may have changed again.
 
-Run `yarn test:resolved-contracts` to check the manifest rules and `yarn test:runtime-provider` for the browser wallet fixture. The assembly profile accepts `businessVault()` and the exact reveal ABI. It calls the current tax Vault with zero arguments and rejects a declaration that resolves by project ID. The browser fixture covers both BNB chains and an upgrade after simulation with unchanged proxy bytecode.
+Run `yarn test:resolved-contracts` to check the manifest rules and `yarn test:runtime-provider` for the browser wallet fixture. The assembly profile calls `businessVault()` on the current tax Vault with zero arguments and rejects a declaration that resolves by project ID. The browser fixture covers both BNB chains and an upgrade after simulation with unchanged proxy bytecode.
 
-For live testnet acceptance, use two projects on that same Factory. The wallet on A must commit, wait for the contract's reveal window, reveal and receive a successful receipt on A. Passing B's project ID on the A page must fail before any wallet request. Get the Factory addresses, the two project IDs, both tokens, tax Vaults and Runtimes, reviewed Beacon and implementation evidence, fee, a test wallet with eligible materials and gas, and the exact Factory-bound UI source package.
+For live testnet acceptance, use two projects on the same Factory. The wallet on A must commit, wait for the reveal window to open, reveal, then verify the new miner. Check successful receipts on A and confirm the miner is verified on-chain. Passing B's project ID or overriding the verification target with B's Runtime on the A page must fail before any wallet request. Get the Factory addresses, the two project IDs, both tokens, tax Vaults and Runtimes, reviewed Beacon and implementation evidence, fee, a test wallet with eligible materials and gas, and the exact Factory-bound UI source package.
+
+Continue on A with token approval, staking, fuel and each configured claim. Verify the approval target and spender, the successful receipts, post-transaction allowance and balances, and the live stake, fuel and reward state. Use a project with staking and fuel enabled and an eligible wallet with tokens, a miner, a farm or position, and claimable balances. On A, a B Runtime spender, unreviewed recipient or excess amount must fail before the wallet request.
+
+On a project with farms enabled, check creation with the live quote, upgrade an eligible farm, and join and exit using a verified miner. Check receipts and the farm's level, membership and token balance after the relevant actions.
 
 ## Validation and release
 

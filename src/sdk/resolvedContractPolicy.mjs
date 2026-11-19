@@ -6,6 +6,21 @@ const [vaultAssemblyResolver, ...vaultAssemblyWrites] = parseAbi([
   "function businessVault() view returns (address)",
   "function commitTapeout(bytes32 commitment)",
   "function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)",
+  "function verifyMiner(uint256 minerId) returns (bool)",
+  "function approve(address spender,uint256 amount) returns (bool)",
+  "function openFarmStake(uint256 tier,uint256 farmId) returns (uint256)",
+  "function openFarmStakeAmount(uint256 tier,uint256 farmId,uint256 amount) returns (uint256)",
+  "function buyFuel(uint256 id,uint256 tier,uint256 durationIndex,uint256 maximumCost) returns (uint256)",
+  "function claimFarmProduction(uint256 id) returns (uint256)",
+  "function claimMiner(uint256 id) returns (uint256)",
+  "function claimStakePrincipal(uint256 id) returns (uint256)",
+  "function claimStakeReward(uint256 id) returns (uint256)",
+  "function claimMany(uint256[] minerIds) returns ((address token,address account,uint256[] minerIds,uint256[] amounts,uint256 total,uint256 positiveCount,uint64 asOf,bool complete,uint64 nextExpiry,uint256 asOfBlock))",
+  "function claimRewards(address account,uint256[] miners,uint256[] stakes,uint256[] farms) returns ((address token,address account,(uint256[] ids,uint256[] amounts,uint256 total) miners,(uint256[] ids,uint256[] amounts,uint256 total) stakes,(uint256[] ids,uint256[] amounts,uint256 total) farms,uint256 total,uint256 positiveCount,uint256 asOfBlock,uint64 asOf,bool complete,uint64 nextExpiry))",
+  "function createFarm(string name,uint256 expectedBurnCost,string logoCID) returns (uint256)",
+  "function upgradeFarm(uint256 id)",
+  "function joinFarm(uint256 id,uint256 farmId)",
+  "function exitFarm(uint256 id)",
 ]);
 
 const forbiddenName = /^(?:execute(?:Call|Batch)?|multicall|delegatecall|approve|increaseAllowance|decreaseAllowance|setApprovalForAll|transferOwnership|acceptOwnership|upgradeTo.*|setConfig|setSwapPath|setSplit)$/i;
@@ -23,20 +38,29 @@ function func(text) {
 }
 const hasDynamicBytes = (p) => /^bytes(?:\[|$)/.test(p.type) || p.components?.some(hasDynamicBytes);
 
+function sameParameters(actual, expected) {
+  return actual.length === expected.length && actual.every((parameter, index) =>
+    parameter.type === expected[index].type
+      && sameParameters(parameter.components ?? [], expected[index].components ?? []));
+}
+
 function sameFunction(actual, expected) {
   return toFunctionSignature(actual) === toFunctionSignature(expected)
     && actual.stateMutability === expected.stateMutability
-    && actual.outputs.map((output) => output.type).join(",") === expected.outputs.map((output) => output.type).join(",");
+    && sameParameters(actual.outputs, expected.outputs);
 }
 
 function parseVaultAssembly(input) {
   requireRule(Object.keys(input).every((key) => ["id", "label", "resolver", "allow"].includes(key))
     && input.label === "vault", "invalid-assembly-declaration");
   requireRule(sameFunction(func(input.resolver), vaultAssemblyResolver), "invalid-assembly-resolver");
-  requireRule(Array.isArray(input.allow) && input.allow.length === vaultAssemblyWrites.length, "invalid-assembly-writes");
+  requireRule(Array.isArray(input.allow) && input.allow.length >= 2
+    && input.allow.length <= vaultAssemblyWrites.length, "invalid-assembly-writes");
   const declared = input.allow.map(func);
-  requireRule(vaultAssemblyWrites.every((method) => declared.some((entry) => sameFunction(entry, method))), "invalid-assembly-writes");
-  return { definition: structuredClone(input), resolver: structuredClone(vaultAssemblyResolver), writes: structuredClone(vaultAssemblyWrites), reads: [] };
+  const writes = vaultAssemblyWrites.filter((method) => declared.some((entry) => sameFunction(entry, method)));
+  requireRule(writes.length === declared.length
+    && vaultAssemblyWrites.slice(0, 2).every((method) => writes.includes(method)), "invalid-assembly-writes");
+  return { definition: structuredClone(input), resolver: structuredClone(vaultAssemblyResolver), writes: structuredClone(writes), reads: [] };
 }
 
 export function parseResolvedContract(input) {

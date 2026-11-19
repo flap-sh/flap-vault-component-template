@@ -46,3 +46,62 @@ test("full checker preserves resolver review, accepts handles and flags legacy d
     assert(check(call).issues.some((x) => x.ruleId === "resolved-contract/invalid-declaration"));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("full checker retains the reviewed 13-method Vault assembly subset and host review requirements", () => {
+  const slug = `assembly-check-${randomBytes(6).toString("hex")}`;
+  const dir = path.join(process.cwd(), "src/vaults", slug);
+  mkdirSync(dir);
+  try {
+    const manifest = JSON.parse(readFileSync("src/vaults/example/manifest.json", "utf8"));
+    manifest.artifactId = `vaultui_${slug}_01HZY7J4S9D0W5XJ8H2Q3K4M5N`;
+    const binding = manifest.match.bindings[0];
+    binding.factoryAddress = "0xc3e4ee8f3c616d16297fafcb9daab122d31efa9e";
+    binding.resolvedContracts = [{
+      id: "vault-assembly-v1",
+      label: "vault",
+      resolver: "function businessVault() view returns (address)",
+      allow: [
+        "function commitTapeout(bytes32 commitment)",
+        "function revealTapeout(address,uint256[5],bytes,bytes32,bytes32) payable returns (uint256)",
+        "function verifyMiner(uint256 id) returns (bool)",
+        "function approve(address spender,uint256 amount) returns (bool)",
+        "function openFarmStakeAmount(uint256 tier,uint256 farmId,uint256 amount) returns (uint256)",
+        "function buyFuel(uint256 id,uint256 tier,uint256 durationIndex,uint256 maximumCost) returns (uint256)",
+        "function claimFarmProduction(uint256 id) returns (uint256)",
+        "function claimStakePrincipal(uint256 id) returns (uint256)",
+        "function claimRewards(address account,uint256[] miners,uint256[] stakes,uint256[] farms) returns ((address token,address account,(uint256[] ids,uint256[] amounts,uint256 total) miners,(uint256[] ids,uint256[] amounts,uint256 total) stakes,(uint256[] ids,uint256[] amounts,uint256 total) farms,uint256 total,uint256 positiveCount,uint256 asOfBlock,uint64 asOf,bool complete,uint64 nextExpiry))",
+        "function createFarm(string name,uint256 expectedBurnCost,string logoCID) returns (uint256)",
+        "function upgradeFarm(uint256 id)",
+        "function joinFarm(uint256 id,uint256 farmId)",
+        "function exitFarm(uint256 id)",
+      ],
+    }];
+    const component = readFileSync("src/vaults/example/Component.tsx", "utf8");
+    for (const name of ["i18n.json", "VaultABI.ts"]) writeFileSync(path.join(dir, name), readFileSync(`src/vaults/example/${name}`));
+    writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(manifest));
+    const actions = `async function reviewedActions(sdk, abi, amount, tier, farmId, minerId, durationIndex, farmName, logoCid) {
+      const runtime = await sdk.resolveContract("vault-assembly-v1", []);
+      await sdk.simulateContract({ contract: runtime, abi, functionName: "approve", args: [runtime.address, amount] });
+      await sdk.simulateContract({ contract: runtime, abi, functionName: "openFarmStakeAmount", args: [tier, farmId, amount] });
+      await sdk.simulateContract({ contract: runtime, abi, functionName: "buyFuel", args: [minerId, tier, durationIndex, amount] });
+      await sdk.simulateContract({ contract: runtime, abi, functionName: "createFarm", args: [farmName, amount, logoCid] });
+      await sdk.simulateContract({ contract: runtime, abi, functionName: "upgradeFarm", args: [farmId] });
+      await sdk.simulateContract({ contract: runtime, abi, functionName: "joinFarm", args: [minerId, farmId] });
+      await sdk.simulateContract({ contract: runtime, abi, functionName: "exitFarm", args: [minerId] });
+      return sdk.writeContract({ contract: runtime, abi, functionName: "claimFarmProduction", args: [farmId] });
+    }`;
+    const check = (source) => {
+      writeFileSync(path.join(dir, "Component.tsx"), `${component}\n${source}`);
+      return runVaultCheck(slug, { silent: true });
+    };
+    const accepted = check(actions);
+    const review = accepted.review.resolvedContracts[0];
+    assert.equal(review.allow.length, 13);
+    assert.deepEqual(review.allow, binding.resolvedContracts[0].allow);
+    assert.match(review.message, /verified manifest and component SHA-256 digests/);
+    assert.match(review.message, /Runtime spender and bounded approval amount/);
+    assert(!accepted.issues.some((issue) => issue.severity === "blocking" && /resolved-contract|contract-boundary|manifest-binding\/disallowed-binding/.test(issue.ruleId)), JSON.stringify(accepted.issues));
+    assert(check(actions.replace('functionName: "claimFarmProduction"', 'functionName: "claimMiner"')).issues.some((issue) => issue.ruleId === "resolved-contract/invalid-call"));
+    assert(check(actions.replace('"vault-assembly-v1", []', '"vault-assembly-v1", [projectId]')).issues.some((issue) => issue.ruleId === "resolved-contract/invalid-call"));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
