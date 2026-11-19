@@ -56,7 +56,7 @@ globalThis.rerenderProvider=async(nextContext=context)=>{const before=globalThis
 globalThis.readOwner=(read=sdk.readContract,address=context.host.taxInfo.quoteToken,extra={})=>read({address,abi:parseAbi(['function owner() view returns(address)']),functionName:'owner',...extra});
 globalThis.encodeOwner=(owner)=>encodeFunctionResult({abi:parseAbi(['function owner() view returns(address)']),functionName:'owner',result:owner});
 globalThis.testWrite=async()=>{const handle=await sdk.resolveContract('position',[1n]);const prepared=await sdk.simulateContract({contract:handle,abi:parseAbi(['function claim(uint256 amount)']),functionName:'claim',args:[1n]});return sdk.writeContract(prepared.request);};
-globalThis.testVaultAssembly=async(chainId)=>{
+globalThis.testVaultAssembly=async(chainId,fullProfile=true)=>{
  const hex=(byte,length)=>'0x'+byte.repeat(length);
  const projectB=hex('bb',32);
  const taxFactory=a(31),businessFactory=a(32),vaultA=a(33),vaultB=a(34),tokenA=a(35),tokenB=a(36),runtimeA=a(37),runtimeB=a(38),implementation=a(39);
@@ -65,10 +65,9 @@ globalThis.testVaultAssembly=async(chainId)=>{
  const pin={kind:'immutable',codeHash:keccak256('0x6000')};
  const beaconPin=(beacon,implementation)=>({kind:'eip1967-beacon',codeHash:pin.codeHash,beacon,implementation,
   beaconCodeHash:keccak256('0x6002'),implementationCodeHash:keccak256('0x6001')});
- const includesVerification=chainId===97;
  const approval={chainId,manifestSha256,componentSha256,taxFactory,businessFactory,businessFactoryCode:pin,
   taxVaultCode:beaconPin(taxBeacon,taxImplementation),runtimeCode:beaconPin(runtimeBeacon,implementation),revealValueWei:2_000_000_000_000_000n,
-  ...(includesVerification?{tokenSpending:{tokenCode:pin,maxApprovalWei:100n}}:{})};
+  ...(fullProfile?{tokenSpending:{tokenCode:pin,maxApprovalWei:100n}}:{})};
  const host={verifiedManifestSha256:manifestSha256,verifiedComponentSha256:componentSha256,approval};
  const resolver='function businessVault() view returns (address)';
  const writes=['function commitTapeout(bytes32 commitment)','function revealTapeout(address receiver,uint256[5] sortedIds,bytes netlist,bytes32 userNonce,bytes32 salt) payable returns (uint256 minerId)'];
@@ -89,17 +88,47 @@ globalThis.testVaultAssembly=async(chainId)=>{
   ['claimRewards','function claimRewards(address account,uint256[] miners,uint256[] stakes,uint256[] farms) returns ((address token,address account,(uint256[] ids,uint256[] amounts,uint256 total) miners,(uint256[] ids,uint256[] amounts,uint256 total) stakes,(uint256[] ids,uint256[] amounts,uint256 total) farms,uint256 total,uint256 positiveCount,uint256 asOfBlock,uint64 asOf,bool complete,uint64 nextExpiry))',[a(9),[1n],[1n],[1n]]],
   ['exitFarm','function exitFarm(uint256 id)',[1n]],
  ];
- if(includesVerification)writes.push(verifyMethod,approvalMethod,...followUpMethods.map(([,method])=>method));
+ if(fullProfile)writes.push(verifyMethod,approvalMethod,...followUpMethods.map(([,method])=>method));
  const vaultAssemblyManifest={...manifest,match:{bindings:[{chainId,factoryAddress:taxFactory,
   externalContracts:[{address:runtimeA,label:'reviewed read'}],resolvedContracts:[{id:'vault-assembly-v1',label:'vault',resolver,allow:writes}]}]}};
  const sends=[];
  const resolverReads=[];
+ const claimReceipts={};
+ const failures={};
+ const denied=async(key,action)=>{try{await action();failures[key]='allowed';}catch(error){failures[key]=error.message;}};
+ const transactionReceipts=new Map();
+ const receiptRequests=[];
+ const balanceAbi=parseAbi(['function balanceOf(address account) view returns (uint256)']);
+ const claimMethods=new Set(['claimMiner','claimMany','claimStakePrincipal','claimStakeReward','claimFarmProduction','claimRewards']);
  let upgradeAfterSimulation=false,swapped=false,upgraded=false,changedCode=false;
  let allowance=0n,approvalResult=true,changeTokenAfterSimulation=false,changedToken=false,runtimeToken=tokenA;
+ let tokenBalance=0n,nextReceiptStatus='success',changeWalletAfterSimulation=false,changeChainAfterSimulation=false;
+ const claimGroup=(ids)=>({ids,amounts:ids.map(()=>3n),total:BigInt(ids.length)*3n});
+ const simulationResult=(functionName,args)=>{
+  if(functionName==='approve')return approvalResult;
+  if(functionName==='verifyMiner')return true;
+  if(functionName==='claimMany'){
+   const group=claimGroup(args[0]);
+   return {token:tokenA,account:state.user,minerIds:group.ids,amounts:group.amounts,total:group.total,
+    positiveCount:BigInt(group.ids.length),asOf:100n,complete:true,nextExpiry:0n,asOfBlock:100n};
+  }
+  if(functionName==='claimRewards'){
+   const [miners,stakes,farms]=args.slice(1).map(claimGroup);
+   return {token:tokenA,account:args[0],miners,stakes,farms,total:miners.total+stakes.total+farms.total,
+    positiveCount:BigInt(miners.ids.length+stakes.ids.length+farms.ids.length),asOfBlock:100n,
+    asOf:100n,complete:true,nextExpiry:0n};
+  }
+  return claimMethods.has(functionName)?3n:1n;
+ };
  state.chain=chainId;
  state.user=a(9);
  const expectedBlock=()=>upgraded?101n:100n;
- env.client={...client,...receiptClient(chainId),getChainId:async()=>chainId,getBlockNumber:async(options)=>{
+ env.client={...client,...receiptClient(chainId),getTransactionReceipt:async({hash})=>{
+  receiptRequests.push({chainId,hash});
+  const receipt=transactionReceipts.get(hash);
+  if(!receipt)throw new Error('unknown-assembly-transaction');
+  return receipt;
+ },getChainId:async()=>chainId,getBlockNumber:async(options)=>{
   if(options?.cacheTime!==0)throw new Error('cached-assembly-block-number');
   return expectedBlock();
  },getCode:async({address,blockNumber})=>{
@@ -123,40 +152,72 @@ globalThis.testVaultAssembly=async(chainId)=>{
   if(functionName==='taxVault')return address===runtimeA?vaultA:vaultB;
   if(functionName==='runtimeState'&&address===runtimeA)return {token:runtimeToken};
   if(functionName==='allowance'&&address===tokenA&&args[0]===state.user&&args[1]===runtimeA)return allowance;
+  if(functionName==='balanceOf'&&address===tokenA&&args[0]===state.user)return tokenBalance;
   throw new Error('unexpected fixture query: '+functionName);
- },simulateContract:async({functionName})=>{
+ },simulateContract:async({functionName,args})=>{
   if(upgradeAfterSimulation)upgraded=true;
   if(changeTokenAfterSimulation)changedToken=true;
-  return {result:functionName==='approve'?approvalResult:functionName==='verifyMiner'?true:1n};
+  if(changeWalletAfterSimulation)state.user=a(8);
+  if(changeChainAfterSimulation)state.chain=chainId===56?97:56;
+  return {result:simulationResult(functionName,args)};
  }};
  env.walletClient={...walletClient,writeContract:async(request)=>{
   sends.push({target:request.address,functionName:request.functionName,value:String(request.value??0n)});
-  if(request.functionName==='approve')allowance=request.args[1];
-  return hex('42',32);
+  const status=nextReceiptStatus;
+  nextReceiptStatus='success';
+  if(status==='success'){
+   if(request.functionName==='approve')allowance=request.args[1];
+   if(claimMethods.has(request.functionName)){
+    const result=simulationResult(request.functionName,request.args);
+    tokenBalance+=typeof result==='bigint'?result:result.total;
+   }
+  }
+  const hash='0x'+sends.length.toString(16).padStart(64,'0');
+  transactionReceipts.set(hash,{transactionHash:hash,status,blockNumber:100n,logs:[]});
+  return hash;
  }};
- const before=globalThis.providerRenders;
- root.render(React.createElement(VaultRuntimeProvider,{manifest:vaultAssemblyManifest,i18n,
-  runtimeContext:{chainId,factoryAddress:taxFactory,vaultAddress:vaultA,tokenAddress:tokenA},vaultAssembly:host},React.createElement(Probe)));
- while(globalThis.providerRenders===before)await new Promise(requestAnimationFrame);
+ const renderAssembly=async(vaultAssembly)=>{
+  const before=globalThis.providerRenders;
+  root.render(React.createElement(VaultRuntimeProvider,{manifest:vaultAssemblyManifest,i18n,
+   runtimeContext:{chainId,factoryAddress:taxFactory,vaultAddress:vaultA,tokenAddress:tokenA},vaultAssembly},React.createElement(Probe)));
+  while(globalThis.providerRenders===before)await new Promise(requestAnimationFrame);
+ };
+ await renderAssembly(undefined);
+ await denied('missingApproval',()=>sdk.resolveContract('vault-assembly-v1',[]));
+ await renderAssembly({...host,verifiedManifestSha256:'c'.repeat(64)});
+ await denied('manifestDigestMismatch',()=>sdk.resolveContract('vault-assembly-v1',[]));
+ await renderAssembly({...host,verifiedComponentSha256:'c'.repeat(64)});
+ await denied('componentDigestMismatch',()=>sdk.resolveContract('vault-assembly-v1',[]));
+ await renderAssembly({...host,approval:{...approval,chainId:chainId===56?97:56}});
+ await denied('otherChainApproval',()=>sdk.resolveContract('vault-assembly-v1',[]));
+ if(fullProfile){
+  await renderAssembly({...host,approval:{...approval,tokenSpending:undefined}});
+  const unapproved=await sdk.resolveContract('vault-assembly-v1',[]);
+  await denied('tokenSpendingUnapproved',()=>sdk.writeContract({contract:unapproved,abi:parseAbi([approvalMethod]),functionName:'approve',args:[runtimeA,50n]}));
+ }
+ await renderAssembly(host);
  const contract=await sdk.resolveContract('vault-assembly-v1',[]);
  const abi=parseAbi(writes);
  const commit={contract,abi,functionName:'commitTapeout',args:[hex('42',32)]};
  const reveal={contract,abi,functionName:'revealTapeout',args:[a(9),[1n,2n,3n,4n,5n],hex('11',35),hex('22',32),hex('33',32)],value:approval.revealValueWei};
  const verify={contract,abi:parseAbi([verifyMethod]),functionName:'verifyMiner',args:[1n]};
- const failures={};
- const denied=async(key,action)=>{try{await action();failures[key]='allowed';}catch(error){failures[key]=error.message;}};
  const changed=await sdk.simulateContract(commit);
  changed.request.abi[0].inputs[0].type='uint256';
  await denied('mutatedAbi',()=>sdk.writeContract({...changed.request,args:[1n]}));
  const submit=async(request)=>{
+  const claimsTokens=claimMethods.has(request.functionName);
+  const balanceBefore=claimsTokens?await sdk.readContract({address:tokenA,abi:balanceAbi,functionName:'balanceOf',args:[state.user]}):0n;
   const simulated=await sdk.simulateContract(request);
   const hash=await sdk.writeContract(simulated.request);
-  return {result:simulated.result,status:(await sdk.waitForTx(hash)).status};
+  const status=(await sdk.waitForTx(hash)).status;
+  if(!claimsTokens)return {result:simulated.result,status};
+  const balanceAfter=await sdk.readContract({address:tokenA,abi:balanceAbi,functionName:'balanceOf',args:[state.user]});
+  return {result:simulated.result,status,receivedTokenWei:balanceAfter-balanceBefore};
  };
  const commitReceipt=await submit(commit);
  const revealReceipt=await submit(reveal);
- const verifyReceipt=includesVerification?await submit(verify):undefined;
- if(includesVerification){
+ const verifyReceipt=fullProfile?await submit(verify):undefined;
+ if(fullProfile){
   const approve={contract,abi:parseAbi([approvalMethod]),functionName:'approve',args:[runtimeA,50n]};
   const requestFor=(name)=>{
    const [functionName,method,args]=followUpMethods.find(([functionName])=>functionName===name);
@@ -191,18 +252,29 @@ globalThis.testVaultAssembly=async(chainId)=>{
   await denied('fuelCostOverCap',()=>sdk.writeContract({...requestFor('buyFuel'),args:[1n,2n,3n,101n]}));
   await denied('claimForOther',()=>sdk.writeContract({...requestFor('claimRewards'),args:[a(8),[1n],[],[]]}));
   for(const [functionName,method,args] of followUpMethods){
-   await submit({contract,abi:parseAbi([method]),functionName,args});
+   const receipt=await submit({contract,abi:parseAbi([method]),functionName,args});
+   if(claimMethods.has(functionName))claimReceipts[functionName]=receipt;
   }
+  nextReceiptStatus='reverted';
+  claimReceipts.reverted=await submit(requestFor('claimMiner'));
   await denied('verifyValue',()=>sdk.writeContract({...verify,value:1n}));
   await denied('otherRuntimeOverride',()=>sdk.writeContract({...verify,address:runtimeB}));
   await denied('otherRuntimeRaw',()=>sdk.writeContract({...verify,contract:undefined,address:runtimeB}));
+  changeWalletAfterSimulation=true;
+  await denied('walletChangedAfterSimulation',()=>sdk.writeContract(verify));
+  changeWalletAfterSimulation=false;
+  state.user=a(9);
+  changeChainAfterSimulation=true;
+  await denied('chainChangedAfterSimulation',()=>sdk.writeContract(verify));
+  changeChainAfterSimulation=false;
+  state.chain=chainId;
  }else{
   await denied('undeclaredVerify',()=>sdk.writeContract(verify));
  }
  await denied('wrongProject',()=>sdk.resolveContract('vault-assembly-v1',[projectB]));
  swapped=true;
  await denied('otherRuntime',()=>sdk.resolveContract('vault-assembly-v1',[]));
- if(includesVerification)await denied('verifyOnSwappedRuntime',()=>sdk.writeContract(verify));
+ if(fullProfile)await denied('verifyOnSwappedRuntime',()=>sdk.writeContract(verify));
  swapped=false;
  await denied('wrongValue',()=>sdk.writeContract({...reveal,value:1n}));
  await denied('wrongLength',()=>sdk.writeContract({...reveal,args:reveal.args.map((arg,i)=>i===2?hex('11',34):arg)}));
@@ -212,8 +284,9 @@ globalThis.testVaultAssembly=async(chainId)=>{
  await denied('implementationCodeChanged',()=>sdk.writeContract(reveal));
  changedCode=false;
  upgradeAfterSimulation=true;
- await denied('upgradedAfterSimulation',()=>sdk.writeContract(includesVerification?verify:reveal));
- return {failures,sends,runtimeA,tokenA,vaultA,resolverReads,commitReceipt,revealReceipt,verifyReceipt};
+ await denied('upgradedAfterSimulation',()=>sdk.writeContract(fullProfile?verify:reveal));
+ return {failures,sends,runtimeA,tokenA,vaultA,user:a(9),resolverReads,receiptRequests,tokenBalance,
+  claimReceipts,commitReceipt,revealReceipt,verifyReceipt};
 };
 globalThis.renderProvider();`;
  const wagmi=`export const useAccount=()=>({address:globalThis.env.state.user,isConnected:true});
@@ -420,13 +493,33 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
   {target:vaultAssembly.runtimeA,functionName:'commitTapeout',value:'0'},
   {target:vaultAssembly.runtimeA,functionName:'revealTapeout',value:'2000000000000000'},
  ];
- if(chainId===97){
   expectedSends.push({target:vaultAssembly.runtimeA,functionName:'verifyMiner',value:'0'});
   expectedSends.push({target:vaultAssembly.tokenA,functionName:'approve',value:'0'});
   for(const functionName of ['createFarm','upgradeFarm','joinFarm','openFarmStake','openFarmStakeAmount','buyFuel','claimMiner','claimMany','claimStakePrincipal','claimStakeReward','claimFarmProduction','claimRewards','exitFarm']){
    expectedSends.push({target:vaultAssembly.runtimeA,functionName,value:'0'});
   }
+  expectedSends.push({target:vaultAssembly.runtimeA,functionName:'claimMiner',value:'0'});
   assert.deepEqual(vaultAssembly.verifyReceipt,{result:true,status:'success'});
+  assert.equal(new Set(vaultAssembly.sends.map(({functionName})=>functionName)).size,17);
+  for(const method of ['claimMiner','claimStakePrincipal','claimStakeReward','claimFarmProduction']){
+   assert.deepEqual(vaultAssembly.claimReceipts[method],{result:3n,status:'success',receivedTokenWei:3n});
+  }
+  assert.equal(vaultAssembly.claimReceipts.claimMany.result.token,vaultAssembly.tokenA);
+  assert.equal(vaultAssembly.claimReceipts.claimMany.result.account,vaultAssembly.user);
+  assert.deepEqual(vaultAssembly.claimReceipts.claimMany.result.minerIds,[1n]);
+  assert.deepEqual(vaultAssembly.claimReceipts.claimMany.result.amounts,[3n]);
+  assert.equal(vaultAssembly.claimReceipts.claimMany.receivedTokenWei,3n);
+  assert.equal(vaultAssembly.claimReceipts.claimMany.status,'success');
+  assert.equal(vaultAssembly.claimReceipts.claimRewards.result.token,vaultAssembly.tokenA);
+  assert.equal(vaultAssembly.claimReceipts.claimRewards.result.account,vaultAssembly.user);
+  for(const group of ['miners','stakes','farms'])assert.deepEqual(vaultAssembly.claimReceipts.claimRewards.result[group],{ids:[1n],amounts:[3n],total:3n});
+  assert.equal(vaultAssembly.claimReceipts.claimRewards.receivedTokenWei,9n);
+  assert.equal(vaultAssembly.claimReceipts.claimRewards.status,'success');
+  assert.deepEqual(vaultAssembly.claimReceipts.reverted,{result:3n,status:'reverted',receivedTokenWei:0n});
+  assert.equal(vaultAssembly.tokenBalance,24n);
+  assert.equal(vaultAssembly.receiptRequests.length,expectedSends.length);
+  assert(vaultAssembly.receiptRequests.every((request)=>request.chainId===chainId));
+  assert.match(vaultAssembly.failures.tokenSpendingUnapproved,/token-spending-not-approved/);
   assert.match(vaultAssembly.failures.approvalOtherSpender,/spender/);
   assert.match(vaultAssembly.failures.approvalTokenOverride,/handle-with-address/);
   assert.match(vaultAssembly.failures.approvalRaw,/assembly-handle-required/);
@@ -449,9 +542,8 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
   assert.match(vaultAssembly.failures.otherRuntimeOverride,/handle-with-address/);
   assert.match(vaultAssembly.failures.otherRuntimeRaw,/assembly-handle-required/);
   assert.match(vaultAssembly.failures.verifyOnSwappedRuntime,/runtime-vault-mismatch/);
- }else{
-  assert.match(vaultAssembly.failures.undeclaredVerify,/selector-not-allowed/);
- }
+  assert.match(vaultAssembly.failures.walletChangedAfterSimulation,/wallet-or-chain-changed/);
+  assert.match(vaultAssembly.failures.chainChangedAfterSimulation,/wallet-or-chain-changed/);
  assert.deepEqual(vaultAssembly.sends,expectedSends);
  assert.equal(vaultAssembly.commitReceipt.status,'success');
  assert.equal(vaultAssembly.revealReceipt.status,'success');
@@ -464,8 +556,21 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  assert.match(vaultAssembly.failures.forgedHandle,/forged-or-expired-handle/);
  assert.match(vaultAssembly.failures.implementationCodeChanged,/implementation-hash-mismatch/);
  assert.match(vaultAssembly.failures.upgradedAfterSimulation,/implementation-address-mismatch/);
+ assert.match(vaultAssembly.failures.missingApproval,/artifact-not-approved/);
+ assert.match(vaultAssembly.failures.manifestDigestMismatch,/artifact-not-approved/);
+ assert.match(vaultAssembly.failures.componentDigestMismatch,/artifact-not-approved/);
+ assert.match(vaultAssembly.failures.otherChainApproval,/approval-chain-mismatch/);
  assert.ok(vaultAssembly.resolverReads.length>0);
  for(const read of vaultAssembly.resolverReads)assert.deepEqual(read,{address:vaultAssembly.vaultA,args:[]});
+ const legacy=await page.evaluate(chain=>testVaultAssembly(chain,false),chainId);
+ assert.deepEqual(legacy.sends,[
+  {target:legacy.runtimeA,functionName:'commitTapeout',value:'0'},
+  {target:legacy.runtimeA,functionName:'revealTapeout',value:'2000000000000000'},
+ ]);
+ assert.match(legacy.failures.undeclaredVerify,/selector-not-allowed/);
+ assert.equal(legacy.commitReceipt.status,'success');
+ assert.equal(legacy.revealReceipt.status,'success');
+ assert.equal(legacy.tokenBalance,0n);
  }
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including testnet assembly, bounded token approvals, farm management, staking, fuel, claims, and project isolation.');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including all 17 assembly methods, mocked claim payouts and reverted receipts, bounded token spending, project isolation, and legacy declarations on BNB chains 56 and 97.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}

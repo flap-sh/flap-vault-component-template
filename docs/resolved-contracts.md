@@ -85,7 +85,7 @@ Local template and Workbench preview use `"warn"` to inventory legacy derived wr
 
 ## Host-approved Vault assembly
 
-The assembly profile supports BNB Smart Chain (56) and BNB Testnet (97). A receiving host must approve each chain separately before enabling writes. The initial rollout uses chain 97. Declare the following as the factory binding's sole entry in `resolvedContracts`:
+The assembly profile in Runtime `0.1.46` supports BNB Smart Chain (56) and BNB Testnet (97). Before enabling writes, the receiving host must approve the artifact and its contract configuration on the active chain. Declare the following as the factory binding's sole entry in `resolvedContracts`:
 
 ```json
 {

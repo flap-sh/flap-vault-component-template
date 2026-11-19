@@ -211,7 +211,8 @@ token. This feature is advertised by \`sdkFeatures.presaleApproval = 1\`.
 
 Hosts can enable assembly for a reviewed Vault artifact on BNB Smart Chain
 (56) or BNB Testnet (97) through \`VaultRuntimeProvider\`'s \`vaultAssembly\`
-configuration. Approvals are chain-specific and the initial rollout uses testnet.
+configuration. Each chain requires an independent approval of the artifact,
+Factory, and contract code.
 The component calls
 \`sdk.resolveContract("vault-assembly-v1", [])\` to resolve its current tax Vault's
 Runtime. The SDK verifies the project binding and the approved Beacon
