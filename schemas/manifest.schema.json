@@ -305,7 +305,6 @@
                     "allow": {
                       "type": "array",
                       "minItems": 1,
-                      "maxItems": 16,
                       "items": {
                         "type": "string"
                       }
@@ -350,6 +349,27 @@
                       "maxItems": 8,
                       "items": {
                         "type": "object"
+                      }
+                    }
+                  },
+                  "if": {
+                    "properties": {
+                      "id": {
+                        "const": "vault-assembly-v1"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "allow": {
+                        "maxItems": 17
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "allow": {
+                        "maxItems": 16
                       }
                     }
                   }

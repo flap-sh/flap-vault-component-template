@@ -75,6 +75,9 @@ globalThis.testVaultAssembly=async(chainId)=>{
  const verifyMethod='function verifyMiner(uint256 id) returns (bool)';
  const approvalMethod='function approve(address spender,uint256 amount) returns (bool)';
  const followUpMethods=[
+  ['createFarm','function createFarm(string name,uint256 expectedBurnCost,string logoCID) returns (uint256)',['Test Farm',20n,'']],
+  ['upgradeFarm','function upgradeFarm(uint256 id)',[2n]],
+  ['joinFarm','function joinFarm(uint256 id,uint256 farmId)',[1n,2n]],
   ['openFarmStake','function openFarmStake(uint256 tier,uint256 farmId) returns (uint256)',[1n,2n]],
   ['openFarmStakeAmount','function openFarmStakeAmount(uint256 tier,uint256 farmId,uint256 amount) returns (uint256)',[1n,2n,40n]],
   ['buyFuel','function buyFuel(uint256 id,uint256 tier,uint256 durationIndex,uint256 maximumCost) returns (uint256)',[1n,2n,3n,30n]],
@@ -84,6 +87,7 @@ globalThis.testVaultAssembly=async(chainId)=>{
   ['claimStakeReward','function claimStakeReward(uint256 id) returns (uint256)',[1n]],
   ['claimFarmProduction','function claimFarmProduction(uint256 id) returns (uint256)',[1n]],
   ['claimRewards','function claimRewards(address account,uint256[] miners,uint256[] stakes,uint256[] farms) returns ((address token,address account,(uint256[] ids,uint256[] amounts,uint256 total) miners,(uint256[] ids,uint256[] amounts,uint256 total) stakes,(uint256[] ids,uint256[] amounts,uint256 total) farms,uint256 total,uint256 positiveCount,uint256 asOfBlock,uint64 asOf,bool complete,uint64 nextExpiry))',[a(9),[1n],[1n],[1n]]],
+  ['exitFarm','function exitFarm(uint256 id)',[1n]],
  ];
  if(includesVerification)writes.push(verifyMethod,approvalMethod,...followUpMethods.map(([,method])=>method));
  const vaultAssemblyManifest={...manifest,match:{bindings:[{chainId,factoryAddress:taxFactory,
@@ -178,7 +182,11 @@ globalThis.testVaultAssembly=async(chainId)=>{
   await submit(approve);
   allowance=101n;
   await denied('existingAllowanceOverCap',()=>sdk.writeContract(requestFor('openFarmStake')));
+  await denied('upgradeAllowanceOverCap',()=>sdk.writeContract(requestFor('upgradeFarm')));
   allowance=50n;
+  await denied('farmBurnCostOverCap',()=>sdk.writeContract({...requestFor('createFarm'),args:['Test Farm',101n,'']}));
+  await denied('nonzeroFarmValue',()=>sdk.writeContract({...requestFor('joinFarm'),value:1n}));
+  await denied('otherProjectFarmOverride',()=>sdk.writeContract({...requestFor('joinFarm'),address:runtimeB}));
   await denied('stakeAmountOverCap',()=>sdk.writeContract({...requestFor('openFarmStakeAmount'),args:[1n,2n,101n]}));
   await denied('fuelCostOverCap',()=>sdk.writeContract({...requestFor('buyFuel'),args:[1n,2n,3n,101n]}));
   await denied('claimForOther',()=>sdk.writeContract({...requestFor('claimRewards'),args:[a(8),[1n],[],[]]}));
@@ -415,7 +423,7 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  if(chainId===97){
   expectedSends.push({target:vaultAssembly.runtimeA,functionName:'verifyMiner',value:'0'});
   expectedSends.push({target:vaultAssembly.tokenA,functionName:'approve',value:'0'});
-  for(const functionName of ['openFarmStake','openFarmStakeAmount','buyFuel','claimMiner','claimMany','claimStakePrincipal','claimStakeReward','claimFarmProduction','claimRewards']){
+  for(const functionName of ['createFarm','upgradeFarm','joinFarm','openFarmStake','openFarmStakeAmount','buyFuel','claimMiner','claimMany','claimStakePrincipal','claimStakeReward','claimFarmProduction','claimRewards','exitFarm']){
    expectedSends.push({target:vaultAssembly.runtimeA,functionName,value:'0'});
   }
   assert.deepEqual(vaultAssembly.verifyReceipt,{result:true,status:'success'});
@@ -430,6 +438,10 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
   assert.match(vaultAssembly.failures.approvalFalse,/approval.*simulation/);
   assert.match(vaultAssembly.failures.approvalTokenCodeChanged,/code-hash-mismatch/);
   assert.match(vaultAssembly.failures.existingAllowanceOverCap,/allowance/);
+  assert.match(vaultAssembly.failures.upgradeAllowanceOverCap,/allowance/);
+  assert.match(vaultAssembly.failures.farmBurnCostOverCap,/cap/);
+  assert.match(vaultAssembly.failures.nonzeroFarmValue,/value-mismatch/);
+  assert.match(vaultAssembly.failures.otherProjectFarmOverride,/handle-with-address/);
   assert.match(vaultAssembly.failures.stakeAmountOverCap,/cap/);
   assert.match(vaultAssembly.failures.fuelCostOverCap,/cap/);
   assert.match(vaultAssembly.failures.claimForOther,/account|recipient/);
@@ -455,5 +467,5 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  assert.ok(vaultAssembly.resolverReads.length>0);
  for(const read of vaultAssembly.resolverReads)assert.deepEqual(read,{address:vaultAssembly.vaultA,args:[]});
  }
- assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including testnet assembly, bounded token approvals, farm staking, fuel, claims, and project isolation.');
+ assert.deepEqual(errors,[]);console.log('Provider browser checks passed ('+(packaged?'package':'source')+'), including testnet assembly, bounded token approvals, farm management, staking, fuel, claims, and project isolation.');
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await rm(tmp,{recursive:true,force:true});}

@@ -17,6 +17,10 @@ const [vaultAssemblyResolver, ...vaultAssemblyWrites] = parseAbi([
   "function claimStakeReward(uint256 id) returns (uint256)",
   "function claimMany(uint256[] minerIds) returns ((address token,address account,uint256[] minerIds,uint256[] amounts,uint256 total,uint256 positiveCount,uint64 asOf,bool complete,uint64 nextExpiry,uint256 asOfBlock))",
   "function claimRewards(address account,uint256[] miners,uint256[] stakes,uint256[] farms) returns ((address token,address account,(uint256[] ids,uint256[] amounts,uint256 total) miners,(uint256[] ids,uint256[] amounts,uint256 total) stakes,(uint256[] ids,uint256[] amounts,uint256 total) farms,uint256 total,uint256 positiveCount,uint256 asOfBlock,uint64 asOf,bool complete,uint64 nextExpiry))",
+  "function createFarm(string name,uint256 expectedBurnCost,string logoCID) returns (uint256)",
+  "function upgradeFarm(uint256 id)",
+  "function joinFarm(uint256 id,uint256 farmId)",
+  "function exitFarm(uint256 id)",
 ]);
 
 const forbiddenName = /^(?:execute(?:Call|Batch)?|multicall|delegatecall|approve|increaseAllowance|decreaseAllowance|setApprovalForAll|transferOwnership|acceptOwnership|upgradeTo.*|setConfig|setSwapPath|setSplit)$/i;

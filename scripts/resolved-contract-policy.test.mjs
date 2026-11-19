@@ -25,6 +25,12 @@ const tokenActions = [
   "function claimMany(uint256[] minerIds) returns ((address token,address account,uint256[] minerIds,uint256[] amounts,uint256 total,uint256 positiveCount,uint64 asOf,bool complete,uint64 nextExpiry,uint256 asOfBlock))",
   "function claimRewards(address account,uint256[] miners,uint256[] stakes,uint256[] farms) returns ((address token,address account,(uint256[] ids,uint256[] amounts,uint256 total) miners,(uint256[] ids,uint256[] amounts,uint256 total) stakes,(uint256[] ids,uint256[] amounts,uint256 total) farms,uint256 total,uint256 positiveCount,uint256 asOfBlock,uint64 asOf,bool complete,uint64 nextExpiry))",
 ];
+const farmActions = [
+  "function createFarm(string name,uint256 expectedBurnCost,string logoCID) returns (uint256)",
+  "function upgradeFarm(uint256 id)",
+  "function joinFarm(uint256 id,uint256 farmId)",
+  "function exitFarm(uint256 id)",
+];
 
 test("Existing two-method Vault assembly declarations retain their BNB Chain factory scope", () => {
   const binding = { chainId: 97, factoryAddress: "0x123", resolvedContracts: [declaration] };
@@ -118,12 +124,75 @@ test("Vault assembly accepts only the exact declared staking, fuel, approval and
     "function approve(address spender,uint256 amount) returns (uint256)",
     "function openFarmStake(uint256 tier) returns (uint256)",
     "function buyFuel(uint256 id,uint256 tier,uint256 maximumCost) returns (uint256)",
-    "function createFarm(string name,uint256 expectedBurnCost,string logoCID) returns (uint256)",
+    "function createFarm(string name,uint256 expectedBurnCost,string logoCID,address recipient) returns (uint256)",
     "function execute(address,uint256,bytes)",
   ]) {
     assert.throws(() => parseResolvedContract({ ...declaration, allow: [...declaration.allow, unsupported] }), /invalid-assembly-writes/);
   }
   assert.throws(() => parseResolvedContract({ ...entry, allow: [tokenActions[0]] }), /forbidden-write/);
+});
+
+test("Vault assembly accepts the exact declared farm actions and the complete 17-method profile", () => {
+  for (const action of farmActions) {
+    const name = action.match(/^function ([^(]+)/)[1];
+    const updated = { ...declaration, allow: [...declaration.allow, action] };
+    assert.deepEqual(parseResolvedContract(updated).writes.map((method) => method.name), ["commitTapeout", "revealTapeout", name]);
+    const binding = { chainId: 97, factoryAddress: "0x123", resolvedContracts: [updated] };
+    const [review] = checkResolvedContractDeclarations([updated], "field", binding);
+    if (["createFarm", "upgradeFarm"].includes(name)) assert.match(review.message, /Runtime spender and bounded approval amount/);
+    else assert.doesNotMatch(review.message, /Token spending requires/);
+    const source = `const runtime = await sdk.resolveContract("${VAULT_ASSEMBLY_ID}", []);
+      await sdk.simulateContract({ contract: runtime, abi, functionName: "${name}", args });`;
+    assert.deepEqual(checkResolvedContractSource(source, "Component.tsx", [binding]), []);
+    assert.ok(checkResolvedContractSource(source, "Component.tsx", [{ ...binding, resolvedContracts: [declaration] }]).some((issue) => issue.severity === "blocking"));
+    assert.throws(() => parseResolvedContract({ ...updated, allow: [...updated.allow, action] }), /invalid-assembly-writes/);
+    for (const mutability of ["view", "payable"]) {
+      const invalid = action.includes(" returns") ? action.replace(" returns", ` ${mutability} returns`) : `${action} ${mutability}`;
+      assert.throws(() => parseResolvedContract({ ...declaration, allow: [...declaration.allow, invalid] }), /invalid-assembly-writes/);
+    }
+  }
+
+  const allow = [...declaration.allow, verifyMiner, ...tokenActions, ...farmActions].reverse();
+  const updated = { ...declaration, allow };
+  const binding = { chainId: 97, factoryAddress: "0x123", resolvedContracts: [updated] };
+  assert.equal(allow.length, 17);
+  assert.equal(parseResolvedContract(updated).writes.length, 17);
+  const [review] = checkResolvedContractDeclarations([updated], "field", binding);
+  assert.equal(review.ruleId, "manual-review/resolved-contract");
+  assert.deepEqual(review.allow, allow);
+  assert.match(review.message, /createFarm, upgradeFarm, joinFarm, exitFarm/);
+  assert.throws(() => parseResolvedContract({ ...updated, allow: [...allow, "function createFarm(string,uint256,string,uint256) returns (uint256)"] }), /invalid-assembly-writes/);
+  assert.throws(() => parseResolvedContract({ ...entry, allow: Array.from({ length: 17 }, (_, index) => `function claim${index}()`) }), /invalid-allow/);
+
+  for (const invalid of [
+    "function createFarm(string,uint256,string)",
+    "function createFarm(string,uint256,string) returns (bool)",
+    "function upgradeFarm(uint256) returns (uint256)",
+    "function joinFarm(uint256,address)",
+    "function joinFarm(uint256,uint256) returns (bool)",
+    "function exitFarm(uint256,address)",
+    "function exitFarm(uint256) returns (uint256)",
+  ]) {
+    assert.throws(() => parseResolvedContract({ ...declaration, allow: [...declaration.allow, invalid] }), /invalid-assembly-writes/);
+  }
+});
+
+test("Vault assembly retains the existing reviewed UI's exact 13-method subset", () => {
+  const selected = ["approve", "openFarmStakeAmount", "buyFuel", "claimFarmProduction", "claimRewards", "claimStakePrincipal"];
+  const allow = [
+    ...declaration.allow,
+    verifyMiner,
+    ...tokenActions.filter((method) => selected.some((name) => method.startsWith(`function ${name}(`))),
+    ...farmActions,
+  ];
+  const updated = { ...declaration, allow };
+  const binding = { chainId: 97, factoryAddress: "0x123", resolvedContracts: [updated] };
+  const parsed = parseResolvedContract(updated);
+  assert.equal(allow.length, 13);
+  assert.equal(parsed.writes.length, 13);
+  assert.deepEqual(parsed.definition.allow, allow);
+  assert.equal(checkResolvedContractDeclarations([updated], "field", binding)[0].ruleId, "manual-review/resolved-contract");
+  assert(!parsed.writes.some((method) => ["openFarmStake", "claimMiner", "claimMany", "claimStakeReward"].includes(method.name)));
 });
 
 test("Vault assembly compares nested claim return types recursively", () => {

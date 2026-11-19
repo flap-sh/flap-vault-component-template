@@ -14,7 +14,7 @@ export function checkResolvedContractDeclarations(value, field, binding) {
         if (!isVaultAssemblyChain(binding.chainId) || value.length !== 1 || binding.nftAccountWithdrawals !== undefined) {
           throw new Error("Vault assembly requires a BNB Chain factory binding with no other write profiles.");
         }
-        const spendingReview = parsed.writes.some((method) => ["approve", "openFarmStake", "openFarmStakeAmount", "buyFuel"].includes(method.name))
+        const spendingReview = parsed.writes.some((method) => ["approve", "openFarmStake", "openFarmStakeAmount", "buyFuel", "createFarm", "upgradeFarm"].includes(method.name))
           ? " Token spending requires independent host approval of the current project token's code pins, Runtime spender and bounded approval amount."
           : "";
         issues.push({

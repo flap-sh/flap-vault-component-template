@@ -65,6 +65,12 @@ const approveSelector = toFunctionSelector("approve(address,uint256)");
 const openFarmStakeSelector = toFunctionSelector("openFarmStake(uint256,uint256)");
 const openFarmStakeAmountSelector = toFunctionSelector("openFarmStakeAmount(uint256,uint256,uint256)");
 const buyFuelSelector = toFunctionSelector("buyFuel(uint256,uint256,uint256,uint256)");
+const createFarmSelector = toFunctionSelector("createFarm(string,uint256,string)");
+const upgradeFarmSelector = toFunctionSelector("upgradeFarm(uint256)");
+const farmMembershipSelectors = new Set([
+  "joinFarm(uint256,uint256)",
+  "exitFarm(uint256)",
+].map(toFunctionSelector));
 const claimRewardsSelector = toFunctionSelector("claimRewards(address,uint256[],uint256[],uint256[])");
 const claimSelectors = new Set([
   "claimFarmProduction(uint256)",
@@ -74,7 +80,10 @@ const claimSelectors = new Set([
   "claimStakePrincipal(uint256)",
   "claimStakeReward(uint256)",
 ].map(toFunctionSelector));
-const tokenSpendSelectors = new Set([openFarmStakeSelector, openFarmStakeAmountSelector, buyFuelSelector]);
+const tokenSpendSelectors = new Set([
+  openFarmStakeSelector, openFarmStakeAmountSelector, buyFuelSelector,
+  createFarmSelector, upgradeFarmSelector,
+]);
 const zeroValueOnly = { valueWei: 0n };
 const netlistBytes = new Map([[2, 35]]);
 
@@ -141,7 +150,8 @@ export function createVaultAssemblyPolicy(client: PublicClient, context: VaultRu
     [verifySelector, zeroValueOnly],
     [revealSelector, { valueWei: revealValueWei, fixedBytes: netlistBytes, caseInsensitiveHexPrefix: true }],
     [approveSelector, zeroValueOnly],
-    ...[...tokenSpendSelectors, ...claimSelectors].map((selector) => [selector, zeroValueOnly] as const),
+    ...[...tokenSpendSelectors, ...claimSelectors, ...farmMembershipSelectors]
+      .map((selector) => [selector, zeroValueOnly] as const),
   ]);
 
   async function resolve(blockNumber: bigint) {
@@ -181,7 +191,7 @@ export function createVaultAssemblyPolicy(client: PublicClient, context: VaultRu
     }
     const tokenApproval = selector === approveSelector;
     const usesTokenSpending = tokenApproval || tokenSpendSelectors.has(selector);
-    if (usesTokenSpending || claimSelectors.has(selector)) {
+    if (usesTokenSpending || claimSelectors.has(selector) || farmMembershipSelectors.has(selector)) {
       const state = await client.readContract({
         address: runtimeAddress, abi: runtimeAbi, functionName: "runtimeState", blockNumber,
       });
@@ -208,6 +218,9 @@ export function createVaultAssemblyPolicy(client: PublicClient, context: VaultRu
         }
         if (selector === buyFuelSelector) {
           requireAssembly(withinCap(request.args?.[3]), "spend-cap-exceeded");
+        }
+        if (selector === createFarmSelector) {
+          requireAssembly(withinCap(request.args?.[1]), "spend-cap-exceeded");
         }
       }
     }
