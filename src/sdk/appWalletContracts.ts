@@ -1,7 +1,7 @@
 import { encodeFunctionData, keccak256, parseAbi, prepareEncodeFunctionData } from "viem";
 import { ERC20_APPROVE_SELECTOR, PRESALE_CONTRIBUTE_QUOTE_SELECTOR, parseAppWalletContracts, type ParsedAppWalletPermissions } from "./appWalletPolicy.mjs";
 import type { Address, ContractWriteRequest, VaultManifest } from "./types";
-import type { FlapWalletRuntime, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
+import type { FlapDisplayReadSnapshot, FlapWalletRuntime, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
 import type { ResolvedContractHandle } from "./resolvedContractTypes";
 // @ts-expect-error Node's source tests need the TypeScript extension.
 import { checkResolvedWriteConstraint, checkReviewedContractCall } from "./resolvedWriteConstraints.ts";
@@ -18,22 +18,45 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
   const roots = manifest.walletContracts === undefined ? [] : parseAppWalletContracts(manifest.walletContracts).filter((p) => p.definition.chainId === chainId);
   type RecordEntry = { root: typeof roots[number]; policy: typeof roots[number]["resolved"][number]; address: Address; args: unknown[] };
   const records = new WeakMap<object, RecordEntry>();
+  type DisplayScope = { snapshot: FlapDisplayReadSnapshot; codes: Map<string, Promise<`0x${string}` | undefined>>; resolvers: Map<string, Promise<unknown>>; assertActive(): void };
+  function cached<T>(cache: Map<string, Promise<T>>, key: string, load: () => Promise<T>): Promise<T> {
+    let pending = cache.get(key);
+    if (!pending) {
+      pending = Promise.resolve().then(load);
+      cache.set(key, pending);
+      void pending.catch(() => { if (cache.get(key) === pending) cache.delete(key); });
+    }
+    return pending;
+  }
   const hasPresaleApproval = roots.some(({ definition }) => definition.presaleApproval !== undefined);
-  async function checkCode(address: Address, policy: ParsedAppWalletPermissions) {
-    const code = await runtime.getCode(chainId, address); requireRule(code && code !== "0x", "missing-code");
+  async function checkCode(address: Address, policy: ParsedAppWalletPermissions, scope?: DisplayScope) {
+    scope?.assertActive();
+    const key = address.toLowerCase();
+    const read = async () => { const code = await scope!.snapshot.getCode(address); requireRule(code && code !== "0x", "missing-code"); return code; };
+    const code = scope ? await cached(scope.codes, key, read) : await runtime.getCode(chainId, address);
+    scope?.assertActive();
+    requireRule(code && code !== "0x", "missing-code");
     if (policy.definition.codeHash) requireRule(same(keccak256(code!), policy.definition.codeHash), "code-hash-changed");
   }
-  async function resolve(root: typeof roots[number], policy: RecordEntry["policy"], args: unknown[]) {
-    await checkCode(root.definition.address, root);
-    const address = await runtime.readContract(chainId, { address: root.definition.address, abi: [policy.resolver], functionName: policy.resolver.name, args });
-    requireRule(isContractAddress(address), "invalid-resolved-target");
-    await checkCode(address, policy); return address;
+  async function resolve(root: typeof roots[number], policy: RecordEntry["policy"], args: unknown[], scope?: DisplayScope) {
+    await checkCode(root.definition.address, root, scope);
+    const request = { address: root.definition.address, abi: [policy.resolver], functionName: policy.resolver.name, args };
+    const read = async () => {
+      const address = scope ? await scope.snapshot.readContract(request) : await runtime.readContract(chainId, request);
+      requireRule(typeof address === "string" && /^0x[0-9a-f]{40}$/i.test(address) && !/^0x0{40}$/i.test(address), "invalid-resolved-target");
+      return address;
+    };
+    const address = scope ? await cached(scope.resolvers, root.definition.address.toLowerCase() + ":" + encodeFunctionData(request).toLowerCase(), read) : await read();
+    scope?.assertActive();
+    await checkCode(address as Address, policy, scope);
+    return address as Address;
   }
-  async function resolveContract(id: string, input: readonly unknown[]): Promise<ResolvedContractHandle> {
+  async function resolveContract(id: string, input: readonly unknown[], scope?: DisplayScope): Promise<ResolvedContractHandle> {
+    scope?.assertActive();
     const root = roots.find((p) => p.resolved.some((r) => r.definition.id === id)); const policy = root?.resolved.find((p) => p.definition.id === id);
     if (!root || !policy) throw new Error("app-wallet/undeclared-resolver");
     const args = structuredClone([...input]); encodeFunctionData({ abi: [policy.resolver], functionName: policy.resolver.name, args });
-    const address = await resolve(root, policy, args);
+    const address = await resolve(root, policy, args, scope);
     const handle = Object.freeze({ id, chainId, address, args: Object.freeze(structuredClone(args)) }); records.set(handle, { root, policy, address, args }); return handle;
   }
   function snapshot(input: ContractWriteRequest) {
@@ -96,10 +119,12 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
     return { address: token, abi: quoteAbi, functionName: "approve", args: [launcher, amount], value: 0n };
   }
 
-  async function validate(prepared: ReturnType<typeof snapshot>, write: boolean, account?: Address) {
+  async function validate(prepared: ReturnType<typeof snapshot>, write: boolean, account?: Address, scope?: DisplayScope) {
+    scope?.assertActive();
+    requireRule(!scope || !write, "display-read-only");
     const { record, root, policy } = prepared;
     let address = root?.definition.address;
-    if (record) { address = await resolve(record.root, record.policy, record.args); requireRule(same(address, record.address), "resolved-target-changed"); }
+    if (record) { address = await resolve(record.root, record.policy, record.args, scope); requireRule(same(address, record.address), "resolved-target-changed"); }
     else if (write) await checkCode(address!, policy);
     const { selector, call } = checkFunction({ ...prepared.request, address }, policy, write);
     if (write && hasPresaleApproval && (record?.root ?? root)?.definition.presaleApproval !== undefined && selector === PRESALE_CONTRIBUTE_QUOTE_SELECTOR) {
@@ -111,5 +136,15 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
     }
     return { call, presaleQuoteToken: undefined };
   }
-  return { roots, snapshot, validate, resolveContract, snapshotQuoteApproval, validateQuoteApproval };
+  function withDisplayReadSnapshot(reads: FlapDisplayReadSnapshot) {
+    let active = true;
+    const scope: DisplayScope = { snapshot: reads, codes: new Map(), resolvers: new Map(),
+      assertActive() { requireRule(active, "display-batch-closed"); runtime.assertActive?.(); } };
+    return {
+      resolveContract: (id: string, args: readonly unknown[]) => resolveContract(id, args, scope),
+      validate: (prepared: ReturnType<typeof snapshot>) => validate(prepared, false, undefined, scope),
+      close() { active = false; scope.codes.clear(); scope.resolvers.clear(); },
+    };
+  }
+  return { roots, snapshot, validate, resolveContract, snapshotQuoteApproval, validateQuoteApproval, withDisplayReadSnapshot };
 }
