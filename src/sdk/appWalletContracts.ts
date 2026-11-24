@@ -48,6 +48,21 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
     }
     return { ...request, abi: [entry!], functionName: entry!.name };
   }
+  function erc20Approval(contractId: string, token: Address) {
+    const root = roots.find(({ definition }) => definition.id === contractId);
+    const policy = root?.definition.erc20Approval;
+    if (!root || !policy) throw new Error("app-wallet/undeclared-erc20-approval");
+    requireRule(policy.allowlist[0] === "*" || policy.allowlist.some((address) => same(address, token)), "erc20-token-not-allowed");
+    return {
+      spender: root.definition.address,
+      maxAmount: BigInt(policy.maxApprovalWei),
+      async checkContracts() {
+        await checkCode(root.definition.address, root);
+        const code = await runtime.getCode(chainId, token);
+        requireRule(code && code !== "0x", "missing-code");
+      },
+    };
+  }
   async function validate(prepared: ReturnType<typeof snapshot>, write: boolean) {
     const { record, root, policy } = prepared;
     let address = root?.definition.address;
@@ -55,5 +70,5 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
     else if (write) await checkCode(address!, policy);
     return checkFunction({ ...prepared.request, address }, policy, write);
   }
-  return { roots, snapshot, validate, resolveContract };
+  return { roots, snapshot, validate, resolveContract, erc20Approval };
 }

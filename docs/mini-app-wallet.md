@@ -34,6 +34,27 @@ This is illustrative ABI, not the Flap Portal ABI or a deployable factory. Use t
 
 A resolver is a reviewed view/pure function on its fixed root with a single address output. Returned targets must contain code; optional `codeHash` pins code for either roots or resolved targets. The runtime stores genuine handles privately, re-resolves before writes, simulates dynamic writes and checks again before forwarding. Addresses supplied by an external token API, copied handles and handle/address overrides do not authorize transactions. Dynamic targets cannot expose nested dynamic-bytes execution methods. Dynamic token approvals use a resolver policy with the exact approve signature, approved spender addresses and a bounded `maxApprovalWei` too. Critical ownership/provenance must also be enforced on-chain: an application-side check cannot make upgrades or mining atomic.
 
+## ERC-20 approval for a fixed Router
+
+An independent App can declare `erc20Approval` on a fixed wallet contract entry. The entry's address is the spender. Use a nonempty list of ERC-20 addresses or the single-item wildcard list `["*"]`. The wildcard covers tokens selected at runtime on the entry's chain and receives a separate Workbench review finding.
+
+```json
+{
+  "id": "memeswap-router",
+  "chainId": 56,
+  "address": "<deployed-router-address>",
+  "allow": ["function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline) returns (uint256[] amounts)"],
+  "erc20Approval": {
+    "allowlist": ["*"],
+    "maxApprovalWei": "100000000000000000000"
+  }
+}
+```
+
+Use `sdk.readErc20Approval({ contractId: "memeswap-router", token })` to read the connected user's allowance and the selected token's decimals. Convert the sell quantity to base units, show the token, spender and exact quantity before confirmation, and call `sdk.approveErc20({ contractId: "memeswap-router", token, amount, account })` when allowance is insufficient. Wait for a successful receipt and check the updated allowance before submitting the Router swap. The SDK constructs and simulates the standard approve call, checks the cap, and confirms the host wallet is still on the selected chain and account before submitting. The cap is per call in the selected token's base units. A fixed cap may represent different quantities when tokens have different decimals.
+
+The Workbench preview publish makes the artifact available for review. Formal slug binding requires an allowlisted operator's signed approval for the exact release and manifest hashes. Other review findings retain their existing release checks. Workbench and the destination host require a matching published Runtime advertising `sdkFeatures.appErc20Approval = 1`. Existing fixed ERC-20 approvals continue to use their current SDK methods.
+
 ## Shared transaction flow
 
 ```tsx
