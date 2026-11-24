@@ -12,7 +12,11 @@ export interface AppPresaleApproval {
   launcherResolver: string;
   maxApprovalWei: string;
 }
-export interface AppWalletContract extends AppWalletPermissions { chainId: number; address: Address; resolvedContracts?: AppResolvedContract[]; presaleApproval?: AppPresaleApproval }
+export interface AppErc20Approval {
+  allowlist: ["*"] | Address[];
+  maxApprovalWei: string;
+}
+export interface AppWalletContract extends AppWalletPermissions { chainId: number; address: Address; resolvedContracts?: AppResolvedContract[]; presaleApproval?: AppPresaleApproval; erc20Approval?: AppErc20Approval }
 export interface ParsedAppWalletPermissions {
   definition: AppWalletPermissions;
   writes: AbiFunction[];
@@ -22,4 +26,6 @@ export interface ParsedAppWalletPermissions {
 export interface ParsedAppWalletContract extends ParsedAppWalletPermissions { definition: AppWalletContract; resolved: (ParsedAppWalletPermissions & { resolver: AbiFunction })[] }
 export declare const ERC20_APPROVE_SELECTOR: "0x095ea7b3";
 export declare const PRESALE_CONTRIBUTE_QUOTE_SELECTOR: `0x${string}`;
+export declare const APP_ERC20_APPROVAL_VERSION: 1;
+export function hasAppErc20Approval(value: unknown): boolean;
 export function parseAppWalletContracts(value: unknown): ParsedAppWalletContract[];

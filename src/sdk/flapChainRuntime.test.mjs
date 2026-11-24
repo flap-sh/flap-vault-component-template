@@ -472,3 +472,61 @@ test("chain SDK selects only declared FSI deployments independently of chain ID"
     assert.equal(calls.length, cases.length * 2, "chain selection and invalid paths must not issue extra FSI requests");
   } finally { globalThis.fetch = originalFetch; }
 });
+
+const tokenA = "0x4444444444444444444444444444444444444444";
+const tokenB = "0x5555555555555555555555555555555555555555";
+function approvalFixture(allowlist = ["*"], patch = {}) {
+  const f = fixture({ simulateContract: async () => true, ...patch });
+  const manifest = structuredClone(f.manifest);
+  manifest.walletContracts[0].erc20Approval = { allowlist, maxApprovalWei: "100000000000000000000" };
+  const sdk = createFlapChainSdk(f.runtime, { chainId: 56, manifest, writableChains: [56], i18n: {}, notify: {} });
+  return { ...f, sdk };
+}
+
+test("wildcard ERC-20 approval exclusively sends the selected token's approve to the manifest spender", async () => {
+  const f = approvalFixture();
+  const reads = [];
+  f.runtime.readContract = async (_chain, request) => {
+    reads.push(request);
+    return request.functionName === "decimals" ? 18 : 0n;
+  };
+  for (const token of [tokenA, tokenB]) {
+    const target = { contractId: "portal", token };
+    assert.deepEqual(await f.sdk.readErc20Approval(target), { decimals: 18, allowance: 0n });
+    assert.deepEqual(reads.at(-2).args, [owner, portal]);
+    assert.equal(await f.sdk.approveErc20({ ...target, amount: 100n }), hash);
+    const [kind, chain, call] = f.calls.at(-1);
+    assert.equal(kind, "write"); assert.equal(chain, 56);
+    assert.equal(call.address, token); assert.equal(call.functionName, "approve");
+    assert.deepEqual(call.args, [portal, 100n]); assert.equal(call.value, undefined);
+  }
+  await assert.rejects(f.sdk.writeContract({ address: tokenA, abi, functionName: "approve", args: [portal, 100n] }), /undeclared-target/);
+});
+
+test("ERC-20 approval blocks unsupported tokens, caps, failed simulation and changed wallet", async () => {
+  const f = approvalFixture([tokenA]);
+  const call = { contractId: "portal", token: tokenA, amount: 100n };
+  await assert.rejects(f.sdk.approveErc20({ ...call, token: tokenB }), /erc20-token-not-allowed/);
+  await assert.rejects(f.sdk.approveErc20({ ...call, amount: 10n ** 21n }), /approval-cap-exceeded/);
+  await assert.rejects(f.sdk.approveErc20({ ...call, contractId: "unknown" }), /undeclared-erc20-approval/);
+  await assert.rejects(approvalFixture(["*"], { readOnly: true }).sdk.approveErc20(call), /fixtures/);
+  assert.equal(await f.sdk.approveErc20(call), hash);
+  assert.deepEqual(f.calls.at(-1)[2].args, [portal, 100n]);
+  f.runtime.getCode = async (_chain, address) => address === tokenA ? "0x" : "0x6000";
+  await assert.rejects(f.sdk.approveErc20(call), /missing-code/);
+  f.runtime.getCode = async () => "0x6000";
+  f.runtime.simulateContract = async () => false;
+  await assert.rejects(f.sdk.approveErc20(call), /simulation-failed/);
+  f.runtime.simulateContract = async () => { f.setAccount({ isConnected: true, address: tokenB, chainId: 56 }); return true; };
+  await assert.rejects(f.sdk.approveErc20(call), /wallet account changed/);
+  assert.equal(f.calls.length, 1);
+});
+
+test("ERC-20 approval requires an explicit nonempty allowlist and a bounded approval cap", () => {
+  for (const list of [[], ["*", tokenA], [tokenA, tokenA.toUpperCase().replace("0X", "0x")]]) {
+    assert.throws(() => approvalFixture(list), /invalid-erc20-approval-allowlist/);
+  }
+  const f = fixture();
+  f.manifest.walletContracts[0].erc20Approval = { allowlist: ["*"], maxApprovalWei: ((1n << 256n) - 1n).toString() };
+  assert.throws(() => createFlapChainSdk(f.runtime, { chainId: 56, manifest: f.manifest, writableChains: [56] }), /unlimited-erc20-approval/);
+});

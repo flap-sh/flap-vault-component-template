@@ -125,7 +125,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, vaultAssembly: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, vaultAssembly: 1, appErc20Approval: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -214,6 +214,21 @@ Standalone Mini Apps can use \`sdk.approveQuote({ pool, amount })\` with a genui
 Launcher handle under a reviewed \`walletContracts[].presaleApproval\` policy.
 The host must provision the policy to resolve and authorize the pool's ERC20 quote
 token. This feature is advertised by \`sdkFeatures.presaleApproval = 1\`.
+
+## ERC-20 approval for a fixed spender
+
+Standalone Mini Apps can declare \`walletContracts[].erc20Approval\` on a fixed
+Router entry. Its \`allowlist\` accepts a nonempty list of token addresses or
+\`["*"]\` for a token selected at runtime. The per-approval \`maxApprovalWei\` cap
+uses the selected token's base units. The Router entry's address is the spender.
+
+Use \`sdk.readErc20Approval({ contractId, token })\` for allowance and decimals,
+then \`sdk.approveErc20({ contractId, token, amount, account })\` when needed.
+The host checks the policy, simulates the call and uses the connected wallet for
+confirmation. Runtime support is declared by \`sdkFeatures.appErc20Approval = 1\`.
+Workbench reviews wildcard approvals separately and requires release-specific
+operator approval before formal binding. See the
+[Mini App wallet guide](https://github.com/flap-sh/flap-vault-component-template/blob/main/docs/mini-app-wallet.md#erc-20-approval-for-a-fixed-router).
 
 ## Host-approved Vault assembly
 
