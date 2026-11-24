@@ -25,7 +25,7 @@ export function checkStandaloneWalletSource(content, file, manifest) {
   if (!isStandaloneApp(manifest)) return [];
   const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const issues = []; const hooks = new Set(); const handles = new Set(); let hasWrites = false;
-  const walletWrites = new Set(["writeContract", "simulateContract", "sendTransaction", "approveQuote"]);
+  const walletWrites = new Set(["writeContract", "simulateContract", "sendTransaction", "approveQuote", "approveErc20"]);
   const add = (ruleId, message, node) => issues.push({ severity: "blocking", ruleId, message, file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
   for (const node of source.statements) if (ts.isImportDeclaration(node) && node.moduleSpecifier.text === "@/src/sdk" && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) for (const item of node.importClause.namedBindings.elements) if ((item.propertyName ?? item.name).text === "useFlapSdk") hooks.add(item.name.text);
   const approvalIds = new Set((Array.isArray(manifest.walletContracts) ? manifest.walletContracts : [])
