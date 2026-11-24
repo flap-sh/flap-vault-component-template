@@ -79,8 +79,9 @@ export type { ManifestResolvedContract, ResolvedContractCheck, ResolvedContractH
 export const RESOLVED_CONTRACTS_VERSION = 1;
 
 export { FLAP_WALLET_RUNTIME_VERSION, PRESALE_APPROVAL_VERSION } from "./flapChainRuntime";
-export type { FlapChainSdk, FlapSendTransactionRequest, FlapTransactionReceipt, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
+export type { FlapChainSdk, FlapErc20ApprovalRequest, FlapErc20ApprovalTarget, FlapSendTransactionRequest, FlapTransactionReceipt, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
 
-export type { AppWalletContract, AppPresaleApproval, AppResolvedContract, AppResolvedWriteConstraint } from "./appWalletPolicy.mjs";
+export { APP_ERC20_APPROVAL_VERSION } from "./appWalletPolicy.mjs";
+export type { AppErc20Approval, AppWalletContract, AppPresaleApproval, AppResolvedContract, AppResolvedWriteConstraint } from "./appWalletPolicy.mjs";
 /** Controlled dynamic CID text reads and image rendering. */
 export const IPFS_CONTENT_VERSION = 1;

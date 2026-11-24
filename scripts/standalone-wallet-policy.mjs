@@ -1,6 +1,7 @@
 import ts from "typescript";
 import { isStandaloneApp } from "./standalone-app.mjs";
 import { parseAppWalletContracts } from "../src/sdk/appWalletPolicy.mjs";
+const erc20Methods = new Set(["readErc20Approval", "approveErc20"]);
 export function checkStandaloneWalletManifest(manifest) {
   const chains = manifest?.walletChains; const contracts = manifest?.walletContracts;
   if (chains === undefined && contracts === undefined) return [];
@@ -8,20 +9,39 @@ export function checkStandaloneWalletManifest(manifest) {
   try {
     const parsed = parseAppWalletContracts(contracts);
     if (parsed.some((p) => !chains.includes(p.definition.chainId))) throw new Error("Contract chain must be declared in walletChains.");
-    return parsed.map((p) => ({ severity: "warning", ruleId: "manual-review/standalone-wallet", ...p.definition, message: "Review this App's fixed contract, exact signatures, resolver provenance, spender/approval caps and native-value cap. Presale approval also requires the matching host policy. Rendering fixtures do not authorize transactions or prove business behavior." }));
+    return parsed.flatMap(({ definition }) => {
+      const field = `walletContracts.${definition.id}`;
+      const wallet = { severity: "warning", ruleId: "manual-review/standalone-wallet", ...definition, field, message: "Review this App's fixed contract, exact signatures, resolver provenance, spender/approval caps and native-value cap. Presale approval also requires the matching host policy. Rendering fixtures do not authorize transactions or prove business behavior." };
+      const approval = definition.erc20Approval;
+      if (approval?.allowlist[0] !== "*") return [wallet];
+      return [wallet, { severity: "warning", ruleId: "manual-review/any-erc20-approval",
+        field: `${field}.erc20Approval`, chainId: definition.chainId, address: definition.address,
+        allowlist: approval.allowlist, maxApprovalWei: approval.maxApprovalWei,
+        message: "Review the request to approve any ERC-20 token for this fixed spender." }];
+    });
   } catch (error) { return [{ severity: "blocking", ruleId: "standalone-wallet/invalid-contracts", message: error.message }]; }
 }
 export function checkStandaloneWalletSource(content, file, manifest) {
   if (!isStandaloneApp(manifest)) return [];
   const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const issues = []; const hooks = new Set(); const handles = new Set(); let hasWrites = false;
-  const walletWrites = new Set(["writeContract", "simulateContract", "sendTransaction", "approveQuote"]);
+  const walletWrites = new Set(["writeContract", "simulateContract", "sendTransaction", "approveQuote", "approveErc20"]);
   const add = (ruleId, message, node) => issues.push({ severity: "blocking", ruleId, message, file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
   for (const node of source.statements) if (ts.isImportDeclaration(node) && node.moduleSpecifier.text === "@/src/sdk" && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) for (const item of node.importClause.namedBindings.elements) if ((item.propertyName ?? item.name).text === "useFlapSdk") hooks.add(item.name.text);
+  const approvalIds = new Set((Array.isArray(manifest.walletContracts) ? manifest.walletContracts : [])
+    .filter((entry) => entry?.erc20Approval).map((entry) => entry.id));
   function visit(node) {
     if (ts.isIdentifier(node) && walletWrites.has(node.text)) hasWrites = true;
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && ts.isAwaitExpression(node.initializer) && ts.isCallExpression(node.initializer.expression) && ts.isPropertyAccessExpression(node.initializer.expression.expression) && node.initializer.expression.expression.name.text === "resolveContract") handles.add(node.name.text);
     if (ts.isCallExpression(node)) {
+      if (ts.isPropertyAccessExpression(node.expression) && erc20Methods.has(node.expression.name.text)) {
+        const arg = node.arguments[0];
+        const id = arg && ts.isObjectLiteralExpression(arg) && arg.properties.find((prop) =>
+          ts.isPropertyAssignment(prop) && prop.name.getText(source).replace(/["']/g, "") === "contractId");
+        if (!approvalIds.size || (id && ts.isPropertyAssignment(id) && ts.isStringLiteralLike(id.initializer) && !approvalIds.has(id.initializer.text))) {
+          add("standalone-wallet/undeclared-erc20-approval", "Declare erc20Approval on the fixed wallet contract used by the SDK.", node);
+        }
+      }
       if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "resolveContract") {
         const id = node.arguments[0]; const declared = (manifest.walletContracts ?? []).flatMap((c) => c.resolvedContracts ?? []);
         if (!id || !ts.isStringLiteral(id) || !declared.some((c) => c.id === id.text)) add("standalone-wallet/undeclared-resolver", "resolveContract requires a declared literal resolver ID.", node);

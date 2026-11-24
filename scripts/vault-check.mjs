@@ -3269,6 +3269,10 @@ function collectManifestContractPolicy(manifest) {
   if (isStandaloneApp(manifest)) for (const contract of manifest.walletContracts ?? []) {
     const normalized = normalizeAddress(contract?.address); if (normalized) external.add(normalized);
     for (const spender of contract?.approvalSpenders ?? []) { const address = normalizeAddress(spender); if (address) external.add(address); }
+    for (const token of Array.isArray(contract?.erc20Approval?.allowlist) ? contract.erc20Approval.allowlist : []) {
+      const address = normalizeAddress(token);
+      if (address) external.add(address);
+    }
     for (const resolved of contract?.resolvedContracts ?? []) for (const spender of resolved?.approvalSpenders ?? []) { const address = normalizeAddress(spender); if (address) external.add(address); }
   }
   for (const address of builtIn) all.add(address);
@@ -4717,7 +4721,7 @@ function collectManualReview(issues) {
       ruleId: item.ruleId,
     }));
 
-  return { standaloneWallet: issues.filter((x) => x.ruleId === "manual-review/standalone-wallet"), resolvedContracts: collectResolvedContractReview(issues), legacyDerivedWrites: issues.filter((x) => x.ruleId === "manual-review/legacy-derived-write-target"), nftAccountWithdrawals: collectNftAccountReview(issues), externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, audioAssets: miniAppAudioAssets, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
+  return { standaloneWallet: issues.filter((x) => x.ruleId === "manual-review/standalone-wallet"), anyErc20Approvals: issues.filter((x) => x.ruleId === "manual-review/any-erc20-approval"), resolvedContracts: collectResolvedContractReview(issues), legacyDerivedWrites: issues.filter((x) => x.ruleId === "manual-review/legacy-derived-write-target"), nftAccountWithdrawals: collectNftAccountReview(issues), externalEndpoints, oracles, externalFrames, externalLinks, externalContracts, fullscreenLayouts, audioAssets: miniAppAudioAssets, miniAppAudioAssets, miniApp3D, vaultUI3D, miniApp3DFonts };
 }
 
 function buildCheckReport(folderName, issues) {

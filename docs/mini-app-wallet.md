@@ -79,6 +79,27 @@ Deploy a coordinated runtime and checker that advertise
 `sdkFeatures.presaleApproval = 1` and configure the reviewed host policy
 before using this field.
 
+## ERC-20 approval for a fixed Router
+
+An independent App can declare `erc20Approval` on a fixed wallet contract entry. The entry's address is the spender. Use a nonempty list of ERC-20 addresses or the single-item wildcard list `["*"]`. The wildcard covers tokens selected at runtime on the entry's chain and receives a separate Workbench review finding.
+
+```json
+{
+  "id": "memeswap-router",
+  "chainId": 56,
+  "address": "<deployed-router-address>",
+  "allow": ["function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline) returns (uint256[] amounts)"],
+  "erc20Approval": {
+    "allowlist": ["*"],
+    "maxApprovalWei": "100000000000000000000"
+  }
+}
+```
+
+Use `sdk.readErc20Approval({ contractId: "memeswap-router", token })` to read the connected user's allowance and the selected token's decimals. Convert the sell quantity to base units, show the token, spender and exact quantity before confirmation, and call `sdk.approveErc20({ contractId: "memeswap-router", token, amount, account })` when allowance is insufficient. Wait for a successful receipt and check the updated allowance before submitting the Router swap. The SDK constructs and simulates the standard approve call, checks the cap, and confirms the host wallet is still on the selected chain and account before submitting. The cap is per call in the selected token's base units. A fixed cap may represent different quantities when tokens have different decimals.
+
+The Workbench preview publish makes the artifact available for review. Formal slug binding requires an allowlisted operator's signed approval for the exact release and manifest hashes. Other review findings retain their existing release checks. Workbench and the destination host require a matching published Runtime advertising `sdkFeatures.appErc20Approval = 1`. Existing fixed ERC-20 approvals continue to use their current SDK methods.
+
 ## Shared transaction flow
 
 `waitForTx(hash)` polls the original transaction hash through the public client selected for that operation. It queries immediately, then every 2 seconds after a pending or transient-error response, with an 8-second deadline per query and a 180-second total deadline. It returns the original success/reverted status; applications must check `status === "success"` before showing success or refreshing as successful. A timeout means the result is unknown: retain the hash and reconcile it before offering another transaction. Polling does not follow sped-up or cancelled replacement transactions; the original hash can time out. The public API and receipt fields remain compatible.

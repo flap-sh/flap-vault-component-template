@@ -15,6 +15,24 @@ test("approvals require declared spenders and a positive cap", () => {
  assert.ok(blocking(checkStandaloneWalletManifest({ ...app, walletContracts: [contract] })).length);
  assert.deepEqual(blocking(checkStandaloneWalletManifest({ ...app, walletContracts: [{ ...contract, approvalSpenders: [address], maxApprovalWei: "100" }] })), []);
 });
+test("destructured ERC-20 approval requires wallet declarations", () => {
+ const source = `
+  import { useFlapSdk } from "@/src/sdk";
+  const sdk = useFlapSdk({ chainId: 56 });
+  const { approveErc20: approve } = sdk;
+  await approve({ contractId: "portal", token, amount: 100n });
+ `;
+ const { walletChains, walletContracts, ...undeclared } = app;
+ const [portal] = walletContracts;
+ const declared = {
+  ...undeclared,
+  walletChains,
+  walletContracts: [{ ...portal, erc20Approval: { allowlist: ["*"], maxApprovalWei: "100" } }],
+ };
+ const issues = blocking(checkStandaloneWalletSource(source, "Component.tsx", undeclared));
+ assert.deepEqual(issues.map(({ ruleId }) => ruleId), ["standalone-wallet/missing-contracts"]);
+ assert.deepEqual(blocking(checkStandaloneWalletSource(source, "Component.tsx", declared)), []);
+});
 test("a presale approval declaration requires a bounded cap and its own exact Launcher resolver", () => {
  const root = {
   ...app.walletContracts[0],

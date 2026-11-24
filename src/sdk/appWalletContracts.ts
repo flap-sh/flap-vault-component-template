@@ -119,6 +119,22 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
     return { address: token, abi: quoteAbi, functionName: "approve", args: [launcher, amount], value: 0n };
   }
 
+  function erc20Approval(contractId: string, token: Address) {
+    const root = roots.find(({ definition }) => definition.id === contractId);
+    const policy = root?.definition.erc20Approval;
+    if (!root || !policy) throw new Error("app-wallet/undeclared-erc20-approval");
+    requireRule(policy.allowlist[0] === "*" || policy.allowlist.some((address) => same(address, token)), "erc20-token-not-allowed");
+    return {
+      spender: root.definition.address,
+      maxAmount: BigInt(policy.maxApprovalWei),
+      async checkContracts() {
+        await checkCode(root.definition.address, root);
+        const code = await runtime.getCode(chainId, token);
+        requireRule(code && code !== "0x", "missing-code");
+      },
+    };
+  }
+
   async function validate(prepared: ReturnType<typeof snapshot>, write: boolean, account?: Address, scope?: DisplayScope) {
     scope?.assertActive();
     requireRule(!scope || !write, "display-read-only");
@@ -146,5 +162,5 @@ export function createAppWalletContracts(runtime: FlapWalletRuntime, chainId: nu
       close() { active = false; scope.codes.clear(); scope.resolvers.clear(); },
     };
   }
-  return { roots, snapshot, validate, resolveContract, snapshotQuoteApproval, validateQuoteApproval, withDisplayReadSnapshot };
+  return { roots, snapshot, validate, resolveContract, snapshotQuoteApproval, validateQuoteApproval, withDisplayReadSnapshot, erc20Approval };
 }

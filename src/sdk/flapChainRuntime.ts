@@ -1,4 +1,4 @@
-import { isAddress, isHex, decodeFunctionData, encodeFunctionData, type TransactionReceipt } from "viem";
+import { isAddress, isHex, decodeFunctionData, encodeFunctionData, parseAbi, type TransactionReceipt } from "viem";
 import { createAppWalletContracts } from "./appWalletContracts";
 import { createIpfsTextReader } from "./ipfsText";
 import { readFsiJson } from "./fsi";
@@ -7,11 +7,19 @@ import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
 import { readContractEventsInBlockRanges } from "./contractEvents";
 import type { Address, ContractReadRequest, ContractWriteRequest, ContractEventRequest, FlapI18n, FlapNotify, FlapWallet, MediaUploader, MediaUploadOptions, SimulateResult, VaultManifest } from "./types";
 
+const erc20ApprovalAbi = parseAbi([
+  "function approve(address spender,uint256 amount) returns (bool)",
+  "function allowance(address owner,address spender) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+]);
+
 export const FLAP_WALLET_RUNTIME_VERSION = 1;
 export const PRESALE_APPROVAL_VERSION = 1;
 export interface FlapSendTransactionRequest { to: Address; value?: bigint; data?: `0x${string}`; gas?: bigint; gasPrice?: bigint }
 export interface FlapTransactionReceipt { hash: Address; status: "success" | "reverted"; blockNumber: bigint; logs: TransactionReceipt["logs"] }
 export interface PresaleQuoteApprovalRequest { pool: ResolvedContractHandle; amount: bigint }
+export interface FlapErc20ApprovalTarget { contractId: string; token: Address }
+export interface FlapErc20ApprovalRequest extends FlapErc20ApprovalTarget { amount: bigint; account?: Address }
 export interface FlapChainSdk {
   context: { chainId: number; manifest: VaultManifest };
   i18n: FlapI18n;
@@ -24,6 +32,8 @@ export interface FlapChainSdk {
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;
   approveQuote(request: PresaleQuoteApprovalRequest): Promise<Address>;
+  readErc20Approval(target: FlapErc20ApprovalTarget): Promise<{ allowance: bigint; decimals: number }>;
+  approveErc20(request: FlapErc20ApprovalRequest): Promise<Address>;
   sendTransaction(request: FlapSendTransactionRequest): Promise<Address>;
   waitForTx(hash: Address): Promise<FlapTransactionReceipt>;
   getGasPrice(): Promise<bigint>;
@@ -112,6 +122,11 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
     writeAccount(account);
     return { call: { ...call, ...fees, account, value: snapshot.value }, prepared, presaleQuoteToken };
   }
+  function erc20Approval(contractId: string, token: Address) {
+    if (!appPolicy) throw new Error("app-wallet/undeclared-erc20-approval");
+    assertAddress(token);
+    return appPolicy.erc20Approval(contractId, token);
+  }
   let switchingChain = false;
   const wallet: Omit<FlapWallet, "balance"> = {
     get address() { return runtime.getAccount().isConnected ? runtime.getAccount().address : undefined; },
@@ -198,6 +213,36 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
       if (rechecked.address.toLowerCase() !== call.address.toLowerCase()) throw new Error("app-wallet/presale-quote-changed");
       writeAccount(account);
       return runtime.writeContract(chainId, { ...call, account });
+    },
+    readErc20Approval: async ({ contractId, token }) => {
+      runtime.assertActive?.();
+      const { spender, checkContracts } = erc20Approval(contractId, token);
+      const account = runtime.getAccount();
+      if (!account.isConnected || !account.address) throw new Error("Connect the host wallet before reading its allowance.");
+      await checkContracts();
+      const [allowance, decimals] = await Promise.all([
+        runtime.readContract(chainId, { address: token, abi: erc20ApprovalAbi, functionName: "allowance", args: [account.address, spender] }),
+        runtime.readContract(chainId, { address: token, abi: erc20ApprovalAbi, functionName: "decimals" }),
+      ]);
+      runtime.assertActive?.();
+      const current = runtime.getAccount();
+      if (!current.isConnected || current.address?.toLowerCase() !== account.address.toLowerCase()) {
+        throw new Error("The host wallet account changed. Review the transaction again.");
+      }
+      if (typeof allowance !== "bigint" || typeof decimals !== "number") throw new Error("Invalid ERC-20 approval state.");
+      return { allowance, decimals };
+    },
+    approveErc20: async ({ contractId, token, amount, account: expected }) => {
+      const account = writeAccount(expected);
+      const { spender, maxAmount, checkContracts } = erc20Approval(contractId, token);
+      if (typeof amount !== "bigint" || amount < 0n || amount > maxAmount) throw new Error("app-wallet/approval-cap-exceeded");
+      const call = { address: token, abi: erc20ApprovalAbi, functionName: "approve", args: [spender, amount], account };
+      await checkContracts();
+      writeAccount(account);
+      if (await runtime.simulateContract(chainId, { ...call, args: [...call.args] }) !== true) throw new Error("app-wallet/erc20-approval-simulation-failed");
+      await checkContracts();
+      writeAccount(account);
+      return runtime.writeContract(chainId, call);
     },
     sendTransaction: async (request) => {
       request = structuredClone(request);
