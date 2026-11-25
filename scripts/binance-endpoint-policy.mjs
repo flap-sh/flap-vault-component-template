@@ -119,21 +119,21 @@ export function binanceFetchSafetyIssue(target, init, staticTarget, ts, isGlobal
   return null;
 }
 
-function getReferencedPropertyName(node, ts) {
+function getReferencedPropertyName(node, ts, resolvePropertyKey) {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
+  let key;
   if (ts.isElementAccessExpression(node)) {
-    const name = unwrap(node.argumentExpression, ts);
-    return isLiteralString(name, ts) ? name.text : null;
-  }
-  if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent)) {
+    key = node.argumentExpression;
+  } else if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent)) {
     const property = node.propertyName ?? node.name;
-    if (ts.isComputedPropertyName(property)) {
-      const name = unwrap(property.expression, ts);
-      return isLiteralString(name, ts) ? name.text : null;
+    if (!ts.isComputedPropertyName(property)) {
+      return (ts.isIdentifier(property) || isLiteralString(property, ts)) ? property.text : null;
     }
-    return (ts.isIdentifier(property) || isLiteralString(property, ts)) ? property.text : null;
+    key = property.expression;
   }
-  return null;
+  const name = unwrap(key, ts);
+  if (!name) return null;
+  return isLiteralString(name, ts) ? name.text : resolvePropertyKey?.(name) ?? null;
 }
 
 function getDirectCall(node, ts) {
@@ -145,10 +145,13 @@ function getDirectCall(node, ts) {
   return call && ts.isCallExpression(call) && call.expression === callee ? call : null;
 }
 
-export function collectBinanceReadIssues(sourceFile, ts, endpoints, file, { runtimeAvailable = () => true } = {}) {
+export function collectBinanceReadIssues(sourceFile, ts, endpoints, file, {
+  runtimeAvailable = () => true,
+  resolvePropertyKey,
+} = {}) {
   const issues = [];
   const visit = (node) => {
-    const method = getReferencedPropertyName(node, ts);
+    const method = getReferencedPropertyName(node, ts, resolvePropertyKey);
     if (Object.hasOwn(BINANCE_TOKEN_MARKET_OPERATIONS, method)) {
       const { url, requiredQueryKeys, optionalQueryKeys, runtimeFeature } = BINANCE_TOKEN_MARKET_OPERATIONS[method];
       const { origin, pathname } = new URL(url);

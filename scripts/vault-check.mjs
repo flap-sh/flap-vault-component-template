@@ -4140,7 +4140,9 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     };
     const queryBindings = collectLexicalBindings(querySourceFile);
     issues.push(...collectFsiReadIssues(querySourceFile, ts, manifest.endpoints, rel));
-    issues.push(...collectBinanceReadIssues(querySourceFile, ts, manifest.endpoints, rel));
+    issues.push(...collectBinanceReadIssues(querySourceFile, ts, manifest.endpoints, rel, {
+      resolvePropertyKey: (expression) => resolveLexicalStaticString(expression, querySourceFile, queryBindings),
+    }));
     issues.push(...collectQueryEncoderMutationIssues(querySourceFile, ts,
       (encoder) => !hasVisibleLexicalBinding(encoder, querySourceFile, queryBindings), rel));
     const directFetchUsages = collectDirectFetchUsages(content, rel, declaredFetchUrls, manifest.endpoints);

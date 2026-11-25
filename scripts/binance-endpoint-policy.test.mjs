@@ -83,13 +83,34 @@ test("Binance SDK evidence records each direct call's query and location", (t) =
   assert.equal(evidence[1].line, evidence[0].line + 1);
 });
 
+test("Binance SDK evidence resolves constant property names in their lexical scope", (t) => {
+  const check = fixture(t);
+  const query = "{ chainId: 56, contractAddress: context.tokenAddress }";
+  const source = [
+    'const method = "readBinanceTokenDynamicInfo" as const;',
+    '{ const method = "toString"; void sdk[method](); }',
+    'const reader = method;',
+    `void sdk[reader](${query});`,
+  ].join("\n");
+  const result = check(source, ENDPOINT);
+  assert.deepEqual(networkBlockers(result), []);
+  const evidence = result.review.externalEndpoints.filter((item) => item.source === "sdk.readBinanceTokenDynamicInfo");
+  assert.deepEqual(evidence.map(({ paramsExpression, line }) => ({ paramsExpression, line })), [
+    { paramsExpression: query, line: 9 },
+  ]);
+  assert(networkBlockers(check(source)).some((issue) => issue.ruleId === "endpoint-policy/binance-declaration-required"));
+});
+
 test("Binance SDK validation rejects indirect readers and calls without a query", (t) => {
   const check = fixture(t);
   for (const source of [
     "const { readBinanceTokenDynamicInfo: read } = sdk; void read(first); void read(second);",
     'const { ["readBinanceTokenDynamicInfo"]: read } = sdk; void read(first);',
+    'const method = "readBinanceTokenDynamicInfo" as const; const { [method]: read } = sdk; void read(first);',
     "const read = sdk.readBinanceTokenDynamicInfo; void read(first);",
+    'const method = "readBinanceTokenDynamicInfo" as const; const read = sdk[method]; void read(first);',
     "void registerCallback(sdk.readBinanceTokenDynamicInfo);",
+    'const method = "readBinanceTokenDynamicInfo" as const; void registerCallback(sdk[method]);',
     "void sdk.readBinanceTokenDynamicInfo();",
   ]) {
     const result = check(source, ENDPOINT);
