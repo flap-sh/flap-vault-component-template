@@ -190,6 +190,7 @@ async function main() {
   if (typeof uiModule.IpfsText !== "function" || typeof uiModule.IpfsImage !== "function" || sdkModule.IPFS_CONTENT_VERSION !== 1 || runtimeContract.sdkFeatures?.ipfsContent !== 1) throw new Error("The coordinated runtime must expose controlled dynamic IPFS content.");
   if (runtimeContract.sdkFeatures?.miniAppRouting !== 1 || sdkModule.MINI_APP_ROUTING_VERSION !== 1 || typeof sdkModule.useMiniAppRouter !== "function" || ["parseMiniAppPath", "createMiniAppMemoryRouter", "createMiniAppBrowserRouter"].some((name) => typeof hostModule[name] !== "function")) throw new Error("The shared runtime must expose host-owned Mini App routing v1.");
   if (runtimeContract.sdkFeatures?.appErc20Approval !== 1 || sdkModule.APP_ERC20_APPROVAL_VERSION !== 1) throw new Error("The shared runtime must expose Mini App ERC-20 approval v1.");
+  if (runtimeContract.sdkFeatures?.appErc20Read !== 1 || sdkModule.APP_ERC20_READ_VERSION !== 1) throw new Error("The shared runtime must expose Mini App ERC-20 reads v1.");
   if (["parseMiniAppPath", "createMiniAppMemoryRouter", "createMiniAppBrowserRouter"].some((name) => name in sdkModule)) throw new Error("Mini App route adapters must remain host-only.");
   const routeProps = {
     manifest: { schemaVersion: 2, mode: "mini-app", appModel: "standalone", slug: "route-package-test", artifactId: "route-package-test", match: { bindings: [] } },
@@ -203,11 +204,30 @@ async function main() {
   try { renderToStaticMarkup(createElement(sdkModule.MiniAppRuntimeProvider, routeProps, createElement(RouteProbe))); }
   catch (error) { unsupportedRoute = error instanceof Error && error.message.includes("mini-app-routing-unsupported"); }
   if (!unsupportedRoute) throw new Error("Routing-dependent Apps must fail explicitly when the host supplies no route adapter.");
+  const erc20Token = "0x1111111111111111111111111111111111111111";
+  let erc20Sdk;
+  let erc20ReadCount = 0;
+  function Erc20ReadProbe() { erc20Sdk = sdkModule.useFlapSdk({ chainId: 56 }); return null; }
+  renderToStaticMarkup(createElement(sdkModule.MiniAppRuntimeProvider, {
+    ...routeProps,
+    runtime: {
+      chains: [{ id: 56, name: "BNB Smart Chain" }],
+      getAccount: () => routeProps.session,
+      async readContract(chainId, { address, functionName }) {
+        erc20ReadCount++;
+        if (chainId !== 56 || address !== erc20Token || functionName !== "decimals") throw new Error("Unexpected ERC-20 read.");
+        return 6;
+      },
+    },
+  }, createElement(Erc20ReadProbe)));
+  if (typeof erc20Sdk?.readErc20Balance !== "function") throw new Error("The packed chain SDK must expose ERC-20 balance reads.");
+  const precision = await erc20Sdk.readErc20Metadata(erc20Token, { decimalsOnly: true });
+  if (precision.decimals !== 6 || erc20ReadCount !== 1) throw new Error("The packed chain SDK must read ERC-20 precision once for a guest.");
   const readme = await readText(path.join(packageDir, "README.md"));
   for (const term of ["useMiniAppRouter()", "createMiniAppMemoryRouter", "createMiniAppBrowserRouter", "sdkFeatures.miniAppRouting"]) {
     if (!readme.includes(term)) throw new Error(`The published README must document ${term}.`);
   }
-  for (const term of ["readErc20Approval(", "approveErc20(", "sdkFeatures.appErc20Approval"]) {
+  for (const term of ["readErc20Metadata(", "decimalsOnly: true", "readErc20Balance(", "sdkFeatures.appErc20Read", "readErc20Approval(", "approveErc20(", "sdkFeatures.appErc20Approval"]) {
     if (!readme.includes(term)) throw new Error(`The published README must document ${term}.`);
   }
   if ("writeCopyText" in uiModule) throw new Error("Clipboard writes must remain private to CopyButton.");

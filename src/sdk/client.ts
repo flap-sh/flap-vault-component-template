@@ -78,8 +78,8 @@ export const NFT_ACCOUNT_WITHDRAWAL_VERSION = 1;
 export type { ManifestResolvedContract, ResolvedContractCheck, ResolvedContractHandle } from "./resolvedContractTypes";
 export const RESOLVED_CONTRACTS_VERSION = 1;
 
-export { FLAP_WALLET_RUNTIME_VERSION, PRESALE_APPROVAL_VERSION } from "./flapChainRuntime";
-export type { FlapChainSdk, FlapErc20ApprovalRequest, FlapErc20ApprovalTarget, FlapSendTransactionRequest, FlapTransactionReceipt, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
+export { APP_ERC20_READ_VERSION, FLAP_WALLET_RUNTIME_VERSION, PRESALE_APPROVAL_VERSION } from "./flapChainRuntime";
+export type { FlapChainSdk, FlapErc20ApprovalRequest, FlapErc20ApprovalTarget, FlapErc20Metadata, FlapSendTransactionRequest, FlapTransactionReceipt, PresaleQuoteApprovalRequest } from "./flapChainRuntime";
 
 export { APP_ERC20_APPROVAL_VERSION } from "./appWalletPolicy.mjs";
 export type { AppErc20Approval, AppWalletContract, AppPresaleApproval, AppResolvedContract, AppResolvedWriteConstraint } from "./appWalletPolicy.mjs";

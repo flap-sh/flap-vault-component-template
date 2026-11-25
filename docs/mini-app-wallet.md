@@ -79,6 +79,16 @@ Deploy a coordinated runtime and checker that advertise
 `sdkFeatures.presaleApproval = 1` and configure the reviewed host policy
 before using this field.
 
+## ERC-20 reads by token address
+
+Standalone Mini Apps use `useFlapSdk({ chainId })` to select the network for these queries. Users can enter any deployed ERC-20 address on that network. These queries work before a pool exists, without listing the token in the manifest.
+
+- `sdk.readErc20Metadata(token)` returns `{ name, symbol, decimals }`. Guests can call it. A missing name or symbol is returned as `null`.
+- `sdk.readErc20Metadata(token, { decimalsOnly: true })` reads only the precision and returns `{ decimals }`. Guests can use it to display both sides of a pool. A missing or invalid precision causes either metadata query to fail.
+- `sdk.readErc20Balance(token)` returns the connected wallet's token balance as a `bigint` in base units. The SDK reads the wallet address from the host. The query needs a connected wallet and uses the network selected by the SDK.
+
+These methods use the host's public client and the SDK's fixed ERC-20 ABI. They don't request a signature. Runtime support is advertised by `sdkFeatures.appErc20Read = 1`.
+
 ## ERC-20 approval for a fixed Router
 
 An independent App can declare `erc20Approval` on a fixed wallet contract entry. The entry's address is the spender. Use a nonempty list of ERC-20 addresses or the single-item wildcard list `["*"]`. The wildcard covers tokens selected at runtime on the entry's chain and receives a separate Workbench review finding.

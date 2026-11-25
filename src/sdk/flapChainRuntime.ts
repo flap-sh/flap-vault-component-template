@@ -1,5 +1,6 @@
 import { isAddress, isHex, decodeFunctionData, encodeFunctionData, parseAbi, type TransactionReceipt } from "viem";
 import { createAppWalletContracts } from "./appWalletContracts";
+import { erc20Abi } from "./erc20";
 import { createIpfsTextReader } from "./ipfsText";
 import { readFsiJson } from "./fsi";
 import type { ResolvedContractHandle } from "./resolvedContractTypes";
@@ -15,9 +16,11 @@ const erc20ApprovalAbi = parseAbi([
 
 export const FLAP_WALLET_RUNTIME_VERSION = 1;
 export const PRESALE_APPROVAL_VERSION = 1;
+export const APP_ERC20_READ_VERSION = 1;
 export interface FlapSendTransactionRequest { to: Address; value?: bigint; data?: `0x${string}`; gas?: bigint; gasPrice?: bigint }
 export interface FlapTransactionReceipt { hash: Address; status: "success" | "reverted"; blockNumber: bigint; logs: TransactionReceipt["logs"] }
 export interface PresaleQuoteApprovalRequest { pool: ResolvedContractHandle; amount: bigint }
+export interface FlapErc20Metadata { name: string | null; symbol: string | null; decimals: number }
 export interface FlapErc20ApprovalTarget { contractId: string; token: Address }
 export interface FlapErc20ApprovalRequest extends FlapErc20ApprovalTarget { amount: bigint; account?: Address }
 export interface FlapChainSdk {
@@ -32,6 +35,9 @@ export interface FlapChainSdk {
   simulateContract(request: ContractWriteRequest): Promise<SimulateResult>;
   writeContract(request: ContractWriteRequest): Promise<Address>;
   approveQuote(request: PresaleQuoteApprovalRequest): Promise<Address>;
+  readErc20Metadata(token: Address, options?: { decimalsOnly?: false }): Promise<FlapErc20Metadata>;
+  readErc20Metadata(token: Address, options: { decimalsOnly: true }): Promise<Pick<FlapErc20Metadata, "decimals">>;
+  readErc20Balance(token: Address): Promise<bigint>;
   readErc20Approval(target: FlapErc20ApprovalTarget): Promise<{ allowance: bigint; decimals: number }>;
   approveErc20(request: FlapErc20ApprovalRequest): Promise<Address>;
   sendTransaction(request: FlapSendTransactionRequest): Promise<Address>;
@@ -122,6 +128,47 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
     writeAccount(account);
     return { call: { ...call, ...fees, account, value: snapshot.value }, prepared, presaleQuoteToken };
   }
+  function assertErc20ReadTarget(token: unknown): asserts token is Address {
+    runtime.assertActive?.();
+    if (!appPolicy) throw new Error("ERC-20 reads by address are available to standalone Mini Apps.");
+    assertAddress(token);
+  }
+
+  async function readErc20Text(token: Address, functionName: "name" | "symbol") {
+    try {
+      const text = await runtime.readContract(chainId, { address: token, abi: erc20Abi, functionName });
+      return typeof text === "string" ? text.trim() || null : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function readTokenDecimals(token: Address) {
+    const decimals = await runtime.readContract(chainId, { address: token, abi: erc20Abi, functionName: "decimals" });
+    if (typeof decimals !== "number" || !Number.isInteger(decimals) || decimals < 0 || decimals > 255) {
+      throw new Error("Invalid ERC-20 decimals.");
+    }
+    return decimals;
+  }
+
+  function readErc20Metadata(token: Address, options?: { decimalsOnly?: false }): Promise<FlapErc20Metadata>;
+  function readErc20Metadata(token: Address, options: { decimalsOnly: true }): Promise<Pick<FlapErc20Metadata, "decimals">>;
+  async function readErc20Metadata(token: Address, options?: { decimalsOnly?: boolean }) {
+    assertErc20ReadTarget(token);
+    if (options?.decimalsOnly === true) {
+      const decimals = await readTokenDecimals(token);
+      runtime.assertActive?.();
+      return { decimals };
+    }
+    const [name, symbol, decimals] = await Promise.all([
+      readErc20Text(token, "name"),
+      readErc20Text(token, "symbol"),
+      readTokenDecimals(token),
+    ]);
+    runtime.assertActive?.();
+    return { name, symbol, decimals };
+  }
+
   function erc20Approval(contractId: string, token: Address) {
     if (!appPolicy) throw new Error("app-wallet/undeclared-erc20-approval");
     assertAddress(token);
@@ -213,6 +260,20 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
       if (rechecked.address.toLowerCase() !== call.address.toLowerCase()) throw new Error("app-wallet/presale-quote-changed");
       writeAccount(account);
       return runtime.writeContract(chainId, { ...call, account });
+    },
+    readErc20Metadata,
+    readErc20Balance: async token => {
+      assertErc20ReadTarget(token);
+      const { address: owner, isConnected } = runtime.getAccount();
+      if (!isConnected || !owner) throw new Error("Connect the host wallet before reading its ERC-20 balance.");
+      const balance = await runtime.readContract(chainId, { address: token, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
+      runtime.assertActive?.();
+      const current = runtime.getAccount();
+      if (!current.isConnected || current.address?.toLowerCase() !== owner.toLowerCase()) {
+        throw new Error("The host wallet account changed. Read the balance again.");
+      }
+      if (typeof balance !== "bigint" || balance < 0n) throw new Error("Invalid ERC-20 balance.");
+      return balance;
     },
     readErc20Approval: async ({ contractId, token }) => {
       runtime.assertActive?.();
