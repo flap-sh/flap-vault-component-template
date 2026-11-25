@@ -5,9 +5,9 @@ type BinanceTokenMarketOperation = {
   readonly runtimeFeature: "binanceTokenDynamicInfo" | "binanceTokenMarketData";
 };
 
-export const BINANCE_TOKEN_MARKET_OPERATIONS: Readonly<Record<
+export declare const BINANCE_TOKEN_MARKET_OPERATIONS: Readonly<Record<
   "readBinanceTokenDynamicInfo" | "searchBinanceTokens" | "readBinanceTokenMetadata" | "readBinanceTokenKlines",
   BinanceTokenMarketOperation
 >>;
-export const BINANCE_TOKEN_DYNAMIC_INFO_ENDPOINT: string;
+export declare const BINANCE_TOKEN_DYNAMIC_INFO_ENDPOINT: string;
 export function hasBinanceTokenMarketDeclaration(endpoints: unknown, url: string): boolean;
