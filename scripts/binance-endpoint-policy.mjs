@@ -10,9 +10,13 @@ const paths = operations.map(({ url }) => new URL(url).pathname);
 const requiredOptions = { method: "GET", credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" };
 const safeOptions = { ...requiredOptions, cache: "no-store" };
 
+function isExpressionWrapper(node, ts) {
+  return ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) ||
+    ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node);
+}
+
 function unwrap(node, ts) {
-  while (node && (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) ||
-      ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node))) node = node.expression;
+  while (node && isExpressionWrapper(node, ts)) node = node.expression;
   return node;
 }
 
@@ -132,6 +136,15 @@ function getReferencedPropertyName(node, ts) {
   return null;
 }
 
+function getDirectCall(node, ts) {
+  let callee = node;
+  while (callee.parent && isExpressionWrapper(callee.parent, ts) && callee.parent.expression === callee) {
+    callee = callee.parent;
+  }
+  const call = callee.parent;
+  return call && ts.isCallExpression(call) && call.expression === callee ? call : null;
+}
+
 export function collectBinanceReadIssues(sourceFile, ts, endpoints, file, { runtimeAvailable = () => true } = {}) {
   const issues = [];
   const visit = (node) => {
@@ -141,7 +154,18 @@ export function collectBinanceReadIssues(sourceFile, ts, endpoints, file, { runt
       const { origin, pathname } = new URL(url);
       const declared = hasBinanceTokenMarketDeclaration(endpoints, url);
       const source = `sdk.${method}`;
-      const location = { file, line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1 };
+      const call = getDirectCall(node, ts);
+      const query = call?.arguments[0];
+      const location = { file, line: sourceFile.getLineAndCharacterOfPosition((call ?? node).getStart(sourceFile)).line + 1 };
+      if (!query) {
+        issues.push({
+          severity: "blocking",
+          ruleId: "endpoint-policy/binance-direct-call-required",
+          message: `Call ${source}(query) directly so endpoint review can record the query and its location.`,
+          fixHint: `Use ${source}(query) at each call site.`,
+          ...location,
+        });
+      }
       if (!declared) {
         issues.push({
           severity: "blocking",
@@ -158,8 +182,7 @@ export function collectBinanceReadIssues(sourceFile, ts, endpoints, file, { runt
           ...location,
         });
       }
-      if (declared) {
-        const call = node.parent && ts.isCallExpression(node.parent) && node.parent.expression === node ? node.parent : null;
+      if (declared && query) {
         issues.push({
           severity: "warning",
           ruleId: "manual-review/external-endpoint",
@@ -169,7 +192,7 @@ export function collectBinanceReadIssues(sourceFile, ts, endpoints, file, { runt
           origin,
           pathname,
           dynamicQuery: true,
-          paramsExpression: call?.arguments[0]?.getText(sourceFile),
+          paramsExpression: query.getText(sourceFile),
           ...location,
         });
       }

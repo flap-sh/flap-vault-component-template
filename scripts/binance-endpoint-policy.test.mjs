@@ -67,13 +67,34 @@ test("Binance SDK reads require the reviewed exact endpoint declaration and reco
   for (const declaration of [undefined, new URL(ENDPOINT).origin, `${ENDPOINT}/`, `${ENDPOINT}?${QUERY}`]) {
     assert(networkBlockers(check(source, declaration)).some((issue) => issue.ruleId === "endpoint-policy/binance-declaration-required"));
   }
-  for (const alias of [
-    'void sdk["readBinanceTokenDynamicInfo"]({ chainId: 56, contractAddress: context.tokenAddress });',
-    "const { readBinanceTokenDynamicInfo: read } = sdk; void read({ chainId: 56, contractAddress: context.tokenAddress });",
-    'const { ["readBinanceTokenDynamicInfo"]: read } = sdk; void read({ chainId: 56, contractAddress: context.tokenAddress });',
+});
+
+test("Binance SDK evidence records each direct call's query and location", (t) => {
+  const check = fixture(t);
+  const first = "{ chainId: context.chainId, contractAddress: context.tokenAddress }";
+  const second = "{ chainId: 56, contractAddress: context.tokenAddress }";
+  const result = check([
+    `void sdk.readBinanceTokenDynamicInfo(${first});`,
+    `void (sdk["readBinanceTokenDynamicInfo"]!)(${second});`,
+  ].join("\n"), ENDPOINT);
+  assert.deepEqual(networkBlockers(result), []);
+  const evidence = result.review.externalEndpoints.filter((item) => item.source === "sdk.readBinanceTokenDynamicInfo");
+  assert.deepEqual(evidence.map((item) => item.paramsExpression), [first, second]);
+  assert.equal(evidence[1].line, evidence[0].line + 1);
+});
+
+test("Binance SDK validation rejects indirect readers and calls without a query", (t) => {
+  const check = fixture(t);
+  for (const source of [
+    "const { readBinanceTokenDynamicInfo: read } = sdk; void read(first); void read(second);",
+    'const { ["readBinanceTokenDynamicInfo"]: read } = sdk; void read(first);',
+    "const read = sdk.readBinanceTokenDynamicInfo; void read(first);",
+    "void registerCallback(sdk.readBinanceTokenDynamicInfo);",
+    "void sdk.readBinanceTokenDynamicInfo();",
   ]) {
-    assert(networkBlockers(check(alias)).some((issue) => issue.ruleId === "endpoint-policy/binance-declaration-required"));
-    assert.deepEqual(networkBlockers(check(alias, ENDPOINT)), []);
+    const result = check(source, ENDPOINT);
+    assert(networkBlockers(result).some((issue) => issue.ruleId === "endpoint-policy/binance-direct-call-required"), source);
+    assert(!result.review.externalEndpoints.some((item) => item.source === "sdk.readBinanceTokenDynamicInfo"), source);
   }
 });
 

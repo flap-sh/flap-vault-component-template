@@ -508,7 +508,7 @@ The token readers accept positive integer chain IDs as numbers or decimal string
 
 K-line intervals are `1m`, `5m`, `15m`, `1h`, `4h`, `12h`, and `1d`. `limit` is 1–300, and the optional timestamps use milliseconds. The returned `klineInfos` rows preserve Binance's order and price strings. The row starts with an open timestamp, followed by open, high, low, and close prices, an upstream field, and the close timestamp. [Binance token query parameters](https://github.com/binance/binance-skills-hub/blob/main/skills/binance-web3/query-token-info/references/cli.md) · [Binance K-line format](https://github.com/binance/binance-skills-hub/blob/main/skills/binance-web3/binance-tokenized-securities-info/SKILL.md#api-6-token-k-line)
 
-The readers preserve Binance's `data` shape, support an optional second argument `{ signal }`, and reject unsuccessful HTTP or Binance responses. Use `BinanceImage` for token icons from the approved image host.
+The readers preserve Binance's `data` shape, support an optional second argument `{ signal }`, and reject unsuccessful HTTP or Binance responses. Call each SDK method directly with its query so review records the arguments and source location for every call. Use `BinanceImage` for token icons from the approved image host.
 
 Direct `fetch` also supports the four fixed URLs. Use each operation's documented query keys at most once and wrap each dynamic value in the global `encodeURIComponent(value)`. Use literal `method: "GET"`, `credentials: "omit"`, `redirect: "error"`, and `referrerPolicy: "no-referrer"` options. `cache: "no-store"` is optional. The SDK and native calls appear in endpoint review.
 

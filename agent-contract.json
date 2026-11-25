@@ -437,6 +437,10 @@
       "severity": "blocking",
       "fixAction": "Use sdk.readFsi for FSI or sdk.readBinanceTokenDynamicInfo for Binance token market data. Direct fetch requires encoded dynamic query values and literal GET/omit/error/no-referrer options on reviewed FSI, taxed.fun, and Binance endpoints. Other fetch targets must be static absolute HTTPS URLs declared in manifest.endpoints without credentials."
     },
+    "endpoint-policy/binance-direct-call-required": {
+      "severity": "blocking",
+      "fixAction": "Call the Binance SDK reader directly with its query argument at each call site so endpoint review records each query and source location."
+    },
     "endpoint-policy/https-required": {
       "severity": "blocking",
       "fixAction": "Use an HTTPS endpoint URL string, or remove the endpoint."
