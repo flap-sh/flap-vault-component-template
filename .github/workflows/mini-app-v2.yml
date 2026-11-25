@@ -11,7 +11,7 @@ permissions:
 jobs:
   validate:
     if: github.repository == 'flap-sh/flap-vault-component-template' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FLAP_TEMPLATE_CHANNEL: latest
       FLAP_TEMPLATE_FRESHNESS_REF: origin/main
