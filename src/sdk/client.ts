@@ -1,6 +1,22 @@
 "use client";
 
 export * from "./contract";
+export { BINANCE_TOKEN_DYNAMIC_INFO_VERSION, BINANCE_TOKEN_MARKET_DATA_VERSION } from "./binanceTokenMarketData";
+export type {
+  BinanceTokenChainId,
+  BinanceTokenDynamicInfo,
+  BinanceTokenDynamicInfoOptions,
+  BinanceTokenDynamicInfoRequest,
+  BinanceTokenKline,
+  BinanceTokenKlineInterval,
+  BinanceTokenKlines,
+  BinanceTokenKlinesRequest,
+  BinanceTokenMarketOptions,
+  BinanceTokenMetadata,
+  BinanceTokenMetadataRequest,
+  BinanceTokenSearchRequest,
+  BinanceTokenSearchResult,
+} from "./binanceTokenMarketData";
 export * from "./miniApp";
 export * from "./miniAppRuntime";
 export * from "./miniAppRoutingTypes";

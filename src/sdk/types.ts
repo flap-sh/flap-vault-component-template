@@ -1,3 +1,4 @@
+import type { BinanceTokenMarketSdk } from "./binanceTokenMarketData";
 import type { ManifestResolvedContract, ResolvedContractHandle } from "./resolvedContractTypes";
 import type { ManifestNftAccountWithdrawal, NftAccountWithdrawalRequest, NftAccountWithdrawalReceipt } from "./nftAccountTypes";
 import type { Abi, PublicClient } from "viem";
@@ -460,7 +461,7 @@ export interface MediaUploadRequest extends MediaUploadOptions {
 /** Optional host override for the controlled upload service. */
 export type MediaUploader = (request: MediaUploadRequest) => Promise<IpfsUploadResult>;
 
-export interface FlapVaultSdk {
+export interface FlapVaultSdk extends BinanceTokenMarketSdk {
   forChain(chainId: number): import("./flapChainRuntime").FlapChainSdk;
   context: VaultRuntimeContext;
   i18n: FlapI18n;

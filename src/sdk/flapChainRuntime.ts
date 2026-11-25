@@ -3,6 +3,7 @@ import { createAppWalletContracts } from "./appWalletContracts";
 import { erc20Abi } from "./erc20";
 import { createIpfsTextReader } from "./ipfsText";
 import { readFsiJson } from "./fsi";
+import { createBinanceTokenMarketSdk, type BinanceTokenMarketSdk } from "./binanceTokenMarketData";
 import type { ResolvedContractHandle } from "./resolvedContractTypes";
 import { resolveSafeContractWriteFeeOverrides } from "./contractWriteFees";
 import { readContractEventsInBlockRanges } from "./contractEvents";
@@ -23,7 +24,7 @@ export interface PresaleQuoteApprovalRequest { pool: ResolvedContractHandle; amo
 export interface FlapErc20Metadata { name: string | null; symbol: string | null; decimals: number }
 export interface FlapErc20ApprovalTarget { contractId: string; token: Address }
 export interface FlapErc20ApprovalRequest extends FlapErc20ApprovalTarget { amount: bigint; account?: Address }
-export interface FlapChainSdk {
+export interface FlapChainSdk extends BinanceTokenMarketSdk {
   context: { chainId: number; manifest: VaultManifest };
   i18n: FlapI18n;
   notify: FlapNotify;
@@ -98,9 +99,12 @@ function assertValue(value?: bigint) {
 export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
   chainId: number; manifest: VaultManifest; writableChains: readonly number[]; i18n: FlapI18n; notify: FlapNotify;
   readIpfsText?: (cid: string, path?: string) => Promise<string>;
+  binanceTokenMarket?: BinanceTokenMarketSdk;
 }): FlapChainSdk {
   const { chainId, i18n, notify } = input;
   const manifest = structuredClone(input.manifest);
+  const binanceEndpoints = structuredClone(manifest.endpoints);
+  const binanceTokenMarket = input.binanceTokenMarket ?? createBinanceTokenMarketSdk(() => binanceEndpoints);
   const writableChains = [...input.writableChains];
   const chain = runtime.chains.find((item) => item.id === chainId);
   if (!Number.isSafeInteger(chainId) || !chain) throw new Error(`Unsupported host chain ${chainId}.`);
@@ -326,6 +330,7 @@ export function createFlapChainSdk(runtime: FlapWalletRuntime, input: {
     },
     readIpfsText: input.readIpfsText ?? createIpfsTextReader(),
     readFsi: <T,>(path: string, params?: Record<string, string>) => readFsiJson<T>(manifest.endpoints ?? [], path, params),
+    ...binanceTokenMarket,
     uploadImage: (file, options) => runtime.upload({ kind: "image", file, chainId, ...options }),
     uploadText: (text, options) => runtime.upload({ kind: "text", file: new Blob([text], { type: "text/plain;charset=utf-8" }), chainId, ...options }),
     openExplorerTx: (hash) => { if (chain.explorerBaseUrl && /^0x[0-9a-f]{64}$/i.test(hash)) runtime.openUrl(`${chain.explorerBaseUrl.replace(/\/$/, "")}/tx/${hash}`); },

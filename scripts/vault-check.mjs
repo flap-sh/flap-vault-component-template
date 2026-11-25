@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { checkResolvedContractDeclarations, checkResolvedContractSource, collectResolvedContractReview, collectResolvedHandles } from "./resolved-contract-policy.mjs";
 import { dynamicFsiQueryPrefix, collectFsiReadIssues, fsiFetchSafetyIssue, isFsiFetchTarget } from "./fsi-endpoint-policy.mjs";
+import { binanceFetchSafetyIssue, collectBinanceReadIssues, dynamicBinanceQueryPrefix, isBinanceFetchTarget } from "./binance-endpoint-policy.mjs";
 import { collectDeclaredFetchUrls, isDeclaredUrl, normalizeManifestEndpoints, parseUrl } from "./endpoint-declarations.mjs";
 import { dynamicTaxedQueryPrefix, taxedFetchSafetyIssue, isTaxedFetchTarget, queryFreeDeclarations, collectQueryEncoderMutationIssues } from "./taxed-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
@@ -280,7 +281,8 @@ const FIX_HINTS = {
   "endpoint-policy/no-credentials": "Remove username/password credentials from endpoint URLs. Workbench endpoint declarations must be bearerless HTTPS URLs.",
   "endpoint-policy/undeclared-url": "Remove the URL. manifest.endpoints authorizes only direct static HTTPS fetch(...) targets; use approved runtime media, ExternalLink, or a reviewed externalFrame for other URL uses.",
   "endpoint-policy/relative-endpoint": "Do not call host-relative endpoints from Vault source. Use SDK/on-chain reads or declare an approved https endpoint.",
-  "endpoint-policy/direct-fetch": "Use sdk.readFsi for FSI requests, or a fixed FSI/taxed.fun subdomain fetch URL with encoded query values and literal GET/omit/error/no-referrer options. Other fetch targets must be static absolute HTTPS URLs declared in manifest.endpoints without credentials.",
+  "endpoint-policy/direct-fetch": "Use sdk.readFsi for FSI or the corresponding Binance token market SDK method. Direct fetch supports encoded query values with literal GET/omit/error/no-referrer options on reviewed FSI, taxed.fun and Binance endpoints. Other fetch targets must be static absolute HTTPS URLs declared in manifest.endpoints without credentials.",
+  "endpoint-policy/binance-declaration-required": "Add the exact query-free Binance token market endpoint to manifest.endpoints for review.",
   "manual-review/external-endpoint": "Prefer removing the endpoint. If it is unavoidable, keep the declaration for Flap review.",
   "manual-review/external-contract": "Fixed extra contract targets are review candidates only. Confirm the address, role, write/approval/value exposure, and deployment provenance before publish.",
   "manual-review/external-link": "ExternalLink third-party destinations are not blocking, but each one is listed for Flap human review before publish. Keep the destination on a trusted host and expect the reviewer to inspect it.",
@@ -1466,10 +1468,11 @@ function collectBinanceImageUsageAnalysis(content, file) {
   return { issues, allowedUrlRanges };
 }
 
-function collectDirectFetchUsages(content, file, declaredFetchUrls) {
+function collectDirectFetchUsages(content, file, declaredFetchUrls, declaredEndpoints) {
   const usages = [];
   const sourceFile = createTsSourceFile(file, content);
   const bindings = collectLexicalBindings(sourceFile);
+  const isGlobalEncoder = (encoder) => !hasVisibleLexicalBinding(encoder, sourceFile, bindings);
   const visit = (node) => {
     if (ts.isCallExpression(node)) {
       const callee = unwrapTsExpression(node.expression);
@@ -1477,14 +1480,18 @@ function collectDirectFetchUsages(content, file, declaredFetchUrls) {
         const isGlobalFetch = !hasVisibleLexicalBinding(callee, sourceFile, bindings);
         const target = node.arguments[0] ?? null;
         const dynamicQueryPrefix = dynamicFsiQueryPrefix(target, ts, queryFreeDeclarations(declaredFetchUrls), isDeclaredUrl)
-          ?? dynamicTaxedQueryPrefix(target, ts, declaredFetchUrls, isDeclaredUrl);
+          ?? dynamicTaxedQueryPrefix(target, ts, declaredFetchUrls, isDeclaredUrl)
+          ?? dynamicBinanceQueryPrefix(target, ts, declaredEndpoints);
         const staticTarget = (target ? tsStaticStringValue(target) : null) ?? dynamicQueryPrefix;
         const parsedTarget = staticTarget ? parseUrl(staticTarget) : null;
-        const fetchSafetyIssue = isFsiFetchTarget(parsedTarget)
-          ? fsiFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, (callee) => !hasVisibleLexicalBinding(callee, sourceFile, bindings))
-          : isTaxedFetchTarget(parsedTarget)
-            ? taxedFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, (callee) => !hasVisibleLexicalBinding(callee, sourceFile, bindings))
-            : null;
+        let fetchSafetyIssue = null;
+        if (isFsiFetchTarget(parsedTarget)) {
+          fetchSafetyIssue = fsiFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, isGlobalEncoder);
+        } else if (isTaxedFetchTarget(parsedTarget)) {
+          fetchSafetyIssue = taxedFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, isGlobalEncoder);
+        } else if (isBinanceFetchTarget(parsedTarget, staticTarget)) {
+          fetchSafetyIssue = binanceFetchSafetyIssue(target, node.arguments[1], staticTarget, ts, isGlobalEncoder, declaredEndpoints);
+        }
         const allowed = Boolean(
           isGlobalFetch &&
             !fetchSafetyIssue &&
@@ -4133,9 +4140,12 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     };
     const queryBindings = collectLexicalBindings(querySourceFile);
     issues.push(...collectFsiReadIssues(querySourceFile, ts, manifest.endpoints, rel));
+    issues.push(...collectBinanceReadIssues(querySourceFile, ts, manifest.endpoints, rel, {
+      resolvePropertyKey: (expression) => resolveLexicalStaticString(expression, querySourceFile, queryBindings),
+    }));
     issues.push(...collectQueryEncoderMutationIssues(querySourceFile, ts,
       (encoder) => !hasVisibleLexicalBinding(encoder, querySourceFile, queryBindings), rel));
-    const directFetchUsages = collectDirectFetchUsages(content, rel, declaredFetchUrls);
+    const directFetchUsages = collectDirectFetchUsages(content, rel, declaredFetchUrls, manifest.endpoints);
     const allowedDirectFetchTargetRanges = directFetchUsages.filter((usage) => usage.allowed && usage.targetRange).map((usage) => usage.targetRange);
     const externalLinkUsages = collectExternalLinkUsages(scanContent, rel);
     const externalLinkRanges = externalLinkUsages.map((usage) => [usage.tagStart, usage.tagEnd]);
@@ -4387,7 +4397,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
           issue(
             BLOCKING,
             "endpoint-policy/direct-fetch",
-            usage.fetchSafetyIssue ?? "fetch() requires a declared static HTTPS URL, or encoded query-value interpolation on the platform FSI or taxed.fun subdomain allowlist with explicit safe request options. Use sdk.readFsi for dynamic FSI paths.",
+            usage.fetchSafetyIssue ?? "fetch() requires a declared static HTTPS URL, or encoded query-value interpolation on a reviewed FSI, taxed.fun or Binance endpoint with explicit safe request options.",
             { file: rel, line: usage.line },
           ),
         );
