@@ -1696,7 +1696,13 @@
       "walletChains",
       "walletContracts"
     ],
-    "policy": "Exact reviewed targets/signatures/value and spender caps. Dynamic targets use genuine reviewed resolver handles. No arbitrary writes or fixture authorization.",
+    "policy": "Exact reviewed targets/signatures/value and spender caps. Dynamic contract targets for generic calls use genuine reviewed resolver handles. No arbitrary writes or fixture authorization.",
+    "erc20Reads": {
+      "runtimeFeature": "sdkFeatures.appErc20Read",
+      "metadata": "sdk.readErc20Metadata(token) returns name, symbol and decimals. Set { decimalsOnly: true } for just decimals. Both forms work for guests.",
+      "balance": "sdk.readErc20Balance(token) returns the connected host account's balance in base units.",
+      "policy": "The SDK selects the chain through useFlapSdk({ chainId }) and uses its fixed ERC-20 ABI. These reads need no token manifest entry or wallet signature."
+    },
     "documentation": "docs/mini-app-wallet.md"
   },
   "developmentSupport": {

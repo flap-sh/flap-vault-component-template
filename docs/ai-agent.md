@@ -14,6 +14,7 @@ This explicit protocol takes precedence over the token requirements below **only
 
 Use `yarn app:scaffold <slug>` and the shared `useFlapSdk({ chainId })` for reviewed wallet/contract operations. `useMiniAppSdk()` remains compatible for host identity/session access. See `docs/mini-app-wallet.md`; declare walletChains and exact walletContracts instead of broadening Vault bindings. Never add fake token addresses or zero-address runtime bindings. Source-package format 7 and E2E schema 3 require current source hashes and successful guest/connected checks on PC, iPad and H5. Existing provenance, import, endpoint, media and review boundaries still apply. The preview's session fixture is development-only; production sessions must come from the Flap host. See `docs/standalone-mini-apps.md`.
 
+For deployed ERC-20 addresses picked by the user, use `sdk.readErc20Metadata(token)`. Guests can read metadata or pass `{ decimalsOnly: true }` for just the precision. Use `sdk.readErc20Balance(token)` for the connected wallet's balance in base units. These standalone reads use the selected host chain and the fixed SDK ABI. See [ERC-20 reads by token address](mini-app-wallet.md#erc-20-reads-by-token-address).
 
 This repository is designed for AI agents that generate controlled Flap Vault UI source packages.
 

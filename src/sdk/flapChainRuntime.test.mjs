@@ -530,3 +530,117 @@ test("ERC-20 approval requires an explicit nonempty allowlist and a bounded appr
   f.manifest.walletContracts[0].erc20Approval = { allowlist: ["*"], maxApprovalWei: ((1n << 256n) - 1n).toString() };
   assert.throws(() => createFlapChainSdk(f.runtime, { chainId: 56, manifest: f.manifest, writableChains: [56] }), /unlimited-erc20-approval/);
 });
+
+function erc20ReadFixture(chainId, patch = {}, manifest = { appModel: "standalone" }) {
+  const f = fixture({
+    chains: [{ id: 56, name: "BNB" }, { id: 97, name: "BNB Testnet" }],
+    switchChain: async () => assert.fail("ERC-20 reads must not switch the wallet network"),
+    ...patch,
+  });
+  const sdk = createFlapChainSdk(f.runtime, {
+    chainId, manifest, writableChains: [], i18n: {}, notify: {},
+  });
+  return { ...f, sdk };
+}
+
+test("standalone guest ERC-20 metadata and decimals use the selected chain without an approval declaration", async () => {
+  for (const chainId of [56, 97]) {
+    const decimals = chainId === 56 ? 0 : 6;
+    const calls = [];
+    const f = erc20ReadFixture(chainId, {
+      async readContract(readChain, call) {
+        assert.equal(readChain, chainId);
+        assert.equal(call.address, tokenA);
+        assert.deepEqual(call.args ?? [], []);
+        calls.push(call.functionName);
+        if (call.functionName === "decimals") return decimals;
+        if (call.functionName === "name") {
+          if (chainId === 97) throw new Error("Token does not implement name");
+          return "Example Token";
+        }
+        assert.equal(call.functionName, "symbol");
+        return chainId === 56 ? 123n : "EXAMPLE";
+      },
+    });
+    f.setAccount({ isConnected: false });
+
+    assert.deepEqual(await f.sdk.readErc20Metadata(tokenA), {
+      name: chainId === 56 ? "Example Token" : null,
+      symbol: chainId === 56 ? null : "EXAMPLE",
+      decimals,
+    });
+    assert.deepEqual(calls.splice(0).sort(), ["decimals", "name", "symbol"]);
+    assert.deepEqual(await f.sdk.readErc20Metadata(tokenA, { decimalsOnly: true }), { decimals });
+    assert.deepEqual(calls.splice(0), ["decimals"]);
+
+    await assert.rejects(f.sdk.readContract({
+      address: tokenA, abi: parseAbi(["function decimals() view returns (uint8)"]), functionName: "decimals",
+    }), /undeclared-target/);
+    await assert.rejects(f.sdk.readErc20Balance(tokenA));
+    assert.deepEqual(calls, []);
+  }
+});
+
+test("standalone ERC-20 balance reads only the live account on the SDK chain", async () => {
+  const calls = [];
+  let balance = 25n;
+  let updatedAccount;
+  const f = erc20ReadFixture(97, {
+    async readContract(chainId, call) {
+      calls.push([chainId, call.address, call.functionName, call.args]);
+      if (updatedAccount) f.setAccount(updatedAccount);
+      return balance;
+    },
+  });
+  const connectedAccount = { address: owner, chainId: 56, isConnected: true };
+  f.setAccount(connectedAccount);
+  assert.equal(await f.sdk.readErc20Balance(tokenA), 25n);
+  assert.deepEqual(calls.splice(0), [[97, tokenA, "balanceOf", [owner]]]);
+
+  for (const malformedBalance of [-1n, 25, "25"]) {
+    balance = malformedBalance;
+    await assert.rejects(f.sdk.readErc20Balance(tokenA));
+  }
+  balance = 0n;
+  assert.equal(await f.sdk.readErc20Balance(tokenA), 0n);
+
+  for (const account of [{ ...connectedAccount, address: tokenB }, { isConnected: false }]) {
+    f.setAccount(connectedAccount);
+    updatedAccount = account;
+    await assert.rejects(f.sdk.readErc20Balance(tokenA));
+  }
+  assert.deepEqual(f.calls, []);
+});
+
+test("scoped ERC-20 reads reject invalid targets, non-standalone contexts and malformed decimals", async () => {
+  let rpcCalls = 0;
+  const recordRpc = async () => { rpcCalls++; };
+  const transport = { getCode: recordRpc, readContract: recordRpc };
+  const noRpc = erc20ReadFixture(56, transport);
+  const bound = erc20ReadFixture(56, transport, {});
+  const verifyNoRpc = async (sdk, token) => {
+    await assert.rejects(sdk.readErc20Metadata(token));
+    await assert.rejects(sdk.readErc20Metadata(token, { decimalsOnly: true }));
+    await assert.rejects(sdk.readErc20Balance(token));
+  };
+  for (const token of ["invalid", "0x" + "0".repeat(40)]) {
+    await verifyNoRpc(noRpc.sdk, token);
+  }
+  await verifyNoRpc(bound.sdk, tokenA);
+  assert.equal(rpcCalls, 0);
+
+  let result;
+  const f = erc20ReadFixture(56, {
+    async readContract(_chainId, call) {
+      return call.functionName === "decimals" ? result : "EXAMPLE";
+    },
+  });
+  for (const malformedDecimals of [undefined, "18", -1, 1.5, 256]) {
+    result = malformedDecimals;
+    await assert.rejects(f.sdk.readErc20Metadata(tokenA, { decimalsOnly: true }));
+    await assert.rejects(f.sdk.readErc20Metadata(tokenA));
+  }
+  f.runtime.readContract = async () => { throw new Error("Missing decimals"); };
+  await assert.rejects(f.sdk.readErc20Metadata(tokenA, { decimalsOnly: true }));
+  await assert.rejects(f.sdk.readErc20Metadata(tokenA));
+});

@@ -125,7 +125,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, vaultAssembly: 1, appErc20Approval: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, vaultAssembly: 1, appErc20Approval: 1, appErc20Read: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -214,6 +214,16 @@ Standalone Mini Apps can use \`sdk.approveQuote({ pool, amount })\` with a genui
 Launcher handle under a reviewed \`walletContracts[].presaleApproval\` policy.
 The host must provision the policy to resolve and authorize the pool's ERC20 quote
 token. This feature is advertised by \`sdkFeatures.presaleApproval = 1\`.
+
+## ERC-20 reads by token address
+
+With \`useFlapSdk({ chainId })\`, standalone Mini Apps can call
+\`sdk.readErc20Metadata(token)\` to read a deployed ERC-20's name, symbol and
+decimals without a connected wallet or a manifest entry for the token.
+Pass \`{ decimalsOnly: true }\` to read just the precision. Use
+\`sdk.readErc20Balance(token)\` for the connected wallet's balance in base units.
+These queries use the host's public client and require no signature.
+Runtime support is advertised by \`sdkFeatures.appErc20Read = 1\`.
 
 ## ERC-20 approval for a fixed spender
 
