@@ -644,3 +644,29 @@ test("scoped ERC-20 reads reject invalid targets, non-standalone contexts and ma
   await assert.rejects(f.sdk.readErc20Metadata(tokenA, { decimalsOnly: true }));
   await assert.rejects(f.sdk.readErc20Metadata(tokenA));
 });
+
+test("chain SDK reads Binance market data without wallet access only from a host-declared endpoint", async (t) => {
+  const endpoint = "https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info";
+  const { sdk: undeclared, runtime, manifest } = fixture();
+  runtime.getAccount = () => assert.fail("Binance market data does not require a wallet.");
+  const authorized = createFlapChainSdk(runtime, {
+    chainId: 56,
+    manifest: { ...manifest, endpoints: [endpoint] },
+    writableChains: [],
+    i18n: {},
+    notify: {},
+  });
+  undeclared.context.manifest.endpoints = endpoint;
+  authorized.context.manifest.endpoints.length = 0;
+  const fetch = t.mock.method(globalThis, "fetch", async (raw) => {
+    const url = new URL(raw);
+    assert.equal(url.origin + url.pathname, endpoint);
+    assert.equal(url.searchParams.get("chainId"), "97");
+    assert.equal(url.searchParams.get("contractAddress"), portal);
+    return Response.json({ code: "000000", data: { price: "1.00" } });
+  });
+  const query = { chainId: 97, contractAddress: portal };
+  await assert.rejects(undeclared.readBinanceTokenDynamicInfo(query), /manifest\.endpoints/);
+  assert.deepEqual(await authorized.readBinanceTokenDynamicInfo(query), { price: "1.00" });
+  assert.equal(fetch.mock.callCount(), 1);
+});

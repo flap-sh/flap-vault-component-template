@@ -32,6 +32,10 @@ sdk.writeContract(request)
 sdk.waitForTx(hash)
 sdk.readOracle<T>(oracleId, params)
 sdk.readFsi<T>(relativePath, params)
+sdk.readBinanceTokenDynamicInfo({ chainId, contractAddress }, options?)
+sdk.searchBinanceTokens({ keyword, chainIds?, orderBy? }, options?)
+sdk.readBinanceTokenMetadata({ chainId, contractAddress }, options?)
+sdk.readBinanceTokenKlines({ chainId, contractAddress, interval, limit?, startTime?, endTime? }, options?)
 sdk.readIpfsText(cid, path?)
 sdk.uploadText(text, options?)
 sdk.uploadImage(file, options?)
@@ -464,6 +468,51 @@ For dynamic emitter addresses, use `sdk.readFsi`; raw dynamic fetch paths remain
 `sdk.readFsi` is available from `@flapsdk/vault-runtime@0.1.36`; `0.1.35` hosts do not implement it. Support for `https://fsi.taxed.fun/fsi/v1` is available in published `0.1.39`; historical `0.1.38` supports only the legacy prefix. See [the release guide](releases/0.1.39.md). Upgrade Workbench's checker and both Workbench and Flap host runtimes to a release containing this endpoint policy before accepting components that declare the new prefix. Feature-branch verification uses a private canary package and does not alter consumer dependency pins.
 
 BSC Testnet FSI support is published in `0.1.42`, source `686934578ec40aec418484e7c1dac1f6782d598e`; historical `0.1.41` does not include it. See the [verified release record](releases/0.1.42.md). Consumer rollout remains pending: before accepting testnet packages, upgrade the Workbench and Flap host runtime pins, and synchronize/deploy the Workbench FSI checker and its validation-contract hashes. Source authors then regenerate check/E2E/package proofs with the published identity. Feature-branch canary verification does not replace these rollout steps. Real service responses and browser CORS remain unverified.
+
+## Binance token market data
+
+Use `useFlapSdk()` in Vault UI and `useMiniAppSdk()` in standalone Mini Apps. Standalone Mini Apps can also use the chain SDK from `useFlapSdk({ chainId })`. Declare each endpoint you call as its exact query-free URL in `manifest.endpoints`. Use a string for one endpoint or an array for multiple endpoints.
+
+| SDK method | Parameters | Data |
+| --- | --- | --- |
+| `readBinanceTokenDynamicInfo` | `chainId`, `contractAddress` | Current price, volume, and other market fields |
+| `searchBinanceTokens` | `keyword`. Optional `chainIds`, `orderBy` | Token matches by name, symbol, or contract address |
+| `readBinanceTokenMetadata` | `chainId`, `contractAddress` | Token identity, precision, icon, and project links |
+| `readBinanceTokenKlines` | `chainId`, `contractAddress`, `interval`. Optional `limit`, `startTime`, `endTime` | Candlesticks and display precision |
+
+These are the four manifest URLs, in the same order as the SDK methods above.
+
+```json
+{
+  "endpoints": [
+    "https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info",
+    "https://web3.binance.com/bapi/defi/v5/public/wallet-direct/buw/wallet/market/token/search/ai",
+    "https://web3.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/dex/market/token/meta/info/ai",
+    "https://web3.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/dex/market/token/kline/ai"
+  ]
+}
+```
+
+```ts
+const [match] = await sdk.searchBinanceTokens({ keyword: "USDT", chainIds: [56] });
+
+if (match?.chainId && match.contractAddress) {
+  const token = { chainId: match.chainId, contractAddress: match.contractAddress };
+  const info = await sdk.readBinanceTokenDynamicInfo(token);
+  const metadata = await sdk.readBinanceTokenMetadata(token);
+  const candles = await sdk.readBinanceTokenKlines({ ...token, interval: "1h", limit: 48 });
+}
+```
+
+The token readers accept positive integer chain IDs as numbers or decimal strings. The search filter accepts comma-separated chain IDs or an array of chain IDs. Search results include tokens with positive integer chain IDs. Binance determines coverage for each chain and token.
+
+K-line intervals are `1m`, `5m`, `15m`, `1h`, `4h`, `12h`, and `1d`. `limit` is 1–300, and the optional timestamps use milliseconds. The returned `klineInfos` rows preserve Binance's order and price strings. The row starts with an open timestamp, followed by open, high, low, and close prices, an upstream field, and the close timestamp. [Binance token query parameters](https://github.com/binance/binance-skills-hub/blob/main/skills/binance-web3/query-token-info/references/cli.md) · [Binance K-line format](https://github.com/binance/binance-skills-hub/blob/main/skills/binance-web3/binance-tokenized-securities-info/SKILL.md#api-6-token-k-line)
+
+The readers preserve Binance's `data` shape, support an optional second argument `{ signal }`, and reject unsuccessful HTTP or Binance responses. Use `BinanceImage` for token icons from the approved image host.
+
+Direct `fetch` also supports the four fixed URLs. Use each operation's documented query keys at most once and wrap each dynamic value in the global `encodeURIComponent(value)`. Use literal `method: "GET"`, `credentials: "omit"`, `redirect: "error"`, and `referrerPolicy: "no-referrer"` options. `cache: "no-store"` is optional. The SDK and native calls appear in endpoint review.
+
+The dynamic reader requires `sdkFeatures.binanceTokenDynamicInfo === 1`. The search, metadata, and K-line readers require `sdkFeatures.binanceTokenMarketData === 1`. Deploy a compatible SDK to the destination host and Workbench and synchronize the checker before accepting source packages that use the new SDK methods.
 
 ## Controlled dynamic IPFS content
 

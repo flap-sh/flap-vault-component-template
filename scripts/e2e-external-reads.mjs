@@ -1,4 +1,5 @@
 import { isFsiQueryUrl } from "../src/sdk/fsiPolicy.mjs";
+import { getBinanceTokenMarketQueryEndpoint } from "./binance-endpoint-policy.mjs";
 import { isDeclaredUrl } from "./endpoint-declarations.mjs";
 
 // Keep this in sync with resolveIpfsImageUrls in src/sdk/ipfsImage.ts.
@@ -23,7 +24,11 @@ export function isAllowedExternalRead(request, url, declaredFetchUrls) {
   if (request.method() !== "GET" || request.redirectedFrom()) return false;
   const type = request.resourceType();
   const rawUrl = request.url();
-  if (type === "fetch" && isFsiQueryUrl(rawUrl) && isDeclaredUrl(rawUrl, declaredFetchUrls)) return true;
+  if (type === "fetch") {
+    if (isFsiQueryUrl(rawUrl) && isDeclaredUrl(rawUrl, declaredFetchUrls)) return true;
+    const binanceEndpoint = getBinanceTokenMarketQueryEndpoint(rawUrl);
+    if (binanceEndpoint && declaredFetchUrls.has(binanceEndpoint)) return true;
+  }
   // Source checks enforce use of the controlled IPFS APIs. The browser reports
   // image loads and SDK text reads as image and fetch requests respectively.
   return (type === "image" || type === "fetch") && isIpfsReadUrl(rawUrl, url);

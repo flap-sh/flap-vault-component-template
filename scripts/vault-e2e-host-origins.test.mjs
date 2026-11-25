@@ -8,6 +8,7 @@ import test from "node:test";
 
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { BINANCE_TOKEN_MARKET_OPERATIONS } from "../src/sdk/binanceTokenPolicy.mjs";
 import { collectDeclaredFetchUrls } from "./endpoint-declarations.mjs";
 import { isAllowedExternalRead } from "./e2e-external-reads.mjs";
 
@@ -97,6 +98,49 @@ test("3D E2E still reports undeclared and unsafe FSI requests", () => {
     `${testnetFsi}/stats#fragment`,
     "https://example.invalid/fsi/v1/stats",
   ]) assert.equal(allowedRead(url, { endpoints: [testnetFsi, url] }), false, url);
+});
+
+test("3D E2E accepts only declared canonical Binance token GET fetches", () => {
+  const endpoint = "https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info";
+  const address = "0x55d398326f99059fF775485246999027B3197955";
+  const query = `${endpoint}?chainId=56&contractAddress=${address}`;
+  assert.equal(allowedRead(query, { endpoints: endpoint }), true);
+  const sdkUrl = new URL(endpoint);
+  sdkUrl.searchParams.set("chainId", "56");
+  sdkUrl.searchParams.set("contractAddress", "opaque & value");
+  assert.equal(allowedRead(sdkUrl.href, { endpoints: endpoint }), true);
+  assert.equal(allowedRead(`${endpoint}?contractAddress=${address}&chainId=56`, { endpoints: [mainnetFsi, endpoint] }), true);
+
+  for (const options of [
+    {}, { endpoints: "https://web3.binance.com" }, { endpoints: query }, { endpoints: endpoint, method: "POST" },
+    { endpoints: endpoint, type: "image" }, { endpoints: endpoint, redirected: true },
+  ]) assert.equal(allowedRead(query, options), false);
+
+  for (const url of [
+    query.replace("https://", "https://user:password@"),
+    query.replace("web3.binance.com", "web3.binance.com:444"),
+    query.replace("web3.binance.com", "web3.binance.com.example.test"),
+    query.replace("/info?", "/info/other?"),
+    query.replace("chainId", "%63hainId"),
+    `${query}&chainId=56`,
+    `${query}&other=value`,
+    `${query}#fragment`,
+  ]) assert.equal(allowedRead(url, { endpoints: [endpoint, url] }), false, url);
+});
+
+test("3D E2E binds Binance search, metadata, and K-lines to their declared paths and query keys", () => {
+  const { searchBinanceTokens, readBinanceTokenMetadata, readBinanceTokenKlines } = BINANCE_TOKEN_MARKET_OPERATIONS;
+  const token = "chainId=56&contractAddress=0x55d398326f99059fF775485246999027B3197955";
+  for (const [endpoint, query, invalidQuery] of [
+    [searchBinanceTokens.url, "keyword=USDC&chainIds=56%2C1", token],
+    [readBinanceTokenMetadata.url, token, `${token}&interval=1h`],
+    [readBinanceTokenKlines.url, `${token}&interval=1h&limit=4`, token],
+  ]) {
+    const request = `${endpoint}?${query}`;
+    assert.equal(allowedRead(request, { endpoints: [mainnetFsi, endpoint] }), true);
+    assert.equal(allowedRead(request, { endpoints: mainnetFsi }), false);
+    assert.equal(allowedRead(`${endpoint}?${invalidQuery}`, { endpoints: endpoint }), false);
+  }
 });
 
 test("3D E2E accepts canonical image and text reads on both SDK IPFS gateways", async () => {

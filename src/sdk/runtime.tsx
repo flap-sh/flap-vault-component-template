@@ -31,6 +31,7 @@ import { createFlapChainSdk } from "./flapChainRuntime";
 import { chainLabelForChain, createVaultRuntimeContext } from "./runtimeContext";
 import { fetchOracleJson } from "./oracle";
 import { readFsiJson } from "./fsi";
+import { createBinanceTokenMarketSdk } from "./binanceTokenMarketData";
 import { createIpfsTextReader } from "./ipfsText";
 import { createLocalNftMetadataReader, nftTokenUriAbi, vaultV2NftAbi } from "./nftMetadata";
 import { RuntimeContext } from "./runtimeStore";
@@ -425,13 +426,15 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     [oracleReader, runtimeContext],
   );
 
-  const fsiEndpointsRef = useRef(runtimeContext.manifest.endpoints);
+  const endpointsRef = useRef(runtimeContext.manifest.endpoints);
   const readIpfsText = useMemo(() => createIpfsTextReader(), []);
-  fsiEndpointsRef.current = runtimeContext.manifest.endpoints;
+  endpointsRef.current = runtimeContext.manifest.endpoints;
   const readFsi = useCallback(
-    <T,>(path: string, params?: Record<string, string>) => readFsiJson<T>(fsiEndpointsRef.current, path, params),
+    <T,>(path: string, params?: Record<string, string>) => readFsiJson<T>(endpointsRef.current, path, params),
     [],
   );
+
+  const binanceTokenMarket = useMemo(() => createBinanceTokenMarketSdk(() => endpointsRef.current), []);
 
   const readNftMetadata = useCallback(
     async (request: NftMetadataReadRequest): Promise<NftMetadataSnapshot> => {
@@ -557,7 +560,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
     simulateContract: async (_chainId, request) => { if (_chainId !== runtimeContext.chainId) throw new Error("Vault writes require the bound network."); return (await simulateContract(request)).result; },
     writeContract: async (_chainId, request) => { if (_chainId !== runtimeContext.chainId) throw new Error("Vault writes require the bound network."); return writeContract(request); },
     sendTransaction: async () => { throw new Error("Raw transactions require a reviewed standalone App."); },
-  }, { chainId, manifest, writableChains: [runtimeContext.chainId], i18n: i18nApi, notify, readIpfsText }), [chainRuntime, manifest, runtimeContext.chainId, i18nApi, notify, readIpfsText, simulateContract, writeContract]);
+  }, { chainId, manifest, writableChains: [runtimeContext.chainId], i18n: i18nApi, notify, readIpfsText, binanceTokenMarket }), [chainRuntime, manifest, runtimeContext.chainId, i18nApi, notify, readIpfsText, binanceTokenMarket, simulateContract, writeContract]);
 
   const sdk = useMemo<FlapVaultSdk>(
     () => ({
@@ -577,6 +580,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       withdrawNftAccount,
       readOracle,
       readFsi,
+      ...binanceTokenMarket,
       readIpfsText,
       readNftMetadata,
       uploadImage,
@@ -585,7 +589,7 @@ export function VaultRuntimeProvider({ children, manifest, i18n, runtimeContext:
       refetchNonce: version,
       openExplorerTx,
     }),
-    [forChain, getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, readIpfsText, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
+    [forChain, getBlockNumber, getContractEvents, getGasPrice, i18nApi, notify, openExplorerTx, resolveContract, readContract, readNftMetadata, readOracle, readFsi, binanceTokenMarket, readIpfsText, refetch, componentContext, simulateContract, uploadImage, uploadText, version, waitForTx, wallet, withdrawNftAccount, writeContract],
   );
 
   return (

@@ -7,6 +7,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+import { BINANCE_TOKEN_MARKET_OPERATIONS } from "../src/sdk/binanceTokenPolicy.mjs";
 const ROOT=process.cwd();
 const packageDirIndex=process.argv.indexOf('--package-dir');
 if(packageDirIndex>=0 && !process.argv[packageDirIndex+1])throw new Error('Pass the unpacked runtime directory after --package-dir.');
@@ -15,6 +16,7 @@ const packageDir=path.resolve(ROOT,packageDirIndex>=0?process.argv[packageDirInd
 const providerEntrypoint=packaged?path.join(packageDir,'host-client.js'):'./src/sdk/runtime';
 const walletRuntimeEntrypoint=packaged?providerEntrypoint:'./src/sdk/useFlapWalletRuntime';
 const sdkEntrypoint=packaged?path.join(packageDir,'sdk.js'):'./src/sdk/runtimeStore';
+const miniAppEntrypoint=packaged?sdkEntrypoint:'./src/sdk/miniAppRuntime';
 const imageEntrypoint=packaged?path.join(packageDir,'ui.js'):'./src/ui/IpfsImage';
 const textEntrypoint=packaged?imageEntrypoint:'./src/ui/IpfsText';
 function fixtureCid(bytes) {
@@ -33,6 +35,7 @@ import {createRoot} from "react-dom/client";
 import {VaultRuntimeProvider} from ${JSON.stringify(providerEntrypoint)};
 import {useFlapWalletRuntime} from ${JSON.stringify(walletRuntimeEntrypoint)};
 import {useFlapSdk} from ${JSON.stringify(sdkEntrypoint)};
+import {MiniAppRuntimeProvider,useMiniAppSdk} from ${JSON.stringify(miniAppEntrypoint)};
 import {IpfsImage} from ${JSON.stringify(imageEntrypoint)};
 import {IpfsText} from ${JSON.stringify(textEntrypoint)};
 import {encodeFunctionResult,keccak256,parseAbi} from "viem";
@@ -288,6 +291,21 @@ globalThis.testVaultAssembly=async(chainId,fullProfile=true)=>{
  return {failures,sends,runtimeA,tokenA,vaultA,user:a(9),resolverReads,receiptRequests,tokenBalance,
   claimReceipts,commitReceipt,revealReceipt,verifyReceipt};
 };
+const miniAppRoot = createRoot(document.getElementById('mini-app-root'));
+const miniAppManifest = { artifactId: 'app_binance-test', schemaVersion: 2, mode: 'mini-app', appModel: 'standalone', slug: 'binance-test', match: { bindings: [] } };
+const guestSession = { isConnected: false, isAuthenticated: false, isLoading: false, connect() {}, async signIn() {} };
+function MiniAppProbe() {
+  globalThis.miniAppSdk = useMiniAppSdk();
+  React.useEffect(() => { globalThis.miniAppRenders = (globalThis.miniAppRenders || 0) + 1; });
+  return null;
+}
+globalThis.renderMiniApp = async (endpoints) => {
+  const before = globalThis.miniAppRenders || 0;
+  miniAppRoot.render(React.createElement(MiniAppRuntimeProvider, {
+    manifest: { ...miniAppManifest, endpoints }, session: guestSession, i18n: { locale: 'en', t: key => key }, notify: {},
+  }, React.createElement(MiniAppProbe)));
+  while ((globalThis.miniAppRenders || 0) === before) await new Promise(requestAnimationFrame);
+};
 globalThis.renderProvider();`;
  const wagmi=`export const useAccount=()=>({address:globalThis.env.state.user,isConnected:true});
 const config={chains:[{id:56,name:"BNB"}]}; export const useConfig=()=>config;
@@ -301,7 +319,7 @@ export const useBalance=()=>({data:undefined});`;
 export const getPublicClient=(_config,{chainId})=>globalThis.env.clients[chainId];
 export const getWalletClient=async()=>globalThis.env.walletClient;export const switchChain=async()=>{};export const disconnect=()=>{};`;
  await build({absWorkingDir:ROOT,nodePaths:[path.join(ROOT,'node_modules')],stdin:{contents:entry,resolveDir:ROOT,sourcefile:'provider-harness.tsx',loader:'tsx'},outfile:path.join(tmp,'app.js'),bundle:true,format:'esm',platform:'browser',jsx:'automatic',plugins:[{name:'provider-fixtures',setup(b){b.onResolve({filter:/^wagmi(?:\/actions)?$/},({path})=>({path,namespace:'fixture'}));b.onResolve({filter:/^@\/src\/ui$/},()=>({path:'ui',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},({path})=>({contents:path==='wagmi'?wagmi:path==='wagmi/actions'?wagmiActions:'export const Alert=()=>null;',loader:'js'}));}}]});
- server=createServer(async(req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':'text/html');res.end(req.url==='/app.js'?await readFile(path.join(tmp,'app.js')):'<div id="root"></div><script type="module" src="/app.js"></script>');});
+ server=createServer(async(req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':'text/html');res.end(req.url==='/app.js'?await readFile(path.join(tmp,'app.js')):'<div id="root"></div><div id="mini-app-root"></div><script type="module" src="/app.js"></script>');});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>globalThis.sdk);
@@ -413,6 +431,76 @@ export const getWalletClient=async()=>globalThis.env.walletClient;export const s
  assert.deepEqual(fsi.preferredResult,fsi.result);
  fsi.rejectedPaths.forEach(message=>assert.match(message,/FSI path traversal/));
  assert.deepEqual(fsiRequestOrigins,['https://bsc-debug.butterfly.army','https://fsi.taxed.fun','https://bsc-testnet-debug.butterfly.army','https://bsc-debug.butterfly.army','https://fsi.taxed.fun'],'Retained reads must use the current host declaration and reject unauthorized requests before fetch');
+ // The public market readers use the host-owned declarations on each SDK surface.
+ const binanceRequests = [];
+ const token = { chainId: 56, contractAddress: "0x55d398326f99059fF775485246999027B3197955" };
+ const binanceQueries = {
+   readBinanceTokenDynamicInfo: token,
+   searchBinanceTokens: { keyword: "USDT", chainIds: "56,8453", orderBy: "volume24h" },
+   readBinanceTokenMetadata: token,
+   readBinanceTokenKlines: { ...token, interval: "1h", limit: 5 },
+ };
+ const binanceFixtures = {
+   readBinanceTokenDynamicInfo: { price: "0.99877", volume24h: "1234.5678" },
+   searchBinanceTokens: [{ chainId: "56", symbol: "USDT", price: "0.99877" }],
+   readBinanceTokenMetadata: { symbol: "USDT", decimals: 18 },
+   readBinanceTokenKlines: { decimals: 18, klineInfos: [[1, "1", "1", "1", "1", "0", 2]] },
+ };
+ const binanceEndpoints = Object.fromEntries(Object.entries(BINANCE_TOKEN_MARKET_OPERATIONS).map(([name, { url }]) => [url, name]));
+ await page.route((url) => Object.hasOwn(binanceEndpoints, url.origin + url.pathname), (route) => {
+   const request = route.request();
+   const url = new URL(request.url());
+   const name = binanceEndpoints[url.origin + url.pathname];
+   binanceRequests.push({ name, method: request.method(), query: Object.fromEntries(url.searchParams) });
+   return route.fulfill({ json: { code: "000000", data: binanceFixtures[name] }, headers: { "access-control-allow-origin": "*" } });
+ });
+ const binance = await page.evaluate(async ({ queries, endpoints }) => {
+   const entries = Object.entries(queries);
+   const readers = (surface) => entries.map(([name]) => surface[name]);
+   async function readAll(reads) {
+     const results = [];
+     for (const [index, [, query]] of entries.entries()) results.push(await reads[index](query));
+     return results;
+   }
+   async function rejectionsFrom(reads) {
+     return Promise.all(entries.map(async ([, query], index) => {
+       try { await reads[index](query); return "allowed"; } catch (error) { return error.message; }
+     }));
+   }
+   const vaultReaders = readers(sdk);
+   sdk.context.manifest.endpoints = endpoints;
+   const vaultForged = await rejectionsFrom(vaultReaders);
+   hostManifest.endpoints = endpoints;
+   await rerenderProvider({ ...hostContext });
+   const vaultData = await readAll(vaultReaders);
+   const chainReaders = readers(sdk.forChain(56));
+   const chainData = await readAll(chainReaders);
+   delete hostManifest.endpoints;
+   await rerenderProvider({ ...hostContext });
+   const vaultRevoked = await rejectionsFrom(vaultReaders);
+   const chainRevoked = await rejectionsFrom(chainReaders);
+
+   await renderMiniApp();
+   const appReaders = readers(miniAppSdk);
+   miniAppSdk.context.manifest.endpoints = endpoints;
+   const appForged = await rejectionsFrom(appReaders);
+   await renderMiniApp(endpoints);
+   const appData = await readAll(appReaders);
+   await renderMiniApp();
+   const appRevoked = await rejectionsFrom(appReaders);
+   return { vaultForged, vaultData, chainData, vaultRevoked, chainRevoked, appForged, appData, appRevoked,
+     stable: entries.every(([name], index) => vaultReaders[index] === sdk[name] && appReaders[index] === miniAppSdk[name]) };
+ }, { queries: binanceQueries, endpoints: Object.keys(binanceEndpoints) });
+ for (const rejection of [...binance.vaultForged, ...binance.vaultRevoked, ...binance.chainRevoked, ...binance.appForged, ...binance.appRevoked]) {
+   assert.match(rejection, /manifest\.endpoints/);
+ }
+ const expectedData = Object.values(binanceFixtures);
+ for (const result of [binance.vaultData, binance.chainData, binance.appData]) assert.deepEqual(result, expectedData);
+ assert.equal(binance.stable, true);
+ const expectedRequests = Object.entries(binanceQueries).map(([name, query]) => ({
+   name, method: "GET", query: Object.fromEntries(Object.entries(query).map(([key, value]) => [key, String(value)])),
+ }));
+ assert.deepEqual(binanceRequests, [...expectedRequests, ...expectedRequests, ...expectedRequests]);
  // Retained read callbacks must use the latest authorization context and RPC client.
  const readStability=await page.evaluate(async()=>{
   const first=sdk.readContract;globalThis.savedRead=first;

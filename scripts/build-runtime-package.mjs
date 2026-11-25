@@ -125,7 +125,7 @@ async function main() {
   const runtimeContract = {
     runtimeContractVersion: 1,
     uiFeatures: { copyButton: 1 },
-    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, vaultAssembly: 1, appErc20Approval: 1, appErc20Read: 1 },
+    sdkFeatures: { flapWallet: 1, nftAccountWithdrawal: 1, resolvedContracts: 1, strictContractTargets: 1, hostOnlyProvider: 1, ipfsContent: 1, miniAppRouting: 1, resolvedWriteConstraints: 1, presaleApproval: 1, vaultAssembly: 1, appErc20Approval: 1, appErc20Read: 1, binanceTokenDynamicInfo: 1, binanceTokenMarketData: 1 },
     packageName: PACKAGE_NAME,
     packageVersion: packageIdentity.version,
     stableAuthoringAliases: ["@/src/sdk", "@/src/ui"],
@@ -190,6 +190,21 @@ Failed requests never fall back to another host. Exact reviewed root declaration
 HTTPS origin/path boundaries, GET, credential and redirect restrictions remain.
 Hosts and Workbench must deploy a release containing the selected endpoint policy
 and synchronize the Workbench source checker before accepting those packages.
+
+## Binance token market data
+
+Declare the exact endpoint for each SDK method in \`manifest.endpoints\`.
+
+- \`readBinanceTokenDynamicInfo(...)\` uses \`https://web3.binance.com/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info\`.
+- \`searchBinanceTokens(...)\` uses \`https://web3.binance.com/bapi/defi/v5/public/wallet-direct/buw/wallet/market/token/search/ai\`.
+- \`readBinanceTokenMetadata(...)\` uses \`https://web3.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/dex/market/token/meta/info/ai\`.
+- \`readBinanceTokenKlines(...)\` uses \`https://web3.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/dex/market/token/kline/ai\`.
+
+The SDK encodes query values, uses GET, omits credentials and the referrer,
+and rejects redirects. Runtime support is advertised by
+\`sdkFeatures.binanceTokenDynamicInfo = 1\` for dynamic market data and
+\`sdkFeatures.binanceTokenMarketData = 1\` for search, metadata, and K-lines.
+The template and Workbench source checkers record each endpoint for review.
 
 ## Transaction confirmation
 
