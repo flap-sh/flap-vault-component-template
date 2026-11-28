@@ -6,6 +6,7 @@ import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "@playwright/test";
+import ts from "typescript";
 import {
   collectSourceHashes,
   E2E_DIST_DIR,
@@ -21,6 +22,7 @@ import { failAgent } from "./agent-error.mjs";
 import { runLaunchConfigChecks } from "./launch-config-e2e.mjs";
 import { collectDeclaredFetchUrls } from "./endpoint-declarations.mjs";
 import { isAllowedExternalRead } from "./e2e-external-reads.mjs";
+import { collectCardImageMediaUsage } from "./card-image-media-policy.mjs";
 import { layoutCheckScript } from "./vault-e2e-layout.mjs";
 
 const ROOT = process.cwd();
@@ -377,7 +379,7 @@ async function runOneCheck({ browser, outDir, baseUrl, binding, viewport, phase,
         const requestUrl = new URL(rawUrl);
         if (["data:", "blob:"].includes(requestUrl.protocol) || requestUrl.origin === previewOrigin ||
             HOST_OWNED_EXTERNAL_ORIGINS.has(requestUrl.origin) ||
-            isAllowedExternalRead(request, requestUrl, declaredFetchUrls)) return;
+            isAllowedExternalRead(request, requestUrl, declaredFetchUrls, { allowCardImageMedia })) return;
       } catch {
         // Unparseable URLs still fail the external request check.
       }
@@ -525,6 +527,12 @@ fs.mkdirSync(path.join(outDir, "screenshots"), { recursive: true });
 fs.mkdirSync(path.join(outDir, "traces"), { recursive: true });
 
 const sourceFileSha256 = collectSourceHashes(ROOT, folderName);
+const allowCardImageMedia = has3D && Object.keys(sourceFileSha256).some((sourcePath) => {
+  if (!/\.tsx?$/.test(sourcePath)) return false;
+  const content = fs.readFileSync(path.join(ROOT, sourcePath), "utf8");
+  const source = ts.createSourceFile(sourcePath, content, ts.ScriptTarget.Latest, true);
+  return collectCardImageMediaUsage(source, sourcePath, { allowBitmap: true }).hasApprovedUsage;
+});
 const sourceSha256 = sourceSha256FromFileHashes(sourceFileSha256);
 let browser;
 let server;

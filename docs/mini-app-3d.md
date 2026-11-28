@@ -103,6 +103,8 @@ import textureAsset from "./assets/texture.png";
 const textureUrl = typeof textureAsset === "string" ? textureAsset : textureAsset.src;
 ```
 
+For live card image textures, use the [controlled bitmap hook](./card-image-media.md).
+
 ## Profile limits
 
 - Up to 200 source/package files.

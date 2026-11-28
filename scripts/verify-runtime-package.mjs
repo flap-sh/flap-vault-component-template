@@ -184,6 +184,13 @@ async function main() {
   if (runtimeContract.sdkFeatures?.resolvedWriteConstraints !== 1) throw new Error("The shared runtime must declare resolved write constraints v1.");
   if (runtimeContract.sdkFeatures?.presaleApproval !== 1 || sdkModule.PRESALE_APPROVAL_VERSION !== 1) throw new Error("The shared runtime must expose presale approval v1.");
 
+  if (
+    runtimeContract.uiFeatures?.cardImageMedia !== 1 ||
+    typeof uiModule.CardImage !== "function" ||
+    typeof uiModule.useCardImageBitmap !== "function"
+  ) {
+    throw new Error("The shared runtime must expose controlled card image media.");
+  }
   if (typeof uiModule.CopyButton !== "function" || runtimeContract.uiFeatures?.copyButton !== 1) {
     throw new Error("The shared runtime must export CopyButton and declare uiFeatures.copyButton version 1.");
   }
