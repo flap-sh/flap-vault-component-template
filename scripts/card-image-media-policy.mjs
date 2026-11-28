@@ -4,7 +4,7 @@ import { normalizeCardImageUrl } from "../src/ui/cardImageUrl.mjs";
 const IMAGE_NAME = "CardImage";
 const BITMAP_NAME = "useCardImageBitmap";
 const IMPORT_NAMES = new Set([IMAGE_NAME, BITMAP_NAME]);
-const IMAGE_PROPS = new Set(["src", "alt", "className", "fallback"]);
+const IMAGE_PROPS = new Set(["src", "alt", "className", "fallback", "key"]);
 
 function localTypeChecker(sourceFile) {
   const fileName = sourceFile.fileName;
