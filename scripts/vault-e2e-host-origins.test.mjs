@@ -65,15 +65,36 @@ const mainnetFsi = "https://fsi.taxed.fun/fsi/v1";
 const cid = "bafkreicllrojftwdwi7gukkpydxkimru55isnrngj5ggyuy2zbbqvmfyiq";
 const ipfsUrl = `https://flap.mypinata.cloud/ipfs/${cid}`;
 
-function allowedRead(url, { endpoints, type = "fetch", method = "GET", redirected = false } = {}) {
+function allowedRead(url, { endpoints, type = "fetch", method = "GET", redirected = false, allowCardImageMedia = false } = {}) {
   const request = {
     url: () => url,
     method: () => method,
     resourceType: () => type,
     redirectedFrom: () => redirected ? {} : null,
   };
-  return isAllowedExternalRead(request, new URL(url), collectDeclaredFetchUrls({ endpoints }));
+  return isAllowedExternalRead(request, new URL(url), collectDeclaredFetchUrls({ endpoints }), { allowCardImageMedia });
 }
+
+test("3D E2E accepts only canonical GET fetches for approved card image media", () => {
+  const artwork = "https://8nothtoc5ds7a0x3.public.blob.vercel-storage.com/graded-cards-renders/sample/card.jpg";
+  const approved = { allowCardImageMedia: true };
+  assert.equal(allowedRead(artwork, approved), true);
+  assert.equal(allowedRead(artwork), false);
+  assert.equal(allowedRead(artwork, { endpoints: artwork }), false);
+
+  for (const overrides of [{ method: "POST" }, { type: "image" }, { type: "xhr" }, { redirected: true }]) {
+    assert.equal(allowedRead(artwork, { ...approved, ...overrides }), false);
+  }
+
+  for (const url of [
+    artwork.replace("https:", "http:"),
+    artwork.replace("8nothtoc5ds7a0x3", "another-store"),
+    artwork.replace("/graded-cards-renders/", "/other-media/"),
+    artwork.replace("/graded-cards-renders/", "/graded-cards-renders-lookalike/"),
+  ]) {
+    assert.equal(allowedRead(url, approved), false, url);
+  }
+});
 
 test("3D E2E accepts FSI fetches covered by a declared root or a specific direct-fetch endpoint", () => {
   const query = `${testnetFsi}/vault/B/stats?round=0&cursor=a%2Fb`;

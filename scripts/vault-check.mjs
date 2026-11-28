@@ -6,6 +6,7 @@ import { collectDeclaredFetchUrls, isDeclaredUrl, normalizeManifestEndpoints, pa
 import { dynamicTaxedQueryPrefix, taxedFetchSafetyIssue, isTaxedFetchTarget, queryFreeDeclarations, collectQueryEncoderMutationIssues } from "./taxed-endpoint-policy.mjs";
 import { collectIpfsContentIssues } from "./ipfs-content-policy.mjs";
 import { collectMiniAppRoutingIssues } from "./mini-app-routing-policy.mjs";
+import { collectCardImageMediaUsage } from "./card-image-media-policy.mjs";
 import { collectCopyTextSourceRanges, collectDataPropertySchemeOffsets, collectReviewedAgentInstructionRanges, isCopyTextDataProperty, isReviewedAgentRpcUrl } from "./copy-text-source-policy.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -172,7 +173,7 @@ const RISK_STATUS_DISPLAY_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRo
 const RISK_STATUS_TOP_OFFSET_LIMIT = 1400;
 const RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE = 2;
 const RISK_STATUS_PRECEDING_BUSINESS_ROW_RE = /<(?:StatusBadge|DetailTile|Metric|DataRow|InfoRow|TxButton)\b/g;
-const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:VideoSessionPlayer|BinanceImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
+const RISK_STATUS_PRECEDING_LARGE_VISUAL_RE = /<(?:img|video|canvas)\b|<(?:VideoSessionPlayer|BinanceImage|CardImage|ReviewedFrame|IpfsImage|IpfsBackground|NftMetadataImage)\b|<[A-Z][A-Za-z0-9]*(?:Preview|Hero|Banner|Showcase|Media|Visual|Artwork|Illustration|Gallery)\b/;
 const VISUAL_REFERENCE_EXAMPLE_FOLDERS = new Set([
   "example",
   "dex-listed-example",
@@ -337,6 +338,8 @@ const FIX_HINTS = {
   "media-policy/invalid-ipfs-image-path": "Use a safe relative IPFS path. Dynamic paths under static image CIDs require a static validationPath sample. Dynamic CID/path pairs are runtime-validated.",
   "media-policy/invalid-nft-metadata-image": "Use NftMetadataImage only with tokenId and alt plus safe image presentation props. It consumes the shared SDK context internally; do not pass sdk, ABI, nftAddress, tokenURI, endpoint, src, imageUrl, cid, path, or spread props.",
   "media-policy/invalid-binance-image": "Import BinanceImage from @/src/ui and pass src plus localized alt without spread props, srcSet, referrerPolicy, loading, or decoding overrides. Static URLs must use HTTPS on the exact bin.bnbstatic.com host; any pathname is allowed.",
+  "media-policy/invalid-card-image": "Use a named CardImage import from @/src/ui with explicit src and localized alt. Use a URL from the approved image directory.",
+  "media-policy/invalid-card-bitmap": "Use a named useCardImageBitmap import from @/src/ui with one approved card image URL in a three-r3f-v1 artifact.",
   "security/hardcoded-address": "Use context.vaultAddress, context.tokenAddress, context.factoryAddress, or declare intentional fixed external contract targets under match.bindings[].externalContracts.",
   "navigation-policy/unapproved-external-navigation": "Do not navigate users to arbitrary external sites with raw links. Keep component-owned links on the current chain explorer or an approved external-link host, and wrap any other third-party link in the ExternalLink component from @/src/ui, which shows a risk confirmation before opening the destination.",
   "navigation-policy/invalid-external-link": "Use ExternalLink for third-party user navigation. Dynamic ExternalLink destinations are allowed; the runtime component opens only absolute HTTPS URLs without credentials.",
@@ -665,7 +668,7 @@ function lastReturnIndexBefore(content, index) {
   return lastIndex;
 }
 
-function hasProminentRiskStatusPlacement(content) {
+function hasProminentRiskStatusPlacement(content, imageTagStarts) {
   const displayRegex = new RegExp(RISK_STATUS_DISPLAY_RE.source, "g");
   for (const match of content.matchAll(displayRegex)) {
     const index = match.index ?? 0;
@@ -673,7 +676,8 @@ function hasProminentRiskStatusPlacement(content) {
     if (returnIndex < 0 || index - returnIndex > RISK_STATUS_TOP_OFFSET_LIMIT) continue;
 
     const leadingSegment = content.slice(returnIndex, index);
-    if (RISK_STATUS_PRECEDING_LARGE_VISUAL_RE.test(leadingSegment)) continue;
+    if (RISK_STATUS_PRECEDING_LARGE_VISUAL_RE.test(leadingSegment) ||
+        imageTagStarts.some(start => start >= returnIndex && start < index)) continue;
 
     const precedingBusinessRows = [...leadingSegment.matchAll(RISK_STATUS_PRECEDING_BUSINESS_ROW_RE)].length;
     if (precedingBusinessRows <= RISK_STATUS_MAX_BUSINESS_ROWS_BEFORE) return true;
@@ -4152,7 +4156,8 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     const externalLinkUrlSourceRanges = collectExternalLinkUrlSourceRanges(content, rel, externalLinkUsages);
     const externalLinkAllowedRanges = [...externalLinkRanges, ...externalLinkUrlSourceRanges];
     const binanceImageAnalysis = collectBinanceImageUsageAnalysis(content, rel);
-    const approvedResourceRanges = [...externalLinkAllowedRanges, ...binanceImageAnalysis.allowedUrlRanges];
+    const cardImageMedia = collectCardImageMediaUsage(querySourceFile, rel, { allowBitmap: isThreeR3FArtifact(manifest) });
+    const approvedResourceRanges = [...externalLinkAllowedRanges, ...binanceImageAnalysis.allowedUrlRanges, ...cardImageMedia.allowedUrlRanges];
     if (manifest?.mode === MINI_APP_MODE && item.name === "Component.tsx" && !hasMiniAppFullHeightRoot(content)) {
       issues.push(
         issue(
@@ -4324,6 +4329,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     issues.push(...collectIpfsContentIssues(scanContent, rel).map((item) => issue(item.severity, item.ruleId, item.message, item)));
     issues.push(...collectNftMetadataImageUsageIssues(scanContent, rel));
     issues.push(...binanceImageAnalysis.issues);
+    issues.push(...cardImageMedia.issues.map((item) => issue(item.severity, item.ruleId, item.message, item)));
     const requireRegex = /\brequire\s*\(/g;
     for (const match of scanContent.matchAll(requireRegex)) {
       if (isCopyTextMatch(match.index, match[0].length) || isReviewedAgentMatch(match.index, match[0].length)) continue;
@@ -4554,7 +4560,7 @@ function checkCode(vaultDir, manifest, i18n, manifestLocales) {
     if (item.name === "Component.tsx") {
       issues.push(...collectMultipleOutputObjectReadIssues(content, rel, abiFunctionOutputCounts));
       issues.push(...collectTxButtonStateIssues(content, rel));
-      if (requiresRiskStatus && hasComponentRiskStatusIntegration && !hasProminentRiskStatusPlacement(scanContent)) {
+      if (requiresRiskStatus && hasComponentRiskStatusIntegration && !hasProminentRiskStatusPlacement(scanContent, cardImageMedia.imageTagStarts)) {
         issues.push(
           issue(
             BLOCKING,

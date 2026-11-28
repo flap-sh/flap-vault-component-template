@@ -14,6 +14,7 @@ export * from "./IpfsImage";
 export * from "./IpfsText";
 export * from "./NftMetadataImage";
 export * from "./Metric";
+export * from "./CardImage";
 export * from "./ReviewedFrame";
 export * from "./StatusBadge";
 export * from "./TxButton";

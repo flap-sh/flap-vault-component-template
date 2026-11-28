@@ -1,4 +1,5 @@
 import { isFsiQueryUrl } from "../src/sdk/fsiPolicy.mjs";
+import { normalizeCardImageUrl } from "../src/ui/cardImageUrl.mjs";
 import { getBinanceTokenMarketQueryEndpoint } from "./binance-endpoint-policy.mjs";
 import { isDeclaredUrl } from "./endpoint-declarations.mjs";
 
@@ -20,11 +21,12 @@ function isIpfsReadUrl(rawUrl, url) {
     segments.every((part) => part !== "." && part !== ".." && IPFS_PATH_SEGMENT.test(part));
 }
 
-export function isAllowedExternalRead(request, url, declaredFetchUrls) {
+export function isAllowedExternalRead(request, url, declaredFetchUrls, { allowCardImageMedia = false } = {}) {
   if (request.method() !== "GET" || request.redirectedFrom()) return false;
   const type = request.resourceType();
   const rawUrl = request.url();
   if (type === "fetch") {
+    if (allowCardImageMedia && normalizeCardImageUrl(rawUrl) === rawUrl) return true;
     if (isFsiQueryUrl(rawUrl) && isDeclaredUrl(rawUrl, declaredFetchUrls)) return true;
     const binanceEndpoint = getBinanceTokenMarketQueryEndpoint(rawUrl);
     if (binanceEndpoint && declaredFetchUrls.has(binanceEndpoint)) return true;
