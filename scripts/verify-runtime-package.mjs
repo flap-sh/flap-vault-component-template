@@ -255,6 +255,9 @@ async function main() {
   for (const term of [...binanceMethods.map((method) => method + "("), "sdkFeatures.binanceTokenDynamicInfo", "sdkFeatures.binanceTokenMarketData"]) {
     if (!readme.includes(term)) throw new Error(`The published README must document ${term}.`);
   }
+  for (const term of ["CardImage", "useCardImageBitmap(", "uiFeatures.cardImageMedia"]) {
+    if (!readme.includes(term)) throw new Error(`The published README must document ${term}.`);
+  }
   if ("writeCopyText" in uiModule) throw new Error("Clipboard writes must remain private to CopyButton.");
   // Render the packed component/provider, not just their source exports. This also
   // catches an incorrect JSX transform that would require global React at runtime.

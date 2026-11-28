@@ -156,6 +156,17 @@ Package version: \`${packageIdentity.version}\`. Source commit: \`${gitHead}\`.
 
 See \`runtime-contract.json\` for the machine-readable subpath contract.
 
+## Controlled card images
+
+Use \`CardImage\` from \`./ui\` to render an approved artwork URL with an
+optional fallback. For packages declaring \`three-r3f-v1\`,
+\`useCardImageBitmap(imageUrl)\` returns a decoded bitmap for a Three texture
+or \`null\` while the image is loading or unavailable. Dispose the texture
+after use. The runtime releases the bitmap when the source changes or the component unmounts.
+
+Both exports restrict downloads to the approved HTTPS image directory and bound
+the response size. Runtime support is advertised by \`uiFeatures.cardImageMedia = 1\`.
+
 ## Mini App subroutes
 
 Standalone Mini Apps use \`useMiniAppRouter()\` from \`./sdk\`. It returns
